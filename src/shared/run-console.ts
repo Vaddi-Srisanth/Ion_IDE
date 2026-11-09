@@ -24,6 +24,7 @@ export type RunUpdate =
 export type RunConsoleEvent = RunUpdate | { kind: 'complete' }
 
 export interface RunConsoleBridge {
+  projectInputs(path: string): Promise<{ manifest: string; paths: string[] } | null>
   start(id: string, path: string, learn: boolean, expectedRevision?: string): Promise<RunResult>
   input(id: string, data: string): Promise<void>
   resize(id: string, cols: number, rows: number): Promise<void>

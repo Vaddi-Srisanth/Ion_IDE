@@ -1,0 +1,280 @@
+{
+  "schema": 2,
+  "id": "xml",
+  "name": "XML",
+  "summary": "Learn to read and write well-formed XML documents, escape text, use namespaces, and query a local tree.",
+  "version": 1,
+  "metadata": {
+    "kind": "markup",
+    "categories": [
+      "web",
+      "automation",
+      "data"
+    ],
+    "languageVersion": "XML 1.0, Fifth Edition",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "A local XML parser such as xmllint or Python ElementTree is useful for the exercises."
+    ],
+    "miniProject": "Build a small library exchange document. Use one namespaced catalog root and book elements with IDs and titles. Write a local reader that checks for missing IDs and handles escaped text. Keep the format independent of remote resources.",
+    "references": [
+      {
+        "title": "W3C XML 1.0, Fifth Edition",
+        "url": "https://www.w3.org/TR/xml/"
+      },
+      {
+        "title": "W3C Namespaces in XML 1.0",
+        "url": "https://www.w3.org/TR/xml-names/"
+      },
+      {
+        "title": "Python 3.11 ElementTree XPath support",
+        "url": "https://docs.python.org/3.11/library/xml.etree.elementtree.html#xpath-support"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "well-formed",
+      "title": "Build a well-formed document tree",
+      "section": "Syntax",
+      "explanation": "An XML document has one document element. Opening and closing element names must agree, and nested elements close in the reverse order from which they opened. XML names are case-sensitive. An empty element can use a single self-closing tag.",
+      "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<catalog>\n  <book>\n    <title>Study notes</title>\n    <available/>\n  </book>\n</catalog>",
+      "api": [
+        {
+          "name": "document element",
+          "description": "The single root element of the XML document."
+        },
+        {
+          "name": "<available/>",
+          "description": "Write an empty element."
+        }
+      ],
+      "practice": "Add a second book with a title. Parse the resulting document locally.",
+      "pitfall": "Closing a parent before its child produces a malformed document even if every element name appears twice.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "root",
+        "nested",
+        "closing",
+        "element",
+        "parse",
+        "well-formed"
+      ],
+      "exampleFile": "catalog.xml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "One catalog root contains two book elements with separate titles.",
+        "completion": "Change one closing tag’s case and observe the parse error, then restore it."
+      },
+      "references": [
+        {
+          "title": "W3C XML 1.0, Fifth Edition",
+          "url": "https://www.w3.org/TR/xml/"
+        }
+      ],
+      "related": [
+        "text-and-attributes",
+        "namespaces"
+      ]
+    },
+    {
+      "id": "text-and-attributes",
+      "title": "Separate attribute values from escaped text",
+      "section": "Syntax",
+      "explanation": "Use attributes for short metadata such as an identifier, and elements for structured content. Attribute values use matching quotation marks. A literal ampersand in text is written as &amp; and a literal less-than sign as &lt; when they are meant as data.",
+      "example": "<catalog>\n  <book id=\"b1\" category=\"logic\">\n    <title>Proof &amp; Practice</title>\n    <description>For learners at level &lt; 5.</description>\n  </book>\n</catalog>",
+      "api": [
+        {
+          "name": "id=\"b1\"",
+          "description": "Attach a named attribute to the element."
+        },
+        {
+          "name": "&amp;",
+          "description": "Represent one literal ampersand in decoded character data."
+        }
+      ],
+      "practice": "Add a book title that includes an ampersand, then inspect the decoded text.",
+      "pitfall": "Do not confuse escaped XML source with the text delivered by the parser.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "well-formed"
+      ],
+      "keywords": [
+        "attribute",
+        "entities",
+        "escaping",
+        "ampersand",
+        "text",
+        "amp"
+      ],
+      "exampleFile": "catalog.xml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The parsed title includes an ampersand without the characters amp or a semicolon.",
+        "completion": "Compare the raw file with the parsed text and check a value containing a less-than sign."
+      },
+      "references": [
+        {
+          "title": "W3C XML 1.0, Fifth Edition",
+          "url": "https://www.w3.org/TR/xml/"
+        }
+      ],
+      "related": [
+        "well-formed",
+        "namespaces",
+        "validate-catalog"
+      ]
+    },
+    {
+      "id": "namespaces",
+      "title": "Use namespace names to keep vocabularies distinct",
+      "section": "Core",
+      "explanation": "A namespace distinguishes names used by different vocabularies. A prefixed name combines the namespace URI bound to its prefix with the local name. The same URI can be bound to different prefixes. A default namespace applies to unprefixed element names, and does not apply to unprefixed attributes.",
+      "example": "<study:catalog xmlns:study=\"urn:ion:study\" xmlns:meta=\"urn:ion:meta\">\n  <study:book id=\"b1\">\n    <study:title>Arrays</study:title>\n    <meta:title>Internal label</meta:title>\n  </study:book>\n</study:catalog>",
+      "api": [
+        {
+          "name": "xmlns:study",
+          "description": "Bind the prefix study to a namespace URI in scope."
+        },
+        {
+          "name": "study:title",
+          "description": "Name a title element in the vocabulary associated with study."
+        }
+      ],
+      "practice": "Change the prefix study to books in the declarations and element names without changing the URI.",
+      "pitfall": "Treat the namespace URI as an identifier. Parsing this document does not require fetching a resource from that URI.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "well-formed",
+        "text-and-attributes"
+      ],
+      "keywords": [
+        "xmlns",
+        "prefix",
+        "expanded",
+        "name",
+        "local",
+        "namespace",
+        "urn"
+      ],
+      "exampleFile": "catalog.xml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "A namespace-aware parser reports the same expanded names before and after the change.",
+        "completion": "Verify that the two title elements remain distinct even though both local names are title."
+      },
+      "references": [
+        {
+          "title": "W3C Namespaces in XML 1.0",
+          "url": "https://www.w3.org/TR/xml-names/"
+        }
+      ],
+      "related": [
+        "well-formed",
+        "text-and-attributes",
+        "tree-queries"
+      ]
+    },
+    {
+      "id": "tree-queries",
+      "title": "Find elements relative to a document root",
+      "section": "Core",
+      "explanation": "A parsed tree exposes elements, attributes, and text separately. In Python ElementTree, root.findall(\"./book/title\") returns matching title children through book children of root. When the document uses a namespace, map its URI to a prefix and use that prefix in the lookup.",
+      "example": "<catalog>\n  <book id=\"b1\"><title>Arrays</title></book>\n  <book id=\"b2\"><title>Loops</title></book>\n  <notes><title>Editor notes</title></notes>\n</catalog>",
+      "api": [
+        {
+          "name": "ElementTree.fromstring(text)",
+          "description": "Parse XML text into an element tree root."
+        },
+        {
+          "name": "element.findall(\"./book/title\")",
+          "description": "Find titles directly inside the root’s book children."
+        }
+      ],
+      "practice": "Extract only book titles and retain the same output when unrelated notes are added.",
+      "pitfall": "Searching for every descendant title would include the notes title. Choose a path that matches the document’s intended shape.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "namespaces"
+      ],
+      "keywords": [
+        "tree",
+        "ElementTree",
+        "findall",
+        "child",
+        "path",
+        "XPath",
+        "namespace"
+      ],
+      "exampleFile": "catalog.xml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The result contains Arrays and Loops in document order and excludes Editor notes.",
+        "completion": "Add another book and confirm that only its title extends the result."
+      },
+      "references": [
+        {
+          "title": "Python 3.11 ElementTree XPath support",
+          "url": "https://docs.python.org/3.11/library/xml.etree.elementtree.html#xpath-support"
+        }
+      ],
+      "related": [
+        "namespaces",
+        "validate-catalog"
+      ]
+    },
+    {
+      "id": "validate-catalog",
+      "title": "Validate a small exchange document",
+      "section": "Projects",
+      "explanation": "Well-formed XML can still violate a data contract. An attribute called id has no automatic uniqueness guarantee in this simple document. Validate required elements and uniqueness in the reader or apply a separately defined schema.",
+      "example": "<catalog version=\"1\">\n  <book id=\"b1\"><title>Arrays</title><minutes>25</minutes></book>\n  <book id=\"b2\"><title>Loops</title><minutes>15</minutes></book>\n</catalog>",
+      "api": [
+        {
+          "name": "element.get(\"id\")",
+          "description": "In ElementTree, read an attribute or receive a default when it is absent."
+        },
+        {
+          "name": "application validation",
+          "description": "Check required fields and business rules after parsing."
+        }
+      ],
+      "practice": "Read the books and report a missing or repeated ID, a blank title, or a nonnumeric duration.",
+      "pitfall": "The minutes element contains text until the application converts and validates it as a number.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "text-and-attributes",
+        "tree-queries"
+      ],
+      "keywords": [
+        "validation",
+        "unique",
+        "attributes",
+        "required",
+        "schema",
+        "exchange"
+      ],
+      "exampleFile": "catalog.xml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "A valid catalog produces the ordered list of two book records.",
+        "completion": "Check a duplicate ID and a missing duration in separate modified copies."
+      },
+      "references": [
+        {
+          "title": "Python 3.11 ElementTree XPath support",
+          "url": "https://docs.python.org/3.11/library/xml.etree.elementtree.html#xpath-support"
+        }
+      ],
+      "related": [
+        "text-and-attributes",
+        "tree-queries"
+      ]
+    }
+  ]
+}

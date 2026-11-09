@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { lstat, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -19,6 +20,8 @@ const uninstaller = join(installDir, 'Uninstall.exe')
 const shortcut = join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Ion IDE.lnk')
 const profile = join(process.env.APPDATA, 'Ion IDE')
 const prefs = join(profile, 'preferences.json')
+const openWith = 'HKCU\\Software\\Classes\\Applications\\Ion IDE.exe'
+const priorSetup = process.env.ION_PREVIOUS_WINDOWS_INSTALLER
 const present = (path) => lstat(path).then(() => true, (error) => {
   if (error.code === 'ENOENT') return false
   throw error
@@ -29,9 +32,22 @@ for (const path of [installDir, shortcut, profile]) {
 }
 const quiet = { windowsHide: true, timeout: 120_000 }
 
+async function registered(path, args = []) {
+  return (await run('reg.exe', ['query', path, ...args], quiet)).stdout
+}
+
+async function fileVersion(path) {
+  const { stdout } = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    '(Get-Item -LiteralPath $env:ION_VERSION_FILE).VersionInfo.ProductVersion'], {
+    ...quiet, env: { ...process.env, ION_VERSION_FILE: path },
+  })
+  return stdout.trim()
+}
+
 await withScratch('windows-release', async (scratch) => {
   const project = join(scratch, 'Release test workspace')
   const source = join(project, 'verify.txt')
+  const associated = join(project, 'Open With café.java')
   const original = 'Windows setup search marker'
   const edited = 'Saved by the installed Windows editor'
   const userFile = join(installDir, 'App', 'uninstall-preservation-test.txt')
@@ -44,17 +60,36 @@ await withScratch('windows-release', async (scratch) => {
     await mkdir(profile)
     profileOwned = true
     await writeFile(source, original)
+    await writeFile(associated, '// Native file-open marker')
     await writeFile(prefs, JSON.stringify({
       version: 1,
       settings: { autoSave: false, openFullScreen: false },
       recents: [{ path: project, name: 'Release test workspace', kind: 'folder', lastOpened: 1 }],
     }))
 
+    if (priorSetup) {
+      const priorHash = createHash('sha256').update(await readFile(priorSetup)).digest('hex')
+      assert.equal(priorHash, '51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd')
+      await run(resolve(priorSetup), ['/S'], quiet)
+      assert.match(await fileVersion(app), /^0\.9\.4(?:\.0)?$/)
+      await writeFile(userFile, 'preserve unowned files')
+    }
     await run(setup, ['/S'], quiet)
     assert.equal(await present(app), true, 'installed executable exists')
     assert.equal(await present(shortcut), true, 'Start menu shortcut exists')
+    assert.ok([release.version, release.version + '.0'].includes(await fileVersion(app)))
+    assert.equal(await fileVersion(setup), release.version)
+    assert.equal((await registered(openWith + '\\shell\\open\\command', ['/ve'])).includes(`"${app}" "%1"`), true)
+    assert.match(await registered(openWith + '\\SupportedTypes'), /\.java\s+REG_SZ/)
+    assert.match(await registered(openWith + '\\SupportedTypes'), /\.ipynb\s+REG_SZ/)
+    if (priorSetup) {
+      assert.equal(await readFile(userFile, 'utf8'), 'preserve unowned files')
+      assert.equal(JSON.parse(await readFile(prefs, 'utf8')).settings.autoSave, false)
+      console.log(`PASS verified public 0.9.4 installer upgraded to ${release.version}, preserving the profile and unowned files.`)
+    }
     const search = join(installDir, 'App', 'resources', 'ion-rg.exe')
     assert.match((await run(search, ['--version'], quiet)).stdout, /ripgrep/)
+    assert.equal(await present(join(installDir, 'App', 'resources', 'ion-pty.exe')), true, 'Windows installer includes its PTY helper')
 
     child = spawn(app, ['--remote-debugging-port=0'], { stdio: ['ignore', 'ignore', 'pipe'] })
     let diagnostic = ''
@@ -79,12 +114,18 @@ await withScratch('windows-release', async (scratch) => {
     const preferences = page.getByRole('dialog', { name: 'Preferences' })
     const updateOptIn = preferences.getByRole('checkbox', { name: /^Check for updates on launch/ })
     assert.equal(await updateOptIn.isChecked(), false, 'network checks start disabled')
-    await updateOptIn.check()
-    await eventually(async () => JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch === true,
-      'Update opt-in was not saved.')
-    await updateOptIn.uncheck()
-    await eventually(async () => JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch === false,
-      'Update opt-out was not saved.')
+    const saveUpdateConsent = async (enabled) => {
+      await updateOptIn.click()
+      await eventually(async () => {
+        const error = await preferences.getByRole('alert').filter({ hasText: 'Could not save the update preference' }).first()
+          .textContent({ timeout: 100 }).catch(() => null)
+        if (error) throw new Error(error)
+        return await updateOptIn.isEnabled() && await updateOptIn.isChecked() === enabled
+      }, `The update checkbox did not acknowledge the saved preference (${enabled}).`)
+      assert.equal(JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch, enabled)
+    }
+    await saveUpdateConsent(true)
+    await saveUpdateConsent(false)
     await preferences.getByRole('button', { name: 'Done', exact: true }).click()
     await page.locator('.recent-entry').filter({ hasText: 'Release test workspace' }).click()
     await page.getByRole('button', { name: 'Search in Files', exact: true }).click()
@@ -101,6 +142,9 @@ await withScratch('windows-release', async (scratch) => {
     await page.getByTestId('close-tab').click()
     await page.getByTestId('explorer-entry').filter({ hasText: 'verify.txt' }).click()
     await (await editorShows(page, edited)).dispose()
+    await run(app, [associated], quiet)
+    await (await editorShows(page, 'Native file-open marker')).dispose()
+    console.log('PASS registered per-user Open With command and existing-instance Unicode file open.')
     console.log('PASS silent install, Start menu shortcut, bundled search, offline open/edit/save/reopen, and update opt-in.')
 
     const exited = once(child, 'exit')
@@ -115,6 +159,7 @@ await withScratch('windows-release', async (scratch) => {
     assert.equal(await readFile(source, 'utf8'), edited, 'uninstall preserved the saved source file')
     assert.equal(await readFile(userFile, 'utf8'), 'preserve unowned files')
     assert.equal(JSON.parse(await readFile(prefs, 'utf8')).settings.autoSave, false)
+    await assert.rejects(registered(openWith), { code: 1 })
     await rm(userFile)
     await rmdir(join(installDir, 'App'))
     await rmdir(installDir)

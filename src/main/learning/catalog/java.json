@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "java",
   "name": "Java",
   "summary": "Learn Java program structure, classes, collections, exceptions, streams, and file APIs.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "entry",
@@ -26,7 +26,27 @@
         }
       ],
       "practice": "Add a second item and print the combined total.",
-      "pitfall": "When comparing String contents, use equals. The == operator tests reference identity for objects."
+      "pitfall": "When comparing String contents, use equals. The == operator tests reference identity for objects.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "main",
+        "primitive",
+        "references",
+        "print",
+        "javac"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "Notebook total: 8.25",
+      "exercise": {
+        "expected": "Print a combined total for two items.",
+        "completion": "Changing either quantity updates the combined total."
+      },
+      "related": [
+        "flow",
+        "exact-decimals"
+      ]
     },
     {
       "id": "flow",
@@ -48,8 +68,46 @@
           "description": "Exit a loop or skip the remainder of its current iteration."
         }
       ],
-      "practice": "Find the largest element in a nonempty array. Test with all-negative input.",
-      "pitfall": "The last valid array index is length minus one."
+      "practice": "Read a positive integer N and then N integers from stdin. Whitespace separates the values.",
+      "pitfall": "The last valid array index is length minus one.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "entry"
+      ],
+      "keywords": [
+        "array",
+        "for",
+        "each",
+        "loop",
+        "index",
+        "if"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "2",
+      "exercise": {
+        "expected": "Print the largest of the N integers as one line.",
+        "completion": "Check all-negative values, a single item, and a repeated maximum.",
+        "samples": [
+          {
+            "input": "3\n-7 -2 -9\n",
+            "expectedOutput": "-2\n"
+          },
+          {
+            "input": "1\n0\n",
+            "expectedOutput": "0\n"
+          },
+          {
+            "input": "5\n2 7 4 7 3\n",
+            "expectedOutput": "7\n"
+          }
+        ]
+      },
+      "related": [
+        "entry",
+        "classes",
+        "collections"
+      ]
     },
     {
       "id": "classes",
@@ -72,7 +130,31 @@
         }
       ],
       "practice": "Add another class implementing Described. Store both implementations in a Described array and print each label.",
-      "pitfall": "A static method has no this reference. Pass an instance when it needs instance state."
+      "pitfall": "A static method has no this reference. Pass an instance when it needs instance state.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "class",
+        "interface",
+        "constructor",
+        "method",
+        "override"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "Item: Lamp",
+      "exercise": {
+        "expected": "Implement two types that both implement the Described interface.",
+        "completion": "A caller working only with Described prints both labels without a type check."
+      },
+      "related": [
+        "flow",
+        "exceptions",
+        "method-contracts",
+        "generic-methods"
+      ]
     },
     {
       "id": "collections",
@@ -99,7 +181,31 @@
         }
       ],
       "practice": "Count the frequency of three words and print the count for a missing word.",
-      "pitfall": "List.of creates an unmodifiable list. Use an ArrayList when you need to add or remove entries."
+      "pitfall": "List.of creates an unmodifiable list. Use an ArrayList when you need to add or remove entries.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "list",
+        "map",
+        "set",
+        "merge",
+        "generics"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "2",
+      "exercise": {
+        "expected": "Count duplicate names and look up missing names safely.",
+        "completion": "An absent key returns zero and existing counts stay intact."
+      },
+      "related": [
+        "flow",
+        "streams",
+        "generic-methods",
+        "comparator-order"
+      ]
     },
     {
       "id": "exceptions",
@@ -122,7 +228,29 @@
         }
       ],
       "practice": "Change the line to a word and confirm that your numeric conversion fails gracefully.",
-      "pitfall": "Avoid empty catch blocks. They hide information the caller or developer needs."
+      "pitfall": "Avoid empty catch blocks. They hide information the caller or developer needs.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "classes"
+      ],
+      "keywords": [
+        "checked",
+        "unchecked",
+        "try",
+        "resources",
+        "catch"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "42",
+      "exercise": {
+        "expected": "Convert text to integers and handle invalid text without crashing the app.",
+        "completion": "Valid text returns an int and invalid text reports a useful error."
+      },
+      "related": [
+        "classes",
+        "files-time"
+      ]
     },
     {
       "id": "streams",
@@ -149,7 +277,28 @@
         }
       ],
       "practice": "Find the first label of length four and display a fallback if it is missing. Use Java 16 or newer for Stream.toList.",
-      "pitfall": "A stream cannot be reused after its terminal operation. Create another stream from the source."
+      "pitfall": "A stream cannot be reused after its terminal operation. Create another stream from the source.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "stream",
+        "lambda",
+        "optional",
+        "filter",
+        "map"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "[3, 3, 4]",
+      "exercise": {
+        "expected": "Filter labels by minimum length and report a list of resulting lengths.",
+        "completion": "Vary the threshold and verify the pipeline handles an empty result."
+      },
+      "related": [
+        "collections"
+      ]
     },
     {
       "id": "files-time",
@@ -172,7 +321,446 @@
         }
       ],
       "practice": "Write a date one month later, then read the date back. Use Java 11 or newer for the file methods.",
-      "pitfall": "LocalDate has no timezone or time of day. Use an Instant or a suitable zoned type when you need a moment on the timeline."
+      "pitfall": "LocalDate has no timezone or time of day. Use an Instant or a suitable zoned type when you need a moment on the timeline.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "exceptions"
+      ],
+      "keywords": [
+        "path",
+        "files",
+        "localdate",
+        "utf8",
+        "temporary"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "2026-11-16",
+      "exercise": {
+        "expected": "Round-trip a LocalDate through a temporary UTF-8 file.",
+        "completion": "Use a date that crosses a month boundary and remove the file after the round trip."
+      },
+      "related": [
+        "exceptions"
+      ]
+    },
+    {
+      "id": "method-contracts",
+      "title": "Method boundaries and argument checks",
+      "section": "Core",
+      "explanation": "A method contract describes what inputs it accepts and what result it returns. Check the conditions that the method needs before computing a result. IllegalArgumentException is useful for a caller that passes a value outside the contract.",
+      "example": "public class Main {\n    static int remaining(int target, int completed) {\n        if (target < 0 || completed < 0 || completed > target) {\n            throw new IllegalArgumentException(\"invalid progress\");\n        }\n        return target - completed;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(remaining(9, 4));\n    }\n}",
+      "api": [
+        {
+          "name": "static method",
+          "description": "Call a class-level method without constructing an instance."
+        },
+        {
+          "name": "IllegalArgumentException",
+          "description": "Signal that an argument violates the method contract."
+        }
+      ],
+      "practice": "Write a method that computes a completion percentage for a positive target.",
+      "pitfall": "A valid int value can still violate a domain rule. The compiler checks the type, not the application’s progress limits.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "classes"
+      ],
+      "keywords": [
+        "static",
+        "method",
+        "arguments",
+        "precondition",
+        "range"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "5",
+      "exercise": {
+        "expected": "Return 0 and 100 at the endpoints and reject impossible progress.",
+        "completion": "Try negative, zero target, half complete, and all complete."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/"
+        }
+      ],
+      "related": [
+        "classes",
+        "records-enums",
+        "pattern-validation",
+        "exact-decimals"
+      ]
+    },
+    {
+      "id": "generic-methods",
+      "title": "Share a generic algorithm across types",
+      "section": "Core",
+      "explanation": "A generic method declares its type parameters before its return type. Here, the same operation reads the first element of a List<T>. The result type follows the element type, so the caller needs no unchecked cast.",
+      "example": "import java.util.List;\n\npublic class Main {\n    static <T> T first(List<T> values) {\n        if (values.isEmpty()) {\n            throw new IllegalArgumentException(\"values must be nonempty\");\n        }\n        return values.get(0);\n    }\n\n    public static void main(String[] args) {\n        String label = first(List.of(\"Algebra\", \"History\"));\n        int score = first(List.of(8, 9));\n        System.out.println(label + \": \" + score);\n    }\n}",
+      "api": [
+        {
+          "name": "<T>",
+          "description": "Declare the element type parameter for this method."
+        },
+        {
+          "name": "List<T>",
+          "description": "Accept a list whose elements have type T."
+        }
+      ],
+      "practice": "Return an Optional<T> from a generic first-element method so an empty list is a normal case.",
+      "pitfall": "Generic type arguments are reference types. List<Integer> uses Integer values, which Java can unbox to int.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections",
+        "classes"
+      ],
+      "keywords": [
+        "generic",
+        "type",
+        "parameter",
+        "list",
+        "inference"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "Algebra: 8",
+      "exercise": {
+        "expected": "Read a string or integer when the list has elements, and return empty when it has none.",
+        "completion": "Test with an empty typed list and with two different element types."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/"
+        }
+      ],
+      "related": [
+        "collections",
+        "classes"
+      ]
+    },
+    {
+      "id": "records-enums",
+      "title": "Model task data with records and enums",
+      "section": "Core",
+      "explanation": "A record declares named components and supplies accessors, equality, hashCode, and a readable representation. A compact constructor can validate the component values before they are assigned. An enum restricts a status to a fixed collection of named values.",
+      "example": "public class Main {\n    enum Status { TODO, DONE }\n\n    record Task(String title, Status status) {\n        Task {\n            if (title == null || title.isBlank() || status == null) {\n                throw new IllegalArgumentException(\"invalid task\");\n            }\n        }\n    }\n\n    public static void main(String[] args) {\n        var task = new Task(\"Review arrays\", Status.DONE);\n        System.out.println(task.title() + \" [\" + task.status() + \"]\");\n    }\n}",
+      "api": [
+        {
+          "name": "record",
+          "description": "Declare a transparent data carrier with final component fields."
+        },
+        {
+          "name": "enum",
+          "description": "Define a fixed set of named values of one type."
+        }
+      ],
+      "practice": "Add an estimated-minutes component and enforce a positive duration.",
+      "pitfall": "Record fields are final, but mutable objects stored in them can still change. Copy mutable components when callers must not be able to mutate the record’s state.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "classes",
+        "method-contracts"
+      ],
+      "keywords": [
+        "record",
+        "enum",
+        "constructor",
+        "immutable",
+        "accessor",
+        "domain"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "Review arrays [DONE]",
+      "exercise": {
+        "expected": "The model accepts valid tasks and rejects blank titles or invalid durations.",
+        "completion": "Check a valid task, a blank title, a missing status, and a zero-minute duration."
+      },
+      "references": [
+        {
+          "title": "Java Language Specification, enum and record classes",
+          "url": "https://docs.oracle.com/javase/specs/jls/se17/html/jls-8.html"
+        }
+      ],
+      "related": [
+        "classes",
+        "method-contracts",
+        "comparator-order",
+        "testable-reports"
+      ]
+    },
+    {
+      "id": "comparator-order",
+      "title": "Sort records by multiple keys",
+      "section": "Standard library",
+      "explanation": "A Comparator defines a reusable order. Compare the primary key first, then a secondary key when the primary keys compare equally. comparingInt avoids boxing an integer key. Sorting a new ArrayList leaves the input collection’s ordering untouched.",
+      "example": "import java.util.ArrayList;\nimport java.util.Comparator;\nimport java.util.List;\n\npublic class Main {\n    record Task(int priority, String name) {}\n\n    public static void main(String[] args) {\n        var tasks = new ArrayList<>(List.of(\n            new Task(2, \"Read\"), new Task(1, \"Write\"), new Task(1, \"Build\")));\n        tasks.sort(Comparator.comparingInt(Task::priority).thenComparing(Task::name));\n        for (Task task : tasks) System.out.println(task.name());\n    }\n}",
+      "api": [
+        {
+          "name": "Comparator.comparingInt()",
+          "description": "Create a comparator from an int-valued key extractor."
+        },
+        {
+          "name": "thenComparing()",
+          "description": "Apply a secondary comparison when the previous comparison returns zero."
+        }
+      ],
+      "practice": "Sort tasks by descending priority and ascending title.",
+      "pitfall": "Subtracting integer keys to compare them may overflow. Use comparingInt or Integer.compare.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "records-enums",
+        "collections"
+      ],
+      "keywords": [
+        "comparator",
+        "comparing",
+        "thenComparing",
+        "sorted",
+        "tie"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "Build\nWrite\nRead",
+      "exercise": {
+        "expected": "Reversing priority leaves the title tie-breaker ascending.",
+        "completion": "Check negative and positive priorities and two equal-priority tasks."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 Comparator API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Comparator.html"
+        }
+      ],
+      "related": [
+        "records-enums",
+        "collections",
+        "testable-reports"
+      ]
+    },
+    {
+      "id": "pattern-validation",
+      "title": "Validate identifiers with regular expressions",
+      "section": "Standard library",
+      "explanation": "Compile a Pattern once when its expression is reused. Matcher.matches checks whether the entire input matches. Matcher.find locates the next matching subsequence, which has different behavior for validation.",
+      "example": "import java.util.regex.Pattern;\n\npublic class Main {\n    private static final Pattern CODE = Pattern.compile(\"[A-Z]{2}-[0-9]{3}\");\n\n    public static void main(String[] args) {\n        System.out.println(CODE.matcher(\"CS-101\").matches());\n        System.out.println(CODE.matcher(\"ID: CS-101\").matches());\n    }\n}",
+      "api": [
+        {
+          "name": "Pattern.compile()",
+          "description": "Compile a regular expression."
+        },
+        {
+          "name": "Matcher.matches()",
+          "description": "Test whether the complete input region matches the pattern."
+        }
+      ],
+      "practice": "Validate a room code consisting of one uppercase letter, a hyphen, and two digits.",
+      "pitfall": "In a Java string, a backslash needed by a regex usually must be escaped again. A literal digit class such as [0-9] avoids that extra layer.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "method-contracts"
+      ],
+      "keywords": [
+        "Pattern",
+        "Matcher",
+        "matches",
+        "find",
+        "regex",
+        "validation"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "true\nfalse",
+      "exercise": {
+        "expected": "Accept only complete codes with the expected shape.",
+        "completion": "Check an exact code, lowercase text, a missing separator, and text with a valid code embedded in it."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 Pattern API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html"
+        }
+      ],
+      "related": [
+        "method-contracts"
+      ]
+    },
+    {
+      "id": "collection-copies",
+      "title": "Publish snapshots without exposing mutable lists",
+      "section": "Standard library",
+      "explanation": "List.copyOf creates an unmodifiable list with the source elements in iteration order. Editing a mutable source list afterward does not change the snapshot. This is a shallow operation, so mutable elements would still be shared.",
+      "example": "import java.util.ArrayList;\nimport java.util.List;\n\npublic class Main {\n    public static void main(String[] args) {\n        var current = new ArrayList<>(List.of(\"draft\"));\n        List<String> snapshot = List.copyOf(current);\n        current.add(\"review\");\n        System.out.println(snapshot);\n        System.out.println(current);\n    }\n}",
+      "api": [
+        {
+          "name": "List.copyOf()",
+          "description": "Make an unmodifiable list from a collection of non-null elements."
+        },
+        {
+          "name": "new ArrayList<>(source)",
+          "description": "Create a mutable copy of the source list structure."
+        }
+      ],
+      "practice": "Take an unmodifiable snapshot of a checklist and then append an item to the live list.",
+      "pitfall": "Do not confuse a live unmodifiable wrapper with a snapshot. A wrapper can reflect later changes made through the original list.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections",
+        "classes"
+      ],
+      "keywords": [
+        "list",
+        "copy",
+        "snapshot",
+        "immutable",
+        "unmodifiable",
+        "shallow"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "[draft]\n[draft, review]",
+      "exercise": {
+        "expected": "The live list gains one item and the snapshot stays unchanged.",
+        "completion": "Include an empty starting list, and demonstrate that adding to the snapshot is rejected."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 List API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html"
+        }
+      ],
+      "related": [
+        "collections",
+        "classes"
+      ]
+    },
+    {
+      "id": "exact-decimals",
+      "title": "Use BigDecimal for decimal amounts",
+      "section": "Standard library",
+      "explanation": "BigDecimal built from text represents the decimal written in that text. Arithmetic on amounts stays decimal, and an explicit rounding mode makes a business rule visible. When scale is irrelevant, compare magnitudes with compareTo because equals also checks scale.",
+      "example": "import java.math.BigDecimal;\nimport java.math.RoundingMode;\n\npublic class Main {\n    public static void main(String[] args) {\n        var unit = new BigDecimal(\"0.19\");\n        var total = unit.multiply(new BigDecimal(\"3\"));\n        System.out.println(total.setScale(2, RoundingMode.HALF_UP));\n    }\n}",
+      "api": [
+        {
+          "name": "new BigDecimal(String)",
+          "description": "Parse the specified decimal text exactly."
+        },
+        {
+          "name": "setScale()",
+          "description": "Set a requested scale, applying the selected rounding mode if needed."
+        }
+      ],
+      "practice": "Write a method to calculate a line total and round the result according to a named rule.",
+      "pitfall": "Constructing BigDecimal directly from a double captures the binary floating-point approximation. Use textual input for exact decimal values.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "entry",
+        "method-contracts"
+      ],
+      "keywords": [
+        "BigDecimal",
+        "decimal",
+        "precision",
+        "rounding",
+        "money"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "0.57",
+      "exercise": {
+        "expected": "The method rounds the final total to two decimal places.",
+        "completion": "Test a result already at two places and a result that needs rounding at a tie."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 BigDecimal API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/math/BigDecimal.html"
+        }
+      ],
+      "related": [
+        "entry",
+        "method-contracts"
+      ]
+    },
+    {
+      "id": "testable-reports",
+      "title": "Separate reporting rules from console I/O",
+      "section": "Projects",
+      "explanation": "A reporting method is easier to test when it accepts data and returns a result. Keep printing outside the method. Grouping counts by a known enum makes absent categories explicit and prevents typos in status keys.",
+      "example": "import java.util.EnumMap;\nimport java.util.List;\nimport java.util.Map;\n\npublic class Main {\n    enum Status { TODO, DONE }\n\n    static Map<Status, Integer> counts(List<Status> statuses) {\n        var result = new EnumMap<Status, Integer>(Status.class);\n        for (Status status : Status.values()) result.put(status, 0);\n        for (Status status : statuses) result.merge(status, 1, Integer::sum);\n        return Map.copyOf(result);\n    }\n\n    public static void main(String[] args) {\n        var report = counts(List.of(Status.DONE, Status.TODO, Status.DONE));\n        System.out.printf(\"todo=%d done=%d%n\", report.get(Status.TODO),\n                          report.get(Status.DONE));\n    }\n}",
+      "api": [
+        {
+          "name": "EnumMap",
+          "description": "Store mappings whose keys are from one enum type."
+        },
+        {
+          "name": "Map.merge()",
+          "description": "Combine a value with the current entry for a key."
+        }
+      ],
+      "practice": "Use the counts method from a report that accepts a list of validated task records.",
+      "pitfall": "Do not rely on the iteration order of Map.copyOf. Print keys in a chosen order when tests compare text.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "records-enums",
+        "comparator-order",
+        "collections"
+      ],
+      "keywords": [
+        "pure",
+        "function",
+        "grouping",
+        "counts",
+        "regression",
+        "tests"
+      ],
+      "exampleFile": "Main.java",
+      "exampleMode": "program",
+      "expectedOutput": "todo=1 done=2",
+      "exercise": {
+        "expected": "For an empty list the report prints zero for every supported state.",
+        "completion": "Test an empty list, all tasks in one state, and tasks in mixed states."
+      },
+      "references": [
+        {
+          "title": "Java SE 17 EnumMap API",
+          "url": "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/EnumMap.html"
+        }
+      ],
+      "related": [
+        "comparator-order",
+        "collections"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "systems"
+    ],
+    "languageVersion": "Java SE 17",
+    "prerequisites": [
+      "Know how to save a source file.",
+      "Use a JDK 17 or newer. Save standalone examples as Main.java, then run javac Main.java and java Main."
+    ],
+    "miniProject": "Build a task report. Model tasks with an enum and a record, reject blank titles, group tasks by status, and write a deterministic UTF-8 report. Test an empty list and duplicate titles.",
+    "references": [
+      {
+        "title": "Java SE 17 API",
+        "url": "https://docs.oracle.com/en/java/javase/17/docs/api/"
+      },
+      {
+        "title": "Dev.java tutorials",
+        "url": "https://dev.java/learn/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

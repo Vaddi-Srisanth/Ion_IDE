@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type ComponentType, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import type { Entry, EntryKind, MenuCommand, Settings, WorkspaceMode } from '../shared/contracts';
 import { displayShortcut } from '../shared/shortcuts';
 import type { ThemeData } from '../shared/themes';
+import type { BottomTab } from '../shared/terminal';
 import { errorMessage, type Documents, type Tab } from './documents';
 import { Explorer } from './Explorer';
 import { Icon } from './icons';
@@ -10,6 +11,9 @@ import type MonacoSurface from './MonacoSurface';
 import type { EditorActions } from './MonacoSurface';
 import { Output } from './Output';
 import type { RunConsoleStore } from './run-console/store';
+import type { TerminalController } from './terminal/controller';
+import type { TerminalPaneProps } from './terminal/TerminalPane';
+import './terminal/panel.css';
 import { languageFor } from './paths';
 import { DocumentPane } from './viewers/DocumentPane';
 import { NotebookPane } from './NotebookPane';
@@ -44,6 +48,55 @@ function EditorContent(props: ComponentProps<typeof MonacoSurface>) {
         : 'Starting editor…'}
     </div>
   );
+}
+
+function BottomTabs({ active, onSelect }: { active: BottomTab; onSelect(tab: BottomTab): void }) {
+  const tabs = [
+    { id: 'terminal', title: 'Terminal', icon: 'terminal' },
+    { id: 'run', title: 'Run Console', icon: 'play' },
+  ] as const;
+  return <div className="bottom-tabs" role="tablist" aria-label="Bottom panel">
+    {tabs.map(({ id, title, icon }) => <button key={id} className="bottom-tab" role="tab" type="button"
+      id={'bottom-tab-' + id} aria-controls={'bottom-content-' + id} aria-selected={active === id}
+      tabIndex={active === id ? 0 : -1} data-testid={id === 'run' ? 'bottom-run-tab' : 'bottom-terminal-tab'}
+      onClick={() => onSelect(id)} onKeyDown={(event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        const next = event.key === 'Home' ? 'terminal' : event.key === 'End' ? 'run' : id === 'run' ? 'terminal' : 'run';
+        event.preventDefault();
+        onSelect(next);
+        requestAnimationFrame(() => document.getElementById('bottom-tab-' + next)?.focus());
+      }}><Icon name={icon} size={13}/>{title}</button>)}
+  </div>;
+}
+
+function TerminalLoader(props: TerminalPaneProps) {
+  const [Pane, setPane] = useState<ComponentType<TerminalPaneProps> | null>(null);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let live = true;
+    void import('./terminal/TerminalPane').then(({ TerminalPane }) => {
+      if (live) setPane(() => TerminalPane);
+    }, () => {
+      if (live) setError(true);
+    });
+    return () => { live = false; };
+  }, [attempt]);
+  if (Pane) return <Pane {...props}/>;
+  return <section className="output integrated-terminal">
+    <div className="pane-title">
+      {props.tabs}
+      <div className="pane-tools"><button type="button" className="icon-button" aria-label="Hide Terminal Panel"
+        title="Hide Terminal Panel" onClick={props.onHide}><Icon name="down" size={15}/></button></div>
+    </div>
+    <div className="bottom-tab-content" role="tabpanel" id="bottom-content-terminal" aria-labelledby="bottom-tab-terminal">
+      <div className="terminal-empty">
+        {error ? <><p role="alert">The terminal could not load.</p><button type="button" className="button"
+          onClick={() => { setError(false); setAttempt((value) => value + 1); }}>Retry</button></>
+          : <p role="status">Loading terminal…</p>}
+      </div>
+    </div>
+  </section>;
 }
 
 interface SplitterProps {
@@ -125,6 +178,11 @@ export interface WorkbenchProps {
   activeTheme: ThemeData | null;
   accentColor?: string;
   runConsole: RunConsoleStore;
+  bottomTab: BottomTab;
+  terminalFocus: number;
+  terminalController: RefObject<TerminalController | null>;
+  onBottomTab(tab: BottomTab): void;
+  onToggleBottom(): void;
   canRun: boolean;
   canRerun: boolean;
   cursorRef: React.RefObject<HTMLSpanElement | null>;
@@ -158,7 +216,7 @@ export function Workbench(props: WorkbenchProps) {
   const {
     documents, hidden, mode, auxiliary, marketplace, onToggleAuxiliary, onToggleExplorer, onToggleMarketplace,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
-    runConsole, canRun, canRerun, cursorRef,
+    runConsole, bottomTab, terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
     onNew, onInsertStarter, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
     onFind, onSaveAs, onReload,
@@ -273,6 +331,7 @@ export function Workbench(props: WorkbenchProps) {
     '--explorer-width': `${settings.explorerWidth}px`,
     '--output-height': `${settings.outputHeight}px`, ...(hidden && { display: 'none' }),
   } as CSSProperties;
+  const bottomTabs = <BottomTabs active={bottomTab} onSelect={onBottomTab}/>;
   return (
     <>
       <main className="workspace" style={panelSizes} data-testid="workspace" aria-label={`${modeName} workspace`} data-mode={mode}>
@@ -284,7 +343,7 @@ export function Workbench(props: WorkbenchProps) {
           <button className="activity-button" title={hint('find', 'Find in File')} aria-label="Find in File"
             disabled={!active || active.viewer === 'pptx' || Boolean(notebook) || sourceHidden} onClick={() => onFind()}><Icon name="search" size={19}/></button>
           <button className="activity-button" title={hint('toggle-output', 'Toggle Console')} aria-label="Toggle Console"
-            aria-pressed={settings.showOutput} onClick={() => onSettings({ showOutput: !settings.showOutput })}>
+            aria-pressed={settings.showOutput} onClick={onToggleBottom}>
             <Icon name="terminal" size={20}/>
           </button>
           {mode !== 'free' && <button className="activity-button" title={hint('toggle-auxiliary', `Toggle ${modeName} panel`)}
@@ -417,13 +476,14 @@ export function Workbench(props: WorkbenchProps) {
                 onPin={toggleSplit}/>}
             </div>
           </div>
-          {settings.showOutput && <>
+          {settings.showOutput && !hidden && <>
             <Splitter label="Resize Console" vertical value={settings.outputHeight} setting="outputHeight" min={100} max={600}
               onResize={onSettings}/>
             <div className="output-frame">
-              <Output store={runConsole} canRun={canRun} canRerun={canRerun} onRun={onRun} onRerun={onRerun} onStop={onStop}
-                onInput={onRunInput} onResize={onConsoleResize}
-                onClose={() => onSettings({ showOutput: false })}/>
+              {bottomTab === 'terminal'
+                ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus} onHide={onToggleBottom}/>
+                : <Output store={runConsole} tabs={bottomTabs} canRun={canRun} canRerun={canRerun} onRun={onRun} onRerun={onRerun} onStop={onStop}
+                  onInput={onRunInput} onResize={onConsoleResize} onClose={onToggleBottom}/>}
             </div>
           </>}
         </div>

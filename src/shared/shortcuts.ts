@@ -23,7 +23,9 @@ const commands = {
   welcome: { label: 'Welcome', key: 'Mod+Shift+1' },
   'toggle-explorer': { label: 'Toggle Explorer', key: 'Mod+B' },
   'toggle-marketplace': { label: 'Toggle Learning Marketplace' },
-  'toggle-output': { label: 'Toggle Run Console', key: 'Mod+J' },
+  'toggle-output': { label: 'Toggle Bottom Panel', key: 'Mod+J' },
+  'toggle-terminal': { label: 'Toggle Terminal', key: 'Mod+Shift+J' },
+  'focus-terminal': { label: 'Focus Terminal', key: 'Mod+Alt+J' },
   'toggle-auxiliary': { label: 'Toggle Workspace Panel' },
   run: { label: 'Run Active File', key: 'F5' },
   stop: { label: 'Stop', key: 'Shift+F5' },
@@ -71,7 +73,8 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
   const entry = definitions[command]
   if (overrides[command] !== undefined) return overrides[command]
   const fallback = platform !== 'darwin' && entry.other ? entry.other : entry.key ?? ''
-  if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search')
+  if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search'
+    || command === 'toggle-terminal' || command === 'focus-terminal')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }

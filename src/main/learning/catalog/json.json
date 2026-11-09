@@ -1,0 +1,273 @@
+{
+  "schema": 2,
+  "id": "json",
+  "name": "JSON",
+  "summary": "Read, write, and validate interoperable JSON data. Learn object and array shapes, escaping, numeric precision, and safe settings imports.",
+  "version": 1,
+  "metadata": {
+    "kind": "data-format",
+    "categories": [
+      "web",
+      "automation",
+      "data"
+    ],
+    "languageVersion": "RFC 8259",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "A local JSON parser such as JSON.parse in Node.js is useful for the exercises."
+    ],
+    "miniProject": "Design a study-list export. Store a version and ordered entries, then write an importer that validates each required field. Try an unsupported version, a missing title, a malformed file, and a valid empty list.",
+    "references": [
+      {
+        "title": "RFC 8259, the JSON data interchange format",
+        "url": "https://www.rfc-editor.org/rfc/rfc8259"
+      },
+      {
+        "title": "ECMAScript JSON parsing and serialization",
+        "url": "https://tc39.es/ecma262/#sec-json-object"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "values",
+      "title": "Recognize the six JSON value kinds",
+      "section": "Syntax",
+      "explanation": "JSON represents objects, arrays, numbers, strings, Booleans, and null. A document has one top-level value. Object member names are strings written with double quotes. JSON has no standard syntax for comments, trailing commas, or undefined.",
+      "example": "{\n  \"topic\": \"Arrays\",\n  \"minutes\": 25,\n  \"complete\": false,\n  \"checkedAt\": null,\n  \"tags\": [\"c\", \"practice\"]\n}",
+      "api": [
+        {
+          "name": "JSON.parse(text)",
+          "description": "In JavaScript, parse a JSON text into a value or throw SyntaxError."
+        },
+        {
+          "name": "null",
+          "description": "Represent an explicit empty or unknown value by agreement with a consumer."
+        }
+      ],
+      "practice": "Save the example, parse it locally, then add a second tag and an extra Boolean field.",
+      "pitfall": "A JavaScript object literal can allow syntax that a JSON parser rejects, including unquoted keys.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "object",
+        "array",
+        "number",
+        "string",
+        "boolean",
+        "null",
+        "syntax"
+      ],
+      "exampleFile": "settings.json",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The parsed object contains the requested values with their original kinds.",
+        "completion": "Try a trailing comma and observe the parser error, then fix it."
+      },
+      "references": [
+        {
+          "title": "RFC 8259, the JSON data interchange format",
+          "url": "https://www.rfc-editor.org/rfc/rfc8259"
+        }
+      ],
+      "related": [
+        "nested-shapes",
+        "text-escaping",
+        "numbers-and-boundaries"
+      ]
+    },
+    {
+      "id": "nested-shapes",
+      "title": "Choose between ordered arrays and named fields",
+      "section": "Core",
+      "explanation": "Use an array when order and repeated entries matter. Use an object to group named properties in one record. Object member names should be unique. Different parsers can handle duplicate names differently, so unique names make interchange predictable.",
+      "example": "{\n  \"module\": \"Introduction\",\n  \"lessons\": [\n    { \"id\": \"values\", \"minutes\": 15 },\n    { \"id\": \"loops\", \"minutes\": 25 }\n  ]\n}",
+      "api": [
+        {
+          "name": "object member",
+          "description": "A string name paired with a value."
+        },
+        {
+          "name": "array element",
+          "description": "A value stored at an ordered position."
+        }
+      ],
+      "practice": "Add another lesson and compute the total duration from the array.",
+      "pitfall": "Do not encode an order-sensitive list as object members or rely on duplicate keys to store repeated entries.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "values"
+      ],
+      "keywords": [
+        "order",
+        "array",
+        "object",
+        "list",
+        "record",
+        "repeated"
+      ],
+      "exampleFile": "settings.json",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The learner can preserve both ordering and unique lesson IDs.",
+        "completion": "Check an empty array, two lessons with equal minutes, and a record with a repeated lesson ID."
+      },
+      "references": [
+        {
+          "title": "RFC 8259, the JSON data interchange format",
+          "url": "https://www.rfc-editor.org/rfc/rfc8259"
+        }
+      ],
+      "related": [
+        "values",
+        "validate-settings"
+      ]
+    },
+    {
+      "id": "text-escaping",
+      "title": "Encode quotes, backslashes, and newlines",
+      "section": "Syntax",
+      "explanation": "Inside a JSON string, escape a double quote, a reverse solidus, and control characters. The two source characters backslash and n represent one newline after decoding. JSON serializers handle quoting and escapes for values they support.",
+      "example": "{\n  \"label\": \"She said \\\"review\\\"\",\n  \"folder\": \"study\\\\notes\",\n  \"message\": \"first line\\nsecond line\",\n  \"symbol\": \"\\u03BB\"\n}",
+      "api": [
+        {
+          "name": "JSON.stringify(value)",
+          "description": "Serialize a supported JavaScript value as JSON text."
+        },
+        {
+          "name": "\\uXXXX",
+          "description": "Encode a UTF-16 code unit using four hexadecimal digits."
+        }
+      ],
+      "practice": "Serialize a note containing a quote, a backslash, and a newline. Parse the generated text back.",
+      "pitfall": "A literal unescaped line break inside a JSON string is invalid. Decode escaped text before displaying it.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "values"
+      ],
+      "keywords": [
+        "escaping",
+        "backslash",
+        "unicode",
+        "newline",
+        "serialization",
+        "string"
+      ],
+      "exampleFile": "settings.json",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The parsed text matches the original note character for character.",
+        "completion": "Verify each special character and a non-ASCII example."
+      },
+      "references": [
+        {
+          "title": "RFC 8259, the JSON data interchange format",
+          "url": "https://www.rfc-editor.org/rfc/rfc8259"
+        }
+      ],
+      "related": [
+        "values"
+      ]
+    },
+    {
+      "id": "numbers-and-boundaries",
+      "title": "Keep exact identifiers across runtimes",
+      "section": "Interchange",
+      "explanation": "JSON numbers have a decimal syntax, but parsers may use different numeric ranges and precision. A JavaScript Number cannot distinguish every integer above 2^53 minus one. When an identifier needs exact decimal digits across runtimes, define that field as a string in the data contract.",
+      "example": "{\n  \"studentId\": \"9007199254740993\",\n  \"attempts\": 2,\n  \"confidence\": 0.75\n}",
+      "api": [
+        {
+          "name": "Number.isSafeInteger(value)",
+          "description": "In JavaScript, check whether an integer is within the range with unambiguous representation."
+        },
+        {
+          "name": "data contract",
+          "description": "Document which value kind and constraints belong to each field."
+        }
+      ],
+      "practice": "Round-trip a large identifier and check that leading zeros survive when they are meaningful.",
+      "pitfall": "Converting an exact string identifier to Number can lose digits even if JSON parsing succeeds.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "values"
+      ],
+      "keywords": [
+        "number",
+        "precision",
+        "safe",
+        "integer",
+        "boundary",
+        "schema",
+        "string"
+      ],
+      "exampleFile": "settings.json",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The record preserves the exact identifier text while numeric fields remain numeric.",
+        "completion": "Test a long identifier, a leading-zero identifier, and a wrong-kind identifier."
+      },
+      "references": [
+        {
+          "title": "RFC 8259, the JSON data interchange format",
+          "url": "https://www.rfc-editor.org/rfc/rfc8259"
+        }
+      ],
+      "related": [
+        "values",
+        "validate-settings"
+      ]
+    },
+    {
+      "id": "validate-settings",
+      "title": "Validate settings after parsing",
+      "section": "Projects",
+      "explanation": "Successful parsing proves the text follows JSON syntax. It does not prove that fields exist, have appropriate types, or follow business rules. Check the version and required fields first, then apply defaults only to fields your format makes optional.",
+      "example": "{\n  \"version\": 1,\n  \"preferences\": {\n    \"layout\": \"compact\",\n    \"dailyMinutes\": 30\n  }\n}",
+      "api": [
+        {
+          "name": "version field",
+          "description": "Identify the data contract the reader should apply."
+        },
+        {
+          "name": "required field",
+          "description": "Require an explicit property with a value of the expected kind."
+        }
+      ],
+      "practice": "Write a validator that accepts version 1, recognizes two layouts, and accepts a nonnegative daily minute count.",
+      "pitfall": "An unsupported version should be reported before applying today’s assumptions to tomorrow’s format.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "nested-shapes",
+        "numbers-and-boundaries"
+      ],
+      "keywords": [
+        "version",
+        "validation",
+        "default",
+        "unknown",
+        "fields",
+        "settings"
+      ],
+      "exampleFile": "settings.json",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "Malformed JSON, unsupported versions, and invalid settings are reported as different failures.",
+        "completion": "Test a valid record, a negative count, a missing preferences object, and a version of 2."
+      },
+      "references": [
+        {
+          "title": "RFC 8259, the JSON data interchange format",
+          "url": "https://www.rfc-editor.org/rfc/rfc8259"
+        }
+      ],
+      "related": [
+        "nested-shapes",
+        "numbers-and-boundaries"
+      ]
+    }
+  ]
+}

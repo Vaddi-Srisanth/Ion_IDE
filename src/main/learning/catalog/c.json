@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "c",
   "name": "C",
   "summary": "Learn C syntax, memory, strings, structs, and the standard headers used in everyday programs.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "program",
@@ -26,7 +26,27 @@
         }
       ],
       "practice": "Print the unit price and total on separate lines. Change the quantity and confirm your calculation.",
-      "pitfall": "Using the wrong printf conversion for an argument can produce undefined behavior."
+      "pitfall": "Using the wrong printf conversion for an argument can produce undefined behavior.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "printf",
+        "types",
+        "variables",
+        "stdio",
+        "main"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "3 items cost 8.25",
+      "exercise": {
+        "expected": "Print a unit price and quantity-derived total on separate lines.",
+        "completion": "Changing the quantity changes only the derived total."
+      },
+      "related": [
+        "flow",
+        "integer-limits"
+      ]
     },
     {
       "id": "flow",
@@ -48,8 +68,45 @@
           "description": "Exit a loop or skip to its next iteration."
         }
       ],
-      "practice": "Calculate the sum of multiples of 3 between 1 and 20.",
-      "pitfall": "A single = assigns a value. Use == to test equality."
+      "practice": "Read one integer upper bound from stdin and sum the multiples of 3 from 1 through that bound.",
+      "pitfall": "A single = assigns a value. Use == to test equality.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "program"
+      ],
+      "keywords": [
+        "loop",
+        "remainder",
+        "branches",
+        "equality"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "2\n4\n6\n8",
+      "exercise": {
+        "expected": "Print the sum as a single integer. For a bound below 3, print zero.",
+        "completion": "Try a bound divisible by 3, a bound with a remainder, and a bound below 3.",
+        "samples": [
+          {
+            "input": "20\n",
+            "expectedOutput": "63\n"
+          },
+          {
+            "input": "5\n",
+            "expectedOutput": "3\n"
+          },
+          {
+            "input": "1\n",
+            "expectedOutput": "0\n"
+          }
+        ]
+      },
+      "related": [
+        "program",
+        "functions",
+        "integer-limits",
+        "enum-state"
+      ]
     },
     {
       "id": "functions",
@@ -72,7 +129,31 @@
         }
       ],
       "practice": "Implement a function that counts the even numbers in an array. Pass its length explicitly.",
-      "pitfall": "The sizeof array / sizeof array[0] idiom works where the object is still an array. Inside this function values is a pointer."
+      "pitfall": "The sizeof array / sizeof array[0] idiom works where the object is still an array. Inside this function values is a pointer.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "array",
+        "length",
+        "size_t",
+        "function",
+        "parameter"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "12",
+      "exercise": {
+        "expected": "Sum a short array without assuming a fixed element count.",
+        "completion": "An empty range produces zero and the original array is unchanged."
+      },
+      "related": [
+        "flow",
+        "pointers",
+        "strings",
+        "sort-search"
+      ]
     },
     {
       "id": "pointers",
@@ -95,7 +176,30 @@
         }
       ],
       "practice": "Add a step field and update increment to use it.",
-      "pitfall": "Never return a pointer to a local automatic variable. Its lifetime ends when the function returns."
+      "pitfall": "Never return a pointer to a local automatic variable. Its lifetime ends when the function returns.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions"
+      ],
+      "keywords": [
+        "pointer",
+        "struct",
+        "address",
+        "lifetime"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "1",
+      "exercise": {
+        "expected": "Add a decrement operation that updates the caller’s counter.",
+        "completion": "Increment and then decrement returns the caller’s counter to zero."
+      },
+      "related": [
+        "functions",
+        "strings",
+        "allocation",
+        "sort-search"
+      ]
     },
     {
       "id": "strings",
@@ -122,7 +226,33 @@
         }
       ],
       "practice": "Try the conversion with \"42x\", an empty string, and a value larger than long can hold.",
-      "pitfall": "Arrays storing strings need space for the terminating zero byte."
+      "pitfall": "Arrays storing strings need space for the terminating zero byte.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions",
+        "pointers"
+      ],
+      "keywords": [
+        "string",
+        "conversion",
+        "strtol",
+        "null",
+        "terminator",
+        "errno"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "2 characters, value 42",
+      "exercise": {
+        "expected": "Accept a complete base-10 integer token.",
+        "completion": "Reject a token with trailing letters and a token outside the range of long."
+      },
+      "related": [
+        "functions",
+        "pointers",
+        "files",
+        "bounded-input"
+      ]
     },
     {
       "id": "allocation",
@@ -149,14 +279,35 @@
         }
       ],
       "practice": "Allocate space for five scores. Assign each score in a loop and sum them before freeing the array.",
-      "pitfall": "If realloc fails, assigning the result directly to the original pointer can lose the only reference to the existing block."
+      "pitfall": "If realloc fails, assigning the result directly to the original pointer can lose the only reference to the existing block.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "pointers"
+      ],
+      "keywords": [
+        "calloc",
+        "heap",
+        "allocation",
+        "free",
+        "ownership"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "8",
+      "exercise": {
+        "expected": "Read and write valid positions in a dynamically allocated array.",
+        "completion": "Check allocation before writing and release the allocation on every path that owns it."
+      },
+      "related": [
+        "pointers"
+      ]
     },
     {
       "id": "files",
       "title": "File I/O and cleanup",
       "section": "Standard library",
       "explanation": "A FILE pointer represents a stream. Check each operation that can fail and close the stream on every exit path. Read text into a bounded buffer with fgets.",
-      "example": "#include <stdio.h>\n\nint main(void) {\n    FILE *stream = tmpfile();\n    if (stream == NULL) return 1;\n    if (fputs(\"first line\\n\", stream) == EOF) {\n        fclose(stream);\n        return 1;\n    }\n    rewind(stream);\n    char line[32];\n    if (fgets(line, sizeof line, stream)) printf(\"%s\", line);\n    int failed = ferror(stream);\n    return fclose(stream) == EOF || failed;\n}",
+      "example": "#include <stdio.h>\n\nint main(void) {\n    FILE *stream = tmpfile();\n    if (stream == NULL) return 1;\n    if (fputs(\"first line\\n\", stream) == EOF) {\n        fclose(stream);\n        return 1;\n    }\n    if (fseek(stream, 0, SEEK_SET) != 0) {\n        fclose(stream);\n        return 1;\n    }\n    char line[32];\n    if (fgets(line, sizeof line, stream)) printf(\"%s\", line);\n    int failed = ferror(stream);\n    return fclose(stream) == EOF || failed;\n}",
       "api": [
         {
           "name": "fopen() / fclose()",
@@ -176,7 +327,445 @@
         }
       ],
       "practice": "Write two lines to the temporary stream and count the lines read back.",
-      "pitfall": "A failed fgets can mean end of input or an error. Test after attempting the read."
+      "pitfall": "A failed fgets can mean end of input or an error. Test after attempting the read.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "strings"
+      ],
+      "keywords": [
+        "stdio",
+        "file",
+        "input",
+        "temporary",
+        "error",
+        "close"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "first line",
+      "exercise": {
+        "expected": "Write and read two short lines in a temporary stream.",
+        "completion": "Verify both lines appear in order and check read, write, and close failures."
+      },
+      "related": [
+        "strings",
+        "bounded-input"
+      ]
+    },
+    {
+      "id": "integer-limits",
+      "title": "Integer limits and safe addition",
+      "section": "Core",
+      "explanation": "C signed integer overflow is undefined. Guard an addition before computing it. This example sums nonnegative counts, so subtracting the second count from INT_MAX is safe after rejecting negatives.",
+      "example": "#include <limits.h>\n#include <stdio.h>\n\nstatic int add_counts(int left, int right, int *total) {\n    if (left < 0 || right < 0 || left > INT_MAX - right) return 0;\n    *total = left + right;\n    return 1;\n}\n\nint main(void) {\n    int total;\n    if (add_counts(8, 13, &total)) printf(\"%d\\n\", total);\n    if (!add_counts(INT_MAX, 1, &total)) puts(\"out of range\");\n}",
+      "api": [
+        {
+          "name": "INT_MAX",
+          "description": "Largest value of int on this implementation."
+        },
+        {
+          "name": "||",
+          "description": "Evaluate from left to right and stop once an operand is true."
+        }
+      ],
+      "practice": "Guard multiplication of two nonnegative counts. Treat zero as a separate safe case before dividing by either operand.",
+      "pitfall": "Checking the sign of a signed sum after it overflows comes too late.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "program",
+        "flow"
+      ],
+      "keywords": [
+        "overflow",
+        "int-max",
+        "signed",
+        "arithmetic",
+        "limits"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "21\nout of range",
+      "exercise": {
+        "expected": "Report a product only when it fits in an int.",
+        "completion": "Check zero, one, two ordinary positive values, and a product larger than INT_MAX."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "program",
+        "flow",
+        "bit-flags",
+        "command-line"
+      ]
+    },
+    {
+      "id": "enum-state",
+      "title": "Enums and switch for named states",
+      "section": "Core",
+      "explanation": "An enum gives a set of integer constants meaningful names. A switch selects one case by value. Returning from each branch is a simple way to avoid accidental fall-through.",
+      "example": "#include <stdio.h>\n\nenum State { STATE_IDLE, STATE_READING, STATE_DONE };\n\nstatic const char *label(enum State state) {\n    switch (state) {\n        case STATE_IDLE: return \"idle\";\n        case STATE_READING: return \"reading\";\n        case STATE_DONE: return \"done\";\n    }\n    return \"unknown\";\n}\n\nint main(void) {\n    puts(label(STATE_READING));\n}",
+      "api": [
+        {
+          "name": "enum State",
+          "description": "Declare an enumeration type and its named constants."
+        },
+        {
+          "name": "switch",
+          "description": "Branch to a matching case label."
+        }
+      ],
+      "practice": "Represent a small stopwatch as idle, running, or paused. Decide which transitions are legal.",
+      "pitfall": "An enum does not validate data read from a file or entered by a user. Translate and validate external values.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "enum",
+        "switch",
+        "state",
+        "cases",
+        "default"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "reading",
+      "exercise": {
+        "expected": "Translate each known state to a label and reject a pause command when idle.",
+        "completion": "Exercise each valid state and at least one invalid transition."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "flow"
+      ]
+    },
+    {
+      "id": "bounded-input",
+      "title": "Read bounded lines and reject invalid numbers",
+      "section": "Standard library",
+      "explanation": "A fixed-size buffer limits each read, but it does not guarantee that an entire line fit. This example expects newline-terminated records and rejects overlong ones. Remove the newline, then pass the field to strtol and check the end pointer and overflow status.",
+      "example": "#include <errno.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    FILE *source = tmpfile();\n    if (source == NULL) return 1;\n    if (fputs(\"17\\n\", source) == EOF || fseek(source, 0, SEEK_SET) != 0) {\n        fclose(source);\n        return 1;\n    }\n    char buffer[16];\n    int read_line = fgets(buffer, sizeof buffer, source) != NULL;\n    if (fclose(source) == EOF || !read_line) return 1;\n    char *newline = strchr(buffer, '\\n');\n    if (!newline) return 1;\n    *newline = '\\0';\n    char *end;\n    errno = 0;\n    long reading = strtol(buffer, &end, 10);\n    if (end == buffer || *end != '\\0' || errno == ERANGE) return 1;\n    printf(\"Reading: %ld\\n\", reading);\n}",
+      "api": [
+        {
+          "name": "fgets()",
+          "description": "Read up to capacity minus one characters and terminate the buffer on success."
+        },
+        {
+          "name": "strchr()",
+          "description": "Locate the first occurrence of a character."
+        },
+        {
+          "name": "strtol()",
+          "description": "Parse an integer and report where parsing stopped."
+        }
+      ],
+      "practice": "Change the producer to emit a malformed integer and an overlong line in separate trials.",
+      "pitfall": "If this parser is used in a loop, discard the remainder of a rejected long line before reading the next record.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "strings",
+        "files"
+      ],
+      "keywords": [
+        "fgets",
+        "strtol",
+        "truncation",
+        "newline",
+        "input",
+        "validation"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "Reading: 17",
+      "exercise": {
+        "expected": "Reject incomplete or invalid newline-terminated readings.",
+        "completion": "Valid negative text is accepted unless your application prohibits negative readings. A suffix and a line that fills the buffer are rejected."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "strings",
+        "files",
+        "command-line"
+      ]
+    },
+    {
+      "id": "format-buffers",
+      "title": "Format into buffers and detect truncation",
+      "section": "Standard library",
+      "explanation": "snprintf receives the destination capacity, including room for its terminator. Its nonnegative return value is the length the output would have had without truncation. Check that value against capacity before using the output as a complete record.",
+      "example": "#include <stdio.h>\n\nint main(void) {\n    char label[16];\n    int written = snprintf(label, sizeof label, \"%s-%03d\", \"lab\", 7);\n    if (written < 0 || (size_t)written >= sizeof label) return 1;\n    puts(label);\n}",
+      "api": [
+        {
+          "name": "snprintf()",
+          "description": "Format text into a bounded buffer and return the intended character count."
+        },
+        {
+          "name": "sizeof label",
+          "description": "Count all bytes of the local array, including terminator space."
+        }
+      ],
+      "practice": "Try a short label and a label much longer than the destination. Print an explicit error when the full value does not fit.",
+      "pitfall": "A bounded, null-terminated result can still be a truncated identifier. Treat that as an error when the full value matters.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "strings"
+      ],
+      "keywords": [
+        "snprintf",
+        "truncation",
+        "buffer",
+        "format",
+        "null"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "lab-007",
+      "exercise": {
+        "expected": "Accept only complete labels.",
+        "completion": "Check a label that fits exactly with a terminator and one that requires an extra byte."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "strings"
+      ]
+    },
+    {
+      "id": "sort-search",
+      "title": "Sort and search arrays with comparators",
+      "section": "Standard library",
+      "explanation": "qsort arranges array elements using a comparator that returns negative, zero, or positive. bsearch uses the same comparison on a sorted range. Comparing with relational operators avoids overflow that would occur if the comparator subtracted two extreme ints.",
+      "example": "#include <stdio.h>\n#include <stdlib.h>\n\nstatic int compare_ints(const void *left, const void *right) {\n    int a = *(const int *)left;\n    int b = *(const int *)right;\n    return (a > b) - (a < b);\n}\n\nint main(void) {\n    int values[] = {17, -4, 8, 3};\n    size_t count = sizeof values / sizeof values[0];\n    qsort(values, count, sizeof values[0], compare_ints);\n    int key = 8;\n    const int *found = bsearch(&key, values, count, sizeof values[0], compare_ints);\n    if (found) printf(\"first: %d, found: %d\\n\", values[0], *found);\n}",
+      "api": [
+        {
+          "name": "qsort()",
+          "description": "Sort objects described by a base address, count, width, and comparator."
+        },
+        {
+          "name": "bsearch()",
+          "description": "Look up a key in a range already sorted with the matching comparison."
+        }
+      ],
+      "practice": "Search a sorted list of readings for two keys, one present and one absent.",
+      "pitfall": "Binary search can miss existing elements when the array is unsorted or the comparator disagrees with the sort.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions",
+        "pointers"
+      ],
+      "keywords": [
+        "qsort",
+        "bsearch",
+        "comparator",
+        "ordering"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "first: -4, found: 8",
+      "exercise": {
+        "expected": "Report a found key or a clear missing result.",
+        "completion": "Search the smallest value, an absent value, and an array containing INT_MIN and INT_MAX."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "functions",
+        "pointers"
+      ]
+    },
+    {
+      "id": "bit-flags",
+      "title": "Unsigned masks for independent flags",
+      "section": "Core",
+      "explanation": "A bit mask uses one unsigned bit for each independent yes-or-no option. OR sets a bit, AND tests it, and AND with the complement clears it. A mask of several flags can test all of them by comparing the masked value with the whole mask.",
+      "example": "#include <stdio.h>\n\nint main(void) {\n    const unsigned read = 1u << 0;\n    const unsigned write = 1u << 1;\n    unsigned permissions = read | write;\n    permissions &= ~write;\n    printf(\"read=%d write=%d\\n\", (permissions & read) != 0,\n           (permissions & write) != 0);\n}",
+      "api": [
+        {
+          "name": "1u << n",
+          "description": "Produce a single-bit unsigned mask with a valid shift count."
+        },
+        {
+          "name": "flags &= ~mask",
+          "description": "Clear only the bits selected by mask."
+        }
+      ],
+      "practice": "Add an execute flag and report whether both read and execute are set.",
+      "pitfall": "Use an unsigned left operand and keep the shift count below its bit width.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "integer-limits"
+      ],
+      "keywords": [
+        "bitmask",
+        "shift",
+        "or",
+        "and",
+        "flags",
+        "unsigned"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "read=1 write=0",
+      "exercise": {
+        "expected": "Toggling execute leaves the other flag states unchanged.",
+        "completion": "Test all four combinations of read and execute, including both disabled."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "integer-limits"
+      ]
+    },
+    {
+      "id": "headers-linking",
+      "title": "Headers, separate compilation, and linking",
+      "section": "Toolchain",
+      "explanation": "A header shares declarations. The compiler compiles each source file into an object file, and the linker resolves references between them. This example puts declaration and definition in one file to demonstrate their relationship. In a larger program, move the declaration to a header with an include guard and the definition to one source file.",
+      "example": "#include <stdio.h>\n\nint total_units(int boxes, int per_box);\n\nint main(void) {\n    printf(\"%d\\n\", total_units(3, 12));\n}\n\nint total_units(int boxes, int per_box) {\n    return boxes * per_box;\n}",
+      "api": [
+        {
+          "name": "function prototype",
+          "description": "Declare the parameter and return types before a call."
+        },
+        {
+          "name": "include guard",
+          "description": "Prevent repeated declarations from a header within a single translation unit."
+        }
+      ],
+      "practice": "Move the prototype into units.h and the definition into units.c. Include the header from the caller and units.c, then run cc -std=c17 main.c units.c -o units in a terminal.",
+      "pitfall": "Including a header does not provide the object file containing the corresponding definition. A missing definition is commonly a link error.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions"
+      ],
+      "keywords": [
+        "translation",
+        "unit",
+        "prototype",
+        "linker",
+        "header",
+        "include",
+        "guard"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "36",
+      "exercise": {
+        "expected": "The two-source build produces the same output as the single-source version.",
+        "completion": "Build both files and observe 36. Omitting units.c should produce a link error mentioning total_units."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "functions"
+      ]
+    },
+    {
+      "id": "command-line",
+      "title": "Validate command-line arguments",
+      "section": "Projects",
+      "explanation": "A hosted C program may receive argc and argv. argc counts the arguments including the program name when it is available, and argv holds the argument strings. Keep argument validation separate from output so that tests can exercise malformed values independently.",
+      "example": "#include <errno.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nstatic int read_count(const char *text, long *count) {\n    char *end;\n    errno = 0;\n    long parsed = strtol(text, &end, 10);\n    if (end == text || *end || errno == ERANGE || parsed < 0) return 0;\n    *count = parsed;\n    return 1;\n}\n\nint main(int argc, char *argv[]) {\n    const char *example = argc == 2 ? argv[1] : \"17\";\n    long count;\n    if (!read_count(example, &count)) {\n        fputs(\"invalid count\\n\", stderr);\n        return EXIT_FAILURE;\n    }\n    printf(\"count=%ld\\n\", count);\n    return EXIT_SUCCESS;\n}",
+      "api": [
+        {
+          "name": "argc",
+          "description": "Number of supplied argument strings."
+        },
+        {
+          "name": "argv[1]",
+          "description": "First user argument, available only when argc is at least two."
+        },
+        {
+          "name": "EXIT_FAILURE",
+          "description": "Portable unsuccessful program termination status."
+        }
+      ],
+      "practice": "Remove the teaching default and require exactly one nonnegative argument.",
+      "pitfall": "When teaching or testing locally, a default is convenient. In a real CLI, distinguish missing arguments from too many arguments instead of applying the same default.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "bounded-input",
+        "integer-limits"
+      ],
+      "keywords": [
+        "argc",
+        "argv",
+        "parse",
+        "command",
+        "line",
+        "exit",
+        "status"
+      ],
+      "exampleFile": "lesson.c",
+      "exampleMode": "program",
+      "expectedOutput": "count=17",
+      "exercise": {
+        "expected": "Print usage for an incorrect argument count and reject an invalid number with a failure status.",
+        "completion": "Try zero, a negative count, trailing text, and a call without a user argument."
+      },
+      "references": [
+        {
+          "title": "WG14 C11 working draft (features used here also apply in C17)",
+          "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+        }
+      ],
+      "related": [
+        "bounded-input",
+        "integer-limits"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "systems"
+    ],
+    "languageVersion": "C17",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "To run the examples, install a C17 compiler such as Clang or GCC. The reading and exercises work offline."
+    ],
+    "miniProject": "Build a reading-summary tool. Parse whole-number readings from command-line arguments, reject invalid input, then report a count, minimum, and maximum. Check empty input, the highest valid reading, and a malformed argument.",
+    "references": [
+      {
+        "title": "WG14 C11 working draft (features used here also apply in C17)",
+        "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

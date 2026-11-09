@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { LearningPackStore, learningLibraryDirectory, maxLearningPackBytes } from '../src/main/learning/catalog-store'
+import { compileLearningCatalog, LearningPackStore, learningLibraryDirectory, maxLearningPackBytes, parseInstalledLibrary } from '../src/main/learning/catalog-store'
 
 function pack(id: string, name: string) {
   return {
@@ -52,7 +52,9 @@ test('pack installation and language selection are separate, local, and durable'
     const installed = await store.getLibrary()
     assert.deepEqual(installed.installed.map(({ id }) => id), ['python', 'c'])
     assert.equal(installed.selected, null)
-    assert.equal((await store.select('c')).selected, 'c')
+    const selected = await store.select('c', false)
+    assert.equal(selected.selected, 'c')
+    assert.deepEqual(selected.catalog, [])
     const reopened = new LearningPackStore(profile, catalog)
     assert.equal(await reopened.isSelected('c'), true)
     assert.deepEqual(await reopened.getTopics('c'), [{ id: 'branches', title: 'Branches', section: 'Syntax' }])
@@ -105,13 +107,35 @@ test('imports accept only bounded, validated plain-data packs from regular files
   })
 })
 
+test('legacy multibyte lessons keep their original size allowance through import and export', async () => {
+  await withPacks(async (profile, catalog) => {
+    const store = new LearningPackStore(profile, catalog)
+    const original = pack('local-large-lesson', 'Local Study')
+    const lesson = {
+      ...original.lessons[0], explanation: '界'.repeat(6000), example: '界'.repeat(8000),
+      api: Array.from({ length: 4 }, (_, index) => ({ name: 'API ' + index, description: '界'.repeat(600) })),
+    }
+    const legacy = { ...original, lessons: [lesson] }
+    assert.ok(Buffer.byteLength(JSON.stringify(lesson)) > 48 * 1024)
+    const source = join(profile, 'original.json')
+    const output = join(profile, 'portable.json')
+    await writeFile(source, JSON.stringify(legacy))
+    const preview = await store.previewFile(source)
+    await store.confirmImport(preview.token)
+    assert.deepEqual(await store.getLesson(legacy.id, lesson.id), lesson)
+    await store.exportFile(legacy.id, output)
+    assert.deepEqual(JSON.parse(await readFile(output, 'utf8')), legacy)
+  })
+})
+
 test('a corrupted library is preserved and a missing selected C pack cannot enable diagnostics', async () => {
   await withPacks(async (profile, catalog) => {
     const store = new LearningPackStore(profile, catalog)
     const directory = join(profile, learningLibraryDirectory)
     await store.install('c')
     await store.select('c')
-    await rm(join(directory, 'c.json'))
+    const installed = parseInstalledLibrary(await readFile(join(directory, 'library.json'), 'utf8')).installed[0]
+    await rm(join(directory, 'pack-' + installed.storage, 'manifest.json'))
     assert.equal(await store.isSelected('c'), false)
     const registry = join(directory, 'library.json')
     const corrupt = '{"schema":1,"selected":"c","installed":[]}'
@@ -124,13 +148,16 @@ test('a corrupted library is preserved and a missing selected C pack cannot enab
 test('every shipped pack matches its Marketplace listing and opens its topics', async () => {
   const profile = await mkdtemp(join(tmpdir(), 'ion-shipped-pack-test-'))
   try {
-    const store = new LearningPackStore(profile, resolve('src/main/learning/catalog'))
+    const catalogPath = join(profile, 'catalog')
+    await compileLearningCatalog(resolve('src/main/learning/catalog'), catalogPath, '0.9.4')
+    const store = new LearningPackStore(profile, catalogPath)
     const { catalog } = await store.getLibrary()
     assert.ok(catalog.length >= 6)
     assert.ok(catalog.some(({ id }) => id === 'c'))
     for (const listing of catalog) {
       await store.install(listing.id)
       const topics = await store.getTopics(listing.id)
+      assert.deepEqual((await store.getDetails(listing.id)).topics, topics)
       assert.equal(topics.length, listing.topicCount, listing.id)
       for (const topic of topics) {
         assert.equal((await store.getLesson(listing.id, topic.id)).title, topic.title, listing.id)
@@ -140,4 +167,65 @@ test('every shipped pack matches its Marketplace listing and opens its topics', 
   } finally {
     await rm(profile, { recursive: true, force: true })
   }
+})
+
+test('legacy installed packs stay readable and an explicit update keeps selection, recents and lesson IDs', async () => {
+  await withPacks(async (profile, catalog) => {
+    const previous = pack('python', 'Python')
+    const { schema: _schema, lessons, ...summary } = previous
+    const directory = join(profile, learningLibraryDirectory)
+    await mkdir(directory)
+    const legacyFile = join(directory, 'python.json')
+    await writeFile(legacyFile, JSON.stringify(previous))
+    await writeFile(join(directory, 'library.json'), JSON.stringify({ schema: 1, selected: 'python',
+      installed: [{ ...summary, topicCount: lessons.length }] }))
+    const store = new LearningPackStore(profile, catalog)
+    assert.equal(await store.isSelected('python'), true)
+    assert.deepEqual(await store.getLesson('python', 'branches'), lessons[0])
+    const next = { ...previous, version: 2, lessons: [...lessons, { ...lessons[0], id: 'loops', title: 'Loops' }] }
+    await writeFile(join(catalog, 'python.json'), JSON.stringify(next))
+    const currentCatalog = (await store.getLibrary()).catalog.map((item) => item.id === 'python'
+      ? { ...item, version: 2, topicCount: 2 } : item)
+    await writeFile(join(catalog, 'index.json'), JSON.stringify(currentCatalog))
+    await store.select('python')
+    const updated = await store.install('python')
+    assert.equal(updated.selected, 'python')
+    assert.deepEqual(updated.recent, ['python'])
+    assert.deepEqual(await store.getTopics('python'), [{ id: 'branches', title: 'Branches', section: 'Syntax' },
+      { id: 'loops', title: 'Loops', section: 'Syntax' }])
+    await assert.rejects(lstat(legacyFile), { code: 'ENOENT' })
+  })
+})
+
+test('an import preview does not install, binds confirmation to the file, and exports a portable pack', async () => {
+  await withPacks(async (profile, catalog) => {
+    const store = new LearningPackStore(profile, catalog)
+    const path = join(profile, 'source.json')
+    const exported = join(profile, 'export.json')
+    const definition = { ...pack('community', 'Community'), schema: 2, metadata: {
+      kind: 'language', categories: ['automation'], languageVersion: '1.0', prerequisites: [],
+      miniProject: 'Collect repeated commands in a script.', attribution: { author: 'Example', license: 'CC BY 4.0' },
+      references: [{ title: 'Language guide', url: 'https://example.org/guide' }],
+    } }
+    await writeFile(path, JSON.stringify({ ...definition, metadata: { ...definition.metadata, minimumIonVersion: '9.0.0' } }))
+    await assert.rejects(store.previewFile(path), /requires Ion 9\.0\.0/)
+    await writeFile(path, JSON.stringify({ ...definition, metadata: { ...definition.metadata,
+      references: [{ title: 'Local script', url: 'javascript:alert(1)' }] } }))
+    await assert.rejects(store.previewFile(path), /Invalid learning pack/)
+    await writeFile(path, JSON.stringify(definition))
+    const preview = await store.previewFile(path)
+    assert.equal(preview.details.pack.author, 'Example')
+    assert.deepEqual((await store.getLibrary()).installed, [])
+    await writeFile(path, JSON.stringify({ ...definition, name: 'Changed' }))
+    await assert.rejects(store.confirmImport(preview.token), /changed after preview/)
+    await writeFile(path, JSON.stringify(definition))
+    const fresh = await store.previewFile(path)
+    assert.deepEqual((await store.confirmImport(fresh.token)).installed.map(({ id }) => id), ['community'])
+    await store.exportFile('community', exported)
+    assert.deepEqual(JSON.parse(await readFile(exported, 'utf8')), definition)
+    const installed = parseInstalledLibrary(await readFile(join(profile, learningLibraryDirectory, 'library.json'), 'utf8')).installed[0]
+    await writeFile(join(profile, learningLibraryDirectory, 'pack-' + installed.storage, 'lesson-branches.json'), 'unreadable')
+    assert.equal((await store.getTopics('community')).length, 1)
+    await assert.rejects(store.getLesson('community', 'branches'), /UTF-8 JSON/)
+  })
 })

@@ -390,6 +390,15 @@ export class PracticeStore {
 
   async start(value: unknown, selectedLanguage: unknown): Promise<{ problem: PracticeProblem; attempt: PracticeAttempt }> {
     const challenge = this.getChallenge(value)
+    return this.startChallenge(challenge, selectedLanguage)
+  }
+
+  startLearningExercise(pack: string, lesson: string, language: RunLanguage, exercise: Omit<PracticeChallenge, 'id' | 'topic'> & { topic: string }) {
+    const id = 'lesson-' + createHash('sha256').update(pack + ':' + lesson).digest('hex')
+    return this.startChallenge({ ...exercise, id }, language)
+  }
+
+  private async startChallenge(challenge: Omit<PracticeChallenge, 'topic'> & { topic: string }, selectedLanguage: unknown) {
     const id = challenge.id
     const language = choice(selectedLanguage, supportedLanguages, 'practice language')
     return this.serialize(async () => {

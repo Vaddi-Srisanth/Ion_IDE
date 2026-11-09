@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ComponentType } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ComponentType, type ReactNode } from 'react';
 import type { RunStatus } from '../shared/contracts';
 import { Icon } from './icons';
 import type { RunConsoleStore } from './run-console/store';
@@ -9,6 +9,7 @@ interface OutputProps {
   store: RunConsoleStore;
   canRun: boolean;
   canRerun?: boolean;
+  tabs: ReactNode;
   onRun(): void;
   onRerun(): void;
   onStop(): void;
@@ -28,7 +29,7 @@ const statusLabel: Record<RunStatus, string> = {
   rejected: 'Run skipped',
 };
 
-export function Output({ store, canRun, canRerun, onRun, onRerun, onStop, onInput, onResize, onClose }: OutputProps) {
+export function Output({ store, canRun, canRerun, tabs, onRun, onRerun, onStop, onInput, onResize, onClose }: OutputProps) {
   const { phase, name, label, result, error, hasOutput } = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [Surface, setSurface] = useState<ComponentType<TerminalSurfaceProps> | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -52,8 +53,7 @@ export function Output({ store, canRun, canRerun, onRun, onRerun, onStop, onInpu
       data-status={result?.status ?? (error ? 'runtime-error' : undefined)} data-phase={phase}>
       <div className="pane-title run-console-title">
         <div className="run-console-title-text">
-          <Icon name="terminal" size={15}/>
-          <h2>Run Console</h2>
+          {tabs}
           {name && <span className="run-console-file" title={name}>{name}</span>}
         </div>
         <div className="pane-tools">
@@ -71,20 +71,22 @@ export function Output({ store, canRun, canRerun, onRun, onRerun, onStop, onInpu
             onClick={onClose}><Icon name="x" size={15}/></button>
         </div>
       </div>
-      {Surface ? <Surface store={store} onInput={onInput} onResize={onResize}/> : (
-        <p className="run-console-placeholder" role={loadError ? 'alert' : 'status'}>
-          {loadError ? 'The terminal could not load. Close and reopen the console to retry.' : 'Loading terminal…'}
-        </p>
-      )}
-      <div className="run-console-footer">
-        <span className={bad ? 'console-error' : undefined} title={error ?? result?.message ?? label ?? undefined}>
-          {error ?? result?.message ?? (phase === 'running' ? 'Type here to send input to the program.' : label)
-            ?? 'Run a file to see output and enter input here.'}
-        </span>
-        {result && <span className="run-console-duration" data-testid="run-console-duration">
-          {result.exitCode !== null ? `Exit ${result.exitCode} · ` : result.programSignal ? `${result.programSignal} · ` : ''}
-          {result.durationMs} ms
-        </span>}
+      <div className="bottom-tab-content" role="tabpanel" id="bottom-content-run" aria-labelledby="bottom-tab-run">
+        {Surface ? <Surface store={store} onInput={onInput} onResize={onResize}/> : (
+          <p className="run-console-placeholder" role={loadError ? 'alert' : 'status'}>
+            {loadError ? 'The terminal could not load. Close and reopen the console to retry.' : 'Loading terminal…'}
+          </p>
+        )}
+        <div className="run-console-footer">
+          <span className={bad ? 'console-error' : undefined} title={error ?? result?.message ?? label ?? undefined}>
+            {error ?? result?.message ?? (phase === 'running' ? 'Type here to send input to the program.' : label)
+              ?? 'Run a file to see output and enter input here.'}
+          </span>
+          {result && <span className="run-console-duration" data-testid="run-console-duration">
+            {result.exitCode !== null ? `Exit ${result.exitCode} · ` : result.programSignal ? `${result.programSignal} · ` : ''}
+            {result.durationMs} ms
+          </span>}
+        </div>
       </div>
     </section>
   );

@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "cpp",
   "name": "C++",
   "summary": "Learn modern C++ values, containers, algorithms, references, and resource ownership.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "program",
@@ -26,7 +26,26 @@
         }
       ],
       "practice": "Print a title, unit price, and quantity using explicitly typed values and an inferred total.",
-      "pitfall": "Use the matching header for each standard facility you use. Transitive includes are not guaranteed."
+      "pitfall": "Use the matching header for each standard facility you use. Transitive includes are not guaranteed.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "main",
+        "namespace",
+        "auto",
+        "iostream",
+        "string"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "Ion: 3",
+      "exercise": {
+        "expected": "Print a label, unit price, quantity, and derived total.",
+        "completion": "A new quantity changes the total while the label remains the same."
+      },
+      "related": [
+        "flow"
+      ]
     },
     {
       "id": "flow",
@@ -49,7 +68,31 @@
         }
       ],
       "practice": "Write a function that totals values above a threshold. Use C++17 or newer for std::array deduction in this example.",
-      "pitfall": "Integer division discards the fractional part. Convert an operand when you need a fractional result."
+      "pitfall": "Integer division discards the fractional part. Convert an operand when you need a fractional result.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "program"
+      ],
+      "keywords": [
+        "range-for",
+        "std",
+        "array",
+        "functions",
+        "condition"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "2\n4",
+      "exercise": {
+        "expected": "Sum the values strictly above a caller-provided threshold.",
+        "completion": "Values equal to the threshold are excluded, and an empty input gives zero."
+      },
+      "related": [
+        "program",
+        "containers",
+        "references",
+        "streams"
+      ]
     },
     {
       "id": "containers",
@@ -72,7 +115,32 @@
         }
       ],
       "practice": "Count characters in a short word, then print the count of a character without inserting a new key.",
-      "pitfall": "Growing a vector may invalidate its iterators, pointers, and references."
+      "pitfall": "Growing a vector may invalidate its iterators, pointers, and references.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "vector",
+        "unordered",
+        "map",
+        "counts",
+        "checked",
+        "access"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "2",
+      "exercise": {
+        "expected": "Count words without assuming which keys occur.",
+        "completion": "Lookup of an absent word reports zero without adding it to the map."
+      },
+      "related": [
+        "flow",
+        "algorithms",
+        "value-classes",
+        "safe-erase"
+      ]
     },
     {
       "id": "references",
@@ -95,7 +163,32 @@
         }
       ],
       "practice": "Add a decrement method that rejects a negative result.",
-      "pitfall": "A reference must not outlive the object it refers to."
+      "pitfall": "A reference must not outlive the object it refers to.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "class",
+        "reference",
+        "const",
+        "method",
+        "private",
+        "invariant"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "1",
+      "exercise": {
+        "expected": "Implement a counter whose value never becomes negative.",
+        "completion": "Reading uses a const reference and an attempted decrement at zero leaves it unchanged."
+      },
+      "related": [
+        "flow",
+        "ownership",
+        "value-classes",
+        "views"
+      ]
     },
     {
       "id": "algorithms",
@@ -118,7 +211,29 @@
         }
       ],
       "practice": "Sort scores in descending order and count the values that fall within an inclusive range.",
-      "pitfall": "A sorting comparator must report false for equal inputs. Using >= instead of > violates its ordering requirement."
+      "pitfall": "A sorting comparator must report false for equal inputs. Using >= instead of > violates its ordering requirement.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "containers"
+      ],
+      "keywords": [
+        "sort",
+        "iterators",
+        "lambda",
+        "count_if"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "3, 2",
+      "exercise": {
+        "expected": "Count scores in an inclusive range and print them in sorted order.",
+        "completion": "The first and last valid scores are included, and no score outside the range is counted."
+      },
+      "related": [
+        "containers",
+        "safe-erase",
+        "comparison-order"
+      ]
     },
     {
       "id": "ownership",
@@ -141,7 +256,28 @@
         }
       ],
       "practice": "Write a function returning a unique_ptr to a populated vector and print its first element.",
-      "pitfall": "Prefer an ordinary value or a standard container when dynamic ownership adds no benefit."
+      "pitfall": "Prefer an ordinary value or a standard container when dynamic ownership adds no benefit.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "references"
+      ],
+      "keywords": [
+        "raii",
+        "unique_ptr",
+        "move",
+        "destructor",
+        "resource"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "42",
+      "exercise": {
+        "expected": "Transfer a unique pointer to a function and read it through the new owner.",
+        "completion": "After transfer the original pointer is empty and the new owner reports the value."
+      },
+      "related": [
+        "references"
+      ]
     },
     {
       "id": "streams",
@@ -163,8 +299,454 @@
           "description": "Read a value if present or return a fallback."
         }
       ],
-      "practice": "Try the parser with an empty string, \"42x\", and a negative number.",
-      "pitfall": "Check a stream operation before using an output variable. Extraction can fail."
+      "practice": "Read one line from stdin. Parse a nonnegative int with optional surrounding whitespace.",
+      "pitfall": "Check a stream operation before using an output variable. Extraction can fail.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "istringstream",
+        "optional",
+        "parsing",
+        "whitespace"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "42",
+      "exercise": {
+        "expected": "Print the parsed integer or the word invalid when the whole line is not a valid count.",
+        "completion": "Check whitespace, zero, a negative number, trailing text, and a value beyond the int range.",
+        "samples": [
+          {
+            "input": " 42 \n",
+            "expectedOutput": "42\n"
+          },
+          {
+            "input": "-1\n",
+            "expectedOutput": "invalid\n"
+          },
+          {
+            "input": "12px\n",
+            "expectedOutput": "invalid\n"
+          }
+        ]
+      },
+      "related": [
+        "flow",
+        "views",
+        "value-or-error"
+      ]
+    },
+    {
+      "id": "value-classes",
+      "title": "Constructors, copy, and value semantics",
+      "section": "Core",
+      "explanation": "A constructor initializes members before its body executes. When members are regular values, a default copy copies each member. A copied string or vector owns independent storage, so copying this class produces a separate value.",
+      "example": "#include <iostream>\n#include <string>\n#include <utility>\n\nclass Book {\npublic:\n    explicit Book(std::string title) : title_{std::move(title)} {}\n    void rename(std::string title) { title_ = std::move(title); }\n    const std::string& title() const { return title_; }\nprivate:\n    std::string title_;\n};\n\nint main() {\n    Book original{\"Field notes\"};\n    Book copy = original;\n    copy.rename(\"Lab notes\");\n    std::cout << original.title() << \" | \" << copy.title() << '\\n';\n}",
+      "api": [
+        {
+          "name": "explicit",
+          "description": "Prevent implicit conversion through this constructor."
+        },
+        {
+          "name": "member initializer list",
+          "description": "Initialize members before executing the constructor body."
+        }
+      ],
+      "practice": "Add a vector of tags and copy a book after adding two tags.",
+      "pitfall": "A copied raw pointer still points to the same object. Prefer owned values when copies should be independent.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "references",
+        "containers"
+      ],
+      "keywords": [
+        "constructor",
+        "initializer",
+        "value",
+        "copy",
+        "invariant"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "Field notes | Lab notes",
+      "exercise": {
+        "expected": "Adding a new tag to the copy leaves the original tags unchanged.",
+        "completion": "Print or assert each tag count before and after editing the copy."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "references",
+        "containers"
+      ]
+    },
+    {
+      "id": "views",
+      "title": "Borrow strings with string_view",
+      "section": "Core",
+      "explanation": "A string_view refers to an existing character range without copying it. A substring of the view still borrows from the original storage. Use a view when the caller keeps that storage valid for the entire use, and return an owning string when the data needs to outlive its source.",
+      "example": "#include <iostream>\n#include <string>\n#include <string_view>\n\nstatic std::string_view category(std::string_view record) {\n    return record.substr(0, record.find(':'));\n}\n\nint main() {\n    const std::string record{\"math:42\"};\n    const auto view = category(record);\n    std::cout << view << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::string_view",
+          "description": "A non-owning view over a character range."
+        },
+        {
+          "name": "std::string_view::substr()",
+          "description": "Return a subview referring to the same storage."
+        }
+      ],
+      "practice": "Split two records on the first colon and copy their category labels into an owning vector.",
+      "pitfall": "Do not keep a view into a temporary string or storage that can be reallocated.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "references",
+        "streams"
+      ],
+      "keywords": [
+        "string_view",
+        "borrowed",
+        "lifetime",
+        "substring",
+        "string"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "math",
+      "exercise": {
+        "expected": "The stored category labels still work after the source strings go out of scope.",
+        "completion": "Try a record with a colon and one without a colon."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "references",
+        "streams"
+      ]
+    },
+    {
+      "id": "safe-erase",
+      "title": "Erase vector elements without invalidating iteration",
+      "section": "Standard library",
+      "explanation": "remove_if moves the retained values toward the front and returns the new logical end. It does not resize the vector. Erase the trailing range to remove the elements physically. A vector modification can invalidate positions, so do not keep an iterator or reference across this operation unless you know it remains valid.",
+      "example": "#include <algorithm>\n#include <iostream>\n#include <vector>\n\nint main() {\n    std::vector<int> readings{8, -1, -2, 4, 0};\n    const auto tail = std::remove_if(readings.begin(), readings.end(),\n                                     [](int value) { return value < 0; });\n    readings.erase(tail, readings.end());\n    for (int value : readings) std::cout << value << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::remove_if()",
+          "description": "Partition retained values into the front of the range and return the retained end."
+        },
+        {
+          "name": "std::vector::erase()",
+          "description": "Remove the range and reduce the vector size."
+        }
+      ],
+      "practice": "Remove readings above a caller-supplied limit without reordering the remaining readings.",
+      "pitfall": "Incrementing an iterator that erase invalidated is undefined behavior. Recompute it or use the iterator returned by erase.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "containers",
+        "algorithms"
+      ],
+      "keywords": [
+        "vector",
+        "erase",
+        "iterator",
+        "invalidation",
+        "remove-if"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "8\n4\n0",
+      "exercise": {
+        "expected": "The resulting vector contains the allowed values in their original order.",
+        "completion": "Test consecutive removed values, all removed, and no removals."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "containers",
+        "algorithms"
+      ]
+    },
+    {
+      "id": "function-templates",
+      "title": "Reuse algorithms with function templates",
+      "section": "Core",
+      "explanation": "A function template describes code parameterized by a type. Calls often deduce that type from arguments. Every operation used by the function still has to work for the deduced type. This comparison template intentionally requires both operands to have the same deduced type.",
+      "example": "#include <iostream>\n#include <string>\n\ntemplate <typename T>\nT earlier(const T& left, const T& right) {\n    return right < left ? right : left;\n}\n\nint main() {\n    std::cout << earlier(9, 4) << '\\n';\n    std::cout << earlier(std::string{\"Zinc\"}, std::string{\"Copper\"}) << '\\n';\n}",
+      "api": [
+        {
+          "name": "template <typename T>",
+          "description": "Declare a template with a type parameter."
+        },
+        {
+          "name": "const T&",
+          "description": "Borrow each operand for comparison without copying it just to read it."
+        }
+      ],
+      "practice": "Write a template that tests whether a value lies in an inclusive range using only operator<.",
+      "pitfall": "Passing an int and a double gives conflicting deductions for T. Choose a common type deliberately before calling the template.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "template",
+        "deduction",
+        "generic",
+        "function",
+        "constraints"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "4\nCopper",
+      "exercise": {
+        "expected": "The same source handles integers and strings of the same type.",
+        "completion": "Include endpoints, an out-of-range value, and a mixed-type call that should fail to compile."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "flow"
+      ]
+    },
+    {
+      "id": "structured-bindings",
+      "title": "Decompose map entries with structured bindings",
+      "section": "Standard library",
+      "explanation": "A structured binding gives names to the elements of a tuple-like object or to compatible data members. Each ordered map entry is a key-value pair. Binding by reference avoids an extra copy and using const documents that the loop only reads the entries.",
+      "example": "#include <iostream>\n#include <map>\n#include <string>\n\nint main() {\n    const std::map<std::string, int> counts{{\"zinc\", 2}, {\"copper\", 4}};\n    for (const auto& [name, count] : counts) {\n        std::cout << name << \": \" << count << '\\n';\n    }\n}",
+      "api": [
+        {
+          "name": "const auto& [key, value]",
+          "description": "Decompose the entry through a const reference."
+        },
+        {
+          "name": "std::map",
+          "description": "Store entries ordered by key using the map comparator."
+        }
+      ],
+      "practice": "Summarize a small inventory in sorted key order and compute the total count.",
+      "pitfall": "For an unordered_map, iteration order is unspecified. Do not base expected output on that order.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "containers",
+        "references"
+      ],
+      "keywords": [
+        "structured",
+        "binding",
+        "map",
+        "pair",
+        "const",
+        "iteration"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "copper: 4\nzinc: 2",
+      "exercise": {
+        "expected": "Each key appears once and the final line is the sum of all values.",
+        "completion": "Insert keys in reverse order and verify the output ordering stays the same."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "containers",
+        "references",
+        "comparison-order"
+      ]
+    },
+    {
+      "id": "comparison-order",
+      "title": "Sort records with a consistent comparison",
+      "section": "Standard library",
+      "explanation": "A sort comparison answers whether its left argument belongs strictly before its right. Compare primary keys first and use a secondary key for ties. std::tie makes tuples of references so their lexicographic comparison can express a two-key order.",
+      "example": "#include <algorithm>\n#include <iostream>\n#include <string>\n#include <tuple>\n#include <vector>\n\nstruct Report { int level; std::string label; };\n\nint main() {\n    std::vector<Report> reports{{2, \"mint\"}, {1, \"zinc\"}, {1, \"copper\"}};\n    std::sort(reports.begin(), reports.end(), [](const Report& a, const Report& b) {\n        return std::tie(a.level, a.label) < std::tie(b.level, b.label);\n    });\n    for (const auto& item : reports) std::cout << item.label << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::tie()",
+          "description": "Build a tuple of lvalue references for lexicographic comparison."
+        },
+        {
+          "name": "std::stable_sort()",
+          "description": "Keep the relative order of elements that compare equivalent."
+        }
+      ],
+      "practice": "Sort a list of assignments by due day and then by title.",
+      "pitfall": "A comparison using <= incorrectly says that equivalent values precede each other.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "algorithms",
+        "structured-bindings"
+      ],
+      "keywords": [
+        "sort",
+        "comparator",
+        "tie",
+        "tuple",
+        "strict",
+        "ordering"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "copper\nzinc\nmint",
+      "exercise": {
+        "expected": "Assignments on the same day are ordered by title.",
+        "completion": "Include two assignments with the same day and check that comparing a record with itself returns false."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "algorithms",
+        "structured-bindings",
+        "search-index"
+      ]
+    },
+    {
+      "id": "value-or-error",
+      "title": "Represent a value or error with variant",
+      "section": "Core",
+      "explanation": "A variant stores exactly one of a fixed set of alternatives when constructed normally, and a failed type-changing operation can leave it valueless. A parser can return a result or an error description without using a sentinel number that could be mistaken for data. Inspect the active alternative before reading its value.",
+      "example": "#include <initializer_list>\n#include <iostream>\n#include <string>\n#include <variant>\n\nusing Reading = std::variant<int, std::string>;\n\nstatic Reading validate(int value) {\n    if (value < 0 || value > 100) return std::string{\"out of range\"};\n    return value;\n}\n\nint main() {\n    for (int sample : {42, 101}) {\n        const auto result = validate(sample);\n        if (const auto* score = std::get_if<int>(&result)) {\n            std::cout << \"score=\" << *score << '\\n';\n        } else if (const auto* error = std::get_if<std::string>(&result)) {\n            std::cout << *error << '\\n';\n        }\n    }\n}",
+      "api": [
+        {
+          "name": "std::variant<T, U>",
+          "description": "Store a value tagged with its active alternative."
+        },
+        {
+          "name": "std::get_if<T>()",
+          "description": "Return a pointer to the requested alternative, or a null pointer when it is absent."
+        }
+      ],
+      "practice": "Return a score or an explanatory error when parsing text with a bounded acceptable range.",
+      "pitfall": "std::get throws std::bad_variant_access when the requested alternative is not active.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "streams",
+        "references"
+      ],
+      "keywords": [
+        "variant",
+        "get_if",
+        "tagged",
+        "union",
+        "error",
+        "return"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "score=42\nout of range",
+      "exercise": {
+        "expected": "Distinguish malformed text from a valid integer that is out of bounds.",
+        "completion": "Try 0, 100, 101, and a token with trailing letters."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "streams",
+        "references"
+      ]
+    },
+    {
+      "id": "search-index",
+      "title": "Build a sorted index and find an insertion point",
+      "section": "Projects",
+      "explanation": "lower_bound finds the first position whose element is not less than a key. This can be an exact match, the next greater element, or the end. Reusing the order from sorting is necessary for correct binary search.",
+      "example": "#include <algorithm>\n#include <iostream>\n#include <string>\n#include <vector>\n\nint main() {\n    std::vector<std::string> titles{\"Zoology\", \"Algebra\", \"Networks\"};\n    std::sort(titles.begin(), titles.end());\n    const std::string query{\"Networks\"};\n    const auto position = std::lower_bound(titles.begin(), titles.end(), query);\n    if (position != titles.end() && *position == query) {\n        std::cout << \"found: \" << *position << '\\n';\n    } else {\n        std::cout << \"not found\\n\";\n    }\n}",
+      "api": [
+        {
+          "name": "std::lower_bound()",
+          "description": "Find the start of the portion that does not compare less than the search key."
+        },
+        {
+          "name": "range.end()",
+          "description": "Represent the position just past the last valid element."
+        }
+      ],
+      "practice": "Extend the search to insert missing titles at the returned position.",
+      "pitfall": "A returned position inside the range does not imply a match. Compare the key before reporting a result.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "comparison-order",
+        "containers"
+      ],
+      "keywords": [
+        "lower_bound",
+        "binary",
+        "search",
+        "index",
+        "comparator"
+      ],
+      "exampleFile": "lesson.cpp",
+      "exampleMode": "program",
+      "expectedOutput": "found: Networks",
+      "exercise": {
+        "expected": "A missing title is inserted while an existing title does not create a duplicate.",
+        "completion": "Insert a title at the start and at the end, then repeat a known title and verify the size is unchanged."
+      },
+      "references": [
+        {
+          "title": "WG21 C++17 working draft",
+          "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+        }
+      ],
+      "related": [
+        "comparison-order",
+        "containers"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "systems"
+    ],
+    "languageVersion": "C++17",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "To run the examples, install a C++17 compiler and standard library such as Clang with libc++ or GCC with libstdc++."
+    ],
+    "miniProject": "Build a local book index. Store title and author values, provide a case-sensitive title search, and sort results deterministically by title and author. Exercise an empty catalog and equal titles.",
+    "references": [
+      {
+        "title": "WG21 C++17 working draft",
+        "url": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/n4659.pdf"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

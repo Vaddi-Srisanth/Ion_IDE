@@ -7,6 +7,8 @@ import { runLanguage, type RunLanguage } from '../../shared/run-console'
 import { compilerSetupMessage, detectCompiler, execute, findWindowsCompiler } from '../runner'
 import { windowsEnvironment, workspaceSafeWindowsToolPaths } from '../windows-process'
 import { findMainClass } from './java-classes'
+import type { NativeProject } from './project-build'
+import { installedWindowsJavaBuild, windowsJdkHomes } from './windows-java-build'
 
 export interface CommandPlan {
   executable: string
@@ -57,7 +59,7 @@ async function commandPaths(root: string): Promise<string[]> {
 
 async function executable(path: string, root: string): Promise<boolean> {
   try {
-    if (!isAbsolute(path) || inside(root, await realpath(path))) return false
+    if (!isAbsolute(path) || inside(root, path) || inside(root, await realpath(path))) return false
     await access(path, constants.X_OK)
     return (await stat(path)).isFile()
   } catch {
@@ -114,9 +116,12 @@ function envFor(paths: string[], scratch: string): NodeJS.ProcessEnv {
 async function javaToolchain(root: string, paths: string[], scratch: string, signal: AbortSignal) {
   const envHome = process.env.JAVA_HOME
   const fromHome = async (home: string) => {
-    const javac = join(home, 'bin', nativeExecutable('javac'))
-    const java = join(home, 'bin', nativeExecutable('java'))
-    if (await executable(javac, root) && await executable(java, root)) return { java, javac, home }
+    if (inside(root, home)) return
+    const canonical = await realpath(home).catch(() => null)
+    if (!canonical || inside(root, canonical)) return
+    const javac = join(canonical, 'bin', nativeExecutable('javac'))
+    const java = join(canonical, 'bin', nativeExecutable('java'))
+    if (await executable(javac, root) && await executable(java, root)) return { java, javac, home: canonical }
   }
   if (envHome && isAbsolute(envHome)) {
     const tools = await fromHome(envHome)
@@ -138,6 +143,13 @@ async function javaToolchain(root: string, paths: string[], scratch: string, sig
     const canonical = await realpath(javac)
     const java = join(dirname(canonical), nativeExecutable('java'))
     if (await executable(java, root)) return { java, javac: canonical, home: dirname(dirname(canonical)) }
+  }
+  if (windows) {
+    for (const home of await windowsJdkHomes()) {
+      signal.throwIfAborted()
+      const tools = await fromHome(home)
+      if (tools) return tools
+    }
   }
   throw new MissingToolchainError('A local Java JDK is required. Install a JDK containing both javac and java, then reopen Ion.')
 }
@@ -210,7 +222,10 @@ async function jarPaths(directories: string[]) {
 function classpath(entries: string[]) {
   if (entries.some((entry) => entry.includes(delimiter))) throw new Error('A Java classpath entry contains the classpath separator.')
   const result = [...new Set(entries)].join(delimiter)
-  if (Buffer.byteLength(result) > maxClassPathBytes) throw new Error('The Java runtime classpath is too large.')
+  // Windows CreateProcess has a 32,767 UTF-16 code unit limit for the whole command line.
+  if (Buffer.byteLength(result) > maxClassPathBytes || (windows && result.length > 24_000)) {
+    throw new Error('The Java runtime classpath is too large for Ion Run. Use the project’s own build tool for this configuration.')
+  }
   return result
 }
 
@@ -326,6 +341,7 @@ interface PrepareOptions {
   root: string | null
   scratch: string
   signal: AbortSignal
+  nativeProject?: NativeProject
 }
 
 async function prepareJava(options: PrepareOptions, paths: string[], environment: NodeJS.ProcessEnv): Promise<RunPlan> {
@@ -337,9 +353,6 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
   const packageName = packageOf(source)
   const sources = sourceRoot(path, packageName)
   const project = await findJavaProject(path, root)
-  if (windows && project) {
-    throw new MissingToolchainError('Use Maven or Gradle from a Windows terminal for this project. Ion Run on Windows supports Java files without a Maven or Gradle build.')
-  }
   const cwd = project?.cwd ?? root ?? sources
   const label = 'Java · ' + basename(path)
   const javaEnv = { ...environment, JAVA_HOME: tools.home }
@@ -355,25 +368,32 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
   }
   const base = { language: 'java' as const, cwd, label }
   if (project?.build === 'maven') {
-    const mvn = await onPath('mvn', boundary, paths)
-    if (!mvn) throw new MissingToolchainError('This project uses Maven. Install Maven locally and make its plugins and dependencies available in the local cache.')
+    const launcher = windows ? await installedWindowsJavaBuild('maven', boundary, cwd, paths) : null
+    const mvn = launcher?.path ?? (windows ? null : await onPath('mvn', boundary, paths))
+    if (!mvn) throw new MissingToolchainError(windows
+      ? 'Install Apache Maven 3.9 locally and set MAVEN_HOME, M2_HOME, or add its bin folder to PATH. Prepare its plugins and dependencies in the local cache.'
+      : 'This project uses Maven. Install Maven locally and make its plugins and dependencies available in the local cache.')
     const { sourceDirectory, classes, dependencies } = await mavenPaths(project)
     if (!inside(sourceDirectory, path)) throw new Error('The active file is outside this Maven project’s main Java source directory.')
     const runtime = join(scratch, 'maven-classpath')
     return {
       ...base, build: 'maven', toolchain: mvn,
       compile: {
-        executable: mvn, timeoutMs: 120_000, environment: javaEnv,
-        args: ['--offline', '--batch-mode', '--no-transfer-progress', '-Dstyle.color=never', '-f', project.marker, 'compile',
-          ...(dependencies ? ['dependency:build-classpath', '-DincludeScope=runtime', '-Dmdep.outputFile=' + runtime] : [])],
+        executable: launcher ? tools.java : mvn, timeoutMs: 120_000, environment: javaEnv,
+        args: [...(launcher?.args ?? []), '--offline', '--batch-mode', '--no-transfer-progress', '-Dstyle.color=never',
+          '-f', project.marker, 'compile', ...(dependencies ? ['dependency:build-classpath', '-DincludeScope=runtime',
+            '-DoutputEncoding=UTF-8', '-Dmdep.outputFile=' + runtime] : [])],
       },
       run: java([classes], filenameClass),
       resolveRun: async () => launch([classes], dependencies ? outputEntries(await readText(runtime, maxClassPathBytes)) : [], true)(),
     }
   }
   if (project?.build === 'gradle') {
-    const gradle = await cachedGradle(project, boundary) ?? await onPath('gradle', boundary, paths)
-    if (!gradle) throw new MissingToolchainError('This project uses Gradle. Install Gradle or prepare its declared Gradle wrapper distribution and dependencies in the local cache.')
+    const launcher = windows ? await installedWindowsJavaBuild('gradle', boundary, cwd, paths) : null
+    const gradle = launcher?.path ?? (windows ? null : await cachedGradle(project, boundary) ?? await onPath('gradle', boundary, paths))
+    if (!gradle) throw new MissingToolchainError(windows
+      ? 'Install Gradle 8.10–8.x or 9.x locally and set GRADLE_HOME or add its bin folder to PATH. Prepare its plugins and dependencies in the local cache.'
+      : 'This project uses Gradle. Install Gradle or prepare its declared Gradle wrapper distribution and dependencies in the local cache.')
     const runtime = join(scratch, 'gradle-classpath')
     const classes = join(scratch, 'gradle-classes')
     const init = join(scratch, 'ion-run.gradle')
@@ -383,8 +403,9 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
     return {
       ...base, build: 'gradle', toolchain: gradle,
       compile: {
-        executable: gradle, timeoutMs: 120_000, environment: buildEnv,
-        args: ['--offline', '--no-daemon', '--no-build-cache', '--console=plain', '--max-workers=2',
+        executable: launcher ? tools.java : gradle, timeoutMs: 120_000, environment: buildEnv,
+        args: [...(launcher?.args ?? []), '--offline', '--no-daemon', '--no-build-cache', '--console=plain', '--max-workers=2',
+          ...(windows ? ['--no-watch-fs', '--no-configuration-cache'] : []),
           '-Porg.gradle.java.installations.auto-download=false', '--project-dir', cwd, '--init-script', init,
           '-Dion.run.directory=' + cwd, '-Dion.run.source=' + path, '-Dion.run.classpath=' + runtime,
           '-Dion.run.classes=' + classes, 'ionPrepareRunClasspath'],
@@ -421,6 +442,7 @@ export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
   const label = basename(path)
   if (language === 'java') return prepareJava({ ...options, root: root && inside(root, path) ? root : null }, paths, environment)
   if (language === 'c' || language === 'cpp') {
+    const project = options.nativeProject
     let executablePath: string | null
     if (windows) {
       executablePath = await findWindowsCompiler(paths, cwd, language === 'cpp')
@@ -437,7 +459,9 @@ export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
       compile: {
         executable: executablePath, environment,
         args: ['-x', language === 'cpp' ? 'c++' : 'c', language === 'cpp' ? '-std=c++17' : '-std=c17',
-          '-Wall', '-Wextra', '-fdiagnostics-color=never', path, '-o', program],
+          '-Wall', '-Wextra', '-fdiagnostics-color=never',
+          ...(project?.includeDirectories.flatMap((directory) => ['-I', directory]) ?? []),
+          ...(project?.sources ?? [path]), '-o', program],
       },
       run: { executable: program, args: [], environment },
     }

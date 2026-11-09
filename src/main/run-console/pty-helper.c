@@ -16,8 +16,11 @@
 #include <unistd.h>
 
 #ifdef __APPLE__
+#include <libproc.h>
 #include <util.h>
 #else
+#include <dirent.h>
+#include <limits.h>
 #include <pty.h>
 #endif
 
@@ -81,6 +84,46 @@ static void signal_job(pid_t child, int signal_number) {
     (void)kill(child, signal_number);
 }
 
+static void signal_session(pid_t leader, int master, int signal_number) {
+    // Interactive shells place jobs in their own process groups. Check the
+    // session ID before signaling so another terminal's jobs are unaffected.
+    const pid_t foreground = tcgetpgrp(master);
+    if (foreground > 0 && foreground != leader && getsid(foreground) == leader)
+        (void)kill(-foreground, signal_number);
+#ifdef __APPLE__
+    const int needed = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
+    if (needed <= 0) return;
+    const int capacity = needed < 256 * 1024 - 4096 ? needed + 4096 : 256 * 1024;
+    pid_t *pids = malloc((size_t)capacity);
+    if (!pids) return;
+    const int used = proc_listpids(PROC_ALL_PIDS, 0, pids, capacity);
+    const int count = (used < capacity ? used : capacity) / (int)sizeof(*pids);
+    for (int i = 0; i < count; i++) {
+        const pid_t pid = pids[i];
+        if (pid > 0 && pid != leader && getsid(pid) == leader) (void)kill(pid, signal_number);
+    }
+    free(pids);
+#else
+    DIR *directory = opendir("/proc");
+    if (!directory) return;
+    struct dirent *entry;
+    while ((entry = readdir(directory))) {
+        if (entry->d_name[0] < '1' || entry->d_name[0] > '9') continue;
+        char *end;
+        long value = strtol(entry->d_name, &end, 10);
+        if (*end || value <= 0 || value > INT_MAX) continue;
+        const pid_t pid = (pid_t)value;
+        if (pid != leader && getsid(pid) == leader) (void)kill(pid, signal_number);
+    }
+    closedir(directory);
+#endif
+}
+
+static void signal_terminal(pid_t child, int master, int signal_number, int shell) {
+    signal_job(child, signal_number);
+    if (shell) signal_session(child, master, signal_number);
+}
+
 static int child_exited(pid_t child) {
     siginfo_t state = {0};
     return waitid(P_PID, (id_t)child, &state, WEXITED | WNOHANG | WNOWAIT) == 0 && state.si_pid == child;
@@ -115,7 +158,7 @@ static int read_control(struct control *frame, int master) {
     return 1;
 }
 
-static void relay(pid_t child, int master, int *retained_slave) {
+static void relay(pid_t child, int master, int *retained_slave, int shell) {
     struct control frame = {0};
     struct output output = {0};
     int64_t stop_deadline = 0;
@@ -127,19 +170,22 @@ static void relay(pid_t child, int master, int *retained_slave) {
         const int64_t now = now_ms();
         if (!exited && child_exited(child)) {
             exited = 1;
-            signal_job(child, SIGKILL);
+            signal_terminal(child, master, SIGKILL, shell);
             drain_deadline = now + drain_ms;
         }
+        // A normal shell exit can leave one chunk waiting on the UI. Keep
+        // its final output until the reader acknowledges it or closes.
+        const int backpressured_tail = exited && shell && !stopping && output.size;
         if (exited && terminal_end && !output.size) break;
-        if (exited && now >= drain_deadline) {
+        if (exited && !backpressured_tail && now >= drain_deadline) {
             (void)write(STDERR_FILENO, "INCOMPLETE\n", 11);
             break;
         }
         if (!exited && stopping && !stop_deadline) {
-            signal_job(child, SIGTERM);
+            signal_terminal(child, master, shell ? SIGHUP : SIGTERM, shell);
             stop_deadline = now + stop_ms;
         } else if (!exited && stop_deadline && now >= stop_deadline) {
-            signal_job(child, SIGKILL);
+            signal_terminal(child, master, SIGKILL, shell);
             stop_deadline = INT64_MAX;
         }
 
@@ -150,15 +196,15 @@ static void relay(pid_t child, int master, int *retained_slave) {
             (!output.size ? POLLIN : 0) | (input_ready && !stopping && !exited ? POLLOUT : 0);
         struct pollfd fds[] = {
             {wake_pipe[0], POLLIN, 0},
-            {!exited && !stopping ? STDIN_FILENO : -1, read_input ? POLLIN : 0, 0},
+            {!stopping && (!exited || backpressured_tail) ? STDIN_FILENO : -1, read_input ? POLLIN : 0, 0},
             {!terminal_end && terminal_events ? master : -1, terminal_events, 0},
             {output.size ? STDOUT_FILENO : -1, POLLOUT, 0},
         };
-        const int64_t deadline = exited ? drain_deadline : stop_deadline;
+        const int64_t deadline = exited ? (backpressured_tail ? 0 : drain_deadline) : stop_deadline;
         const int timeout = final_read ? 0 : (deadline && deadline != INT64_MAX ? (int)(deadline - now) : -1);
         if (poll(fds, sizeof(fds) / sizeof(*fds), timeout) < 0) {
             if (errno == EINTR) continue;
-            signal_job(child, SIGKILL);
+            signal_terminal(child, master, SIGKILL, shell);
             break;
         }
         if (fds[0].revents & POLLIN) {
@@ -192,12 +238,15 @@ static void relay(pid_t child, int master, int *retained_slave) {
         }
         if (fds[3].revents & (POLLOUT | POLLHUP | POLLERR | POLLNVAL)) {
             ssize_t count = write(STDOUT_FILENO, output.bytes + output.sent, output.size - output.sent);
-            if (count > 0) output.sent += (size_t)count;
+            if (count > 0) {
+                output.sent += (size_t)count;
+                if (exited && shell && !stopping) drain_deadline = now_ms() + drain_ms;
+            }
             if (output.sent == output.size) output.sent = output.size = 0;
             else if (count < 0 && errno != EAGAIN && errno != EINTR) {
                 // The child may be waiting for its tty to drain. Let main
                 // close the master before it waits for the child to exit.
-                signal_job(child, SIGKILL);
+                signal_terminal(child, master, SIGKILL, shell);
                 break;
             }
         }
@@ -207,7 +256,9 @@ static void relay(pid_t child, int master, int *retained_slave) {
 int main(int argc, char **argv) {
     int columns = argc >= 4 ? dimension(argv[1]) : 0;
     int rows = argc >= 4 ? dimension(argv[2]) : 0;
-    if (!columns || !rows || argv[3][0] != '/') return 125;
+    const int shell = argc >= 5 && strcmp(argv[3], "--shell") == 0;
+    const int program = shell ? 4 : 3;
+    if (!columns || !rows || argv[program][0] != '/') return 125;
 
     if (pipe(wake_pipe) < 0 || nonblocking(wake_pipe[0]) < 0 || nonblocking(wake_pipe[1]) < 0) {
         perror("Ion PTY signal pipe");
@@ -253,19 +304,22 @@ int main(int argc, char **argv) {
         install_handler(SIGPIPE, SIG_DFL);
         close(wake_pipe[0]);
         close(wake_pipe[1]);
-        struct rlimit core_limit = {0, 0};
-        (void)setrlimit(RLIMIT_CORE, &core_limit);
-        execv(argv[3], &argv[3]);
+        if (!shell) {
+            struct rlimit core_limit = {0, 0};
+            (void)setrlimit(RLIMIT_CORE, &core_limit);
+        }
+        execv(argv[program], &argv[program]);
         perror("Unable to launch program");
         _exit(127);
     }
 
     (void)dprintf(STDERR_FILENO, "READY %ld\n", (long)child);
     if (nonblocking(master) < 0 || nonblocking(STDIN_FILENO) < 0 || nonblocking(STDOUT_FILENO) < 0) {
-        signal_job(child, SIGKILL);
+        signal_terminal(child, master, SIGKILL, shell);
     } else {
-        relay(child, master, &retained_slave);
+        relay(child, master, &retained_slave, shell);
     }
+    if (shell) signal_session(child, master, SIGKILL);
     close(master);
     if (retained_slave >= 0) close(retained_slave);
 

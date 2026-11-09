@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
-  artifact, close, createProject, launch, openFromExplorer, stubDialogs, withScratch,
+  artifact, close, createProject, editorShows, launch, openFromExplorer, stubDialogs, withScratch,
 } from './desktop-harness.mjs'
 
 const { values } = parseArgs({ options: {
@@ -23,6 +23,8 @@ await withScratch('learning-marketplace', async (scratch) => {
   const project = await createProject(join(scratch, 'project'), { fileCount: 0 })
   const custom = join(scratch, 'tiny-study.json')
   const bad = join(scratch, 'bad-study.json')
+  const exported = join(scratch, 'exported-python.json')
+  const pythonError = join(project.directory, 'undefined name.py')
   const hostileText = '<img src="https://example.invalid/learn-tracker.png" onerror="alert(1)">'
   const authored = {
     schema: 1, id: 'tiny-study', name: 'Tiny Study', summary: 'Local hand-written notes.', version: 1,
@@ -32,6 +34,7 @@ await withScratch('learning-marketplace', async (scratch) => {
   await Promise.all([
     writeFile(custom, JSON.stringify(authored)),
     writeFile(bad, JSON.stringify({ ...authored, id: '../outside' })),
+    writeFile(pythonError, 'print(undefined_study_value)\n'),
   ])
   const first = await launch(target, profile)
   try {
@@ -53,12 +56,31 @@ await withScratch('learning-marketplace', async (scratch) => {
     await learn.getByTestId('learning-open-marketplace').click()
     const market = page.getByTestId('marketplace-pane')
     const search = market.getByTestId('marketplace-search')
+    await market.getByTestId('marketplace-category').selectOption('data')
+    await market.getByTestId('marketplace-difficulty').selectOption('intermediate')
+    await search.fill('context managers')
+    await market.getByTestId('marketplace-view-cards').click()
+    await packAction(page, 'details', 'python').click()
+    const details = market.getByTestId('marketplace-detail')
+    await details.getByText('Use context managers for deterministic cleanup').waitFor()
+    await details.getByRole('heading', { name: 'Mini-project' }).waitFor()
+    await details.getByRole('button', { name: 'Back to packs' }).click()
+    await market.getByTestId('marketplace-category').selectOption('')
+    await market.getByTestId('marketplace-difficulty').selectOption('')
+    await market.getByTestId('marketplace-view-list').click()
     await search.fill('python')
     await packAction(page, 'install', 'python').click()
     await packAction(page, 'use', 'python').waitFor()
     assert.equal((await library(page)).selected, null)
     assert.equal(await learn.locator('option[value="python"]').count(), 1)
     assert.equal(await learn.locator('option[value="java"]').count(), 0)
+    await market.getByTestId('marketplace-installed-only').check()
+    await packAction(page, 'details', 'python').click()
+    await stubDialogs(app, { folder: project.directory, allowRun: true, save: exported })
+    await market.getByTestId('marketplace-export').click()
+    await market.getByText('Python exported.', { exact: true }).waitFor()
+    assert.equal(JSON.parse(await readFile(exported, 'utf8')).lessons.length, 15)
+    await details.getByRole('button', { name: 'Back to packs' }).click()
     await capture(page, 'marketplace-install')
     await packAction(page, 'use', 'python').click()
     await market.waitFor({ state: 'detached' })
@@ -78,6 +100,30 @@ await withScratch('learning-marketplace', async (scratch) => {
     assert.equal(await learn.getByTestId('learning-diagnostic').count(), 0)
     assert.deepEqual((await page.evaluate(() => window.ion.learning.getHistory())).categories, [])
 
+    await openFromExplorer(page, pythonError, 'undefined_study_value')
+    await page.getByTestId('run').click()
+    await page.locator('[data-testid="output"][data-status="runtime-error"]').waitFor()
+    await learn.getByTestId('learning-result').click()
+    await learn.locator('[data-category="python-undefined-name"]').waitFor()
+    await learn.getByTestId('learning-show-explanation').click()
+    await lesson.getByText('Values, names, and output', { exact: true }).waitFor()
+    await lesson.getByRole('heading', { name: 'Expected behavior' }).waitFor()
+    await learn.getByRole('button', { name: 'Back to topics' }).click()
+    await learn.locator('[data-testid="learning-topic"][data-topic="flow"]').click()
+    await learn.getByTestId('learning-start-exercise').click()
+    const practice = page.getByTestId('practice-pane')
+    await practice.getByTestId('practice-sample-definitions').waitFor()
+    await practice.getByRole('heading', { name: 'Conditions, loops, and ranges' }).waitFor()
+    await editorShows(page, 'Write your solution here')
+    await page.locator('.monaco-editor .view-lines').click()
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a')
+    await page.keyboard.insertText('bound = int(input())\nfor value in range(bound, 0, -1):\n    if value % 3 == 0:\n        print(value)\n')
+    await practice.getByTestId('practice-run-samples').click()
+    await practice.getByTestId('practice-results').getByText('3 of 3 passed', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Welcome', exact: true }).click()
+    await page.getByTestId('workspace-learn').click()
+    await current(page, 'python')
+
     await page.getByTestId('toggle-marketplace').click()
     await stubDialogs(app, { file: bad })
     await market.getByTestId('marketplace-import').click()
@@ -85,6 +131,9 @@ await withScratch('learning-marketplace', async (scratch) => {
     assert.equal((await library(page)).installed.length, 1)
     await stubDialogs(app, { file: custom })
     await market.getByTestId('marketplace-import').click()
+    await market.getByTestId('marketplace-import-confirm').waitFor()
+    assert.equal((await library(page)).installed.length, 1)
+    await market.getByTestId('marketplace-import-confirm').click()
     await packAction(page, 'use', authored.id).click()
     await current(page, authored.id)
     await learn.getByTestId('learning-topic').first().click()
@@ -98,7 +147,7 @@ await withScratch('learning-marketplace', async (scratch) => {
     await current(page, 'python')
     assert.deepEqual(first.requests, [])
     assert.deepEqual(first.errors, [])
-    console.log('PASS regular C run while Python is selected, malformed import rejection, safe text rendering, remove and reselect')
+    console.log('PASS matching offline diagnostic guidance, Practice handoff and real sample tests, reviewed imports, safe text and removal')
   } finally {
     await close(first)
   }

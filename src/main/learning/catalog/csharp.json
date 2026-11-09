@@ -1,0 +1,281 @@
+{
+  "schema": 2,
+  "id": "csharp",
+  "name": "C#",
+  "summary": "Use the C# type system, nullable values, dictionaries, records, and LINQ to build small .NET console programs.",
+  "version": 1,
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core"
+    ],
+    "languageVersion": "C# 12 or newer",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "Use a .NET 8 or newer SDK and place each example in Program.cs of a console project. Run it with dotnet run from a terminal. The examples use the standard library."
+    ],
+    "miniProject": "Build a reading-list report. Parse page counts, store books as records, group by status, and use LINQ to print a sorted list of unfinished books. Handle empty input and malformed counts.",
+    "references": [
+      {
+        "title": "Microsoft Learn: Inside a C# program",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/"
+      },
+      {
+        "title": "Microsoft Learn: Nullable reference types",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-reference-types"
+      },
+      {
+        "title": "Microsoft Learn: LINQ",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "values",
+      "title": "Types, local variables, and interpolation",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "A console app can use top-level statements. C# checks expression types at compile time. A local declared with var gets a type from its initializer. String interpolation places values inside a string.",
+      "example": "using System;\n\nint quantity = 4;\nvar centsPerItem = 125;\nint totalCents = quantity * centsPerItem;\nConsole.WriteLine($\"{quantity} items cost {totalCents} cents\");",
+      "api": [
+        {
+          "name": "int",
+          "description": "Store a signed 32-bit integer."
+        },
+        {
+          "name": "var",
+          "description": "Infer a local variable type from its initializer."
+        },
+        {
+          "name": "$\"...\"",
+          "description": "Create an interpolated string."
+        }
+      ],
+      "practice": "Print the total cost of three tickets at 350 cents each, then change the quantity to five.",
+      "pitfall": "A var local still has a specific compile-time type. A value of an incompatible type cannot be assigned later.",
+      "expectedOutput": "4 items cost 500 cents",
+      "keywords": [
+        "top-level statements",
+        "var",
+        "int",
+        "string interpolation"
+      ],
+      "prerequisites": [],
+      "related": [
+        "nullable"
+      ],
+      "references": [
+        {
+          "title": "Microsoft Learn: Inside a C# program",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/"
+        }
+      ],
+      "exercise": {
+        "expected": "Report a count and a total in integer cents.",
+        "completion": "The outputs contain totals of 1050 and 1750 cents for the two counts."
+      },
+      "exampleFile": "lesson.cs",
+      "exampleMode": "program"
+    },
+    {
+      "id": "nullable",
+      "title": "Missing strings and TryParse",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "In a nullable-aware file, string? tells the compiler a reference may be null. Int32.TryParse reports whether conversion succeeded and supplies an integer through an out parameter. Short-circuiting with && keeps the range check on the success path.",
+      "example": "#nullable enable\nusing System;\n\nstatic int QuantityOrDefault(string? input)\n{\n    return int.TryParse(input, out int quantity) && quantity > 0 ? quantity : 1;\n}\n\nConsole.WriteLine(QuantityOrDefault(\"4\"));\nConsole.WriteLine(QuantityOrDefault(null));\nConsole.WriteLine(QuantityOrDefault(\"oops\"));",
+      "api": [
+        {
+          "name": "#nullable enable",
+          "description": "Enable nullable reference annotations and analysis in this file."
+        },
+        {
+          "name": "string?",
+          "description": "Annotate a string reference that may be null."
+        },
+        {
+          "name": "int.TryParse()",
+          "description": "Return a success flag and an integer via an out parameter."
+        }
+      ],
+      "practice": "Accept quantities from 1 through 20. Return a fallback of 2 when the text is missing, malformed, or outside the range.",
+      "pitfall": "Nullable reference annotations guide compiler warnings. They do not add a runtime check before you use a reference.",
+      "expectedOutput": "4\n1\n1",
+      "keywords": [
+        "nullable reference types",
+        "null",
+        "TryParse",
+        "out",
+        "short circuit"
+      ],
+      "prerequisites": [
+        "values"
+      ],
+      "related": [
+        "collections"
+      ],
+      "references": [
+        {
+          "title": "Microsoft Learn: Nullable reference types",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-reference-types"
+        }
+      ],
+      "exercise": {
+        "expected": "Safely return a positive quantity or a fallback.",
+        "completion": "Inputs \"3\", \"50\", and null produce 3, 2, and 2."
+      },
+      "exampleFile": "lesson.cs",
+      "exampleMode": "program"
+    },
+    {
+      "id": "collections",
+      "title": "Count values with a dictionary",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "Dictionary<TKey, TValue> maps keys to values. TryGetValue tells you whether a key already exists. For an integer value, the out result defaults to zero when the key is absent. Choose a string comparer to make key equality explicit.",
+      "example": "using System;\nusing System.Collections.Generic;\n\nstring[] pages = { \"start\", \"notes\", \"start\" };\nvar visits = new Dictionary<string, int>(StringComparer.Ordinal);\nforeach (string page in pages)\n{\n    visits.TryGetValue(page, out int count);\n    visits[page] = count + 1;\n}\n\nvar keys = new List<string>(visits.Keys);\nkeys.Sort(StringComparer.Ordinal);\nforeach (string key in keys)\n{\n    Console.WriteLine($\"{key}: {visits[key]}\");\n}",
+      "api": [
+        {
+          "name": "Dictionary<TKey, TValue>",
+          "description": "Store one value per key."
+        },
+        {
+          "name": "TryGetValue()",
+          "description": "Read a value and tell whether the key existed."
+        },
+        {
+          "name": "StringComparer.Ordinal",
+          "description": "Use case-sensitive ordinal string comparison."
+        }
+      ],
+      "practice": "Count the words in a small array with a case-insensitive dictionary. Print distinct counts.",
+      "pitfall": "Reading a missing key with the indexer throws KeyNotFoundException. TryGetValue handles that case explicitly.",
+      "expectedOutput": "notes: 1\nstart: 2",
+      "keywords": [
+        "dictionary",
+        "foreach",
+        "TryGetValue",
+        "comparer",
+        "frequency"
+      ],
+      "prerequisites": [
+        "values"
+      ],
+      "related": [
+        "linq"
+      ],
+      "references": [
+        {
+          "title": "Microsoft Learn: Dictionary<TKey,TValue>",
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2"
+        }
+      ],
+      "exercise": {
+        "expected": "Treat uppercase and lowercase spellings as the same key for this report.",
+        "completion": "The words \"tea\", \"Tea\", and \"coffee\" produce two keys with counts 2 and 1."
+      },
+      "exampleFile": "lesson.cs",
+      "exampleMode": "program"
+    },
+    {
+      "id": "records",
+      "title": "Records and non-destructive updates",
+      "section": "Core",
+      "difficulty": "intermediate",
+      "explanation": "A positional record class generates properties and value equality for its declared data. A with expression makes a shallow copy and sets the properties you name. That helps keep an earlier snapshot available.",
+      "example": "using System;\n\nvar original = new Delivery(\"Cedar Street\", 2);\nvar updated = original with { Parcels = 3 };\n\nConsole.WriteLine($\"{original.Parcels} -> {updated.Parcels}\");\nConsole.WriteLine(original == new Delivery(\"Cedar Street\", 2));\n\nrecord Delivery(string Address, int Parcels);",
+      "api": [
+        {
+          "name": "record",
+          "description": "Declare a type that generates value-based equality."
+        },
+        {
+          "name": "with",
+          "description": "Copy a record and initialize selected properties."
+        }
+      ],
+      "practice": "Model a Book with a title and page count. Correct one count with with and compare two independent Book values.",
+      "pitfall": "A with expression copies references in properties. Both records can still share a mutable collection stored inside them.",
+      "expectedOutput": "2 -> 3\nTrue",
+      "keywords": [
+        "record",
+        "with expression",
+        "value equality",
+        "shallow copy"
+      ],
+      "prerequisites": [
+        "values"
+      ],
+      "related": [
+        "linq"
+      ],
+      "references": [
+        {
+          "title": "Microsoft Learn: Record types",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record"
+        }
+      ],
+      "exercise": {
+        "expected": "Keep the original record available while creating an updated value.",
+        "completion": "The original remains at 120 pages. The updated copy has 128 pages and compares unequal to it."
+      },
+      "exampleFile": "lesson.cs",
+      "exampleMode": "program"
+    },
+    {
+      "id": "linq",
+      "title": "Filter, sort, and materialize LINQ results",
+      "section": "Core",
+      "difficulty": "intermediate",
+      "explanation": "Where selects values that satisfy a predicate. OrderBy sorts by a key. These LINQ operations are typically evaluated as you enumerate them. ToArray materializes the values at that point in time.",
+      "example": "using System;\nusing System.Linq;\n\nint[] prices = { 600, 125, 400, 300 };\nint[] selected = prices.Where(price => price >= 300)\n    .OrderBy(price => price)\n    .ToArray();\n\nConsole.WriteLine(string.Join(\", \", selected));\nConsole.WriteLine(selected.Sum());",
+      "api": [
+        {
+          "name": "Where()",
+          "description": "Filter a sequence with a predicate."
+        },
+        {
+          "name": "OrderBy()",
+          "description": "Order elements by a selected key."
+        },
+        {
+          "name": "ToArray()",
+          "description": "Evaluate the sequence and return an array."
+        }
+      ],
+      "practice": "Filter the values 11, 2, 8, and 4 to the even values. Sort them descending and print their total.",
+      "pitfall": "Holding the query alone does not take a snapshot of mutable source data. Materialize it when you need stable results.",
+      "expectedOutput": "300, 400, 600\n1300",
+      "keywords": [
+        "LINQ",
+        "Where",
+        "OrderBy",
+        "ToArray",
+        "deferred execution"
+      ],
+      "prerequisites": [
+        "collections"
+      ],
+      "related": [
+        "records"
+      ],
+      "references": [
+        {
+          "title": "Microsoft Learn: LINQ",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/"
+        }
+      ],
+      "exercise": {
+        "expected": "Print the sorted sequence of selected values and its sum.",
+        "completion": "The output sequence is 8, 4, 2 and the total is 14."
+      },
+      "exampleFile": "lesson.cs",
+      "exampleMode": "program"
+    }
+  ]
+}

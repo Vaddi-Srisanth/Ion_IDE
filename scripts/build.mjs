@@ -1,14 +1,17 @@
 import { execFile, spawn } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { once } from 'node:events'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { buildWindowsPty } from './windows/build-pty.mjs'
 import { build as bundle } from 'esbuild'
 import electron from 'electron'
 import { build, createServer } from 'vite'
 
 const mode = process.argv[2]
+const require = createRequire(import.meta.url)
 const output = process.env.ION_BUILD_OUTPUT_DIR ?? (mode === 'baseline' ? 'dist-baseline' : 'dist')
 const targetPlatform = process.env.ION_TARGET_PLATFORM ?? process.platform
 const targetArch = process.env.ION_TARGET_ARCH ?? (targetPlatform === 'darwin' ? process.env.ION_MAC_ARCH : undefined) ?? process.arch
@@ -48,6 +51,8 @@ async function buildPty() {
   } else if (targetPlatform === 'linux') {
     await mkdir(folder, { recursive: true })
     await run('cc', ['-D_DEFAULT_SOURCE', ...args, '-lutil'])
+  } else if (targetPlatform === 'win32') {
+    await buildWindowsPty(join(folder, 'ion-pty.exe'), targetArch)
   }
 }
 
@@ -63,6 +68,7 @@ async function buildDesktop() {
       'main/viewers/document-worker': 'src/main/viewers/document-worker.ts',
       'main/notebooks/kernel-service': 'src/main/notebooks/kernel-service.ts',
       'main/run-console/index': 'src/main/run-console/index.ts',
+      'main/terminal/service': 'src/main/terminal/service.ts',
       'main/web-preview': 'src/main/web-preview.ts',
       'main/profile-export': 'src/main/profile-export.ts',
       'main/workspace-search': 'src/main/workspace-search.ts',
@@ -71,10 +77,11 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|web-preview|profile-export|workspace-search|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|terminal\/service|web-preview|profile-export|workspace-search|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
           const singleFile = path.endsWith('/ipc') || path === './web-preview' || path === './profile-export'
-            || path === './notebooks/kernel-service' || path === './learning/catalog-store' || path === './workspace-search'
+            || path === './notebooks/kernel-service' || path === './learning/catalog-store'
+            || path === './workspace-search' || path === './terminal/service'
           return { path: path + (singleFile ? '.cjs' : '/index.cjs'), external: true }
         })
       },
@@ -90,11 +97,13 @@ async function buildDesktop() {
     sourcemap: mode === 'dev' ? 'inline' : false,
     minify: mode !== 'dev',
   })
+  const { compileLearningCatalog } = require(resolve(output, 'main/learning/catalog-store.cjs'))
+  const { version } = JSON.parse(await readFile('package.json', 'utf8'))
   await Promise.all([
     buildPty(),
     buildSearchTool(),
     cp('src/main/learning/packs', resolve(output, 'main/learning-packs'), { recursive: true }),
-    cp('src/main/learning/catalog', resolve(output, 'main/learning-catalog'), { recursive: true }),
+    compileLearningCatalog(resolve('src/main/learning/catalog'), resolve(output, 'main/learning-catalog'), version),
     cp('src/main/themes/palettes', resolve(output, 'main/themes'), { recursive: true }),
     ...[['csv-parse', 'LICENSE'], ['sax', 'LICENSE.md'], ['yauzl', 'LICENSE'], ['pend', 'LICENSE']]
       .map(([name, license]) => cp(resolve('node_modules', name, license), resolve(output, 'main/viewers/licenses', name + '.txt'))),

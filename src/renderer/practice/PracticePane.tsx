@@ -14,6 +14,7 @@ import './practice.css'
 
 export interface PracticePaneProps {
   bridge: PracticeBridge
+  initialProblem?: string
   onOpenEntry(entry: Entry): void
   onPrepareRun(path: string): Promise<boolean>
   onClose(): void
@@ -299,8 +300,8 @@ function AttemptResults({ attempt }: { attempt?: PracticeAttempt }) {
   )
 }
 
-export function PracticePane({ bridge, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun }: PracticePaneProps) {
-  const [view, setView] = useState<'browse' | 'saved'>('browse')
+export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun }: PracticePaneProps) {
+  const [view, setView] = useState<'browse' | 'saved'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
   const [attemptId, setAttemptId] = useState('')
@@ -324,7 +325,7 @@ export function PracticePane({ bridge, onOpenEntry, onPrepareRun, onClose, onDir
     const load = async () => {
       try {
         const next = await bridge.list()
-        const id = next.problems.find((item) => item.id === lastProblem)?.id ?? next.problems[0]?.id
+        const id = next.problems.find((item) => item.id === (initialProblem ?? lastProblem))?.id ?? next.problems[0]?.id
         if (!mounted.current) return
         setLibrary(next)
         if (id) {
@@ -339,7 +340,7 @@ export function PracticePane({ bridge, onOpenEntry, onPrepareRun, onClose, onDir
     }
     void load()
     return () => { mounted.current = false }
-  }, [bridge])
+  }, [bridge, initialProblem])
 
   useEffect(() => { onDirtyChange?.(draft?.dirty ?? false) }, [draft?.dirty, onDirtyChange])
   useEffect(() => { scroll.current?.scrollTo(0, 0) }, [view, problem?.id])

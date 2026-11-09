@@ -1,7 +1,7 @@
 {
   "name": "ion-ide",
   "productName": "Ion IDE",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "An offline-first desktop IDE for writing and running your own code.",
   "private": true,
   "type": "module",
@@ -30,7 +30,7 @@
     "test:starters": "node scripts/test-starter-code.mjs",
     "test:notebooks": "node scripts/test-notebook.mjs --edit",
     "test:window": "node scripts/test-window-startup.mjs",
-    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:desktop && npm run test:window && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:workspace-search && npm run test:run-console && npm run test:workspaces && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
+    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:desktop && npm run test:window && node scripts/test-update-preferences.mjs && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:workspace-search && npm run test:run-console && npm run test:native-projects && npm run test:terminal && npm run test:workspaces && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
     "bench:desktop": "node scripts/benchmark.mjs",
     "install:mac": "npm run build && node scripts/install-mac.mjs",
     "package:mac": "npm run build && node scripts/package-mac.mjs",
@@ -47,13 +47,18 @@
     "check:performance": "node scripts/check-performance-regression.mjs",
     "test:themes": "node scripts/themes.mjs",
     "bench:themes": "node scripts/benchmark-themes.mjs",
+    "bench:marketplace": "node scripts/benchmark-learning-marketplace.mjs",
     "test:viewers": "node scripts/test-paged-viewer.mjs && node scripts/test-word-viewer.mjs && node scripts/test-table-viewer.mjs",
     "bench:viewers": "node scripts/benchmark-viewers.mjs",
     "test:run-console": "node scripts/test-run-console.mjs",
-    "bench:run-console": "node scripts/benchmark-run-console.mjs"
+    "test:native-projects": "node scripts/test-native-projects.mjs",
+    "bench:run-console": "node scripts/benchmark-run-console.mjs",
+    "test:terminal": "node scripts/test-integrated-terminal.mjs",
+    "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
+    "@xterm/addon-search": "0.16.0",
     "@xterm/xterm": "6.0.0",
     "csv-parse": "7.0.3",
     "dompurify": "3.4.17",

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { mkdir, open, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { defaultSettings, type Entry, type Preferences, type RecentEntry, type Settings } from '../shared/contracts'
 import { isThemeId } from '../shared/themes'
 import { parseShortcutOverrides, shortcutPlatform } from '../shared/shortcuts'
@@ -10,6 +11,25 @@ import { isWithin } from './files'
 const maxRecents = 20
 const maxPreferencesBytes = 64 * 1024
 const settingsVersion = 1
+const windowsReplaceDelays = [25, 50, 100, 200, 400]
+
+async function replacePreferences(temporary: string, destination: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rename(temporary, destination)
+      return
+    } catch (error) {
+      const wait = windowsReplaceDelays[attempt]
+      const code = error instanceof Error && 'code' in error ? error.code : undefined
+      if (process.platform !== 'win32' || wait === undefined || (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES')) {
+        throw error
+      }
+      // A Windows reader or scanner can briefly prevent replacement. Retain the
+      // same atomic rename and leave the old file in place if the lock persists.
+      await delay(wait)
+    }
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -101,6 +121,10 @@ export class PreferenceStore {
     return this.load()
   }
 
+  drain(): Promise<void> {
+    return this.mutations
+  }
+
   async exportSnapshot() {
     const { settings, recents } = await this.get()
     return { version: settingsVersion, settings, recents: recents.map(({ path, name, kind, lastOpened }) => ({
@@ -145,7 +169,7 @@ export class PreferenceStore {
       await mkdir(dirname(this.path), { recursive: true })
       try {
         await writeFile(temporary, JSON.stringify({ version: settingsVersion, ...state }) + '\n', { mode: 0o600, flag: 'wx' })
-        await rename(temporary, this.path)
+        await replacePreferences(temporary, this.path)
         this.state = Promise.resolve(state)
         return state
       } finally {

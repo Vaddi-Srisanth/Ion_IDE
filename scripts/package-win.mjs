@@ -6,11 +6,13 @@ import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { FuseV1Options, FuseVersion, flipFuses } from '@electron/fuses'
 import { packager } from '@electron/packager'
+import { signWindowsBinary, windowsSigningOptions } from './windows/signing.mjs'
 
 const run = promisify(execFile)
 const require = createRequire(import.meta.url)
 const { name, productName, version, main, devDependencies } = JSON.parse(await readFile('package.json', 'utf8'))
-const author = 'Vaddi Srisanth'
+const signing = windowsSigningOptions()
+const author = signing?.publisher ?? 'Vaddi Srisanth'
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Windows packaging requires a numeric release version.')
 
 const makensis = process.env.ION_MAKENSIS ?? 'makensis'
@@ -68,6 +70,8 @@ try {
 
   const stage = join(scratch, 'app')
   const native = join(output, 'native')
+  const resources = ['ion-rg.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt']
+  if (await access(join(native, 'ion-pty.exe')).then(() => true, () => false)) resources.push('ion-pty.exe')
   await mkdir(stage)
   await writeFile(join(stage, 'package.json'), JSON.stringify({ name, productName, version, main, author }))
   await cp(output, join(stage, 'dist'), { recursive: true, filter: (path) => path !== native })
@@ -91,11 +95,12 @@ try {
       OriginalFilename: 'Ion IDE.exe',
       'requested-execution-level': 'asInvoker',
     },
-    extraResource: ['ion-rg.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt'].map((name) => join(native, name)),
+    extraResource: resources.map((name) => join(native, name)),
     asar: true,
     prune: false,
   })
-  await flipFuses(join(payload, 'Ion IDE.exe'), {
+  const executable = join(payload, 'Ion IDE.exe')
+  await flipFuses(executable, {
     version: FuseVersion.V1,
     [FuseV1Options.RunAsNode]: false,
     [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
@@ -104,6 +109,13 @@ try {
     [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
     [FuseV1Options.OnlyLoadAppFromAsar]: true,
   })
+  if (signing) {
+    console.log('Signing and verifying the application executable…')
+    await signWindowsBinary(executable, signing)
+    if (resources.includes('ion-pty.exe')) {
+      await signWindowsBinary(join(payload, 'resources', 'ion-pty.exe'), signing)
+    }
+  }
 
   console.log('Creating the per-user Windows installer…')
   await Promise.all([
@@ -111,13 +123,19 @@ try {
     copyFile(icon, join(scratch, 'ion.ico')),
     uninstallCommands(payload).then((commands) => writeFile(join(scratch, 'uninstall-files.nsh'), commands + '\n')),
   ])
-  await run(makensis, [option + 'WX', `${option}DION_VERSION=${version}`, `${option}DION_PAYLOAD=${payload}`, 'installer.nsi'], {
+  await run(makensis, [option + 'WX', `${option}DION_VERSION=${version}`, `${option}DION_PAYLOAD=${payload}`,
+    `${option}DION_PUBLISHER=${author}`, 'installer.nsi'], {
     cwd: scratch,
     windowsHide: true,
   })
   const filename = `Ion-IDE-${version}-windows-x64-setup.exe`
+  const installer = join(scratch, filename)
+  if (signing) {
+    console.log('Signing and verifying the installer…')
+    await signWindowsBinary(installer, signing)
+  }
   await mkdir(release, { recursive: true })
-  await copyFile(join(scratch, filename), join(release, filename))
+  await copyFile(installer, join(release, filename))
   console.log(join(release, filename))
 } catch (error) {
   if (error?.stdout) console.error(error.stdout.trim())
