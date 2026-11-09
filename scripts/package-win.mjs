@@ -76,6 +76,7 @@ try {
   const [payload] = await packager({
     dir: stage,
     out: join(scratch, 'out'),
+    tmpdir: scratch,
     name: productName,
     appVersion: version,
     buildVersion: version,

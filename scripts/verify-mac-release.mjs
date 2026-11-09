@@ -22,7 +22,7 @@ async function bytes(path) {
 
 async function verifyTerminal(helper) {
   command('/usr/bin/codesign', ['--verify', '--strict', helper])
-  assert.equal(command('/usr/bin/lipo', ['-archs', helper]), process.arch)
+  assert.equal(command('/usr/bin/lipo', [helper, '-archs']), process.arch === 'x64' ? 'x86_64' : process.arch)
   const child = spawn(helper, ['80', '24', '/bin/sh', '-c',
     'test -t 0 && test -t 1 && test -t 2 || exit 1; printf "ready> "; IFS= read -r value; printf "\\nsealed:%s\\n" "$value"'],
   { stdio: ['pipe', 'pipe', 'pipe'] })
@@ -129,7 +129,7 @@ await withScratch('release-check', async (scratch) => {
       assert.deepEqual(JSON.parse(command('/usr/bin/plutil', ['-extract', key, 'json', '-o', '-', plist])), value)
     }
     const binary = join(copy, 'Contents/MacOS/Ion IDE')
-    assert.equal(command('/usr/bin/lipo', ['-archs', binary]), process.arch)
+    assert.equal(command('/usr/bin/lipo', [binary, '-archs']), process.arch === 'x64' ? 'x86_64' : process.arch)
     await verifyTerminal(join(copy, 'Contents/Resources/ion-pty'))
     command('/usr/bin/codesign', ['--verify', '--strict', join(copy, 'Contents/Resources/ion-rg')])
     const page = await start(binary)

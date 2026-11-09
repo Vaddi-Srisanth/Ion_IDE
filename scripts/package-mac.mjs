@@ -56,6 +56,7 @@ try {
     const [packageDirectory] = await packager({
       dir: stage,
       out: join(scratch, 'out'),
+      tmpdir: scratch,
       name: 'Ion IDE',
       appBundleId: 'dev.ionide.desktop',
       appCategoryType: 'public.app-category.developer-tools',
@@ -73,7 +74,10 @@ try {
     const signedApp = join(packageDirectory, 'Ion IDE.app')
     for (const name of ['ion-pty', 'ion-rg']) {
       const executable = join(signedApp, 'Contents/Resources', name)
-      command('/usr/bin/lipo', ['-verify_arch', arch === 'x64' ? 'x86_64' : 'arm64', executable])
+      const architectures = execFileSync('/usr/bin/lipo', [executable, '-archs'], { encoding: 'utf8' }).trim().split(/\s+/)
+      if (!architectures.includes(arch === 'x64' ? 'x86_64' : 'arm64')) {
+        throw new Error(`${name} is missing the requested ${arch} architecture.`)
+      }
       command('/usr/bin/codesign', ['--force', '--sign', '-', executable])
     }
     await flipFuses(signedApp, {

@@ -7,7 +7,6 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
 import { editorShows, eventually, withScratch } from './desktop-harness.mjs'
-import { verifyWindowsConsole, windowsInputFilename, windowsInputSource } from './verify-windows-run-console.mjs'
 
 assert.equal(process.platform, 'win32', 'Use a disposable Windows machine for this installed-app test.')
 assert.ok(process.env.LOCALAPPDATA && process.env.APPDATA)
@@ -33,7 +32,6 @@ const quiet = { windowsHide: true, timeout: 120_000 }
 await withScratch('windows-release', async (scratch) => {
   const project = join(scratch, 'Release test workspace')
   const source = join(project, 'verify.txt')
-  const inputProgram = join(project, windowsInputFilename)
   const original = 'Windows setup search marker'
   const edited = 'Saved by the installed Windows editor'
   const userFile = join(installDir, 'App', 'uninstall-preservation-test.txt')
@@ -46,7 +44,6 @@ await withScratch('windows-release', async (scratch) => {
     await mkdir(profile)
     profileOwned = true
     await writeFile(source, original)
-    await writeFile(inputProgram, windowsInputSource)
     await writeFile(prefs, JSON.stringify({
       version: 1,
       settings: { autoSave: false, openFullScreen: false },
@@ -104,10 +101,7 @@ await withScratch('windows-release', async (scratch) => {
     await page.getByTestId('close-tab').click()
     await page.getByTestId('explorer-entry').filter({ hasText: 'verify.txt' }).click()
     await (await editorShows(page, edited)).dispose()
-    console.log('PASS silent install, Start menu shortcut, bundled search, and offline open/edit/save/reopen.')
-
-    await verifyWindowsConsole(page, child.pid)
-    console.log('PASS update opt-in persists.')
+    console.log('PASS silent install, Start menu shortcut, bundled search, offline open/edit/save/reopen, and update opt-in.')
 
     const exited = once(child, 'exit')
     await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',

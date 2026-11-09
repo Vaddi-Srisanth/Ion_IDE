@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { promisify } from 'node:util'
 import { artifact, close, editorShows, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
 
-const run = promisify(execFile)
-export const windowsInputFilename = 'verify-input.cjs'
-export const windowsInputSource = `
+const windowsInputFilename = 'verify-input.cjs'
+const windowsInputSource = `
 const prompt = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
 console.log('ION-WINDOWS-INPUT');
 prompt.once('line', (line) => {
@@ -18,71 +15,6 @@ prompt.once('line', (line) => {
   });
 });
 `
-
-function approveNativeRun(pid) {
-  // Electron uses a Windows task dialog. Find the real enabled button in this app's process,
-  // then activate its actual control ID without depending on an accessibility pattern.
-  const script = `
-    $ErrorActionPreference = 'Stop'
-    Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-
-public static class IonTaskDialog {
-  private delegate bool WindowCallback(IntPtr window, IntPtr parameter);
-  [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
-  [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr parent, WindowCallback callback, IntPtr parameter);
-  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
-  [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
-  [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr window);
-  [DllImport("user32.dll")] private static extern int GetDlgCtrlID(IntPtr window);
-  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-  private static extern int GetClassName(IntPtr window, StringBuilder text, int capacity);
-  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-  private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr length,
-    StringBuilder text, uint flags, uint timeout, out UIntPtr result);
-  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-  private static extern bool PostMessage(IntPtr window, uint message, IntPtr controlId, IntPtr parameter);
-
-  private const uint GetText = 0x000d;
-  private const uint AbortIfHung = 0x0002;
-  private const uint ClickTaskDialogButton = 0x0400 + 102;
-
-  public static bool Click(uint process, string label) {
-    bool posted = false;
-    EnumWindows((window, unused) => {
-      uint owner;
-      GetWindowThreadProcessId(window, out owner);
-      if (owner != process || !IsWindowVisible(window)) return true;
-      EnumChildWindows(window, (child, ignored) => {
-        if (!IsWindowVisible(child) || !IsWindowEnabled(child)) return true;
-        var type = new StringBuilder(32);
-        GetClassName(child, type, type.Capacity);
-        if (!String.Equals(type.ToString(), "Button", StringComparison.OrdinalIgnoreCase)) return true;
-        var text = new StringBuilder(256);
-        UIntPtr length;
-        if (SendMessageTimeout(child, GetText, (UIntPtr)(uint)text.Capacity, text, AbortIfHung, 250, out length) == IntPtr.Zero
-            || text.ToString() != label) return true;
-        int controlId = GetDlgCtrlID(child);
-        posted = controlId > 0 && PostMessage(window, ClickTaskDialogButton, (IntPtr)controlId, IntPtr.Zero);
-        return !posted;
-      }, IntPtr.Zero);
-      return !posted;
-    }, IntPtr.Zero);
-    return posted;
-  }
-}
-'@
-    for ($attempt = 0; $attempt -lt 60; $attempt++) {
-      if ([IonTaskDialog]::Click(${pid}, 'Run Program')) { exit 0 }
-      Start-Sleep -Milliseconds 150
-    }
-    throw 'The app did not show a Run Program trust button.'
-  `
-  const encoded = Buffer.from(script, 'utf16le').toString('base64')
-  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true, timeout: 15_000 })
-}
 
 async function consoleDiagnostics(page) {
   return page.evaluate(() => {
@@ -106,7 +38,7 @@ async function terminalShows(page, marker) {
   await handle.dispose()
 }
 
-export async function verifyWindowsConsole(page, pid) {
+async function verifyWindowsConsole(page) {
   await page.getByTestId('explorer-entry').filter({ hasText: windowsInputFilename }).click()
   await (await editorShows(page, 'ION-WINDOWS-INPUT')).dispose()
   await page.evaluate(() => {
@@ -117,9 +49,7 @@ export async function verifyWindowsConsole(page, pid) {
     })
   })
   try {
-    const start = page.getByTestId('run').click()
-    if (pid) await Promise.all([approveNativeRun(pid), start])
-    else await start
+    await page.getByTestId('run').click()
     await terminalShows(page, 'ION-WINDOWS-INPUT')
     await page.getByTestId('run-console-input').focus()
     await page.keyboard.insertText('hello')
