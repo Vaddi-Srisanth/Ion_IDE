@@ -85,12 +85,24 @@ async function rerun(page, marker) {
   await finished(page, 'success', marker)
 }
 
-async function stopRunning(page, pidMarker) {
+async function stopRunning(page, pidMarker, rerun = false) {
+  const previous = await page.evaluate(() => globalThis.ionRunTestEvents.at(-1)?.id)
+  await page.getByTestId(rerun ? 'run-console-rerun' : 'run').click()
   await page.locator(`${output}[data-phase="running"]`).waitFor({ timeout })
-  await terminalText(page, pidMarker)
-  const transcript = await page.getByTestId('run-console-terminal').textContent()
-  const pid = Number(new RegExp(`${pidMarker}(\\d+)`).exec(transcript)?.[1])
+  // The previous run can still be visible for one frame after the phase changes.
+  // Read the new run's PID from its own streamed events before checking xterm.
+  const observed = await page.waitForFunction(({ previous, pidMarker }) => {
+    const events = globalThis.ionRunTestEvents
+    const running = events.findLast(({ id, update }) => id !== previous && update.kind === 'phase' && update.phase === 'running')
+    if (!running) return false
+    const text = events.filter(({ id, update }) => id === running.id && update.kind === 'data' && update.stream === 'terminal')
+      .map(({ update }) => update.text).join('')
+    return Number(new RegExp(pidMarker + '(\\d+)').exec(text)?.[1]) || false
+  }, { previous, pidMarker }, { timeout })
+  const pid = await observed.jsonValue()
+  await observed.dispose()
   assert.ok(Number.isInteger(pid) && pid > 1, `Expected a PID after ${pidMarker}`)
+  await terminalText(page, `${pidMarker}${pid}`)
   await page.getByTestId('run-console-stop').click()
   await finished(page, 'cancelled', `${pidMarker}${pid}`)
   await waitForProcessExit(pid)
@@ -253,8 +265,7 @@ int main(void) {
       const [inputFile, inputSource, prompts, answer] = interactive
       await interact(page, path(inputFile), inputSource, prompts, answer)
       if (language === 'Java' && values.screenshots) await page.screenshot({ path: join(values.screenshots, 'run-console.png') })
-      await page.getByTestId('run-console-rerun').click()
-      await stopRunning(page, pid)
+      await stopRunning(page, pid, true)
 
       const [failureFile, failureSource, status, diagnostic] = failure
       await openFromExplorer(page, path(failureFile), failureSource)
@@ -278,7 +289,6 @@ int main(void) {
     console.log('PASS Save Before Run and Java compiler errors prevent executing previously compiled code')
 
     await openFromExplorer(page, project.loop, 'for (;;)')
-    await page.getByTestId('run').click()
     await stopRunning(page, 'ION-LOOP-PID:')
 
     await openFromExplorer(page, path('alternate screen.js'), 'ION-ALTERNATE-SCREEN')

@@ -7,6 +7,8 @@ const target = await artifact('dist')
 const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 const rendered = async (page, text) => { await (await editorShows(page, text)).dispose() }
 const editorText = (page) => page.locator('.monaco-editor .view-lines').innerText()
+// Monaco can add display padding to the blank line at the cursor.
+const renderedStarter = async (page) => (await editorText(page)).replace(/^[ \t\u00a0]+$/gm, '')
 const activeTab = (page) => page.getByTestId('tab').locator('.tab-name[aria-current="true"]')
 
 await withScratch('starter-code', async (scratch) => {
@@ -34,10 +36,10 @@ await withScratch('starter-code', async (scratch) => {
     await rendered(page, 'int main(void)')
     await page.getByText('Ln 4, Col 5', { exact: true }).waitFor()
     assert.match(await activeTab(page).innerText(), /Untitled-\d+\.c/)
-    const c = await editorText(page)
+    const c = await renderedStarter(page)
     await page.getByTestId('insert-starter').click()
     await page.getByRole('alert').filter({ hasText: 'empty source file' }).waitFor()
-    assert.equal(await editorText(page), c)
+    assert.equal(await renderedStarter(page), c)
 
     step = 'create and run a renamed Java starter'
     await page.getByTestId('new-starter').click()
