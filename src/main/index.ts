@@ -177,12 +177,14 @@ const learning = () => import('./learning').then(({ LearningService }) => learni
 
 let packStore: InstanceType<typeof import('./learning/catalog-store').LearningPackStore> | undefined
 let learningSelectionGeneration = 0
+let learningLensEnabled: boolean = defaultSettings.learningLens
 const learningPacks = () => import('./learning/catalog-store').then(({ LearningPackStore }) => packStore ??= new LearningPackStore(
   app.getPath('userData'), join(__dirname, 'learning-catalog'), app.getVersion(),
 ))
 
 async function observesLearning(language: RunLanguage, generation: number, selection: number): Promise<boolean> {
-  if (panel !== 'learn' || generation !== panelGeneration || selection !== learningSelectionGeneration) return false
+  if ((language === 'c' && !learningLensEnabled) || panel !== 'learn'
+    || generation !== panelGeneration || selection !== learningSelectionGeneration) return false
   const selected = await learningPacks().then((store) => store.isSelected(language)).catch(() => false)
   return selected && generation === panelGeneration && selection === learningSelectionGeneration
 }
@@ -547,15 +549,25 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     const job = engine.run(plan, emit, signal, stillCurrent)
     if (record.size) engine.resize(...record.size)
     const result = await job
-    if (sourceHash && await observesLearning(plan.language, generation, selection) && await stillCurrent()) {
+    const hasCompilerReport = Boolean(result.compileOutput || result.status === 'compile-error')
+    const current = (sourceHash || hasCompilerReport) && await stillCurrent()
+    if (sourceHash && current && await observesLearning(plan.language, generation, selection)) {
       try {
         const service = await learning()
         if (generation === panelGeneration && selection === learningSelectionGeneration) {
-          result.learning = await service.observe({ path, sourceHash, language: plan.language, result: { ...result, programOutput: runtimeExcerpt } })
+          result.learning = await service.observe({
+            path, sourceHash, language: plan.language, result: { ...result, programOutput: runtimeExcerpt },
+            readSource: plan.language === 'c' ? async () => {
+              const source = await scope.read(path).catch(() => undefined)
+              return source?.revision === token ? source.text : undefined
+            } : undefined,
+          })
         }
       } catch { /* Compiler output remains available if learning storage fails. */ }
     }
-    return { ...result, compileOutput: '' }
+    const problems = hasCompilerReport ? result.learning?.diagnostics.filter(({ phase }) => phase === 'compile')
+      ?? (await import('./learning')).compilerProblems(result, plan.language) : undefined
+    return { ...result, compileOutput: '', problems, sourceRevision: current ? token : undefined }
   } catch (error) {
     return signal.aborted ? cancelledRun() : rejectedRun(error instanceof Error ? error.message : 'Unable to start the run.')
   } finally {
@@ -628,6 +640,8 @@ function registerIpc(): void {
   })
   handle('update-settings', async (_target, patch) => {
     const result = await preferences.updateSettings(patch)
+    if (learningLensEnabled !== result.learningLens) learningSelectionGeneration++
+    learningLensEnabled = result.learningLens
     openFullScreen = result.openFullScreen
     applyProfile(result.resourceProfile)
     applyShortcuts(result.shortcuts)
@@ -1209,6 +1223,7 @@ void app.whenReady().then(async () => {
     registerSession(),
   ])
   openFullScreen = startupPreferences?.settings.openFullScreen ?? defaultSettings.openFullScreen
+  learningLensEnabled = startupPreferences?.settings.learningLens ?? defaultSettings.learningLens
   registerIpc()
   installMenu(sendCommand, shortcutOverrides)
   initialized = true

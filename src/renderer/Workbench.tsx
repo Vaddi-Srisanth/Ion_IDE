@@ -10,6 +10,7 @@ import { loadEditor, loadedEditor } from './load-editor';
 import type MonacoSurface from './MonacoSurface';
 import type { EditorActions } from './MonacoSurface';
 import { Output } from './Output';
+import { Problems, type ProblemMarker, type ProblemRow } from './Problems';
 import type { RunConsoleStore } from './run-console/store';
 import type { TerminalController } from './terminal/controller';
 import type { TerminalPaneProps } from './terminal/TerminalPane';
@@ -50,22 +51,26 @@ function EditorContent(props: ComponentProps<typeof MonacoSurface>) {
   );
 }
 
-function BottomTabs({ active, onSelect }: { active: BottomTab; onSelect(tab: BottomTab): void }) {
+function BottomTabs({ active, count, onSelect }: { active: BottomTab; count: number; onSelect(tab: BottomTab): void }) {
   const tabs = [
     { id: 'terminal', title: 'Terminal', icon: 'terminal' },
     { id: 'run', title: 'Run Console', icon: 'play' },
+    { id: 'problems', title: 'Problems', icon: 'warning' },
   ] as const;
   return <div className="bottom-tabs" role="tablist" aria-label="Bottom panel">
-    {tabs.map(({ id, title, icon }) => <button key={id} className="bottom-tab" role="tab" type="button"
+    {tabs.map(({ id, title, icon }, index) => <button key={id} className="bottom-tab" role="tab" type="button"
       id={'bottom-tab-' + id} aria-controls={'bottom-content-' + id} aria-selected={active === id}
-      tabIndex={active === id ? 0 : -1} data-testid={id === 'run' ? 'bottom-run-tab' : 'bottom-terminal-tab'}
+      tabIndex={active === id ? 0 : -1} data-testid={'bottom-' + id + '-tab'}
       onClick={() => onSelect(id)} onKeyDown={(event) => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        const next = event.key === 'Home' ? 'terminal' : event.key === 'End' ? 'run' : id === 'run' ? 'terminal' : 'run';
+        const step = event.key === 'ArrowLeft' ? -1 : 1;
+        const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+          : (index + step + tabs.length) % tabs.length].id;
         event.preventDefault();
         onSelect(next);
         requestAnimationFrame(() => document.getElementById('bottom-tab-' + next)?.focus());
-      }}><Icon name={icon} size={13}/>{title}</button>)}
+      }}><Icon name={icon} size={13}/>{title}
+        {id === 'problems' && count > 0 && <span className="problems-count">{count}</span>}</button>)}
   </div>;
 }
 
@@ -179,6 +184,13 @@ export interface WorkbenchProps {
   accentColor?: string;
   runConsole: RunConsoleStore;
   bottomTab: BottomTab;
+  problemRows: readonly ProblemRow[];
+  problemFile?: string;
+  problemsStale: boolean;
+  selectedProblem?: number;
+  problemMarkers?: readonly ProblemMarker[];
+  onRevealProblem(index: number): void;
+  onExplainProblem(index: number): void;
   terminalFocus: number;
   terminalController: RefObject<TerminalController | null>;
   onBottomTab(tab: BottomTab): void;
@@ -216,7 +228,8 @@ export function Workbench(props: WorkbenchProps) {
   const {
     documents, hidden, mode, auxiliary, marketplace, onToggleAuxiliary, onToggleExplorer, onToggleMarketplace,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
-    runConsole, bottomTab, terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
+    runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
+    terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
     onNew, onInsertStarter, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
     onFind, onSaveAs, onReload,
@@ -331,7 +344,7 @@ export function Workbench(props: WorkbenchProps) {
     '--explorer-width': `${settings.explorerWidth}px`,
     '--output-height': `${settings.outputHeight}px`, ...(hidden && { display: 'none' }),
   } as CSSProperties;
-  const bottomTabs = <BottomTabs active={bottomTab} onSelect={onBottomTab}/>;
+  const bottomTabs = <BottomTabs active={bottomTab} count={problemRows.length} onSelect={onBottomTab}/>;
   return (
     <>
       <main className="workspace" style={panelSizes} data-testid="workspace" aria-label={`${modeName} workspace`} data-mode={mode}>
@@ -424,7 +437,7 @@ export function Workbench(props: WorkbenchProps) {
                   </>
                 )}
                 {(codeTab || (editorStarted && keepEditorWarm)) && <EditorContent documents={documents} tab={largeText ? undefined : activeCode} settings={settings}
-                  activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden}
+                  activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden} problemMarkers={problemMarkers}
                   onActions={registerEditorActions} onCursor={onCursor}/>}
                 {largeText?.path && <LargeTextPreview key={`${largeText.id}:${largeText.epoch}`} path={largeText.path}/>}
                 {!active && (
@@ -482,6 +495,8 @@ export function Workbench(props: WorkbenchProps) {
             <div className="output-frame">
               {bottomTab === 'terminal'
                 ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus} onHide={onToggleBottom}/>
+                : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile} stale={problemsStale}
+                  selected={selectedProblem} onReveal={onRevealProblem} onExplain={onExplainProblem} onClose={onToggleBottom}/>
                 : <Output store={runConsole} tabs={bottomTabs} canRun={canRun} canRerun={canRerun} onRun={onRun} onRerun={onRerun} onStop={onStop}
                   onInput={onRunInput} onResize={onConsoleResize} onClose={onToggleBottom}/>}
             </div>

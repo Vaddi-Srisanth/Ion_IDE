@@ -370,3 +370,40 @@ svg { flex: none; }
   font: 10px var(--mono);
 }
 .profile-status:hover { color: var(--accent); }
+
+.problems-content { overflow: auto; min-height: 0; padding: 8px 12px; }
+.problems-count, .problem-lens-label {
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: 600 11px var(--mono);
+}
+.problems-summary, .problem-meta, .problem-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.problems-summary { color: var(--muted); font-size: 12px; }
+.problems-summary strong { color: var(--ink); }
+.problems-empty, .problems-stale { margin: 6px 0; color: var(--muted); font-size: 12px; }
+.problem-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.problem-row {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid var(--border);
+  padding: 7px 8px;
+}
+.problem-row[data-selected] {
+  box-shadow: inset 2px 0 var(--accent);
+  background: var(--accent-bg);
+}
+.problem-meta { font-size: 11px; }
+.problem-severity { color: var(--danger); text-transform: uppercase; font: 600 10px var(--mono); }
+.problem-row[data-severity='warning'] .problem-severity { color: var(--amber); }
+.problem-row[data-severity='note'] .problem-severity { color: var(--muted); }
+.problem-location { font-family: var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.problem-message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 var(--mono); color: var(--text); }
+.problem-actions .button { padding: 3px 8px; min-height: 24px; font-size: 11px; }
+.problem-explain { color: var(--accent); }
+.monaco-editor .ion-problem-line { background: color-mix(in srgb, var(--danger) 11%, transparent); }
+.monaco-editor .ion-lens-line { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.monaco-editor .ion-problem-selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+.monaco-editor .ion-problem-gutter { border-left: 2px solid var(--danger); }
+.monaco-editor .ion-lens-gutter { border-left: 2px solid var(--accent); }

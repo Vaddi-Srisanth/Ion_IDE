@@ -1,4 +1,4 @@
-import type { LearningBridge, LearningFeedback } from './learning'
+import type { CompilerProblem, LearningBridge, LearningFeedback } from './learning'
 import type { LearningPacksBridge } from './learning-packs'
 import type { PracticeBridge } from './practice'
 import type { ProjectsBridge } from './projects'
@@ -65,6 +65,7 @@ export interface Settings {
   autoSaveDelay: number
   saveBeforeRun: boolean
   keepRunOutput: boolean
+  learningLens: boolean
   notebookKernelLifetime: NotebookKernelLifetime
   auxiliaryWidth: number
   explorerWidth: number
@@ -88,6 +89,7 @@ export const defaultSettings: Readonly<Settings> = {
   autoSaveDelay: 900,
   saveBeforeRun: true,
   keepRunOutput: false,
+  learningLens: true,
   notebookKernelLifetime: 'tab',
   auxiliaryWidth: 325,
   explorerWidth: 240,
@@ -130,8 +132,11 @@ export interface RunResult {
   programSignal?: string
   outputComplete?: boolean
   compileMs?: number
+  compileVerified?: true
   programMs?: number
   sourceChanged?: true
+  sourceRevision?: string
+  problems?: CompilerProblem[]
   learning?: LearningFeedback
 }
 

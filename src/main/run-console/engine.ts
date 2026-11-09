@@ -97,11 +97,12 @@ export class InteractiveRunner {
     const publish = publisher(emit)
     let compileOutput = ''
     let compileMs: number | undefined
+    let compileVerified: true | undefined
     let stage = plan.compile ? 'Compilation' : 'Program'
 
     function result(status: RunStatus, message: string, detail: Partial<RunResult> = {}): RunResult {
       return {
-        status, message, compiler: plan.toolchain, compileOutput, compileMs, programOutput: '', exitCode: null,
+        status, message, compiler: plan.toolchain, compileOutput, compileMs, compileVerified, programOutput: '', exitCode: null,
         durationMs: Math.round(performance.now() - start), ...detail,
       }
     }
@@ -141,6 +142,7 @@ export class InteractiveRunner {
         if (compiled.outputComplete === false) {
           return result('compile-error', 'A compiler child kept output open. Compilation could not be verified.', detail)
         }
+        if (compiled.outputComplete === true) compileVerified = true
       }
 
       if (signal.aborted) return result('cancelled', 'Run stopped.')

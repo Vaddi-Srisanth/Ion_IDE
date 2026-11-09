@@ -4,8 +4,11 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { diagnose } from '../src/main/learning/diagnostics'
+import { compilerProblems, diagnose } from '../src/main/learning/diagnostics'
 import { LearningService } from '../src/main/learning'
+import { cRetryFingerprint } from '../src/main/learning/c-retry'
+import { InteractiveRunner } from '../src/main/run-console/engine'
+import type { RunPlan } from '../src/main/run-console/plans'
 import type { RunResult } from '../src/shared/contracts'
 import type { DiagnosticCategory } from '../src/shared/learning'
 
@@ -53,12 +56,12 @@ test('reviewed Apple Clang and GCC fixtures classify structured diagnostics cons
     assert.ok(item.output.includes(primary.raw.split('\n')[0]), label)
     assert.equal(primary.category, item.expectedClassification ?? item.expected, label)
     if (primary.category === 'format-argument-type') {
-      assert.ok(cPack.lessons.some(({ id }) => id === primary.packTopic), label)
       assert.match(primary.guidance ?? '', /expected and actual types/, label)
     }
     if (item.expected !== 'unclassified-compiler') report.classifiedExpected += 1
     if (primary.confidence === 'high') {
       assert.ok(primary.concepts.length > 0, label)
+      assert.ok(cPack.lessons.some(({ id }) => id === primary.packTopic), label)
       report.classified += 1
       if (primary.category === item.expected) report.correct += 1
       else report.incorrect += 1
@@ -109,6 +112,26 @@ test('missing locations and unrecognized diagnostics preserve the original compi
   assert.deepEqual(unknown.concepts, [])
 })
 
+test('Problems reuses bounded compiler diagnostics without depending on learning or parsing program output', () => {
+  const file = 'C:\\Workspace with spaces\\fixture.c'
+  const error = file + ":2:9: error: expected ';' after expression"
+  const result = run({ compileOutput: error, programOutput: '/private.c:7:8: error: untrusted runtime text' })
+  assert.deepEqual(compilerProblems(result, 'c'), [{
+    raw: error, severity: 'error', location: { file, line: 2, column: 9 },
+  }])
+  const invalidLine = '/fixture.c:99999999999999999999:1: error: invalid'
+  assert.deepEqual(compilerProblems(run({ compileOutput: invalidLine }), 'c'), [
+    { raw: invalidLine, severity: 'error' },
+  ])
+  const output = Array.from({ length: 28 }, (_, i) => `/fixture.c:${i + 1}: warning: compiler note`).join('\n')
+  const warningOnly = compilerProblems(run({ compiler: 'gcc.exe', compileOutput: output }), 'c')
+  assert.equal(warningOnly.length, 24)
+  assert.equal(warningOnly[0].severity, 'error', 'An unsuccessful compile still exposes its raw report.')
+  assert.equal(warningOnly[1].location?.line, 1)
+  assert.ok(warningOnly[0].raw.length <= 2200)
+  assert.deepEqual(compilerProblems(run({ status: 'runtime-error', programOutput: error }), 'c'), [])
+})
+
 test('runtime learning trusts the OS signal rather than interpreting arbitrary output', () => {
   const spoof = run({
     status: 'runtime-error', programOutput: 'SIGSEGV\nThis is an application message.',
@@ -157,7 +180,7 @@ test('history persists edited retries, skips unchanged runs, and resolves on suc
     const reloaded = new LearningService(storage, packs)
     const fixed = await reloaded.observe({
       path, sourceHash: digest('int main(void) { return 0; }'),
-      result: run({ status: 'success', exitCode: 0, message: 'Program exited successfully.' }),
+      result: run({ status: 'success', exitCode: 0, message: 'Program exited successfully.', compileVerified: true }),
     })
     assert.deepEqual(new Set(fixed.resolved), new Set(['missing-semicolon', 'undeclared-identifier', 'scope-conflict']))
     const history = await reloaded.getHistory()
@@ -187,7 +210,7 @@ test('runtime failures can resolve compiler errors while preserving runtime hist
         compileOutput: path + ":1:23: error: expected ';' after expression",
       }),
     })
-    const crash = run({ status: 'runtime-error', programSignal: 'SIGSEGV' })
+    const crash = run({ status: 'runtime-error', programSignal: 'SIGSEGV', compileVerified: true })
     const first = await service.observe({ path, sourceHash: digest('first crash'), result: crash })
     assert.deepEqual(first.resolved, ['missing-semicolon'])
     assert.equal(first.diagnostics[0].occurrence, 'new')
@@ -199,6 +222,140 @@ test('runtime failures can resolve compiler errors while preserving runtime hist
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('C retries compare real tokens while preserving strings, punctuators and uncertain preprocessor input', () => {
+  const hash = (source: string) => cRetryFingerprint(source, digest(source))
+  const original = '#include <stdio.h>\nint main(void) { puts("keep // text"); return + +count }'
+  const cosmetic = '#include <stdio.h>\n// explain the check\nint main ( void ) { puts("keep // text"); /* no edit */ return  + + count }'
+  assert.ok(hash(original))
+  assert.equal(hash(cosmetic), hash(original))
+  assert.notEqual(hash(original.replace('keep // text', 'edit // text')), hash(original))
+  assert.notEqual(hash(original.replace('+ +count', '++count')), hash(original))
+  assert.notEqual(hash('int value = 1e+2'), hash('int value = 1e + 2'))
+  assert.notEqual(hash('char *text = L"x"'), hash('char *text = L "x"'))
+  for (const source of [
+    '#define CHECK(x) #x\nCHECK(a + b)',
+    'char *bad = "unterminated',
+    'int a; /* unterminated',
+    'int a = __LINE__',
+    'int a = 1\\\n2',
+    'int a ??= 2',
+    'a'.repeat(128 * 1024 + 1),
+  ]) assert.equal(hash(source), undefined)
+  assert.equal(cRetryFingerprint(original, digest(cosmetic)), undefined, 'The run snapshot must match.')
+})
+
+test('cosmetic C retries survive relaunch without adding history, and old history can acquire a token hash', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-learning-c-retry-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const file = join(directory, 'learning.json')
+  const path = '/fixture.c'
+  const result = run({ compileOutput: path + ":2:23: error: expected ';' after return statement" })
+  const original = '#include <stdio.h>\nint main(void) { return 0 }'
+  const cosmetic = '#include <stdio.h>\nint main ( void ) { /* comment */ return   0 }'
+  const first = new LearningService(file)
+  // A version 1 history from before token hashes keeps its exact retry behavior.
+  assert.equal((await first.observe({ path, sourceHash: digest(original), result })).diagnostics[0].occurrence, 'new')
+  let readCount = 0
+  const observe = (service: LearningService, source: string, value = result) => service.observe({
+    path, sourceHash: digest(source), result: value,
+    readSource: async () => { readCount += 1; return source },
+  })
+  assert.equal((await observe(first, original)).diagnostics[0].occurrence, 'unchanged')
+  const reloaded = new LearningService(file)
+  const beforeCosmetic = await stat(file, { bigint: true })
+  assert.equal((await observe(reloaded, cosmetic)).diagnostics[0].occurrence, 'unchanged')
+  assert.equal((await stat(file, { bigint: true })).ino, beforeCosmetic.ino)
+  assert.equal((await observe(reloaded, original.replace('return 0', 'return 1'))).diagnostics[0].occurrence, 'repeated')
+  assert.equal((await observe(reloaded, cosmetic)).diagnostics[0].occurrence, 'unchanged')
+  assert.equal(readCount, 4)
+  const success = await observe(reloaded, 'int main(void) { return 0; }',
+    run({ status: 'success', compileVerified: true, exitCode: 0 }))
+  assert.equal(readCount, 4, 'Successful compilation should not read source for retry comparison.')
+  assert.deepEqual(success.resolved, ['missing-semicolon'])
+  assert.deepEqual((await reloaded.getHistory()).categories, [
+    { category: 'missing-semicolon', encountered: 2, repeated: 1, resolved: 1 },
+  ])
+  assert.doesNotMatch(await readFile(file, 'utf8'), /stdio|return 0|comment|fixture\.c/)
+})
+
+test('ambiguous C source changes cannot increment a known episode without comparable token evidence', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-learning-uncertain-retry-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const service = new LearningService(join(directory, 'learning.json'), packs)
+  const path = '/fixture.c'
+  const result = run({ compileOutput: path + ":2:23: error: expected ';' after return statement" })
+  const observe = (source: string, read = source) => service.observe({
+    path, sourceHash: digest(source), result, readSource: async () => read,
+  })
+  const macro = '#define SCORE 0\nint main(void) { return SCORE }'
+  assert.equal((await observe(macro)).diagnostics[0].occurrence, 'new')
+  assert.equal((await observe(macro.replace('SCORE 0', 'SCORE  0'))).diagnostics[0].occurrence, 'unchanged')
+  assert.equal((await observe(macro.replace('SCORE 0', 'SCORE 1'))).diagnostics[0].occurrence, 'unchanged')
+  const supported = 'int main(void) { return 0 }'
+  assert.equal((await observe(supported, 'external change after compilation')).diagnostics[0].occurrence, 'unchanged')
+  assert.deepEqual((await service.getHistory()).categories, [
+    { category: 'missing-semicolon', encountered: 1, repeated: 0, resolved: 0 },
+  ])
+  assert.equal((await observe(supported)).diagnostics[0].occurrence, 'unchanged')
+  assert.equal((await observe(supported.replace('return 0', 'return 1'))).diagnostics[0].occurrence, 'repeated')
+  assert.deepEqual((await service.getHistory()).categories, [
+    { category: 'missing-semicolon', encountered: 2, repeated: 1, resolved: 0 },
+  ])
+})
+
+test('C resolutions require complete compiler evidence and unknown errors preserve raw text without creating history', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-learning-evidence-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const storage = join(directory, 'learning.json')
+  const service = new LearningService(storage, packs)
+  const path = '/fixture.c'
+  const recognized = path + ":1:23: error: expected ';' after return statement"
+  const observe = (source: string, result: RunResult) => service.observe({ path, sourceHash: digest(source), result })
+  const incomplete = await observe('incomplete', run({ compileOutput: recognized, outputComplete: false }))
+  assert.equal(incomplete.diagnostics[0].raw, recognized)
+  assert.equal(incomplete.diagnostics[0].confidence, 'uncertain')
+  assert.equal(incomplete.diagnostics[0].occurrence, undefined)
+  const unrecognized = path + ':1:1: error: unknown compiler error'
+  const unknown = await observe('unknown', run({ compileOutput: unrecognized }))
+  assert.equal(unknown.diagnostics[0].raw, unrecognized)
+  assert.equal(unknown.diagnostics[0].confidence, 'uncertain')
+  assert.deepEqual((await service.getHistory()).categories, [])
+  assert.equal((await observe('known', run({ compileOutput: recognized }))).diagnostics[0].occurrence, 'new')
+  const compilerResolutions = (feedback: Awaited<ReturnType<typeof observe>>) =>
+    feedback.resolved.filter((category) => category !== 'unclassified-runtime')
+  for (const unsuccessful of [
+    run({ compileOutput: unrecognized }),
+    run({ status: 'timeout', outputComplete: false }),
+    run({ status: 'output-limit', outputComplete: false }),
+    run({ status: 'success', exitCode: 0 }),
+    run({ status: 'runtime-error', outputComplete: false }),
+    run({ status: 'success', compileVerified: true, compileOutput: unrecognized }),
+  ]) assert.deepEqual(compilerResolutions(await observe('unverified', unsuccessful)), [])
+  assert.equal((await service.getHistory()).categories[0].resolved, 0)
+  assert.deepEqual((await observe('verified', run({ status: 'success', compileVerified: true, exitCode: 0 }))).resolved,
+    ['missing-semicolon'])
+  assert.deepEqual((await observe('same verified source', run({ status: 'success', compileVerified: true, exitCode: 0 }))).resolved, [])
+  assert.equal((await new LearningService(storage, packs).getHistory()).categories[0].resolved, 1)
+})
+
+test('Run Console emits compile evidence after a real completed child, never after failure, truncation, or an interpreted run', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-learning-compile-stage-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const runner = new InteractiveRunner(join(directory, 'missing-pty-helper'), { compileMs: 5000, programMs: 5000, outputBytes: 1024 })
+  const command = (source: string) => ({ executable: process.execPath, args: ['-e', source] })
+  const plan: RunPlan = { label: 'C', cwd: directory, language: 'c', toolchain: process.execPath, run: command('') }
+  const execute = (compile?: string) => runner.run({ ...plan, compile: compile === undefined ? undefined : command(compile) },
+    () => {}, new AbortController().signal)
+  assert.equal((await execute('process.exit(0)')).compileVerified, true)
+  const failure = await execute('process.exit(1)')
+  assert.equal(failure.status, 'compile-error')
+  assert.equal(failure.compileVerified, undefined)
+  const truncated = await execute("process.stdout.write('a'.repeat(4096))")
+  assert.equal(truncated.status, 'output-limit')
+  assert.equal(truncated.compileVerified, undefined)
+  assert.equal((await execute()).compileVerified, undefined)
 })
 
 test('unchanged diagnostic bursts do not count again after individual episode eviction', async () => {

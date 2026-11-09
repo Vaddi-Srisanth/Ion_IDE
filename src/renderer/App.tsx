@@ -7,7 +7,8 @@ import type { EditorActions } from './MonacoSurface';
 import { RunConsoleStore } from './run-console/store';
 import { isWithin } from './paths';
 import { Welcome } from './Welcome';
-import type { LearningFeedback } from '../shared/learning';
+import type { CompilerProblem, LearningDiagnostic, LearningFeedback } from '../shared/learning';
+import type { ProblemMarker, ProblemRow } from './Problems';
 import { diagnosticPackIds, type PackLibrary } from '../shared/learning-packs';
 import type { ThemeData } from '../shared/themes';
 import { documentFormat } from '../shared/viewers';
@@ -54,6 +55,29 @@ const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker'))
 const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
 const GoToLine = lazy(async () => ({ default: (await import('./CommandPicker')).GoToLine }));
 
+interface RunReport {
+  tabId: string;
+  path: string;
+  name: string;
+  epoch?: number;
+  revision?: string;
+  problems: CompilerProblem[];
+  feedback?: LearningFeedback;
+}
+
+function reportMatchesTab(documents: Documents, report: RunReport, tab: Tab | undefined) {
+  return Boolean(report.revision && tab?.path === report.path && tab.epoch === report.epoch
+    && !tab.dirty && !tab.conflict && documents.savedRevision(tab.id) === report.revision);
+}
+
+function isReportLocation(report: RunReport, problem: CompilerProblem) {
+  const file = problem.location?.file;
+  if (!file) return false;
+  if (bridge.platform !== 'win32') return file === report.path;
+  const normalize = (path: string) => path.replaceAll('\\', '/').replace(/^[a-z]:/i, (drive) => drive.toUpperCase());
+  return normalize(file) === normalize(report.path);
+}
+
 export function App() {
   const [settings, setSettings] = useState<Settings>(() => ({ ...defaultSettings, autoSave: false }));
   const settingsRef = useRef(settings);
@@ -84,14 +108,23 @@ export function App() {
   }, []);
   const [packLoadError, setPackLoadError] = useState<string>();
   const [packAttempt, setPackAttempt] = useState(0);
-  const [learningFeedback, setLearningFeedback] = useState<{ path: string; feedback: LearningFeedback } | null>(null);
+  const [runReport, setRunReport] = useState<RunReport | null>(null);
+  const [selectedProblem, setSelectedProblem] = useState<number>();
+  const [lensSelection, setLensSelection] = useState<{ diagnostic: LearningDiagnostic; request: number }>();
+  const lensRequest = useRef(0);
   const [practiceExercise, setPracticeExercise] = useState<string>();
   const practiceDraft = useRef(false);
   const projectDraft = useRef(false);
   const markPracticeDraft = useCallback((dirty: boolean) => { practiceDraft.current = dirty; }, []);
   const markProjectDraft = useCallback((dirty: boolean) => { projectDraft.current = dirty; }, []);
-  const closeAuxiliary = useCallback(() => setAuxiliaryVisible(false), []);
-  const toggleAuxiliary = useCallback(() => setAuxiliaryVisible((visible) => !visible), []);
+  const closeAuxiliary = useCallback(() => {
+    setAuxiliaryVisible(false);
+    setLensSelection(undefined);
+  }, []);
+  const toggleAuxiliary = useCallback(() => {
+    setAuxiliaryVisible((visible) => !visible);
+    setLensSelection(undefined);
+  }, []);
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const [root, setRoot] = useState<Entry | null>(null);
   const [sessionAvailable, setSessionAvailable] = useState(false);
@@ -150,6 +183,25 @@ export function App() {
   ));
   const { tabs, activeId } = useSyncExternalStore(documents.subscribe, documents.getSnapshot);
   const active = tabs.find(({ id }) => id === activeId);
+  const reportTab = runReport && tabs.find(({ id }) => id === runReport.tabId);
+  const sourceCurrent = Boolean(runReport && reportTab && reportMatchesTab(documents, runReport, reportTab));
+  const feedback = mode === 'learn' && packLibrary?.selected === runReport?.feedback?.language
+    && (settings.learningLens || runReport?.feedback?.language !== 'c')
+    ? runReport?.feedback : undefined;
+  const problemRows = useMemo<ProblemRow[]>(() => runReport?.problems.map((problem) => ({
+    problem,
+    lesson: feedback?.language === 'c' ? feedback.diagnostics.find((diagnostic) => diagnostic.phase === 'compile'
+      && diagnostic.raw === problem.raw && diagnostic.confidence === 'high'
+      && (diagnostic.concepts.length > 0 || diagnostic.packTopic)) : undefined,
+    canReveal: sourceCurrent && isReportLocation(runReport, problem),
+  })) ?? [], [runReport, feedback, sourceCurrent]);
+  const problemMarkers = useMemo<ProblemMarker[] | undefined>(() => {
+    if (!runReport || activeId !== runReport.tabId) return undefined;
+    const rows = problemRows.flatMap(({ problem, lesson, canReveal }, index) =>
+      canReveal && problem.location && problem.severity !== 'note'
+        ? [{ line: problem.location.line, lens: Boolean(lesson), selected: selectedProblem === index }] : []);
+    return rows.length ? rows : undefined;
+  }, [activeId, problemRows, runReport, selectedProblem]);
   const notebookRunning = tabs.some((tab) => tab.notebookRunning);
   const starterTarget = active && !active.viewer && !active.notebookMode && !active.error && !active.conflict
     ? starterLanguageFor(active.name) : undefined;
@@ -265,10 +317,14 @@ export function App() {
   }, [needsPackLibrary, marketplaceVisible]);
 
   useLayoutEffect(() => {
-    learningPanel.current = diagnosticPackIds.some((id) => id === packLibrary?.selected) && panelMode === 'learn'
+    learningPanel.current = (settings.learningLens || packLibrary?.selected !== 'c')
+      && diagnosticPackIds.some((id) => id === packLibrary?.selected) && panelMode === 'learn'
       && panelContent !== null && panelContent.key === panelKey && 'module' in panelContent;
-    setLearningFeedback((current) => learningPanel.current && current?.feedback.language === packLibrary?.selected ? current : null);
-  }, [packLibrary?.selected, panelMode, panelContent, panelKey]);
+    if (!settings.learningLens) {
+      setRunReport((current) => current?.feedback?.language === 'c' ? { ...current, feedback: undefined } : current);
+      setLensSelection(undefined);
+    }
+  }, [packLibrary?.selected, panelMode, panelContent, panelKey, settings.learningLens]);
 
   useEffect(() => {
     if (!marketplaceVisible || marketplaceContent) return;
@@ -424,11 +480,13 @@ export function App() {
   const selectWorkspace = (next: WorkspaceMode) => {
     if (next !== 'practice') setPracticeExercise(undefined);
     setMode(next);
+    setLensSelection(undefined);
     setAuxiliaryVisible(true);
     enterWorkspace();
   };
   const showWelcome = () => {
     setMarketplaceVisible(false);
+    setLensSelection(undefined);
     setScreen('welcome');
   };
   const toggleMarketplace = () => setMarketplaceVisible((visible) => !visible);
@@ -536,6 +594,35 @@ export function App() {
         }
       });
     });
+  }
+  function revealProblem(index: number) {
+    const problem = problemRows[index];
+    const location = problem?.problem.location;
+    if (!runReport || !problem?.canReveal || !location) return;
+    const { line, column = 1 } = location;
+    const { tabId, path } = runReport;
+    const current = () => reportMatchesTab(documents, runReport, documents.getSnapshot().tabs.find(({ id }) => id === tabId));
+    if (!current()) return;
+    setSelectedProblem(index);
+    splitActions.current?.showSource(path);
+    if (documents.getSnapshot().activeId !== tabId) {
+      documents.requestPosition(tabId, line, column);
+      documents.select(tabId);
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (current() && documents.getSnapshot().activeId === tabId && !editor.current?.goToLine(line, column, tabId)) {
+        documents.requestPosition(tabId, line, column);
+      }
+    });
+  }
+
+  function explainProblem(index: number) {
+    const diagnostic = problemRows[index]?.lesson;
+    if (!diagnostic) return;
+    setSelectedProblem(index);
+    setAuxiliaryVisible(true);
+    setLensSelection({ diagnostic, request: ++lensRequest.current });
   }
   const openRecent = (entry: RecentEntry) => void openNative(() => bridge.openRecent(entry.path));
   const exportLocalProfile = async () => {
@@ -758,9 +845,15 @@ export function App() {
         const streamed = new Promise<void>((resolve) => { request.complete = resolve; });
         const launch = bridge.runConsole.start(request.id, tab.path, learningPanel.current, expectedRevision);
         if (consoleSize.current) void bridge.runConsole.resize(request.id, ...consoleSize.current).catch(() => {});
-        const [{ learning, ...result }] = await Promise.all([launch, streamed]);
+        const [{ learning, problems, sourceRevision, ...result }] = await Promise.all([launch, streamed]);
         if (result.sourceChanged && selected) documents.markConflict(tab.id, tab.path);
-        if (learningPanel.current) setLearningFeedback(learning ? { path: tab.path, feedback: learning } : null);
+        const learned = learningPanel.current ? learning : undefined;
+        setRunReport(problems?.length || learned ? {
+          tabId: tab.id, path: tab.path, name: tab.name, epoch: 'epoch' in tab ? tab.epoch : undefined,
+          revision: sourceRevision, problems: problems ?? [], feedback: learned,
+        } : null);
+        setSelectedProblem(undefined);
+        setLensSelection(undefined);
         runConsole.finish(result);
       } catch (reason) {
         runConsole.fail(errorMessage(reason));
@@ -906,7 +999,10 @@ export function App() {
     const module = panelContent.module;
     switch (module.mode) {
       case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={marketplaceVisible} onMarketplace={() => setMarketplaceVisible(true)}
-        feedback={learningFeedback?.path === active?.path ? learningFeedback?.feedback : undefined} onClose={closeAuxiliary}
+        feedback={runReport?.tabId === activeId || lensSelection ? feedback : undefined} onClose={closeAuxiliary}
+        lensEnabled={settings.learningLens} sourceCurrent={sourceCurrent} lensSelection={feedback ? lensSelection : undefined}
+        canRevealDiagnostic={(diagnostic) => problemRows.some(({ problem, canReveal }) => canReveal && problem.raw === diagnostic.raw)}
+        onRevealDiagnostic={(diagnostic) => revealProblem(problemRows.findIndex(({ problem, canReveal }) => canReveal && problem.raw === diagnostic.raw))}
         onExercise={({ entry, problemId }) => {
           setPracticeExercise(problemId);
           selectWorkspace('practice');
@@ -1006,6 +1102,8 @@ export function App() {
           treeRevision={treeRevision} settings={settings} activeTheme={activeTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
+          problemRows={problemRows} problemFile={runReport?.name} problemsStale={Boolean(problemRows.length) && !sourceCurrent}
+          selectedProblem={selectedProblem} problemMarkers={problemMarkers} onRevealProblem={revealProblem} onExplainProblem={explainProblem}
           onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
           onSelect={documents.select} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openEntry} onTarget={setTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}

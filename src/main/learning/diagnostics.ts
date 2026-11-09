@@ -1,15 +1,13 @@
 import { fileURLToPath } from 'node:url'
 import type { RunResult } from '../../shared/contracts'
-import type {
-  CompilerFamily, ConceptId, DiagnosticCategory, DiagnosticSeverity, LearningDiagnostic,
+import {
+  diagnosticConcepts, type CompilerFamily, type CompilerProblem, type DiagnosticCategory,
+  type DiagnosticSeverity, type LearningDiagnostic,
 } from '../../shared/learning'
 import type { RunLanguage } from '../../shared/run-console'
 
-interface ParsedDiagnostic {
+interface ParsedDiagnostic extends CompilerProblem {
   message: string
-  raw: string
-  severity: DiagnosticSeverity
-  location?: LearningDiagnostic['location']
 }
 
 interface Classification {
@@ -28,21 +26,15 @@ const clangLocation = new RegExp(`^(.*?):(\\d+):(\\d+): ${severity}: (.+)$`)
 const gccLocation = new RegExp(`^(.*?):(\\d+)(?::(\\d+))?: ${severity}: (.+)$`)
 const compilerHeader = new RegExp(`^(?:(?:clang(?:-\\d+)?|gcc(?:-\\d+)?|cc1|ld): )?${severity}: (.+)$`)
 
-export const relatedConcepts: Partial<Record<DiagnosticCategory, ConceptId[]>> = {
-  'missing-semicolon': ['statements'],
-  'undeclared-identifier': ['names', 'scope'],
-  'scope-conflict': ['scope', 'names'],
-  'incompatible-types': ['types'],
-  'argument-count': ['functions'],
-  'argument-types': ['functions', 'types'],
-  'format-argument-type': ['functions', 'types'],
-  'invalid-dereference': ['pointers', 'types'],
-  'runtime-memory-fault': ['memory', 'pointers'],
-  'unclassified-compiler': [],
-  'unclassified-runtime': [],
-}
-
-export const packDiagnostics: Partial<Record<DiagnosticCategory, { packTopic: string; guidance: string }>> = {
+export const packDiagnostics: Partial<Record<DiagnosticCategory, { packTopic: string; guidance?: string }>> = {
+  'missing-semicolon': { packTopic: 'program' },
+  'undeclared-identifier': { packTopic: 'program' },
+  'scope-conflict': { packTopic: 'program' },
+  'incompatible-types': { packTopic: 'program' },
+  'argument-count': { packTopic: 'functions' },
+  'argument-types': { packTopic: 'functions' },
+  'invalid-dereference': { packTopic: 'pointers' },
+  'runtime-memory-fault': { packTopic: 'allocation' },
   'format-argument-type': {
     packTopic: 'program', guidance: 'A conversion in the format string requires a specific argument type. Compare the expected and actual types in the compiler message, then check whether the conversion or the supplied argument should change.',
   },
@@ -134,9 +126,14 @@ function parseOutput(output: string, family: CompilerFamily): ParsedDiagnostic[]
       if (records.length === maxDiagnostics) break
       if (location) {
         const [, file, row, column, level, message] = location
+        const lineNumber = Number(row)
+        const columnNumber = Number(column)
         current = {
           message, raw: line.slice(0, maxRawLength), severity: level as DiagnosticSeverity,
-          location: { file, line: Number(row), ...(column ? { column: Number(column) } : {}) },
+        }
+        if (file && Number.isSafeInteger(lineNumber) && lineNumber > 0) {
+          current.location = { file, line: lineNumber }
+          if (Number.isSafeInteger(columnNumber) && columnNumber > 0) current.location.column = columnNumber
         }
       } else if (header) {
         const [, level, message] = header
@@ -151,6 +148,21 @@ function parseOutput(output: string, family: CompilerFamily): ParsedDiagnostic[]
     }
   }
   return records
+}
+
+function compileRecords(result: RunResult, compiler: CompilerFamily): ParsedDiagnostic[] {
+  const records = parseOutput(result.compileOutput, compiler)
+  if (result.status === 'compile-error' && !records.some(({ severity: level }) => level === 'error' || level === 'fatal error')) {
+    records.unshift({
+      severity: 'error', message: '', raw: (result.compileOutput.trim() || result.message).slice(0, maxRawLength),
+    })
+  }
+  return records
+}
+
+export function compilerProblems(result: RunResult, language: RunLanguage): CompilerProblem[] {
+  return compileRecords(result, compilerFamily(result.compiler, language)).slice(0, maxDiagnostics)
+    .map(({ message: _message, ...problem }) => problem)
 }
 
 function classifyClang(message: string): Classification | undefined {
@@ -249,14 +261,16 @@ function classifyFormatArgument(message: string, option: string | undefined, fam
   if (types) return { category: 'format-argument-type', context: types[1] + '|' + types[2] }
 }
 
-function classifyCompiler(record: ParsedDiagnostic, family: CompilerFamily, language: RunLanguage, source: string | undefined): ClassifiedDiagnostic {
+function classifyCompiler(
+  record: ParsedDiagnostic, family: CompilerFamily, language: RunLanguage, source: string | undefined, complete: boolean,
+): ClassifiedDiagnostic {
   const { raw, severity: level, location } = record
   const option = /\s+\[(-W[^\]\r\n]+)\]$/.exec(record.message)
   const message = (option ? record.message.slice(0, option.index) : record.message).replace(/[‘’]/g, "'")
   // A preprocessor #error can contain arbitrary text, including a genuine diagnostic phrase.
   const sourceDirective = /^[ \t]*(?:\d+[ \t]*\|[ \t]*)?#[ \t]*(?:error\b|pragma[ \t]+(?:GCC|clang)[ \t]+error\b)/m.test(raw)
   let known: Classification | undefined
-  if (location && level !== 'note' && !sourceDirective) {
+  if (complete && location && level !== 'note' && !sourceDirective) {
     if (language === 'c') {
       known = classifyFormatArgument(message, option?.[1], family)
       if (!known && family === 'clang') known = classifyClang(message)
@@ -269,7 +283,7 @@ function classifyCompiler(record: ParsedDiagnostic, family: CompilerFamily, lang
   const category = known?.category ?? 'unclassified-compiler'
   return {
     language, compiler: family, phase: 'compile', severity: level, location,
-    category, raw, concepts: relatedConcepts[category] ?? [], confidence: known ? 'high' : 'uncertain',
+    category, raw, concepts: diagnosticConcepts[category] ?? [], confidence: known ? 'high' : 'uncertain',
     ...packDiagnostics[category],
     ...(known?.context ? { context: known.context } : {}),
   }
@@ -360,7 +374,7 @@ function runtimeDiagnostic(result: RunResult, language: RunLanguage, compiler: C
     .filter(Boolean).join('\n').slice(0, maxRawLength)
   return {
     language, compiler, phase: 'runtime', severity: 'error', category, raw,
-    concepts: relatedConcepts[category] ?? [], confidence: known ? 'high' : 'uncertain',
+    concepts: diagnosticConcepts[category] ?? [], confidence: known ? 'high' : 'uncertain',
     ...(known?.location ? { location: known.location } : {}),
     ...(known?.context ? { context: known.context } : {}),
     ...packDiagnostics[category],
@@ -369,14 +383,9 @@ function runtimeDiagnostic(result: RunResult, language: RunLanguage, compiler: C
 
 export function diagnose(result: RunResult, language: RunLanguage = 'c', source?: string): ClassifiedDiagnostic[] {
   const compiler = compilerFamily(result.compiler, language)
-  const completeSource = result.outputComplete === false ? undefined : source
-  const records = parseOutput(result.compileOutput, compiler).map((record) => classifyCompiler(record, compiler, language, completeSource))
-  if (result.status === 'compile-error' && !records.some(({ severity: level }) => level === 'error' || level === 'fatal error')) {
-    records.unshift({
-      language, compiler, phase: 'compile', severity: 'error', category: 'unclassified-compiler',
-      raw: (result.compileOutput.trim() || result.message).slice(0, maxRawLength), concepts: [], confidence: 'uncertain',
-    })
-  }
+  // A later program can exhaust its output budget after the compiler transcript is complete.
+  const complete = result.outputComplete !== false || (language === 'c' && result.compileVerified === true)
+  const records = compileRecords(result, compiler).map((record) => classifyCompiler(record, compiler, language, source, complete))
   if (result.status === 'runtime-error') {
     records.unshift(runtimeDiagnostic(result, language, compiler, source))
   }

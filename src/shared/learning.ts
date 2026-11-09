@@ -55,14 +55,17 @@ export interface LearningConcept extends LearningTopic {
   reference: { title: string; text: string }
 }
 
-export interface LearningDiagnostic {
-  language: RunLanguage
-  compiler: CompilerFamily
+export interface CompilerProblem {
   severity: DiagnosticSeverity
-  category: DiagnosticCategory
-  phase: 'compile' | 'runtime'
   location?: { file: string; line: number; column?: number }
   raw: string
+}
+
+export interface LearningDiagnostic extends CompilerProblem {
+  language: RunLanguage
+  compiler: CompilerFamily
+  category: DiagnosticCategory
+  phase: 'compile' | 'runtime'
   concepts: ConceptId[]
   packTopic?: string
   guidance?: string
@@ -93,6 +96,18 @@ export interface LearningBridge {
   getHistory(): Promise<LearningHistory>
   clearHistory(): Promise<void>
   recordTopic(id: ConceptId, action: 'viewed' | 'selected'): Promise<void>
+}
+
+export const diagnosticConcepts: Readonly<Partial<Record<DiagnosticCategory, ConceptId[]>>> = {
+  'missing-semicolon': ['statements'],
+  'undeclared-identifier': ['names', 'scope'],
+  'scope-conflict': ['scope', 'names'],
+  'incompatible-types': ['types'],
+  'argument-count': ['functions'],
+  'argument-types': ['functions', 'types'],
+  'format-argument-type': ['functions', 'types'],
+  'invalid-dereference': ['pointers', 'types'],
+  'runtime-memory-fault': ['memory', 'pointers'],
 }
 
 export const diagnosticTitles: Readonly<Record<DiagnosticCategory, string>> = {

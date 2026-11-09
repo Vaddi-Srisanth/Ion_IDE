@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
-  diagnosticTitles, type ConceptId, type LearningBridge, type LearningConcept, type LearningDiagnostic,
+  diagnosticConcepts, diagnosticTitles, type ConceptId, type LearningBridge, type LearningConcept, type LearningDiagnostic,
   type LearningFeedback, type LearningHistory,
 } from '../../shared/learning'
 import { diagnosticPackIds, type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
@@ -12,6 +12,11 @@ import './learning.css'
 interface Props {
   bridge: LearningBridge
   feedback?: LearningFeedback
+  lensEnabled: boolean
+  lensSelection?: LearningLensSelection
+  sourceCurrent?: boolean
+  canRevealDiagnostic?(diagnostic: LearningDiagnostic): boolean
+  onRevealDiagnostic?(diagnostic: LearningDiagnostic): void
   packs: LearningPacksBridge
   library: PackLibrary | null
   includeCatalog: boolean
@@ -21,6 +26,11 @@ interface Props {
   onMarketplace(): void
   onClose(): void
   onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>) => void
+}
+
+interface LearningLensSelection {
+  diagnostic: LearningDiagnostic
+  request: number
 }
 
 type View = 'result' | 'topics' | 'history'
@@ -84,12 +94,13 @@ function Concept({ concept, titles, onRead }: {
       <h3>{concept.title}</h3>
       <p>{concept.explanation}</p>
       <h4>Example</h4>
-      <pre>{concept.example}</pre>
+      <pre><code>{concept.example}</code></pre>
       <p>{concept.exampleExplanation}</p>
-      <h4>Common misconceptions</h4>
-      <ul>{concept.misconceptions.map((item) => <li key={item}>{item}</li>)}</ul>
       <details className="learning-reference">
-        <summary>{concept.reference.title}</summary>
+        <summary>More about this concept</summary>
+        <h4>Common misconceptions</h4>
+        <ul>{concept.misconceptions.map((item) => <li key={item}>{item}</li>)}</ul>
+        <h4>{concept.reference.title}</h4>
         <p>{concept.reference.text}</p>
       </details>
       <h4>Related topics</h4>
@@ -99,6 +110,56 @@ function Concept({ concept, titles, onRead }: {
         ))}
       </div>
     </article>
+  )
+}
+
+function LensDiagnostic({ diagnostic, selected, sourceCurrent, onReveal, onExplain, onLesson, children }: {
+  diagnostic: LearningDiagnostic
+  selected: boolean
+  sourceCurrent: boolean
+  onReveal?: () => void
+  onExplain(): void
+  onLesson?: () => void
+  children?: ReactNode
+}) {
+  const known = diagnostic.confidence === 'high' && diagnostic.concepts.length > 0
+  const repeated = known && diagnostic.occurrence === 'repeated'
+  const location = locationLabel(diagnostic.location)
+  const severity = diagnostic.phase === 'runtime' ? 'Runtime' : diagnostic.severity === 'warning' ? 'Warning' : 'Compiler error'
+  return (
+    <section className="learning-diagnostic lens-diagnostic" data-testid="learning-diagnostic"
+      data-category={diagnostic.category} data-selected={selected || undefined} data-known={known}>
+      <div className="lens-diagnostic-context">
+        <span className="lens-severity" data-warning={diagnostic.severity === 'warning'}>
+          <Icon name={known ? 'warning' : 'info'} size={12}/>{severity}
+        </span>
+        {location && (onReveal && sourceCurrent
+          ? <button type="button" className="lens-location" data-testid="learning-lens-location"
+            title={diagnostic.location?.file} aria-label={'Go to ' + location} onClick={onReveal}>
+            <span>{location}</span><Icon name="diagonal" size={11}/>
+          </button>
+          : <span className="lens-location" title={diagnostic.location?.file}>{location}</span>)}
+      </div>
+      <h3>{diagnosticTitles[diagnostic.category]}</h3>
+      {repeated && <p className="lens-repeat" data-testid="learning-encouragement"><Icon name="refresh" size={12}/>Seen again after an edit</p>}
+      {known && diagnostic.guidance && <p className="learning-copy lens-guidance">{diagnostic.guidance}</p>}
+      {!known && <p className="learning-copy lens-uncertain">No reliable explanation is available for this diagnostic. Start with the original message.</p>}
+      <details open={!known || undefined}>
+        <summary>{diagnostic.phase === 'runtime' ? 'Original run message' : 'Original compiler diagnostic'}</summary>
+        <pre>{diagnostic.raw}</pre>
+      </details>
+      {known && <div className="lens-actions">
+        <button type="button" className="button lens-explain" data-testid="learning-show-explanation"
+          aria-expanded={Boolean(children)} onClick={onExplain}>
+          <Icon name={repeated ? 'refresh' : 'book'} size={13}/>
+          {children ? 'Hide explanation' : repeated ? 'Explain Again' : 'Explain'}
+        </button>
+        {onLesson && <button type="button" className="button" data-testid="learning-lens-lesson" onClick={onLesson}>
+          Offline lesson <Icon name="chevron" size={12}/>
+        </button>}
+      </div>}
+      {children}
+    </section>
   )
 }
 
@@ -262,26 +323,39 @@ function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
   )
 }
 
-function DiagnosticResults({ bridge, feedback, pack, onLesson }: {
-  bridge: LearningBridge; feedback?: LearningFeedback; pack: PackSummary; onLesson(id: string): void
+function DiagnosticResults({ bridge, feedback, pack, lensSelection, openedSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onLesson }: {
+  bridge: LearningBridge
+  feedback?: LearningFeedback
+  pack: PackSummary
+  lensSelection?: LearningLensSelection
+  openedSelection: RefObject<number | undefined>
+  sourceCurrent: boolean
+  canRevealDiagnostic?: Props['canRevealDiagnostic']
+  onRevealDiagnostic?: Props['onRevealDiagnostic']
+  onLesson(id: string): void
 }) {
-  const [reader, setReader] = useState<{ feedback: LearningFeedback | undefined; result: Load<LearningConcept> | null } | null>(null)
+  const lens = pack.id === 'c'
+  const [reader, setReader] = useState<{
+    feedback: LearningFeedback | undefined
+    diagnostic: LearningDiagnostic
+    result: Load<LearningConcept> | null
+  } | null>(null)
   const [titles, setTitles] = useState(() => new Map<ConceptId, string>())
   const [historyError, setHistoryError] = useState<string | null>(null)
   const request = useRef(0)
-  useEffect(() => () => { request.current += 1 }, [])
+  useEffect(() => () => { request.current += 1 }, [feedback])
   const activeReader = reader?.feedback === feedback ? reader : null
 
-  async function readConcept(id: ConceptId, action: 'viewed' | 'selected') {
+  const readConcept = useCallback(async (diagnostic: LearningDiagnostic, id: ConceptId, action: 'viewed' | 'selected') => {
     const token = ++request.current
     setHistoryError(null)
-    setReader({ feedback, result: null })
+    setReader({ feedback, diagnostic, result: null })
     try {
       const concept = await bridge.getConcept(id)
       if (request.current !== token) return
-      setReader({ feedback, result: { value: concept } })
+      setReader({ feedback, diagnostic, result: { value: concept } })
     } catch (reason) {
-      if (request.current === token) setReader({ feedback, result: { error: errorMessage(reason) } })
+      if (request.current === token) setReader({ feedback, diagnostic, result: { error: errorMessage(reason) } })
       return
     }
     if (!titles.size) {
@@ -294,41 +368,86 @@ function DiagnosticResults({ bridge, feedback, pack, onLesson }: {
     } catch (reason) {
       if (request.current === token) setHistoryError(errorMessage(reason))
     }
+  }, [bridge, feedback, titles.size])
+
+  useEffect(() => {
+    if (!lensSelection || openedSelection.current === lensSelection.request) return
+    openedSelection.current = lensSelection.request
+    const { diagnostic } = lensSelection
+    if (diagnostic.confidence === 'high' && diagnostic.concepts[0]) {
+      void readConcept(diagnostic, diagnostic.concepts[0], 'viewed')
+    }
+  }, [lensSelection, openedSelection, readConcept])
+
+  function closeExplanation() {
+    request.current += 1
+    setReader(null)
+    setHistoryError(null)
   }
 
-  if (activeReader) return <>
-    <button type="button" className="button learning-back" onClick={() => { request.current += 1; setReader(null); setHistoryError(null) }}>Back to latest run</button>
+  const explanation = activeReader && <div className="lens-explanation">
     {historyError && <p className="learning-error" role="alert">{historyError}</p>}
     {!activeReader.result ? <p className="learning-copy" role="status">Opening explanation…</p>
       : 'error' in activeReader.result ? <p className="learning-error" role="alert">{activeReader.result.error}</p>
-        : <Concept concept={activeReader.result.value} titles={titles} onRead={(id) => void readConcept(id, 'selected')}/>}
+        : <Concept concept={activeReader.result.value} titles={titles}
+          onRead={(id) => void readConcept(activeReader.diagnostic, id, 'selected')}/>}
+  </div>
+  if (!lens && explanation) return <>
+    <button type="button" className="button learning-back" onClick={closeExplanation}>Back to latest run</button>
+    {explanation}
   </>
 
   const diagnostics = feedback?.diagnostics.filter(({ severity }) => severity !== 'note') ?? []
   const firstErrors = diagnostics.filter(({ severity }) => severity === 'error' || severity === 'fatal error')
-  const results = firstErrors.length > 0 ? firstErrors : diagnostics
+  const selected = lensSelection?.diagnostic
+  const prioritized = firstErrors.length > 0 ? firstErrors : diagnostics
+  const results = selected ? [selected, ...prioritized.filter((diagnostic) => diagnostic !== selected)] : prioritized
   const encourageIndex = results.findIndex(({ occurrence, concepts, packTopic }) => occurrence === 'repeated' && (concepts.length > 0 || packTopic))
-  return <>
+  return <div className={lens ? 'learning-lens' : undefined} data-testid={lens ? 'learning-lens' : undefined}>
+    {lens && <header className="lens-heading">
+      <Icon name="eye" size={17}/>
+      <div><h3>Learning Lens</h3><p>Understand your latest C diagnostics.</p></div>
+      <span className="lens-local">Offline</span>
+    </header>}
+    {lens && !sourceCurrent && results.some(({ location }) => Boolean(location)) && (
+      <p className="lens-revision-note" data-testid="learning-lens-stale">
+        <Icon name="info" size={13}/>Locations refer to the last compiled version.
+      </p>
+    )}
     {feedback?.historyUnavailable && <p className="learning-error" role="status">Local history is unavailable. You can still open explanations for this run.</p>}
     {feedback?.resolved.length ? (
       <div className="learning-resolved" data-testid="learning-resolved" role="status">
-        <strong>{feedback.resolved.length === 1 ? 'Diagnostic resolved in this run' : 'Diagnostics resolved in this run'}</strong>
+        <strong>{lens && <Icon name="check" size={14}/>}
+          {feedback.resolved.length === 1 ? 'Diagnostic resolved in this run' : 'Diagnostics resolved in this run'}</strong>
         <ul>{feedback.resolved.map((category) => <li key={category}>{diagnosticTitles[category]}</li>)}</ul>
       </div>
     ) : null}
-    {results.length ? results.slice(0, 8).map((diagnostic, index) => (
-      <Description key={diagnostic.category + index} diagnostic={diagnostic} encourage={index === encourageIndex}
-        onExplain={(id) => void readConcept(id, 'viewed')} onLesson={onLesson}/>
-    )) : (
+    {results.length ? results.slice(0, 8).map((diagnostic, index) => {
+      const key = diagnostic.category + (diagnostic.location ? locationLabel(diagnostic.location) : '') + index
+      if (!lens) return <Description key={key} diagnostic={diagnostic} encourage={index === encourageIndex}
+        onExplain={(id) => void readConcept(diagnostic, id, 'viewed')} onLesson={onLesson}/>
+      const concept = diagnostic.concepts[0]
+      const topic = diagnostic.packTopic
+      const reading = activeReader?.diagnostic === diagnostic
+      return <LensDiagnostic key={key} diagnostic={diagnostic} selected={selected === diagnostic || reading} sourceCurrent={sourceCurrent}
+        onReveal={onRevealDiagnostic && canRevealDiagnostic?.(diagnostic) ? () => onRevealDiagnostic(diagnostic) : undefined}
+        onExplain={() => {
+          if (reading) closeExplanation()
+          else if (concept) void readConcept(diagnostic, concept, 'viewed')
+        }}
+        onLesson={topic ? () => onLesson(topic) : undefined}>
+        {reading ? explanation : null}
+      </LensDiagnostic>
+    }) : !feedback?.resolved.length && (
       <p className="learning-copy">{feedback
         ? 'This run did not produce a compiler or runtime diagnostic for this file.'
         : 'Run a saved ' + pack.name + ' file in Learn mode to see explanations for compiler or runtime diagnostics.'}</p>
     )}
-    {results.length > 8 && <p className="learning-copy">See Output for the complete compiler messages.</p>}
-  </>
+    {results.length > 8 && <p className="learning-copy">See {lens ? 'Problems' : 'Run Console'} for more messages from this run.</p>}
+  </div>
 }
 
-function DiagnosticHistory({ bridge, feedback }: { bridge: LearningBridge; feedback?: LearningFeedback }) {
+function DiagnosticHistory({ bridge, feedback, lens }: { bridge: LearningBridge; feedback?: LearningFeedback; lens: boolean }) {
   const [history, setHistory] = useState<LearningHistory | null>(null)
   const [titles, setTitles] = useState(() => new Map<ConceptId, string>())
   const [error, setError] = useState<string | null>(null)
@@ -374,13 +493,27 @@ function DiagnosticHistory({ bridge, feedback }: { bridge: LearningBridge; feedb
   return <>
     {error && <p className="learning-error" role="alert">{error}</p>}
     {history ? (
-      <div className="learning-history" data-testid="learning-history-content">
-        <h3>Diagnostic history</h3>
-        {history.categories.length ? <ul>{history.categories.map(({ category, encountered, repeated, resolved }) => (
-          <li key={category}><strong>{diagnosticTitles[category]}</strong>
-            <span>{encountered} encounters · {repeated} repeats · {resolved} resolved</span></li>
-        ))}</ul> : <p className="learning-copy">No diagnostic history yet.</p>}
-        <h3>Diagnostic topics viewed</h3>
+      <div className={lens ? 'learning-history lens-history' : 'learning-history'} data-testid="learning-history-content">
+        {lens && <header className="lens-heading">
+          <Icon name="clock" size={17}/>
+          <div><h3>Learning history</h3><p>Saved on this device from compiler and run results.</p></div>
+        </header>}
+        <h3>{lens ? 'Encountered concepts and diagnostics' : 'Diagnostic history'}</h3>
+        {history.categories.length ? <ul>{history.categories.map(({ category, encountered, repeated, resolved }) => {
+          const concept = diagnosticConcepts[category]?.[0]
+          return <li key={category}>
+            <strong>{diagnosticTitles[category]}</strong>
+            {lens && concept && titles.has(concept) && <span>{titles.get(concept)}</span>}
+            <span className={lens ? 'lens-history-counts' : undefined}>
+              {encountered} encountered · {repeated} repeated{!lens && ' · ' + resolved + ' resolved'}
+              {lens && resolved > 0 && <span className="lens-history-resolved"><Icon name="check" size={11}/>{resolved} resolved</span>}
+            </span>
+          </li>
+        })}</ul> : <p className="learning-copy">No diagnostic history yet.</p>}
+        {lens && history.categories.some(({ resolved }) => resolved > 0) && (
+          <p className="learning-copy lens-history-note">A resolved count means the diagnostic was absent from a later verified result.</p>
+        )}
+        <h3>{lens ? 'Explanations opened' : 'Diagnostic topics viewed'}</h3>
         {history.topics.length ? <ul>{history.topics.map(({ id, viewed, selected }) => (
           <li key={id}><strong>{titles.get(id) ?? id}</strong>
             <span>{viewed} views · {selected} selected from topics</span></li>
@@ -400,15 +533,16 @@ function DiagnosticHistory({ bridge, feedback }: { bridge: LearningBridge; feedb
   </>
 }
 
-function LearningNav({ view = 'topics', diagnostics = false, hasFeedback = false, onSelect }: {
+function LearningNav({ view = 'topics', diagnostics = false, lens = false, hasFeedback = false, onSelect }: {
   view?: View
   diagnostics?: boolean
+  lens?: boolean
   hasFeedback?: boolean
   onSelect?(view: View): void
 }) {
   const items = [
     { id: 'topics', label: 'Topics' },
-    { id: 'result', label: 'Latest run' },
+    { id: 'result', label: lens ? 'Learning Lens' : 'Latest run' },
     { id: 'history', label: 'History' },
   ] as const
   return <nav className="learning-nav" aria-label="Learning panel">
@@ -422,18 +556,28 @@ function LearningNav({ view = 'topics', diagnostics = false, hasFeedback = false
   </nav>
 }
 
-function LanguageContent({ bridge, feedback, packs, pack, onExercise }: {
+function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise }: {
   bridge: LearningBridge
   feedback?: LearningFeedback
   packs: LearningPacksBridge
   pack: PackSummary
+  lensEnabled: boolean
+  lensSelection?: LearningLensSelection
+  sourceCurrent: boolean
+  canRevealDiagnostic?: Props['canRevealDiagnostic']
+  onRevealDiagnostic?: Props['onRevealDiagnostic']
   onExercise: Props['onExercise']
 }) {
   const [view, setView] = useState<View>('topics')
   const [topicId, setTopicId] = useState<string | null>(null)
   const seenFeedback = useRef(feedback)
+  const openedSelection = useRef<number | undefined>(undefined)
   const scroll = useRef<HTMLDivElement>(null)
-  const diagnostics = Boolean(pack.diagnostics)
+  const lens = pack.id === 'c'
+  const diagnostics = Boolean(pack.diagnostics) && (!lens || lensEnabled)
+  const shownView = diagnostics ? view : 'topics'
+  const selected = lens && diagnostics && lensSelection && feedback?.diagnostics.includes(lensSelection.diagnostic)
+    ? lensSelection : undefined
   const hasFeedback = Boolean(feedback?.diagnostics.length || feedback?.resolved.length)
 
   useEffect(() => {
@@ -441,25 +585,33 @@ function LanguageContent({ bridge, feedback, packs, pack, onExercise }: {
     seenFeedback.current = feedback
     if (view === 'topics' && !topicId && hasFeedback) setView('result')
   }, [diagnostics, feedback, hasFeedback, topicId, view])
-  useEffect(() => { scroll.current?.scrollTo(0, 0) }, [view])
+  useEffect(() => {
+    if (!selected) return
+    setView('result')
+    scroll.current?.scrollTo(0, 0)
+  }, [selected])
+  useEffect(() => { scroll.current?.scrollTo(0, 0) }, [shownView])
 
   return <>
-    <LearningNav view={view} diagnostics={diagnostics} hasFeedback={hasFeedback} onSelect={(next) => {
+    <LearningNav view={shownView} diagnostics={diagnostics} lens={lens} hasFeedback={hasFeedback} onSelect={(next) => {
       if (next === 'topics') setTopicId(null)
       setView(next)
     }}/>
     <div ref={scroll} className="learning-scroll">
-      {view === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}/>
-        : view === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} onLesson={(id) => {
+      {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}/>
+        : shownView === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} lensSelection={selected}
+          openedSelection={openedSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
+          onRevealDiagnostic={onRevealDiagnostic} onLesson={(id) => {
           setTopicId(id)
           setView('topics')
         }}/>
-          : <DiagnosticHistory bridge={bridge} feedback={feedback}/>}
+          : <DiagnosticHistory bridge={bridge} feedback={feedback} lens={lens}/>}
     </div>
   </>
 }
 
-export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, onRetry, onLibraryChange, onMarketplace, onClose, onExercise }: Props) {
+export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, lensEnabled, lensSelection, sourceCurrent = true,
+  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onMarketplace, onClose, onExercise }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
@@ -497,7 +649,9 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
       </div>}
       {error && <p className="learning-error learning-language-error" role="alert">{error}</p>}
       {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
-        bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} onExercise={onExercise}/>
+        bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} lensEnabled={lensEnabled}
+        lensSelection={lensSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
+        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise}/>
         : <>
           <LearningNav/>
           <div className="learning-scroll">

@@ -148,6 +148,10 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
           <span><b>Keep previous run output</b><small>Show the previous run alongside the current run.</small></span>
           <input type="checkbox" checked={settings.keepRunOutput} onChange={(event) => onChange({ keepRunOutput: event.target.checked })}/>
         </label>
+        <label className="setting">
+          <span><b>Learning Lens</b><small>Connect C diagnostics to offline explanations and track retries in Learn.</small></span>
+          <input type="checkbox" checked={settings.learningLens} onChange={(event) => onChange({ learningLens: event.target.checked })}/>
+        </label>
       </div>
       <ShortcutSettings overrides={settings.shortcuts} platform={window.ion.platform} onSave={onShortcutChange}/>
       <div className="settings-group">

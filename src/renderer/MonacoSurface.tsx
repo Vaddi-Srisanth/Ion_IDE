@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ProblemMarker } from './Problems';
 import { editor, languages, Selection, Uri } from 'monaco-editor/editor/editor.api.js';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import 'monaco-editor/editor/contrib/find/browser/findController.js';
@@ -57,6 +58,7 @@ interface Props {
   activeTheme: ThemeData | null;
   accentColor?: string;
   sourceHidden?: boolean;
+  problemMarkers?: readonly ProblemMarker[];
   onActions(actions: EditorActions | null): void;
   onCursor(line: number, column: number): void;
 }
@@ -106,7 +108,7 @@ function revealLocation(instance: editor.IStandaloneCodeEditor, model: editor.IT
   instance.revealPositionInCenterIfOutsideViewport(position);
 }
 
-export default function MonacoSurface({ documents, tab, settings, activeTheme, accentColor, sourceHidden, onActions, onCursor }: Props) {
+export default function MonacoSurface({ documents, tab, settings, activeTheme, accentColor, sourceHidden, problemMarkers, onActions, onCursor }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
   const cache = useRef(new Map<string, CachedModel>());
@@ -351,6 +353,23 @@ export default function MonacoSurface({ documents, tab, settings, activeTheme, a
     void show();
     return () => { cancelled = true; };
   }, [documents, id, language, epoch, onCursor]);
+
+  useLayoutEffect(() => {
+    const instance = editorRef.current;
+    const model = instance?.getModel();
+    if (!instance || !model || loaded !== id || sourceHidden || !problemMarkers?.length) return;
+    const decorations = instance.createDecorationsCollection(problemMarkers
+      .filter(({ line }) => line <= model.getLineCount())
+      .map(({ line, lens, selected }) => ({
+        range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+        options: {
+          isWholeLine: true,
+          className: (lens ? 'ion-lens-line' : 'ion-problem-line') + (selected ? ' ion-problem-selected' : ''),
+          linesDecorationsClassName: lens ? 'ion-lens-gutter' : 'ion-problem-gutter',
+        },
+      })));
+    return () => { decorations.clear(); };
+  }, [id, loaded, problemMarkers, sourceHidden]);
 
   const retry = () => { if (tab) void documents.reload(tab.id); };
   return (

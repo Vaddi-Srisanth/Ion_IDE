@@ -57,6 +57,7 @@ const validators: Record<keyof Settings, (value: unknown) => boolean> = {
   autoSaveDelay: integerBetween(250, 10_000),
   saveBeforeRun: isBoolean,
   keepRunOutput: isBoolean,
+  learningLens: isBoolean,
   notebookKernelLifetime: (value) => value === 'tab' || value === 'window',
   auxiliaryWidth: integerBetween(220, 620),
   explorerWidth: integerBetween(150, 620),
