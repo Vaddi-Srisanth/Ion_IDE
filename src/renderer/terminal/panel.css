@@ -101,13 +101,13 @@
 .terminal-find .icon-button { width: 22px; height: 22px; flex: none; }
 .terminal-find-previous svg { transform: rotate(180deg); }
 .output-frame { container-type: inline-size; }
-@container (max-width: 460px) {
+@container (max-width: 530px) {
   .bottom-tab { padding-inline: 5px; }
   .bottom-tab svg, .run-console-file { display: none; }
   .terminal-sessions { max-width: 90px; }
   .run-console .run-tag { max-width: 78px; }
 }
-@container (max-width: 260px) {
+@container (max-width: 420px) {
   .integrated-terminal .pane-title, .run-console .run-console-title {
     flex: 0 0 58px;
     flex-wrap: wrap;
@@ -116,9 +116,14 @@
     padding-inline: 5px;
   }
   .bottom-tabs { height: 28px; }
-  .integrated-terminal .pane-tools, .run-console .pane-tools { gap: 0; }
-  .integrated-terminal .pane-tools { width: 100%; }
+  .integrated-terminal .pane-tools, .run-console .pane-tools {
+    flex: 0 0 100%;
+    justify-content: end;
+    gap: 0;
+  }
   .integrated-terminal .pane-tools .icon-button, .run-console .pane-tools .icon-button { width: 20px; }
+}
+@container (max-width: 260px) {
   .terminal-sessions { max-width: 63px; margin-right: 0; }
   .run-console .run-tag { display: none; }
   .terminal-find > span { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; }

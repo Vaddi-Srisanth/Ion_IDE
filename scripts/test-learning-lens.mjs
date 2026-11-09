@@ -107,9 +107,21 @@ await withScratch('learning-lens', async (scratch) => {
     await editorHost(page).evaluate((node) => { node.dataset.lensTestEditor = 'original' })
 
     step = 'connect the real compiler location, Problems, and the offline lesson'
+    const originalSize = await app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0]
+      const size = window.getContentSize()
+      window.setContentSize(930, 640)
+      return size
+    })
     await run(page, 'compile-error')
     await lensMarker(page).waitFor()
+    const outputFrame = await page.locator('.output-frame').boundingBox()
+    assert.ok(outputFrame && outputFrame.width > 260 && outputFrame.width <= 420,
+      'Exercise the Problems tab with a compact Run Console and both sidebars open.')
     const problems = await showProblems(page)
+    await app.evaluate(({ BrowserWindow }, [width, height]) => {
+      BrowserWindow.getAllWindows()[0].setContentSize(width, height)
+    }, originalSize)
     const recognized = problem(page, category)
     await recognized.waitFor()
     const location = /:(\d+)(?::(\d+))?$/.exec((await recognized.locator('.problem-location').innerText()).trim())
