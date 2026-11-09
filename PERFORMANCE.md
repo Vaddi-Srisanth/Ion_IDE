@@ -1,5 +1,9 @@
 # Performance
 
+## Windows x64
+
+Run `node scripts/benchmark-windows.mjs --label candidate --terminal` against a production build on Windows. The harness measures the actual Electron process tree, including native child processes, with separate working-set, private-byte, and CPU figures. It samples fresh and warm startup, one file, ten tabs, a medium project, PDF, Run Console, Terminal, and cleanup after repeated runs. The [Windows release report](WINDOWS_RELEASE_READINESS.md) records the native measurements, hardware, and protocol limits.
+
 ## Adoption changes
 
 The baseline was a preserved production build with Marketplace 2.0 and Terminal already present. The final candidate added the durable update preference, explicit C/C++ project builds, and the reviewed C diagnostic rule. Both ran on Apple M3, 24 GiB, macOS 27.2 (26B123), Electron 45.2.3, and battery power. Each used five fresh and five warm launches, ten seconds of idle, the same saved source fixtures, six panel cycles, six native executions, and twelve mixed editing and run rounds. OS caches were left intact.

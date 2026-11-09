@@ -100,16 +100,10 @@ await withScratch('windows-bench', async (scratch) => {
         const renderedShell = '[data-testid="terminal-pane"] .xterm-rows'
         await (await page.waitForFunction((selector) => /PS .*?>/.test(document.querySelector(selector)?.textContent ?? ''),
           renderedShell, { timeout: 15_000 })).dispose()
-        await input.focus()
-        await page.keyboard.type("echo ('ION-BENCH-'+'SHELL')")
-        await page.keyboard.press('Enter')
-        await (await page.waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('ION-BENCH-SHELL'),
-          renderedShell, { timeout: 15_000 }).catch(async (error) => {
-          throw new Error('PowerShell did not show the benchmark marker. Transcript: '
-            + await page.locator(renderedShell).textContent().catch(() => '(not visible)'), { cause: error })
-        })).dispose()
         sample.terminal = await measure(session)
-        assert.ok(children(sample.terminal.last).some(({ name }) => /ion-pty/i.test(name)), 'Real Windows PTY helper is running.')
+        const terminalChildren = children(sample.terminal.last)
+        assert.ok(terminalChildren.some(({ name }) => /^ion-pty\.exe$/i.test(name)), 'Real Windows PTY helper is running.')
+        assert.ok(terminalChildren.some(({ name }) => /^powershell\.exe$/i.test(name)), 'System PowerShell is running.')
         await page.getByTestId('terminal-close').click()
         await noChildren(session, idleChildren)
         sample.terminalClosed = await measure(session)

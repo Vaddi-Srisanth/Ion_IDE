@@ -31,13 +31,18 @@ async function consoleDiagnostics(page) {
   }).catch(() => null)
 }
 
-async function terminalShows(page, marker, surface = 'run-console-terminal') {
+async function terminalShows(page, marker, surface = 'run-console-terminal', timeout = 15_000) {
   const handle = await page.waitForFunction(({ expected, target }) => {
     const rows = document.querySelectorAll('[data-testid="' + target + '"] .xterm-rows > div')
     return [...rows].map((row) => row.textContent).join('').includes(expected)
-  }, { expected: marker, target: surface }, { polling: 100, timeout: 15_000 })
-    .catch((error) => { throw new Error(`Run Console did not show ${marker}.`, { cause: error }) })
+  }, { expected: marker, target: surface }, { polling: 100, timeout })
+    .catch((error) => { throw new Error(`${surface} did not show ${marker}.`, { cause: error }) })
   await handle.dispose()
+}
+
+async function typeLine(input, text) {
+  await input.pressSequentially(text)
+  await input.press('Enter')
 }
 
 async function verifyWindowsConsole(page) {
@@ -54,9 +59,7 @@ async function verifyWindowsConsole(page) {
     await page.getByTestId('run').click()
     await terminalShows(page, 'ION-WINDOWS-INPUT')
     await terminalShows(page, 'ION-WINDOWS-TTY')
-    await page.getByTestId('run-console-input').focus()
-    await page.keyboard.insertText('hello')
-    await page.keyboard.press('Enter')
+    await typeLine(page.getByTestId('run-console-input'), 'hello')
     await terminalShows(page, 'ION-WINDOWS-ANSWER:hello')
     await page.locator('[data-testid="output"][data-status="success"]').waitFor()
     await page.getByTestId('run-console-clear').click()
@@ -113,9 +116,7 @@ async function verifyToolchains(page) {
     await choose(pythonInputFilename)
     await run()
     await terminalShows(page, 'ION-PYTHON-TTY')
-    await page.getByTestId('run-console-input').focus()
-    await page.keyboard.insertText('from Ion')
-    await page.keyboard.press('Enter')
+    await typeLine(page.getByTestId('run-console-input'), 'from Ion')
     await terminalShows(page, 'ION-PYTHON-ANSWER:from Ion')
     await status('success')
     console.log('PASS Python uses ConPTY and accepts real interactive input.')
@@ -124,51 +125,111 @@ async function verifyToolchains(page) {
   }
 }
 
-async function verifyTerminal(page, workspaceName) {
+async function verifyTerminal(app, page, workspaceName) {
   const pane = page.getByTestId('terminal-pane')
   const selector = pane.getByTestId('terminal-session')
-  const type = async (command) => {
-    await pane.getByTestId('terminal-input').focus()
-    await page.keyboard.insertText(command)
-    await page.keyboard.press('Enter')
-  }
-
-  await page.getByTestId('bottom-terminal-tab').click()
-  await selector.waitFor()
-  assert.match(await selector.locator('option:checked').textContent(), /powershell\.exe/i)
-  const first = await selector.inputValue()
-  await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
-  await terminalShows(page, 'ION-WORKSPACE:' + workspaceName, 'terminal-pane')
-  await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
-  const pidHandle = await page.waitForFunction(() => {
-    const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
-    return Number([...rows].map((row) => /^ION-SHELL-PID:(\d+)$/.exec(row.textContent?.trim())?.[1]).find(Boolean))
+  const type = (command) => typeLine(pane.getByTestId('terminal-input'), command)
+  const ipc = await app.evaluateHandle(({ ipcMain }) => {
+    const channel = 'ion:terminal-input'
+    const handlers = ipcMain._invokeHandlers
+    const original = handlers?.get(channel)
+    const writes = []
+    if (!original) return { available: false, writes, restore() {} }
+    handlers.set(channel, (event, id, data) => {
+      if (writes.length >= 32) writes.shift()
+      writes.push(typeof data === 'string' ? data.slice(0, 256) : typeof data)
+      return original(event, id, data)
+    })
+    return { available: true, writes, restore() { handlers.set(channel, original) } }
   })
-  let pid
-  try { pid = await pidHandle.jsonValue() } finally { await pidHandle.dispose() }
-  assert.ok(Number.isSafeInteger(pid) && pid > 0, 'PowerShell did not report its process ID.')
-  assert.doesNotThrow(() => process.kill(pid, 0))
-
-  await pane.getByTestId('terminal-new').click()
-  await eventually(async () => await selector.locator('option').count() === 2, 'Second terminal did not open.')
-  const second = await selector.inputValue()
-  assert.notEqual(first, second)
-  await selector.selectOption(first)
-  await pane.getByTestId('terminal-hide').click()
-  await pane.waitFor({ state: 'hidden' })
-  assert.doesNotThrow(() => process.kill(pid, 0))
-  await page.getByRole('button', { name: 'Toggle Console' }).click()
-  assert.equal(await selector.inputValue(), first)
-  await terminalShows(page, 'ION-SHELL-PID:' + pid, 'terminal-pane')
-  await pane.getByTestId('terminal-close').click()
-  await eventually(() => {
-    try { process.kill(pid, 0); return false } catch (error) {
-      if (error.code !== 'ESRCH') throw error
-      return true
+  let keyboardWrites
+  const diagnostics = await page.evaluateHandle(() => {
+    const events = []
+    const enter = []
+    const onKey = (event) => {
+      if (event.key !== 'Enter' || event.target?.getAttribute?.('data-testid') !== 'terminal-input') return
+      queueMicrotask(() => enter.push({
+        key: event.key, code: event.code, keyCode: event.keyCode, defaultPrevented: event.defaultPrevented,
+        composing: event.isComposing, trusted: event.isTrusted, alt: event.altKey, ctrl: event.ctrlKey,
+      }))
     }
-  }, 'Closing the terminal did not release the PowerShell process.')
-  assert.equal(await selector.inputValue(), second)
-  await pane.getByTestId('terminal-close').click()
+    document.addEventListener('keydown', onKey, true)
+    const unlisten = window.ion.terminal.onEvent((event) => {
+      if (events.length >= 12) events.shift()
+      events.push(event.kind === 'data' ? { ...event, text: event.text.slice(0, 512) } : event)
+    })
+    return { events, enter, unsubscribe() {
+      document.removeEventListener('keydown', onKey, true)
+      unlisten()
+    } }
+  })
+
+  try {
+    await page.getByTestId('bottom-terminal-tab').click()
+    await selector.waitFor()
+    assert.match(await selector.locator('option:checked').textContent(), /powershell\.exe/i)
+    const first = await selector.inputValue()
+    await (await page.waitForFunction(() => {
+      const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
+      return [...rows].some((row) => /^PS .+>/.test(row.textContent?.trim() ?? ''))
+    }, undefined, { timeout: 15_000 })).dispose()
+    await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
+    const workspaceMarker = 'ION-WORKSPACE:' + workspaceName
+    try {
+      await terminalShows(page, workspaceMarker, 'terminal-pane')
+    } catch (error) {
+      keyboardWrites = await ipc.evaluate(({ available, writes }) => ({ available, writes }))
+      // Probe the same queued command with only a carriage return through the native bridge.
+      // The original keyboard assertion still fails if the probe succeeds.
+      const comparison = await page.evaluate((id) => window.ion.terminal.input(id, '\r'), first)
+        .then(() => terminalShows(page, workspaceMarker, 'terminal-pane', 2500))
+        .then(() => 'Direct carriage return submitted the queued command.', (reason) => String(reason))
+      throw new Error('Keyboard Enter did not submit the PowerShell command. ' + comparison, { cause: error })
+    }
+    await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
+    const pidHandle = await page.waitForFunction(() => {
+      const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
+      return Number([...rows].map((row) => /^ION-SHELL-PID:(\d+)$/.exec(row.textContent?.trim())?.[1]).find(Boolean))
+    })
+    let pid
+    try { pid = await pidHandle.jsonValue() } finally { await pidHandle.dispose() }
+    assert.ok(Number.isSafeInteger(pid) && pid > 0, 'PowerShell did not report its process ID.')
+    assert.doesNotThrow(() => process.kill(pid, 0))
+
+    await pane.getByTestId('terminal-new').click()
+    await eventually(async () => await selector.locator('option').count() === 2, 'Second terminal did not open.')
+    const second = await selector.inputValue()
+    assert.notEqual(first, second)
+    await selector.selectOption(first)
+    await pane.getByTestId('terminal-hide').click()
+    await pane.waitFor({ state: 'hidden' })
+    assert.doesNotThrow(() => process.kill(pid, 0))
+    await page.getByRole('button', { name: 'Toggle Console' }).click()
+    assert.equal(await selector.inputValue(), first)
+    await terminalShows(page, 'ION-SHELL-PID:' + pid, 'terminal-pane')
+    await pane.getByTestId('terminal-close').click()
+    await eventually(() => {
+      try { process.kill(pid, 0); return false } catch (error) {
+        if (error.code !== 'ESRCH') throw error
+        return true
+      }
+    }, 'Closing the terminal did not release the PowerShell process.')
+    assert.equal(await selector.inputValue(), second)
+    await pane.getByTestId('terminal-close').click()
+  } catch (error) {
+    const observed = await diagnostics.evaluate(({ events, enter }) => ({
+      events, enter,
+      focus: document.activeElement?.getAttribute('data-testid'),
+      visible: document.querySelector('[data-testid="terminal-pane"]')?.textContent?.slice(-1600),
+    })).catch(() => null)
+    const writes = keyboardWrites ?? await ipc.evaluate(({ available, writes }) => ({ available, writes })).catch(() => null)
+    throw new Error(`Windows Terminal verification failed. ${error.message} Observed: ${JSON.stringify({ ...observed, ipc: writes })}`, { cause: error })
+  } finally {
+    await diagnostics.evaluate(({ unsubscribe }) => unsubscribe()).catch(() => {})
+    await diagnostics.dispose()
+    await ipc.evaluate(({ restore }) => restore()).catch(() => {})
+    await ipc.dispose()
+  }
   console.log('PASS PowerShell starts in the workspace, two sessions switch independently, and closing reaps the process.')
 }
 
@@ -197,7 +258,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       await session.page.locator('.recent-entry').filter({ hasText: workspaceName }).click()
       await verifyWindowsConsole(session.page)
       await verifyToolchains(session.page)
-      await verifyTerminal(session.page, workspaceName)
+      await verifyTerminal(session.app, session.page, workspaceName)
     } finally {
       await close(session)
     }

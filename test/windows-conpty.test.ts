@@ -41,13 +41,15 @@ test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interact
     input.once('line', async (line) => {
       const sleep = require('node:timers/promises').setTimeout;
       const deadline = performance.now() + 3000;
-      let [width, height] = process.stdout.getWindowSize();
+      const size = [0, 0];
+      assert.equal(process.stdout._handle.getWindowSize(size), 0);
       // Windows applies the resize on a separate ConPTY control channel.
-      while ((width !== 100 || height !== 35) && performance.now() < deadline) {
+      // Node's public getWindowSize() just returns its cached columns and rows.
+      while ((size[0] !== 100 || size[1] !== 35) && performance.now() < deadline) {
         await sleep(15);
-        [width, height] = process.stdout.getWindowSize();
+        assert.equal(process.stdout._handle.getWindowSize(size), 0);
       }
-      process.stdout.write('ION_INPUT:' + line + ':SIZE:' + width + 'x' + height + '\n');
+      process.stdout.write('ION_INPUT:' + line + ':SIZE:' + size.join('x') + '\n');
       process.stderr.write('ION_STDERR\n');
       input.close();
       process.stdin.destroy();
@@ -175,9 +177,11 @@ test('Windows terminal launches in the workspace and explicit close cleans up a 
   terminal.attach(first.id)
   terminal.attach(second.id)
   const shellCommand = /powershell/i.test(first.title)
-    ? '& "' + process.execPath + '" .\\job.cjs\r'
-    : '"' + process.execPath + '" .\\job.cjs\r'
+    ? '& "' + process.execPath + '" .\\job.cjs'
+    : '"' + process.execPath + '" .\\job.cjs'
   await terminal.input(first.id, shellCommand)
+  await until(() => stripVTControlCharacters(output.get(first.id) ?? '').includes('job.cjs'), 'Shell did not echo the command.')
+  await terminal.input(first.id, '\r')
   const child = await until(() => {
     const match = /ION_JOB:(\d+)/.exec(stripVTControlCharacters(output.get(first.id) ?? ''))
     return match ? Number(match[1]) : null

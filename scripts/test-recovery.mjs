@@ -163,13 +163,14 @@ await withScratch('recovery', async (scratch) => {
   }
 
   const interrupted = await launch(target, profile)
+  const interruptedProcess = interrupted.app.process()
   try {
     await interrupted.page.context().setOffline(true)
     assert.equal(await interrupted.page.getByTestId('recover-edits').isVisible(), false, 'Resolved drafts do not reappear.')
     await newDraft(interrupted.page, processDraft)
     await waitForSnapshots(profile, processDraft)
   } finally {
-    const proc = interrupted.app.process()
+    const proc = interruptedProcess
     if (proc.exitCode === null && proc.signalCode === null) {
       const exited = once(proc, 'exit')
       if (windows) await promisify(execFile)('taskkill.exe', ['/pid', String(interrupted.pid), '/f'], { windowsHide: true, timeout: 6000 })
@@ -178,7 +179,7 @@ await withScratch('recovery', async (scratch) => {
     }
   }
   if (windows) await assertProcessExited(interrupted.pid)
-  else assert.equal(interrupted.app.process().signalCode, 'SIGKILL')
+  else assert.equal(interruptedProcess.signalCode, 'SIGKILL')
 
   const relaunched = await launch(target, profile)
   const relaunchedProcess = relaunched.app.process()
