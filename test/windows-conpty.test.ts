@@ -66,7 +66,7 @@ test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interact
   })
   const result = await session.result
   const output = stripVTControlCharacters(transcript)
-  assert.equal(result.state, 'exited', result.detail ?? output)
+  assert.equal(result.state, 'exited', result.detail ?? 'ConPTY transcript: ' + JSON.stringify(transcript))
   assert.equal(result.exitCode, 7, output)
   assert.equal(result.outputComplete, true, output)
   assert.match(output, /ION_INPUT:Hello λ:SIZE:100x35/)
@@ -103,7 +103,7 @@ test('Windows ConPTY forwards control input to the program', { skip, timeout: 25
     })
     const result = await session.result
     const transcript = stripVTControlCharacters(output)
-    assert.equal(result.state, 'exited', result.detail ?? transcript)
+    assert.equal(result.state, 'exited', result.detail ?? 'ConPTY transcript: ' + JSON.stringify(output))
     assert.equal(result.exitCode, 0, transcript)
     assert.match(transcript, raw ? /ION_RAW:03/ : /ION_INTERRUPT/)
   }
@@ -191,13 +191,16 @@ test('Windows terminal launches in the workspace and explicit close cleans up a 
 test('Windows Run Console falls back to line input if the installed helper is absent', { skip, timeout: 15_000 }, async (t) => {
   const cwd = await mkdtemp(join(tmpdir(), 'ion-pty-fallback-'))
   t.after(() => rm(cwd, { force: true, recursive: true }))
-  const runner = new InteractiveRunner(join(cwd, 'missing-ion-pty.exe'))
+  const runner = new InteractiveRunner(join(cwd, 'missing-ion-pty.exe'), { compileMs: 5000, programMs: 5000, outputBytes: 4096 })
   let transcript = ''
   const result = await runner.run({
     cwd, label: 'JavaScript', language: 'javascript', toolchain: process.execPath,
     run: { executable: process.execPath, args: ['-e', "process.stdin.once('data', data => process.stdout.write('ION_FALLBACK:' + data));"] },
   }, (event) => {
-    if (event.kind === 'phase' && event.phase === 'running') runner.input('value\r')
+    if (event.kind === 'phase' && event.phase === 'running') {
+      runner.input('value\r')
+      runner.input('\x04')
+    }
     if (event.kind === 'data') transcript += event.text
   }, new AbortController().signal)
   assert.equal(result.status, 'success', result.message)

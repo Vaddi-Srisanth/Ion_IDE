@@ -237,6 +237,9 @@ int wmain(int argc, wchar_t** argv) {
 
   STARTUPINFOEXW startup{};
   startup.StartupInfo.cb = sizeof(startup);
+  // The helper uses pipes. Clear its standard handles so the child opens
+  // its own console handles from the pseudoconsole instead.
+  startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
   SIZE_T attributeBytes = 0;
   InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeBytes);
   if (!attributeBytes) fail(GetLastError());
@@ -247,6 +250,8 @@ int wmain(int argc, wchar_t** argv) {
     fail(GetLastError());
   }
   PROCESS_INFORMATION process{};
+  // A parent's Ctrl+C ignore setting can otherwise be inherited by the child.
+  SetConsoleCtrlHandler(nullptr, FALSE);
   const BOOL launched = CreateProcessW(argv[executableIndex], command.data(), nullptr, nullptr, FALSE,
       EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED, nullptr, nullptr, &startup.StartupInfo, &process);
   const DWORD launchError = launched ? ERROR_SUCCESS : GetLastError();
