@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { access, mkdir, writeFile } from 'node:fs/promises'
+import { delimiter, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { artifact, close, editorShows, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { artifact, close, editorShows, eventually, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
 
 const windowsInputFilename = 'verify-input.cjs'
 const windowsInputSource = `
 const prompt = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
 console.log('ION-WINDOWS-INPUT');
+console.log(process.stdin.isTTY ? 'ION-WINDOWS-TTY' : 'ION-WINDOWS-PIPE');
 prompt.once('line', (line) => {
   process.stdout.write('ION-WINDOWS-ANSWER:' + line + '\\n', () => {
     prompt.close();
@@ -29,11 +30,11 @@ async function consoleDiagnostics(page) {
   }).catch(() => null)
 }
 
-async function terminalShows(page, marker) {
-  const handle = await page.waitForFunction((expected) => {
-    const rows = document.querySelectorAll('[data-testid="run-console-terminal"] .xterm-rows > div')
+async function terminalShows(page, marker, surface = 'run-console-terminal') {
+  const handle = await page.waitForFunction(({ expected, target }) => {
+    const rows = document.querySelectorAll('[data-testid="' + target + '"] .xterm-rows > div')
     return [...rows].map((row) => row.textContent).join('').includes(expected)
-  }, marker, { polling: 100, timeout: 15_000 })
+  }, { expected: marker, target: surface }, { polling: 100, timeout: 15_000 })
     .catch((error) => { throw new Error(`Run Console did not show ${marker}.`, { cause: error }) })
   await handle.dispose()
 }
@@ -51,6 +52,7 @@ async function verifyWindowsConsole(page) {
   try {
     await page.getByTestId('run').click()
     await terminalShows(page, 'ION-WINDOWS-INPUT')
+    await terminalShows(page, 'ION-WINDOWS-TTY')
     await page.getByTestId('run-console-input').focus()
     await page.keyboard.insertText('hello')
     await page.keyboard.press('Enter')
@@ -66,29 +68,135 @@ async function verifyWindowsConsole(page) {
   } catch (error) {
     throw new Error(`Windows Run Console verification failed. Observed: ${JSON.stringify(await consoleDiagnostics(page))}`, { cause: error })
   }
-  console.log('PASS interactive JavaScript accepts input and Stop cancels a waiting program.')
+  console.log('PASS JavaScript uses a real Windows console, accepts input, reruns, and stops a waiting program.')
+}
+
+const toolchainFixtures = {
+  'native.c': '#include <stdio.h>\nint main(void) { puts("ION-C-OUTPUT"); return 0; }\n',
+  'native.cpp': '#include <iostream>\nint main() { std::cout << "ION-CPP-OUTPUT" << std::endl; }\n',
+  'invalid.c': '#error ION-C-DIAGNOSTIC\n',
+  'prompt.py': 'print("ION-PYTHON-TTY" if __import__("sys").stdin.isatty() else "ION-PYTHON-PIPE")\nprint("ION-PYTHON-ANSWER:" + input())\n',
+}
+const javaFixtures = {
+  'Main.java': 'package sample; public class Main { public static void main(String[] args) { System.out.println(Message.read()); } }',
+  'Message.java': 'package sample; class Message { static String read() { return "ION-JAVA-MULTI-FILE"; } }',
+}
+
+async function verifyToolchains(page) {
+  const choose = (name) => page.getByTestId('explorer-entry').getByText(name, { exact: true }).click()
+  const status = (value) => page.locator('[data-testid="output"][data-status="' + value + '"]').waitFor()
+  const run = () => page.getByTestId('run').click()
+
+  try {
+    await choose('native.c')
+    await run()
+    await terminalShows(page, 'ION-C-OUTPUT')
+    await status('success')
+    await choose('native.cpp')
+    await run()
+    await terminalShows(page, 'ION-CPP-OUTPUT')
+    await status('success')
+    await choose('invalid.c')
+    await run()
+    await terminalShows(page, 'ION-C-DIAGNOSTIC')
+    await status('compile-error')
+    console.log('PASS C and C++ compile and run, and real compiler diagnostics reach the console.')
+
+    await choose('sample')
+    await choose('Main.java')
+    await run()
+    await terminalShows(page, 'ION-JAVA-MULTI-FILE')
+    await status('success')
+    console.log('PASS Java compiles a package with multiple source files and runs its main class.')
+
+    await choose('prompt.py')
+    await run()
+    await terminalShows(page, 'ION-PYTHON-TTY')
+    await page.getByTestId('run-console-input').focus()
+    await page.keyboard.insertText('from Ion')
+    await page.keyboard.press('Enter')
+    await terminalShows(page, 'ION-PYTHON-ANSWER:from Ion')
+    await status('success')
+    console.log('PASS Python uses ConPTY and accepts real interactive input.')
+  } catch (error) {
+    throw new Error(`Windows toolchain verification failed. Observed: ${JSON.stringify(await consoleDiagnostics(page))}`, { cause: error })
+  }
+}
+
+async function verifyTerminal(page, workspaceName) {
+  const pane = page.getByTestId('terminal-pane')
+  const selector = pane.getByTestId('terminal-session')
+  const type = async (command) => {
+    await pane.getByTestId('terminal-input').focus()
+    await page.keyboard.insertText(command)
+    await page.keyboard.press('Enter')
+  }
+
+  await page.getByTestId('bottom-terminal-tab').click()
+  await selector.waitFor()
+  assert.match(await selector.locator('option:checked').textContent(), /powershell\.exe/i)
+  const first = await selector.inputValue()
+  await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
+  await terminalShows(page, 'ION-WORKSPACE:' + workspaceName, 'terminal-pane')
+  await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
+  await terminalShows(page, 'ION-SHELL-PID:', 'terminal-pane')
+  const transcript = (await pane.locator('.xterm-rows > div').allTextContents()).join('')
+  const pid = Number(/ION-SHELL-PID:(\d+)/.exec(transcript)?.[1])
+  assert.ok(Number.isSafeInteger(pid) && pid > 0, 'PowerShell did not report its process ID.')
+  assert.doesNotThrow(() => process.kill(pid, 0))
+
+  await pane.getByTestId('terminal-new').click()
+  await eventually(async () => await selector.locator('option').count() === 2, 'Second terminal did not open.')
+  const second = await selector.inputValue()
+  assert.notEqual(first, second)
+  await selector.selectOption(first)
+  await pane.getByTestId('terminal-hide').click()
+  await pane.waitFor({ state: 'hidden' })
+  assert.doesNotThrow(() => process.kill(pid, 0))
+  await page.getByRole('button', { name: 'Toggle Console' }).click()
+  assert.equal(await selector.inputValue(), first)
+  await terminalShows(page, 'ION-SHELL-PID:' + pid, 'terminal-pane')
+  await pane.getByTestId('terminal-close').click()
+  await eventually(() => {
+    try { process.kill(pid, 0); return false } catch (error) {
+      if (error.code !== 'ESRCH') throw error
+      return true
+    }
+  }, 'Closing the terminal did not release the PowerShell process.')
+  assert.equal(await selector.inputValue(), second)
+  await pane.getByTestId('terminal-close').click()
+  console.log('PASS PowerShell starts in the workspace, two sessions switch independently, and closing reaps the process.')
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   assert.equal(process.platform, 'win32', 'Run this test on Windows.')
+  if (process.env.GITHUB_ACTIONS && await access('C:\\mingw64\\bin\\g++.exe').then(() => true, () => false)) {
+    process.env.PATH = ['C:\\mingw64\\bin', process.env.PATH].filter(Boolean).join(delimiter)
+  }
   await withScratch('windows-console', async (scratch) => {
-    const project = join(scratch, 'Console test workspace')
+    const workspaceName = 'Console test workspace λ'
+    const project = join(scratch, workspaceName)
+    const java = join(project, 'sample')
     const profile = join(scratch, 'profile')
-    await Promise.all([mkdir(project), mkdir(profile)])
+    await Promise.all([mkdir(java, { recursive: true }), mkdir(profile)])
     await Promise.all([
       writeFile(join(project, windowsInputFilename), windowsInputSource),
+      ...Object.entries(toolchainFixtures).map(([name, source]) => writeFile(join(project, name), source)),
+      ...Object.entries(javaFixtures).map(([name, source]) => writeFile(join(java, name), source)),
       writeFile(join(profile, 'preferences.json'), JSON.stringify({
         version: 1,
         settings: { openFullScreen: false },
-        recents: [{ path: project, name: 'Console test workspace', kind: 'folder', lastOpened: 1 }],
+        recents: [{ path: project, name: workspaceName, kind: 'folder', lastOpened: 1 }],
       })),
     ])
     const session = await launch(await artifact('dist'), profile)
     try {
       await stubDialogs(session.app, { allowRun: true })
       await session.app.context().setOffline(true)
-      await session.page.locator('.recent-entry').filter({ hasText: 'Console test workspace' }).click()
+      await session.page.locator('.recent-entry').filter({ hasText: workspaceName }).click()
       await verifyWindowsConsole(session.page)
+      await verifyToolchains(session.page)
+      await verifyTerminal(session.page, workspaceName)
     } finally {
       await close(session)
     }

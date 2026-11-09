@@ -1,0 +1,290 @@
+{
+  "schema": 2,
+  "id": "swift",
+  "name": "Swift",
+  "summary": "Learn Swift bindings, optionals, collections, value semantics, and typed error handling through command-line examples.",
+  "version": 1,
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "systems"
+    ],
+    "languageVersion": "Swift 6",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "Install a Swift 6 toolchain to run examples from a terminal with swift lesson.swift. Reading and exercises work offline."
+    ],
+    "miniProject": "Build a pantry inventory tool. Parse counts without force-unwrapping, store items and quantities in a dictionary, and report invalid entries with a specific error. Print items in sorted order so output stays predictable.",
+    "references": [
+      {
+        "title": "The Swift Programming Language: The Basics",
+        "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/"
+      },
+      {
+        "title": "The Swift Programming Language: Collection Types",
+        "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/collectiontypes/"
+      },
+      {
+        "title": "The Swift Programming Language: Error Handling",
+        "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "bindings",
+      "title": "Bindings, types, and interpolation",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "Use let for a binding that keeps its value and var for one you plan to change. Swift infers types from many initializers. String interpolation puts a value into text.",
+      "example": "let item: String = \"notebook\"\nlet centsPerItem = 225\nvar quantity = 2\nquantity += 1\nprint(\"\\(quantity) \\(item)s cost \\(quantity * centsPerItem) cents\")",
+      "api": [
+        {
+          "name": "let",
+          "description": "Declare a constant binding."
+        },
+        {
+          "name": "var",
+          "description": "Declare a variable binding."
+        },
+        {
+          "name": "\\(expression)",
+          "description": "Insert the value of an expression into a string literal."
+        }
+      ],
+      "practice": "Start with four notebooks, then add two. Print the final count and price in cents.",
+      "pitfall": "Swift does not implicitly add an Int and a Double. Choose one numeric type or convert deliberately.",
+      "expectedOutput": "3 notebooks cost 675 cents",
+      "keywords": [
+        "let",
+        "var",
+        "type inference",
+        "string interpolation"
+      ],
+      "prerequisites": [],
+      "related": [
+        "optionals"
+      ],
+      "references": [
+        {
+          "title": "The Swift Programming Language: The Basics",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/"
+        }
+      ],
+      "exercise": {
+        "expected": "Report the final quantity and total price with string interpolation.",
+        "completion": "Six notebooks cost 1350 cents. Changing the price changes the total."
+      },
+      "exampleFile": "lesson.swift",
+      "exampleMode": "program"
+    },
+    {
+      "id": "optionals",
+      "title": "Optionals and guard clauses",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "An optional represents either a value or its absence. Int(text) returns an optional because conversion can fail. A guard unwraps valid values for the rest of the function and its else block leaves that scope.",
+      "example": "func servings(_ input: String?) -> Int {\n    guard let input, let quantity = Int(input), (1...12).contains(quantity) else {\n        return 1\n    }\n    return quantity\n}\n\nprint(servings(\"4\"))\nprint(servings(\"oops\"))\nprint(servings(nil))",
+      "api": [
+        {
+          "name": "String?",
+          "description": "Represent a string that may be absent."
+        },
+        {
+          "name": "guard let",
+          "description": "Bind an optional value when the required condition holds."
+        },
+        {
+          "name": "Int(text)",
+          "description": "Try to convert a string into an integer."
+        }
+      ],
+      "practice": "Require a count from two to eight and return two when input is missing or invalid.",
+      "pitfall": "Force-unwrapping with ! traps at runtime if the optional is nil. Choose a fallback or handle the missing case.",
+      "expectedOutput": "4\n1\n1",
+      "keywords": [
+        "optionals",
+        "nil",
+        "guard",
+        "conversion",
+        "input validation"
+      ],
+      "prerequisites": [
+        "bindings"
+      ],
+      "related": [
+        "errors"
+      ],
+      "references": [
+        {
+          "title": "The Swift Programming Language: The Basics",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/"
+        },
+        {
+          "title": "The Swift Programming Language: Control Flow",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/controlflow/"
+        }
+      ],
+      "exercise": {
+        "expected": "Accept a valid count and use a fallback for empty, malformed, or out-of-range values.",
+        "completion": "The inputs \"5\", \"10\", and nil produce 5, 2, and 2."
+      },
+      "exampleFile": "lesson.swift",
+      "exampleMode": "program"
+    },
+    {
+      "id": "collections",
+      "title": "Arrays and dictionaries",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "An array keeps an ordered sequence. A dictionary stores values by key. A dictionary lookup is optional when the key may be absent. A defaulted subscript supplies a starting value for a count.",
+      "example": "let drinks = [\"tea\", \"coffee\", \"tea\"]\nvar counts: [String: Int] = [:]\nfor drink in drinks {\n    counts[drink, default: 0] += 1\n}\n\nfor drink in counts.keys.sorted() {\n    print(\"\\(drink): \\(counts[drink, default: 0])\")\n}",
+      "api": [
+        {
+          "name": "Array",
+          "description": "Store values in order."
+        },
+        {
+          "name": "Dictionary",
+          "description": "Look up a value by key."
+        },
+        {
+          "name": "dictionary[key, default: value]",
+          "description": "Provide a default when reading or updating a missing key."
+        }
+      ],
+      "practice": "Count tokens in a short list of fruits. Sort the result by fruit name.",
+      "pitfall": "Dictionary iteration has no promised sorted order. Sort keys when the output has to be stable.",
+      "expectedOutput": "coffee: 1\ntea: 2",
+      "keywords": [
+        "arrays",
+        "dictionary",
+        "loop",
+        "frequency",
+        "default subscript"
+      ],
+      "prerequisites": [
+        "bindings"
+      ],
+      "related": [
+        "optionals"
+      ],
+      "references": [
+        {
+          "title": "The Swift Programming Language: Collection Types",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/collectiontypes/"
+        }
+      ],
+      "exercise": {
+        "expected": "Print each distinct fruit once with the number of times it appears.",
+        "completion": "The list [\"pear\", \"apple\", \"pear\"] prints apple with count 1 before pear with count 2."
+      },
+      "exampleFile": "lesson.swift",
+      "exampleMode": "program"
+    },
+    {
+      "id": "structs",
+      "title": "Structs and value semantics",
+      "section": "Core",
+      "difficulty": "intermediate",
+      "explanation": "A struct groups related values. Assigning an ordinary struct copies its value, so the two bindings can change independently. A mutating method can change the stored properties of a struct.",
+      "example": "struct Basket {\n    var items: Int\n\n    mutating func add(_ count: Int) {\n        items += count\n    }\n}\n\nlet original = Basket(items: 2)\nvar edited = original\nedited.add(3)\nprint(original.items)\nprint(edited.items)",
+      "api": [
+        {
+          "name": "struct",
+          "description": "Define a value type with properties and methods."
+        },
+        {
+          "name": "mutating",
+          "description": "Allow a method to modify the struct value."
+        },
+        {
+          "name": "Basket(items:)",
+          "description": "Initialize the stored property of a simple struct."
+        }
+      ],
+      "practice": "Write a Timer struct that adds seconds and reports the resulting count. Test a copy of a timer.",
+      "pitfall": "A let-bound struct cannot be mutated through that binding. If a struct stores a reference, copying it can still share the referenced object.",
+      "expectedOutput": "2\n5",
+      "keywords": [
+        "struct",
+        "value semantics",
+        "mutating",
+        "copy"
+      ],
+      "prerequisites": [
+        "bindings"
+      ],
+      "related": [
+        "errors"
+      ],
+      "references": [
+        {
+          "title": "The Swift Programming Language: Structures and Classes",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures/"
+        }
+      ],
+      "exercise": {
+        "expected": "Increment one timer while a copied value keeps its original count.",
+        "completion": "Starting at 10 and adding 5 to the copy prints 10 and 15."
+      },
+      "exampleFile": "lesson.swift",
+      "exampleMode": "program"
+    },
+    {
+      "id": "errors",
+      "title": "Throw and handle a specific error",
+      "section": "Reliability",
+      "difficulty": "intermediate",
+      "explanation": "A throwing function can return a value or report a failure. Declare an Error type for failures the caller can distinguish. Use try at the call site and choose how to respond in a do-catch block.",
+      "example": "enum OvenError: Error {\n    case invalidTemperature\n}\n\nfunc temperature(from text: String) throws -> Int {\n    guard let degrees = Int(text), (100...250).contains(degrees) else {\n        throw OvenError.invalidTemperature\n    }\n    return degrees\n}\n\nfor input in [\"200\", \"70\"] {\n    do {\n        let degrees = try temperature(from: input)\n        print(\"oven: \\(degrees)\")\n    } catch OvenError.invalidTemperature {\n        print(\"temperature out of range\")\n    } catch {\n        print(\"unexpected oven error\")\n    }\n}",
+      "api": [
+        {
+          "name": "Error",
+          "description": "Conform an enum or another type to represent failures."
+        },
+        {
+          "name": "throws",
+          "description": "Declare that a function can throw."
+        },
+        {
+          "name": "do / catch",
+          "description": "Handle errors from operations marked with try."
+        }
+      ],
+      "practice": "Parse a percentage and distinguish malformed text from a number outside 0 through 100.",
+      "pitfall": "Use an error case that matches the failed rule. Keep a broader catch after specific patterns when other errors are possible.",
+      "expectedOutput": "oven: 200\ntemperature out of range",
+      "keywords": [
+        "throw",
+        "try",
+        "catch",
+        "enum",
+        "input validation"
+      ],
+      "prerequisites": [
+        "optionals"
+      ],
+      "related": [
+        "structs"
+      ],
+      "references": [
+        {
+          "title": "The Swift Programming Language: Error Handling",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling/"
+        }
+      ],
+      "exercise": {
+        "expected": "Handle each failure with its own message and print valid percentages.",
+        "completion": "The inputs \"20\", \"101\", and \"twenty\" exercise success, range failure, and conversion failure."
+      },
+      "exampleFile": "lesson.swift",
+      "exampleMode": "program"
+    }
+  ]
+}

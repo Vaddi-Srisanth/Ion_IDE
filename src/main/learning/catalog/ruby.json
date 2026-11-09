@@ -1,0 +1,293 @@
+{
+  "schema": 2,
+  "id": "ruby",
+  "name": "Ruby",
+  "summary": "Work with Ruby values, hashes, enumerable collections, objects, and validated line input.",
+  "version": 1,
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "automation",
+      "web"
+    ],
+    "languageVersion": "Ruby 2.6 syntax or newer",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "Install a supported Ruby runtime to run the examples from a terminal with ruby lesson.rb. These examples also run with Ruby 2.6 syntax."
+    ],
+    "miniProject": "Build a reading tracker. Parse pages from input lines, keep a count by category, and print a sorted report. Report each invalid line and keep processing later lines.",
+    "references": [
+      {
+        "title": "Ruby documentation: Syntax",
+        "url": "https://docs.ruby-lang.org/en/2.6.0/syntax_rdoc.html"
+      },
+      {
+        "title": "Ruby documentation: Hash",
+        "url": "https://docs.ruby-lang.org/en/2.6.0/Hash.html"
+      },
+      {
+        "title": "Ruby documentation: Enumerable",
+        "url": "https://docs.ruby-lang.org/en/2.6.0/Enumerable.html"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "values",
+      "title": "Values, defaults, and interpolation",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "A Ruby variable can refer to any kind of value. Interpolate an expression inside a double-quoted string. The || operator returns its right operand when the left operand is nil or false.",
+      "example": "subject = \"systems\"\npages = 12\nedition = nil\nlabel = edition || \"draft\"\nputs \"#{subject}: #{pages} pages (#{label})\"",
+      "api": [
+        {
+          "name": "puts",
+          "description": "Print a value followed by a newline."
+        },
+        {
+          "name": "#{expression}",
+          "description": "Insert the result of an expression into a double-quoted string."
+        },
+        {
+          "name": "nil",
+          "description": "Represent the absence of a value."
+        }
+      ],
+      "practice": "Display the title and total pages of two readings. Print \"untitled\" when a title is nil.",
+      "pitfall": "An empty string and zero are truthy in Ruby. Use empty? or a numeric comparison when those values need special handling.",
+      "expectedOutput": "systems: 12 pages (draft)",
+      "keywords": [
+        "variable",
+        "interpolation",
+        "nil",
+        "truthiness",
+        "puts"
+      ],
+      "prerequisites": [],
+      "related": [
+        "hashes"
+      ],
+      "references": [
+        {
+          "title": "Ruby documentation: Syntax",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/syntax_rdoc.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Produce one formatted line for each reading and a meaningful label when its title is missing.",
+        "completion": "The missing title prints \"untitled\", and a reading with zero pages still prints 0."
+      },
+      "exampleFile": "lesson.rb",
+      "exampleMode": "program"
+    },
+    {
+      "id": "hashes",
+      "title": "Count occurrences with a hash",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "A hash maps keys to values. Hash.new(0) supplies zero when a lookup finds no entry. Assign the incremented count back to the hash. Sorting the keys gives the report an explicit order.",
+      "example": "topics = [\"arrays\", \"loops\", \"arrays\"]\ncounts = Hash.new(0)\ntopics.each do |topic|\n  counts[topic] += 1\nend\n\ncounts.keys.sort.each do |topic|\n  puts \"#{topic}: #{counts[topic]}\"\nend",
+      "api": [
+        {
+          "name": "Hash.new(0)",
+          "description": "Return zero for a missing key without creating an entry."
+        },
+        {
+          "name": "each do |item|",
+          "description": "Call a block with each value in a collection."
+        },
+        {
+          "name": "Hash#keys",
+          "description": "Return an array of stored keys."
+        }
+      ],
+      "practice": "Count categories for [\"review\", \"read\", \"review\", \"run\"]. Print the counts in alphabetical order.",
+      "pitfall": "A mutable object passed as the hash default is shared by missing lookups. For arrays per key, use a block that creates a fresh array.",
+      "expectedOutput": "arrays: 2\nloops: 1",
+      "keywords": [
+        "hash",
+        "default value",
+        "frequency",
+        "sort",
+        "block"
+      ],
+      "prerequisites": [
+        "values"
+      ],
+      "related": [
+        "enumerable"
+      ],
+      "references": [
+        {
+          "title": "Ruby documentation: Hash",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/Hash.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Print one line per distinct category with its frequency.",
+        "completion": "The report contains read: 1, review: 2, and run: 1 in that order."
+      },
+      "exampleFile": "lesson.rb",
+      "exampleMode": "program"
+    },
+    {
+      "id": "enumerable",
+      "title": "Filter and transform a collection",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "Enumerable supplies operations over collections that implement each. Use select when a block decides which elements to keep. Use map when a block creates a new value from each element.",
+      "example": "pages = [4, 11, 2, 17]\nreading = pages.select { |count| count >= 10 }\nminutes = reading.map { |count| count * 3 }\nputs minutes.join(\", \")\nputs minutes.sum",
+      "api": [
+        {
+          "name": "select",
+          "description": "Return the elements that satisfy a condition."
+        },
+        {
+          "name": "map",
+          "description": "Return the values produced by a block."
+        },
+        {
+          "name": "sum",
+          "description": "Add the values in a numeric collection."
+        }
+      ],
+      "practice": "Keep the even entries from [1, 8, 3, 6], double them, and print the new list and total.",
+      "pitfall": "Use each for a side effect such as printing. Use map when you need the collected results.",
+      "expectedOutput": "33, 51\n84",
+      "keywords": [
+        "Enumerable",
+        "select",
+        "map",
+        "sum",
+        "array"
+      ],
+      "prerequisites": [
+        "hashes"
+      ],
+      "related": [
+        "validation"
+      ],
+      "references": [
+        {
+          "title": "Ruby documentation: Enumerable",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/Enumerable.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Filter first, transform the filtered values, and sum the results.",
+        "completion": "The transformed values are 16 and 12. The total is 28."
+      },
+      "exampleFile": "lesson.rb",
+      "exampleMode": "program"
+    },
+    {
+      "id": "objects",
+      "title": "Store related state in an object",
+      "section": "Core",
+      "difficulty": "intermediate",
+      "explanation": "A class defines methods and per-object state. initialize prepares a newly created instance. Variables whose names start with @ belong to that instance. An attr_reader exposes a read method for a field.",
+      "example": "class Wallet\n  attr_reader :cents\n\n  def initialize(cents)\n    @cents = cents\n  end\n\n  def deposit(amount)\n    raise ArgumentError, \"deposit must be positive\" unless amount.positive?\n    @cents += amount\n  end\nend\n\nwallet = Wallet.new(250)\nwallet.deposit(75)\nputs wallet.cents",
+      "api": [
+        {
+          "name": "class",
+          "description": "Define a set of methods for objects."
+        },
+        {
+          "name": "initialize",
+          "description": "Initialize state for an instance created with new."
+        },
+        {
+          "name": "attr_reader",
+          "description": "Generate a read method for an instance variable."
+        }
+      ],
+      "practice": "Add a withdraw method that rejects amounts above the balance. Confirm that the balance is preserved after a rejected withdrawal.",
+      "pitfall": "Keep changes that must obey a rule behind a method. A publicly writable field can bypass that rule.",
+      "expectedOutput": "325",
+      "keywords": [
+        "class",
+        "initialize",
+        "instance variable",
+        "attr_reader",
+        "ArgumentError"
+      ],
+      "prerequisites": [
+        "values"
+      ],
+      "related": [
+        "validation"
+      ],
+      "references": [
+        {
+          "title": "Ruby documentation: Modules and Classes",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/syntax/modules_and_classes_rdoc.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Withdraw valid amounts and report an error for insufficient funds.",
+        "completion": "A withdrawal of 100 from 325 gives 225. A later withdrawal of 500 leaves 225."
+      },
+      "exampleFile": "lesson.rb",
+      "exampleMode": "program"
+    },
+    {
+      "id": "validation",
+      "title": "Parse and validate input line by line",
+      "section": "Reliability",
+      "difficulty": "intermediate",
+      "explanation": "Read input one line at a time and convert each line with Integer. Pass a base of ten when you expect decimal input. Rescue the conversion failure and keep processing later lines. StringIO lets this example use an in-memory input stream.",
+      "example": "require \"stringio\"\n\ninput = StringIO.new(\"12\\nunknown\\n5\\n\")\ntotal = 0\ninput.each_line do |line|\n  begin\n    total += Integer(line.strip, 10)\n  rescue ArgumentError\n    puts \"invalid: #{line.strip}\"\n  end\nend\nputs \"total: #{total}\"",
+      "api": [
+        {
+          "name": "each_line",
+          "description": "Iterate over lines from an IO-like input."
+        },
+        {
+          "name": "Integer(text, 10)",
+          "description": "Parse text as a base-ten integer."
+        },
+        {
+          "name": "rescue ArgumentError",
+          "description": "Handle invalid text while allowing unrelated exceptions to propagate."
+        }
+      ],
+      "practice": "Sum nonnegative integers from a line stream. Report malformed or negative lines and keep going.",
+      "pitfall": "String#to_i can return zero for malformed text. Use Integer when invalid input must be reported separately.",
+      "expectedOutput": "invalid: unknown\ntotal: 17",
+      "keywords": [
+        "StringIO",
+        "each_line",
+        "Integer",
+        "rescue",
+        "validation"
+      ],
+      "prerequisites": [
+        "values",
+        "enumerable"
+      ],
+      "related": [
+        "objects"
+      ],
+      "references": [
+        {
+          "title": "Ruby documentation: StringIO",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/StringIO.html"
+        },
+        {
+          "title": "Ruby documentation: Syntax",
+          "url": "https://docs.ruby-lang.org/en/2.6.0/syntax_rdoc.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Print one error for each rejected line and a total for accepted readings.",
+        "completion": "Input 3, -1, x, and 7 produces two errors and a total of 10."
+      },
+      "exampleFile": "lesson.rb",
+      "exampleMode": "program"
+    }
+  ]
+}

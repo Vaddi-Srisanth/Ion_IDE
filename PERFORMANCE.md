@@ -1,5 +1,86 @@
 # Performance
 
+## Adoption changes
+
+The baseline was a preserved production build with Marketplace 2.0 and Terminal already present. The final candidate added the durable update preference, explicit C/C++ project builds, and the reviewed C diagnostic rule. Both ran on Apple M3, 24 GiB, macOS 27.2 (26B123), Electron 45.2.3, and battery power. Each used five fresh and five warm launches, ten seconds of idle, the same saved source fixtures, six panel cycles, six native executions, and twelve mixed editing and run rounds. OS caches were left intact.
+
+| Measure | Baseline | Final local build |
+| --- | ---: | ---: |
+| Fresh / warm Welcome, median ms | 388.30 / 380.79 | 393.58 / 414.77 |
+| Welcome idle CPU, % of one core | 0.32 | 0.26 |
+| Welcome idle RSS / footprint, MiB | 433.63 / 126.57 | 422.06 / 123.69 |
+| One C file RSS / footprint, MiB | 518.30 / 334.50 | 507.30 / 333.15 |
+| Ten tabs RSS / footprint, MiB | 534.55 / 366.77 | 522.67 / 363.83 |
+| Medium project RSS / footprint, MiB | 563.31 / 390.08 | 551.55 / 392.74 |
+| Typing to second animation callback, median ms | 31.85 | 31.75 |
+| Rotating tab switch, median ms | 49.96 | 49.99 |
+| Short C Run / Stop, median ms | 198.17 / 52.54 | 190.74 / 57.00 |
+| Mixed workload CPU, % of one core | 38.67 | 36.46 |
+
+All 32 enforced comparisons passed. Seven active-footprint comparisons remain advisory with one measured pair. Both builds reaped the app process tree and left zero native children at settled checkpoints. Median warm launch rose by 33.98 ms in this pair. An earlier short candidate attempt timed out on a fresh-process quit and completed on retry. Summed RSS can count shared mappings more than once. The measured differences describe these workloads and do not establish a durable memory reduction. Terminal overhead is measured separately below. The LLDB-DAP feasibility test introduced no debugger service to Ion.
+
+In a separate Mac desktop test, warm Run-to-result medians over three correct executions were 177.47 ms for a standalone C file, 182.29 ms for two configured C sources, and 457.60 ms for two configured C++ sources. The timings include compilation, the approval flow with the native dialog stubbed, and output rendering. The C and C++ fixtures are different programs. The test also covered cleanup, changes during approval, and failure without launching an older executable.
+
+```sh
+npm run bench:resources -- --target "$ION_BUILD" --label adoption \
+  --idle-seconds 10 --settle-ms 850 --launches 5 --cycles 6 --executions 6 --extended-rounds 12
+npm run check:performance -- --baseline-report baseline.json --candidate-report candidate.json
+npm run test:native-projects -- --measure
+```
+
+[Baseline raw samples](performance-results/resources-adoption-gate-baseline-2026-11-09T18-05-52.027Z.json) · [Final raw samples](performance-results/resources-adoption-final-2026-11-09T18-10-56.899Z.json) · [Gate results](performance-results/adoption-ci/final-performance-gate.log)
+
+## Integrated Terminal on macOS
+
+Compared production builds before and after adding the integrated shell. Both used Electron 45.2.3 on an Apple M3 Mac with 24 GiB RAM and macOS 27.2 (26B123), on battery power. The benchmark ran three fresh disposable profiles per build with OS caches intact. It opened the same source file offline, then sampled the full process tree after a 1.2-second settle and again five seconds later. The candidate additionally opened one shell, opened a second, hid the panel, closed both, and ran eight more create-and-close cycles. The shells used isolated zsh startup files.
+
+| Workload | Shell and PTY helper processes | Summed RSS (MiB) | macOS footprint (MiB) | CPU (% of one core) |
+| --- | ---: | ---: | ---: | ---: |
+| Previous build, editor only | 0 | 513.77 | 202.04 | 1.64 |
+| Terminal build, before opening Terminal | 0 | 523.88 | 207.42 | 0.81 |
+| One idle shell visible | 2 | 538.36 | 227.56 | 1.20 |
+| Two idle shells, panel visible | 4 | 542.45 | 193.22 | 1.02 |
+| Two idle shells, panel hidden | 4 | 543.17 | 203.95 | 0.08 |
+| Both shells closed | 0 | 528.19 | 195.18 | 2.24 |
+| After eight more create-and-close cycles | 0 | 536.66 | 199.44 | 0.12 |
+
+Memory is the median of six samples per stage. Summed RSS can count shared mappings more than once. Footprint uses macOS per-process accounting. CPU is the median of three interval averages. The shell and PTY helper each used less than 0.01% of one core at every measured idle interval. The higher CPU reading just after closing both shells came from Electron processes.
+
+The candidate showed its first shell prompt in **117.50 ms** median. Fresh-profile time to Welcome was **390.64 ms** before and **417.41 ms** after. Startup samples ranged from 326 to 527 ms before and 387 to 542 ms after. These runs establish that no shell or xterm code loaded before the first console request. They leave the cause of the startup and editor-memory differences unresolved.
+
+Closing both sessions left **4.30 MiB** of median RSS above the candidate's initial editor idle reading. After eight additional cycles, closed RSS was **8.48 MiB** above the first closed stage and footprint was **4.27 MiB** above it. No shell or helper remained at either closed stage. These short runs measure process cleanup and remaining memory at the sampled points. Long-session memory behavior remains unmeasured.
+
+```sh
+npm run bench:terminal -- --mode baseline --target "$ION_BASELINE_BUILD"
+npm run build
+npm run bench:terminal -- --mode candidate
+```
+
+[Raw baseline](performance-results/terminal-baseline-2026-11-09T17-35-07.999Z.json) · [Raw candidate](performance-results/terminal-candidate-2026-11-09T17-43-09.695Z.json)
+
+## Marketplace 2.0 library scaling
+
+Measured on an Apple M3 Mac with 24 GiB RAM, macOS 27.2 (26B123), and Electron 45.2.3. The production benchmark launched a separate offline Ion session three times per library size. Each profile had the same 19 bundled listings and the stated number of installed synthetic packs, with 15 lessons per installed pack. Every session opened the same source file, measured it after one second of idle, opened Marketplace, searched for five packs, and closed Marketplace. The open sample settled for one second and the closed sample for three seconds. No network requests were observed.
+
+| Installed packs | Editor idle RSS / footprint (MiB) | Marketplace open RSS / footprint (MiB) | After close RSS / footprint (MiB) | Open median (ms) | Search median (ms) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | 503.02 / 318.38 | 509.45 / 351.49 | 507.36 / 248.69 | 55.78 | 5.38 |
+| 10 | 506.48 / 329.82 | 513.38 / 349.47 | 518.70 / 276.21 | 52.90 | 4.02 |
+| 25 | 502.56 / 321.58 | 509.36 / 343.96 | 507.48 / 244.47 | 50.53 | 4.49 |
+| 50 | 505.00 / 319.02 | 511.17 / 345.08 | 509.69 / 245.57 | 62.69 | 4.92 |
+| 100 | 504.14 / 320.07 | 518.55 / 346.52 | 523.14 / 246.65 | 52.86 | 4.43 |
+
+Memory values are medians across three runs, summed across the four-process Electron tree. RSS can count shared mappings more than once. Footprint uses the macOS process accounting API. The timing measures run from a sidebar click or input to the requested content appearing in the DOM. They include automation overhead. Search medians use 15 queries per size. The slowest observed open was 145.92 ms at 50 packs, and the slowest search was 67.02 ms at 100.
+
+The 100-pack editor-only median was 1.12 MiB higher in RSS and 1.69 MiB higher in footprint than the zero-pack run. The Marketplace chunk was unloaded before the sidebar opened. At 25, 50, and 100 installed packs the list rendered only a window of rows. After closing at 100 packs, median footprint dropped by 99.87 MiB from the open sample, while median RSS stayed 19.00 MiB above the initial idle sample. The measurements show considerable run-to-run variation in footprint. One open and close per process cannot establish long-session leak behavior.
+
+```sh
+npm run build
+npm run bench:marketplace
+```
+
+[Raw macOS benchmark](performance-results/learning-marketplace-2026-11-09T17-30-03.667Z.json)
+
 ## 0.9.4 public preview check
 
 The final preview was compared with the earlier 0.9.4 editor build on the same Apple M3 Mac (24 GiB, macOS 27.2, Electron 45.2.3). Both use production bundles, three fresh-profile launches and three warm-profile launches, six seconds of idle sampling, ten C executions, and twelve mixed coding rounds. OS caches were left intact. Update checks were off. Two separate low-duty soak workloads were running during the final measurement. Treat small differences as variation, not a measured improvement attributable to a particular change.

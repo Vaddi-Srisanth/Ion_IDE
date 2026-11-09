@@ -7,7 +7,7 @@ Ion IDE is a personal-project preview. Everyone is welcome to download it for te
 | Electron 45.2.3 | MIT with separate Chromium notices | Desktop runtime |
 | React 19.3.1 and Monaco 0.57.0 | MIT with separate Monaco notices | Workbench and code editor |
 | DOMPurify 3.4.17 | Apache-2.0 or MPL-2.0 upstream, with the Apache-2.0 text bundled | HTML sanitization in Monaco |
-| xterm 6.0.0 and its Fit addon 0.11.0 | MIT | Run Console |
+| xterm 6.0.0, Fit 0.11.0, and Search 0.16.0 | MIT | Terminal and Run Console |
 | Marked 14.0.0 | MIT | Markdown parsing |
 | PDF.js 6.5.438 | Apache-2.0 with separate notices for fonts and decoders | PDF viewer |
 | csv-parse 7.0.3 and yauzl 3.4.0 | MIT | CSV parsing and archive reading |

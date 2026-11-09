@@ -31,6 +31,7 @@ If you find a problem, include your Ion version, operating system, processor arc
 | **Manage files and navigate** | Open files or folders, create and rename items, move items to Trash or Recycle Bin, revisit recent work, use Command Palette and Quick Open, or search saved workspace text with ripgrep and jump to a result. |
 | **Protect edits** | Configurable autosave, detection of external edits, Save As conflict protection, local crash recovery, and reopening the last session with its tabs, selections, and scroll positions. Large UTF-8 files get a paged read-only viewer. |
 | **Run code** | Use local C, C++, Java, Python, and JavaScript toolchains. The Run Console shows compile errors, live output, duration, and exit status, with interactive input, Stop, Rerun, and Clear. Java supports companion sources, packages, and local JAR dependencies. Offline Maven and Gradle are documented in the Java section. |
+| **Use a local shell** | On macOS and Linux, the integrated Terminal opens your configured shell with separate sessions, scrollback, search, copy and paste, ANSI output, and job control. |
 | **Preview web and Markdown** | Preview local HTML, CSS, and JavaScript together. Switch Markdown between Source, Preview, and live resizable Split View. Preview includes tables, lists, tasks, links, workspace images, and highlighted code fences. |
 | **Work with notebooks** | Open, edit, reorder, and save `.ipynb` cells. Read Markdown, metadata, saved text, images, and static tables, or inspect the JSON source. Use a local Jupyter kernel to run one cell, cells above it, or all cells. |
 | **Read documents beside code** | View PDF, DOCX, XLSX, and CSV in read-only tabs with format-specific navigation and search. Use a resizable split beside source, or open the original in the default app. macOS also supports static PPTX slides through an optional LibreOffice installation. |
@@ -86,7 +87,7 @@ Ion requests trust for each new source file in a window. Window trust follows ed
 
 | Source | Local execution |
 | --- | --- |
-| C and C++ | Clang or GCC compiles the active source file and its included headers. |
+| C and C++ | Clang or GCC compiles the active source or the explicit source list in a workspace build file. |
 | Java | An installed JDK compiles the active source and resolves companion sources, packages, and local `lib/*.jar` dependencies. Ion finds the entry point in freshly compiled class metadata. |
 | Maven and Gradle Java | On macOS, open the project folder. Ion uses the detected build and its main source set and runtime classpath. It asks before each build and uses locally available tools and caches. On Windows, run Maven or Gradle from a separate terminal. |
 | Python and JavaScript | Local Python 3 and Node.js run the active script. |
@@ -94,6 +95,31 @@ Ion requests trust for each new source file in a window. Window trust follows ed
 Maven uses its cached compiler plugin and, for projects with dependencies, its cached dependency-classpath plugin. Gradle can use an installed CLI or the matching already-extracted Gradle wrapper distribution and cached dependencies. Maven and Gradle write their usual project build output. Projects with custom launch tasks, unusual source sets, or additional JVM flags may need their own build workflow. [Maven CLI options](https://maven.apache.org/ref/3-LATEST/maven-embedder/cli.html) · [Gradle offline mode](https://docs.gradle.org/current/userguide/dependency_caching.html#sec:offline-mode)
 
 Use **Preview** on an HTML, CSS, or JavaScript file to open a separate offline web preview. Relative styles, scripts, and supported assets load from the opened workspace. CSS and JavaScript use the nearest `index.html` or `index.htm` inside that workspace. Press ⌘R on macOS or Ctrl+R on Windows in the preview window to reload it from disk.
+
+### Multi-file C and C++ projects
+
+Create `.ion/build.json` in an opened workspace folder. List the source files that link into one program. Use C or C++ for the whole list and forward slashes for workspace-relative paths. Include directories and tracked headers are optional.
+
+```json
+{
+  "version": 1,
+  "sources": ["src/main.c", "src/math.c"],
+  "includeDirectories": ["include"],
+  "headers": ["include/math.h"]
+}
+```
+
+Save the build file, then press **Run** from any listed source. Ion asks for approval, builds into a private temporary directory, and runs only the executable from that build. **Save before Run** also saves edited listed sources and headers. A valid configuration leaves unlisted source files on the normal single-file path. Compiler messages appear in Run Console. Learning history stays scoped to single-file runs.
+
+The build file supports up to 32 source files, 64 tracked headers, and 8 include directories. Use the integrated Terminal for Make, CMake, mixed-language projects, and custom compiler or linker arguments. Ion reads the build file when you run a source.
+
+### Integrated Terminal
+
+On macOS and Linux, use **View → Toggle Terminal** or open the bottom panel and select **Terminal**. Ion starts your account's configured shell in the open folder, or in your home directory when there is no workspace. The shell reads its usual user startup configuration. Run Git, installed compilers, and interactive tools as you would from your system terminal. Your shell manages its command history.
+
+Use **New Terminal** and the session selector to keep up to six shells open. Each session keeps 2,000 lines of scrollback. Drag the bottom divider to resize. Use **Find** or **Clear** on the toolbar, and use **⌘C** and **⌘V** to copy and paste on macOS. **Ctrl+C** interrupts the foreground job. Hiding the panel or switching to **Run Console** keeps Terminal sessions alive. **Close Terminal** ends the selected shell and its jobs. Closing the Ion window ends all of its sessions. A program that deliberately daemonizes into its own OS session can outlive the terminal.
+
+**Run** and **F5** still open the separate Run Console for one-click code execution. On Windows, the Run Console continues to provide its existing line-based input. The general-purpose shell requires a macOS or Linux PTY.
 
 ### Keyboard navigation
 
@@ -107,7 +133,8 @@ Use **Preview** on an HTML, CSS, or JavaScript file to open a separate offline w
 | New File / Open File / Open Folder | ⌘N / ⌘O / ⌘⇧O | Ctrl+N / Ctrl+O / Ctrl+Shift+O |
 | Save / Close Tab | ⌘S / ⌘W | Ctrl+S / Ctrl+W |
 | Previous / Next Tab | ⌘⇧[ / ⌘⇧] | Ctrl+Shift+[ / Ctrl+Shift+] |
-| Toggle Explorer / Toggle Run Console | ⌘B / ⌘J | Ctrl+B / Ctrl+J |
+| Toggle Explorer / Toggle Bottom Panel | ⌘B / ⌘J | Ctrl+B / Ctrl+J |
+| Toggle / Focus Terminal | ⌘⇧J / ⌘⌥J | General shell available on macOS and Linux |
 | Run / Stop | F5 or ⌘↩ / ⇧F5 | F5 or Ctrl+Enter / Shift+F5 |
 
 Change Ion command bindings in **Preferences → Keyboard Shortcuts**. `Mod` means Command on macOS and Ctrl on Windows. Leave a binding blank to remove it or choose **Restore Default**. Ion rejects collisions and keeps system editing shortcuts available. In the palette, use **Toggle Document Split** and **Focus Document Split Divider** to place a document beside source code and resize the split with arrow keys. The workbench has one source editor. Quick Open searches on demand, visits up to 5,000 entries across 12 directory levels, skips hidden and common generated directories, and returns up to 40 matches.
@@ -178,9 +205,11 @@ In Full Mode, **Online Planner** in Projects accepts an HTTPS OpenAI-compatible 
 
 ### Learning Marketplace
 
-Open **Marketplace** using the storefront icon on the left activity rail. Search the catalog, choose **Install**, then choose the pack in **Learn → Language** or select **Use in Learn**. A new profile starts with no installed or selected language. Topics opens first. The 11 packs cover C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, SQLite, HTML, and CSS. Each guide pairs short explanations with examples, key APIs, and a practice task. The catalog and installed lessons work offline.
+Open **Marketplace** using the storefront icon on the activity rail. Search by pack or topic, filter by category and difficulty, browse recently used packs, and switch between compact list and card views. Pack details show the version, size, lesson count, prerequisites, attribution, and any available diagnostic support. **Install** adds a bundled pack offline. **Use in Learn** selects it and opens Topics.
 
-**Import pack** accepts a local UTF-8 JSON file up to 256 KiB. Use the [Python pack](src/main/learning/catalog/python.json) as a format example and choose an unused pack ID. Ion validates the data and displays lesson content as text. Installing a learning pack leaves toolchain setup separate.
+The 19 bundled packs contain 162 lessons. C, C++, Java, Python, JavaScript, and TypeScript each have 15 lessons with practical exercises and a mini-project. The other packs cover Go, Rust, Swift, C#, Bash, Ruby, Perl, HTML, CSS, SQLite, JSON, XML, and YAML. Supported C, C++, Java, Python, and JavaScript exercises can open a saved attempt in Practice with a starter file and the supplied sample tests. Ion maps reviewed diagnostics from GCC or Clang, javac, CPython, and Node.js to learning material when the evidence is specific enough.
+
+Use **Import pack** to preview local UTF-8 JSON up to 256 KiB before installation. **Export** saves an installed pack as a portable file. Bundled updates require a click and keep existing lesson IDs. Lessons are stored individually in new installations and work offline. Tools for running examples are installed separately. [Pack authoring and validation guide](docs/LEARNING_PACKS.md)
 
 ## Local profile backup
 
@@ -193,7 +222,10 @@ npm run test:regression
 npm run package:dmg
 node scripts/verify-mac-release.mjs
 npm run bench:run-console
+npm run test:terminal
+npm run bench:terminal -- --mode candidate
 npm run bench:resources
+npm run bench:marketplace
 npm run bench:editor-residency -- --mode distinct --trials 3
 npm run test:markdown -- --coupling /path/to/Coupling.md
 node scripts/test-notebook.mjs --edit --kernel-python /path/to/python
@@ -219,14 +251,14 @@ Summed RSS covers the full application process tree and can count shared mapping
 
 ## Current limits
 
-- C and C++ use single translation-unit builds. The Run Console is attached to the launched program. Build systems for C and C++, a general-purpose shell, and debugging are outside this runner.
+- The C/C++ project build file compiles one executable from explicitly listed sources of one language. The Run Console is attached to that executable.
 - The source editor edits UTF-8 files up to 2 MiB, with up to 64 open tabs. Ion keeps up to three live Monaco text models. Monaco can retain up to 20 MiB of detached edit history in total for inactive tabs in the same session and restores it only when the buffer matches. Large edits can exhaust that allowance. Closing or reloading a tab, restarting the app, or changing the file on disk can reset its undo history. Hot models retain richer state such as folds. Resume Session preserves source selections and scroll, while console output and undo history start fresh. The explorer loads on expansion and supports a manual refresh. Symlinks inside the explorer are skipped.
 - Larger UTF-8 files up to 128 MiB open in a read-only preview. Each page reads at most 64 KiB plus the bytes needed to finish a character, so a preview cannot replace the file or run it. Syntax editing and Search in Files are available for files within the editing limit. If an edited buffer grows past 2 MiB, Save reports the limit. Use **Save As** to keep a complete copy up to 16 MiB, or shorten the buffer. Recovery can checkpoint up to 16 MiB. Notebooks use their own limits.
 - File saves check the disk revision immediately before atomic replacement where supported. The revision check and replacement are separate operations, so independent writers can still race at publication.
 - Project verification supports single-file C console behavior. Practice verifies console input and output in C, C++, Java, Python, and JavaScript with the respective local toolchain. It accepts up to eight samples and twenty attempts per problem. It compiles once per batch where needed, then runs each input in a separate process with a private temporary directory. Non-C project plans can be recorded manually. Live provider results depend on the configured endpoint and model.
 - The Mac installer targets Apple Silicon. The Windows installer targets x64 and has its own [platform notes](docs/windows/KNOWN_ISSUES.md). Linux and Intel Mac installers are outside this release.
 
-See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for current release evidence and [ROADMAP.md](ROADMAP.md) for the release gates. [ARCHITECTURE_PERFORMANCE_AUDIT.md](ARCHITECTURE_PERFORMANCE_AUDIT.md) compares runtime alternatives.
+See the [adoption readiness report](docs/ADOPTION_READINESS.md) for CI, installer trust, verified developer features, and the student usability protocol. [Release checklist](RELEASE_CHECKLIST.md) · [Performance measurements](PERFORMANCE.md)
 
 ## Contributing and security
 

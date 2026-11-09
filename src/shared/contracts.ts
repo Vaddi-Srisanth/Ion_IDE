@@ -5,6 +5,7 @@ import type { ProjectsBridge } from './projects'
 import type { ThemeData, ThemeDefinition, ThemeSummary } from './themes'
 import type { ViewerBridge } from './viewers'
 import type { RunConsoleBridge } from './run-console'
+import type { TerminalBridge } from './terminal'
 import type { NotebookKernelBridge, NotebookKernelLifetime } from './notebook-kernel'
 import type { TextPage } from './large-text'
 import type { UpdatesBridge } from './updates'
@@ -143,6 +144,7 @@ export interface IonBridge {
     remove(ids: string[]): Promise<void>
   }
   runConsole: RunConsoleBridge
+  terminal: TerminalBridge
   notebooks: NotebookKernelBridge
   viewers: ViewerBridge
   markdown: {

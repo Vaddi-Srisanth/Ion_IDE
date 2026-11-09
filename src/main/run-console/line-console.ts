@@ -3,8 +3,8 @@ import type { PtyOptions, PtySession } from './pty'
 
 const maxLineLength = 16 * 1024
 
-// Windows uses pipes for stdin, stdout and stderr. Edit a single input line
-// locally and deliver it on Enter, without starting a shell or native helper.
+// When Windows ConPTY is unavailable, edit a single input line locally and
+// deliver it through pipes on Enter, without starting a shell or native helper.
 export function startLineConsole(options: Omit<PtyOptions, 'helper' | 'columns' | 'rows'>): PtySession {
   const controller = new AbortController()
   const signal = AbortSignal.any([controller.signal, options.signal])

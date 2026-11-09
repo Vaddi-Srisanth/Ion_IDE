@@ -21,6 +21,7 @@ VIAddVersionKey "LegalCopyright" ""
 !include "x64.nsh"
 !define MUI_ICON "ion.ico"
 !define MUI_UNICON "ion.ico"
+!define OPEN_WITH_KEY "Software\Classes\Applications\Ion IDE.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\dev.ionide.desktop"
 
 !insertmacro MUI_PAGE_WELCOME
@@ -70,6 +71,36 @@ Section "Ion IDE"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "QuietUninstallString" '$\"$INSTDIR\Uninstall.exe$\" /S'
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
+  WriteRegStr HKCU "${OPEN_WITH_KEY}" "FriendlyAppName" "Ion IDE"
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\DefaultIcon" "" '$"$INSTDIR\App\Ion IDE.exe$",0'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\shell\open\command" "" '$"$INSTDIR\App\Ion IDE.exe$" $"%1$"'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".c" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".h" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cc" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cpp" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cxx" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".hpp" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".java" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".py" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".js" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cjs" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".mjs" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".ts" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".tsx" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".jsx" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".html" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".css" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".json" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".txt" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".md" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".markdown" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".ipynb" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".csv" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".pdf" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".docx" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".xlsx" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".pptx" ""
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   Goto done
 
   running:
@@ -99,6 +130,8 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
   DeleteRegKey HKCU "${UNINSTALL_KEY}"
+  DeleteRegKey HKCU "${OPEN_WITH_KEY}"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   Goto done
 
   running:

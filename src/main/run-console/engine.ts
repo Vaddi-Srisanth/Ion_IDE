@@ -169,9 +169,17 @@ export class InteractiveRunner {
         ready: () => publish.phase('running', plan.label),
         onOutput: (text: string) => publish.output('terminal', text),
       }
-      const terminal = process.platform === 'win32' ? startLineConsole(terminalOptions) : startPty(terminalOptions)
+      let terminal = startPty(terminalOptions)
       active.terminal = terminal
-      const ran = await terminal.result
+      let ran = await terminal.result
+      if (ran.unavailable && !signal.aborted) {
+        const remaining = Math.floor(terminalOptions.timeoutMs - (performance.now() - programStart))
+        if (remaining <= 0) return failed('timeout', 'The program could not start within its time limit.')
+        publish.output('terminal', 'Windows pseudoconsole unavailable. Using line input.\r\n')
+        terminal = startLineConsole({ ...terminalOptions, timeoutMs: remaining })
+        active.terminal = terminal
+        ran = await terminal.result
+      }
       const detail = {
         exitCode: ran.exitCode, programSignal: ran.signal, outputComplete: ran.outputComplete,
         programMs: Math.round(performance.now() - programStart),

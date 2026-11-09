@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "typescript",
   "name": "TypeScript",
   "summary": "Use static types to model JavaScript programs, validate boundaries, and design reusable APIs.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "types",
@@ -26,7 +26,28 @@
         }
       ],
       "practice": "Pass a string to total and see where the checker reports the mistake.",
-      "pitfall": "Static annotations do not convert runtime values or validate incoming data."
+      "pitfall": "Static annotations do not convert runtime values or validate incoming data.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "inference",
+        "annotation",
+        "parameters",
+        "return",
+        "type"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "Notebook 825",
+      "exercise": {
+        "expected": "Calculate a quantity times a price in cents with typed parameters.",
+        "completion": "The numeric example prints 825, and passing a string produces a compiler diagnostic."
+      },
+      "related": [
+        "objects",
+        "modules",
+        "overload-contracts"
+      ]
     },
     {
       "id": "objects",
@@ -49,7 +70,31 @@
         }
       ],
       "practice": "Add a required status field with two allowed string values.",
-      "pitfall": "readonly provides a compile-time check and does not freeze a JavaScript object."
+      "pitfall": "readonly provides a compile-time check and does not freeze a JavaScript object.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "types"
+      ],
+      "keywords": [
+        "interface",
+        "optional",
+        "readonly",
+        "object",
+        "property"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "Arrays: pending",
+      "exercise": {
+        "expected": "Display a score while preserving the possibility that it is missing.",
+        "completion": "A missing score shows pending and a score of zero displays 0."
+      },
+      "related": [
+        "types",
+        "narrow",
+        "generics",
+        "utilities"
+      ]
     },
     {
       "id": "narrow",
@@ -72,7 +117,30 @@
         }
       ],
       "practice": "Add a pending result variant and update label to handle it.",
-      "pitfall": "A type assertion such as value as Result bypasses part of checking without adding a runtime test."
+      "pitfall": "A type assertion such as value as Result bypasses part of checking without adding a runtime test.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "objects"
+      ],
+      "keywords": [
+        "union",
+        "discriminant",
+        "switch",
+        "narrowing"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "Score: 8",
+      "exercise": {
+        "expected": "Give each result state its own readable label.",
+        "completion": "An error can be formatted without trying to read its nonexistent score."
+      },
+      "related": [
+        "objects",
+        "runtime",
+        "checked-config",
+        "exhaustive-branches"
+      ]
     },
     {
       "id": "generics",
@@ -95,7 +163,31 @@
         }
       ],
       "practice": "Read the label property and confirm that the returned value has string methods.",
-      "pitfall": "A generic parameter used only once often gives the caller little information. Use it to connect inputs or outputs."
+      "pitfall": "A generic parameter used only once often gives the caller little information. Use it to connect inputs or outputs.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "objects"
+      ],
+      "keywords": [
+        "generics",
+        "keyof",
+        "indexed",
+        "access",
+        "constraints"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "9.0",
+      "exercise": {
+        "expected": "Read a property with its actual type inferred from the supplied key.",
+        "completion": "A valid key returns the correct type and a misspelled key fails type checking."
+      },
+      "related": [
+        "objects",
+        "mapped-types",
+        "template-keys",
+        "async-derived"
+      ]
     },
     {
       "id": "utilities",
@@ -118,7 +210,30 @@
         }
       ],
       "practice": "Create a public note type exposing only id and title.",
-      "pitfall": "Partial is shallow. Nested fields keep their original requirements."
+      "pitfall": "Partial is shallow. Nested fields keep their original requirements.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "objects"
+      ],
+      "keywords": [
+        "partial",
+        "pick",
+        "utility",
+        "types",
+        "update"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "{ id: '1', title: 'Ready', body: '' }",
+      "exercise": {
+        "expected": "Limit a note patch to editable fields.",
+        "completion": "A title update leaves id and body unchanged."
+      },
+      "related": [
+        "objects",
+        "mapped-types",
+        "async-derived"
+      ]
     },
     {
       "id": "runtime",
@@ -141,7 +256,31 @@
         }
       ],
       "practice": "Update the guard to require an integer between 0 and 100. Use TypeScript 4.9 or newer for this form of property narrowing.",
-      "pitfall": "JSON.parse can throw before validation runs. Catch that error when handling external input."
+      "pitfall": "JSON.parse can throw before validation runs. Catch that error when handling external input.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "narrow"
+      ],
+      "keywords": [
+        "unknown",
+        "validation",
+        "type",
+        "predicate",
+        "parse",
+        "json"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "8",
+      "exercise": {
+        "expected": "Validate a decoded object before reading its score.",
+        "completion": "Accept a finite numeric points field and reject a missing field or a string."
+      },
+      "related": [
+        "narrow",
+        "strict-indexing",
+        "result-boundary"
+      ]
     },
     {
       "id": "modules",
@@ -164,7 +303,447 @@
         }
       ],
       "practice": "Move Task into its own module and bring it into another source file using import type.",
-      "pitfall": "The output module format must match the JavaScript runtime and project configuration."
+      "pitfall": "The output module format must match the JavaScript runtime and project configuration.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "types"
+      ],
+      "keywords": [
+        "export",
+        "module",
+        "es2022",
+        "promise",
+        "compile"
+      ],
+      "exampleFile": "lesson.mts",
+      "exampleMode": "program",
+      "expectedOutput": "{ id: '1', complete: true }",
+      "exercise": {
+        "expected": "Compile an exported async function and run the emitted JavaScript.",
+        "completion": "A completed copy is returned and the original object remains unchanged."
+      },
+      "related": [
+        "types",
+        "async-derived"
+      ]
+    },
+    {
+      "id": "checked-config",
+      "title": "Check a configuration without widening its literals",
+      "section": "Core",
+      "explanation": "The satisfies operator checks that an expression is compatible with a type. It preserves the expression’s own inferred type instead of replacing it with the target type. Use as const here to preserve literal fields and make them readonly in the inferred type.",
+      "example": "type Mode = \"compact\" | \"expanded\";\ntype Preferences = { mode: Mode; maxItems: number };\n\nconst defaults = {\n  mode: \"compact\",\n  maxItems: 8,\n} as const satisfies Preferences;\n\nfunction loadCompact(mode: \"compact\"): void {\n  console.log(mode + \": \" + defaults.maxItems);\n}\n\nloadCompact(defaults.mode);",
+      "api": [
+        {
+          "name": "satisfies Preferences",
+          "description": "Check compatibility without assigning the target type to the variable."
+        },
+        {
+          "name": "as const",
+          "description": "Preserve literal types and infer readonly properties for a literal expression."
+        }
+      ],
+      "practice": "Define two named display profiles and check each one against an allowed mode.",
+      "pitfall": "Neither satisfies nor as const freezes objects at runtime or validates JSON received from outside the program.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "objects",
+        "narrow"
+      ],
+      "keywords": [
+        "satisfies",
+        "as",
+        "const",
+        "literal",
+        "inference",
+        "config"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "compact: 8",
+      "exercise": {
+        "expected": "A valid literal remains specific enough for a caller that requires just one mode.",
+        "completion": "Misspell one mode and confirm that the compiler rejects it."
+      },
+      "references": [
+        {
+          "title": "TypeScript 4.9 release notes, satisfies",
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator"
+        }
+      ],
+      "related": [
+        "objects",
+        "narrow"
+      ]
+    },
+    {
+      "id": "strict-indexing",
+      "title": "Treat indexed lookups as potentially missing",
+      "section": "Toolchain",
+      "explanation": "An arbitrary string key may be absent even when a lookup object has a string index signature. Include undefined in the return type and use noUncheckedIndexedAccess in projects that rely on index signatures. Check the lookup result before formatting it.",
+      "example": "const scores: Record<string, number> = { \"practice\": 0 };\n\nfunction scoreFor(id: string): number | undefined {\n  return scores[id];\n}\n\nfor (const id of [\"practice\", \"review\"]) {\n  const score = scoreFor(id);\n  console.log(score === undefined ? \"pending\" : score.toFixed(0));\n}",
+      "api": [
+        {
+          "name": "Record<string, number>",
+          "description": "Describe a string index signature with numeric values."
+        },
+        {
+          "name": "noUncheckedIndexedAccess",
+          "description": "Include undefined in reads through undeclared index-signature keys."
+        }
+      ],
+      "practice": "Enable noUncheckedIndexedAccess and build a report for a caller-provided list of task IDs.",
+      "pitfall": "A check such as if (score) treats zero as absent. Compare with undefined when zero is valid.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "objects",
+        "runtime"
+      ],
+      "keywords": [
+        "noUncheckedIndexedAccess",
+        "Record",
+        "undefined",
+        "index",
+        "signature",
+        "strict"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "0\npending",
+      "exercise": {
+        "expected": "Unknown IDs display pending, and a known score of zero still displays 0.",
+        "completion": "Test zero, a positive score, and an ID not present in the lookup."
+      },
+      "references": [
+        {
+          "title": "TypeScript noUncheckedIndexedAccess option",
+          "url": "https://www.typescriptlang.org/tsconfig/noUncheckedIndexedAccess.html"
+        }
+      ],
+      "related": [
+        "objects",
+        "runtime"
+      ]
+    },
+    {
+      "id": "exhaustive-branches",
+      "title": "Require every union case to be handled",
+      "section": "Core",
+      "explanation": "Once a switch has handled every member of a discriminated union, the remaining value has type never. Require never in a fallback helper. Adding a new member then causes a compiler error at the helper call until the new case is handled.",
+      "example": "type QueueItem =\n  | { state: \"waiting\"; position: number }\n  | { state: \"complete\"; score: number };\n\nfunction unreachable(value: never): never {\n  throw new Error(\"Unexpected queue item: \" + JSON.stringify(value));\n}\n\nfunction describe(item: QueueItem): string {\n  switch (item.state) {\n    case \"waiting\": return \"position \" + item.position;\n    case \"complete\": return \"score \" + item.score;\n    default: return unreachable(item);\n  }\n}\n\nconsole.log(describe({ state: \"waiting\", position: 2 }));",
+      "api": [
+        {
+          "name": "never",
+          "description": "Represent a value that cannot occur at the checked point."
+        },
+        {
+          "name": "switch (item.state)",
+          "description": "Narrow the union to the matching state in each branch."
+        }
+      ],
+      "practice": "Add an aborted state with an explanation and handle it in the switch.",
+      "pitfall": "Casting the fallback value to never suppresses the very check this pattern is meant to enforce.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "narrow"
+      ],
+      "keywords": [
+        "never",
+        "exhaustive",
+        "discriminated",
+        "union",
+        "assertNever",
+        "switch"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "position 2",
+      "exercise": {
+        "expected": "The compiler rejects the newly added state until the function handles it.",
+        "completion": "Check a formatted result for every state after adding the new branch."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, exhaustiveness checking",
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking"
+        }
+      ],
+      "related": [
+        "narrow",
+        "result-boundary"
+      ]
+    },
+    {
+      "id": "overload-contracts",
+      "title": "Use overloads to describe related call shapes",
+      "section": "Core",
+      "explanation": "An overload describes a public call shape. The implementation signature must cover every overload, but callers cannot use it as an extra public overload. Narrow the argument inside the implementation before using methods specific to one shape.",
+      "example": "function normalize(value: string): string;\nfunction normalize(value: readonly string[]): string[];\nfunction normalize(value: string | readonly string[]): string | string[] {\n  if (typeof value === \"string\") return value.trim();\n  return value.map((item) => item.trim());\n}\n\nconsole.log(normalize(\"  math  \").toUpperCase());\nconsole.log(normalize([\" art \", \" history \"]).join(\",\"));",
+      "api": [
+        {
+          "name": "overload signature",
+          "description": "Describe one public parameter and result relationship."
+        },
+        {
+          "name": "implementation signature",
+          "description": "Accept all supported calls and implement their runtime behavior."
+        }
+      ],
+      "practice": "Add an overload for a string with a prefix and keep array calls unchanged.",
+      "pitfall": "Prefer a union when different argument shapes return the same type and you do not need a different result type for each.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "types",
+        "narrow"
+      ],
+      "keywords": [
+        "overloads",
+        "implementation",
+        "signatures",
+        "string",
+        "array"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "MATH\nart,history",
+      "exercise": {
+        "expected": "Callers retain the expected result type in every supported call shape.",
+        "completion": "Check that a number is rejected and that the existing string and array examples still compile."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, function overloads",
+          "url": "https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads"
+        }
+      ],
+      "related": [
+        "types",
+        "narrow"
+      ]
+    },
+    {
+      "id": "mapped-types",
+      "title": "Create a related object type from its keys",
+      "section": "Standard types",
+      "explanation": "A mapped type iterates over a set of keys at compile time. Starting with keyof T keeps the result aligned with the input type. The -? modifier removes optionality so the flags object must explicitly mention every field.",
+      "example": "type FieldFlags<T> = { [K in keyof T]-?: boolean };\n\ninterface NoteFields {\n  title: string;\n  summary?: string;\n}\n\nconst dirty: FieldFlags<NoteFields> = {\n  title: true,\n  summary: false,\n};\n\nconsole.log(dirty.title, dirty.summary);",
+      "api": [
+        {
+          "name": "[K in keyof T]",
+          "description": "Create a property for each key of the source type."
+        },
+        {
+          "name": "-?",
+          "description": "Remove optionality from mapped properties."
+        }
+      ],
+      "practice": "Add a deadline field to the source type and fill out the corresponding flags object.",
+      "pitfall": "A mapped type only describes a value. It does not construct a flags object at runtime.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "generics",
+        "utilities"
+      ],
+      "keywords": [
+        "mapped",
+        "keyof",
+        "optional",
+        "required",
+        "type",
+        "modifier"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "true false",
+      "exercise": {
+        "expected": "The compiler requires a flag for the new field even if the original field is optional.",
+        "completion": "Try omitting the new flag and verify the compiler reports it."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, mapped types",
+          "url": "https://www.typescriptlang.org/docs/handbook/2/mapped-types.html"
+        }
+      ],
+      "related": [
+        "generics",
+        "utilities",
+        "template-keys"
+      ]
+    },
+    {
+      "id": "template-keys",
+      "title": "Derive allowed event names from keys",
+      "section": "Standard types",
+      "explanation": "Template literal types combine literal strings and other literal types into a constrained string type. Intersecting keyof T with string limits the template to string keys. The type can catch a misspelled event at compile time while its runtime value is still a string.",
+      "example": "interface StudyFields {\n  topic: string;\n  score: number;\n}\n\ntype ChangedEvent = `${keyof StudyFields & string}Changed`;\n\nfunction publish(name: ChangedEvent): void {\n  console.log(name);\n}\n\npublish(\"scoreChanged\");",
+      "api": [
+        {
+          "name": "keyof T & string",
+          "description": "Select the keys that are strings."
+        },
+        {
+          "name": "template literal type",
+          "description": "Construct a union of allowed string literals from its interpolated types."
+        }
+      ],
+      "practice": "Add a title field and emit its corresponding event name.",
+      "pitfall": "Building a type from names does not validate text read from a file. Treat externally supplied event names as unknown until checked.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "generics",
+        "mapped-types"
+      ],
+      "keywords": [
+        "template",
+        "literal",
+        "keys",
+        "interpolation",
+        "string",
+        "event"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "scoreChanged",
+      "exercise": {
+        "expected": "Only event names derived from known string keys are accepted.",
+        "completion": "Try a valid event, an event with a misspelled suffix, and an unknown field."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, template literal types",
+          "url": "https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html"
+        }
+      ],
+      "related": [
+        "generics",
+        "mapped-types"
+      ]
+    },
+    {
+      "id": "async-derived",
+      "title": "Derive an async result type from the function",
+      "section": "Core",
+      "explanation": "ReturnType captures a function’s declared or inferred return type. An async function returns a Promise. Awaited describes the value you receive after awaiting it, so callers can follow the source function’s result without repeating its field types.",
+      "example": "async function readLocalReport() {\n  return { score: 8, label: \"Practice\" };\n}\n\ntype Report = Awaited<ReturnType<typeof readLocalReport>>;\n\nfunction describe(report: Report): string {\n  return report.label + \": \" + report.score;\n}\n\nasync function main(): Promise<void> {\n  console.log(describe(await readLocalReport()));\n}\n\nvoid main();",
+      "api": [
+        {
+          "name": "ReturnType<F>",
+          "description": "Extract the return type of a function type."
+        },
+        {
+          "name": "Awaited<T>",
+          "description": "Unwrap the value type produced by awaiting a promise-like value."
+        }
+      ],
+      "practice": "Add a completed Boolean field to the local report function and include it in the formatted message.",
+      "pitfall": "Deriving a type from a fetch or decode function does not make its data trustworthy. Validate inputs at runtime.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "modules",
+        "utilities",
+        "generics"
+      ],
+      "keywords": [
+        "Awaited",
+        "ReturnType",
+        "async",
+        "inference",
+        "promise"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "Practice: 8",
+      "exercise": {
+        "expected": "The formatter recognizes the new field without a duplicate manual type annotation.",
+        "completion": "Try a report whose label is a number and verify it fails type checking."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, utility types",
+          "url": "https://www.typescriptlang.org/docs/handbook/utility-types.html"
+        }
+      ],
+      "related": [
+        "utilities",
+        "generics"
+      ]
+    },
+    {
+      "id": "result-boundary",
+      "title": "Return typed success and failure from a JSON boundary",
+      "section": "Projects",
+      "explanation": "Start with unknown after parsing external JSON. Validate every required field before returning a success object. A discriminated result lets callers handle invalid input without assuming the parser threw or that the data has the requested shape.",
+      "example": "type ScoreResult =\n  | { ok: true; points: number }\n  | { ok: false; message: string };\n\nfunction parseScore(text: string): ScoreResult {\n  let data: unknown;\n  try {\n    data = JSON.parse(text);\n  } catch {\n    return { ok: false, message: \"invalid JSON\" };\n  }\n  if (typeof data !== \"object\" || data === null || !(\"points\" in data) ||\n      typeof data.points !== \"number\" || !Number.isInteger(data.points) ||\n      data.points < 0) {\n    return { ok: false, message: \"expected nonnegative integer points\" };\n  }\n  return { ok: true, points: data.points };\n}\n\nfor (const text of ['{\"points\":8}', '{\"points\":false}', \"{\"]) {\n  const result = parseScore(text);\n  console.log(result.ok ? \"points=\" + result.points : result.message);\n}",
+      "api": [
+        {
+          "name": "unknown",
+          "description": "Require checks before using data of an unknown shape."
+        },
+        {
+          "name": "result.ok",
+          "description": "Narrow the result to the matching success or failure variant."
+        }
+      ],
+      "practice": "Extend the validator to check a required label and separate malformed JSON from invalid fields.",
+      "pitfall": "An assertion such as JSON.parse(text) as ScoreResult trusts the input before checking it.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "runtime",
+        "exhaustive-branches"
+      ],
+      "keywords": [
+        "JSON",
+        "unknown",
+        "parse",
+        "result",
+        "validation",
+        "error"
+      ],
+      "exampleFile": "lesson.ts",
+      "exampleMode": "program",
+      "expectedOutput": "points=8\nexpected nonnegative integer points\ninvalid JSON",
+      "exercise": {
+        "expected": "Valid records produce a typed result and invalid input produces a readable failure.",
+        "completion": "Test a missing label, an empty label, a fractional score, and malformed JSON."
+      },
+      "references": [
+        {
+          "title": "TypeScript Handbook, narrowing",
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+        }
+      ],
+      "related": [
+        "runtime",
+        "exhaustive-branches"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "web"
+    ],
+    "languageVersion": "TypeScript 5.0+",
+    "prerequisites": [
+      "Know basic JavaScript functions, objects, and arrays.",
+      "Use a TypeScript 5.0 or newer compiler. To run examples, compile with strict checking and an ES2022 target, then run the emitted JavaScript with Node.js."
+    ],
+    "miniProject": "Build a typed import for task records. Read unknown JSON, validate it before use, return a discriminated result, and cover each result state in the report. Add a test for a missing field.",
+    "references": [
+      {
+        "title": "TypeScript Handbook",
+        "url": "https://www.typescriptlang.org/docs/handbook/intro.html"
+      },
+      {
+        "title": "TypeScript Compiler Options",
+        "url": "https://www.typescriptlang.org/tsconfig/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

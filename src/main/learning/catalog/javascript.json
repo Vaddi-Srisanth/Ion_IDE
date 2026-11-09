@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "javascript",
   "name": "JavaScript",
   "summary": "Learn JavaScript syntax, collections, promises, browser APIs, and local Node.js modules.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "values",
@@ -26,7 +26,27 @@
         }
       ],
       "practice": "Read three values as strings and print only the ones that convert to finite numbers.",
-      "pitfall": "const prevents reassignment of a binding. Properties of its object can still change."
+      "pitfall": "const prevents reassignment of a binding. Properties of its object can still change.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "const",
+        "let",
+        "number",
+        "primitive",
+        "equality",
+        "conversion"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "Ion Notes true",
+      "exercise": {
+        "expected": "Convert input strings to finite numbers before using them.",
+        "completion": "Reject invalid text and decide explicitly how to handle an empty string."
+      },
+      "related": [
+        "flow"
+      ]
     },
     {
       "id": "flow",
@@ -48,8 +68,45 @@
           "description": "End the current function and hand a result to the caller."
         }
       ],
-      "practice": "Implement a function that counts values within an inclusive interval.",
-      "pitfall": "for...in iterates enumerable property keys. Use for...of when you need the values of an iterable."
+      "practice": "Read a line of space-separated integers from stdin. Sum only the odd values.",
+      "pitfall": "for...in iterates enumerable property keys. Use for...of when you need the values of an iterable.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "values"
+      ],
+      "keywords": [
+        "function",
+        "arrow",
+        "for-of",
+        "branches"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "10",
+      "exercise": {
+        "expected": "Print the sum as one integer. Treat an empty line as an empty array.",
+        "completion": "Include negative odd values, an all-even list, and an empty line.",
+        "samples": [
+          {
+            "input": "2 3 8 5\n",
+            "expectedOutput": "8\n"
+          },
+          {
+            "input": "-3 -2 5\n",
+            "expectedOutput": "2\n"
+          },
+          {
+            "input": "\n",
+            "expectedOutput": "0\n"
+          }
+        ]
+      },
+      "related": [
+        "values",
+        "collections",
+        "async",
+        "dom"
+      ]
     },
     {
       "id": "collections",
@@ -76,7 +133,32 @@
         }
       ],
       "practice": "Group minutes by category in a Map. Display each category total.",
-      "pitfall": "Array.sort mutates the array and compares strings by default. Use a comparator for numbers."
+      "pitfall": "Array.sort mutates the array and compares strings by default. Use a comparator for numbers.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "array",
+        "map",
+        "reduce",
+        "filter",
+        "set",
+        "object"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "75 2",
+      "exercise": {
+        "expected": "Compute total minutes for a chosen activity.",
+        "completion": "An absent activity returns zero and the original rows are still available."
+      },
+      "related": [
+        "flow",
+        "json",
+        "object-copies",
+        "destructuring"
+      ]
     },
     {
       "id": "json",
@@ -99,13 +181,37 @@
         }
       ],
       "practice": "Change the payload to omit profile. Explain why 0 still survives when visits is present.",
-      "pitfall": "JSON parsing checks syntax. Validate the shape before trusting fields in external data."
+      "pitfall": "JSON parsing checks syntax. Validate the shape before trusting fields in external data.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "json",
+        "optional",
+        "chaining",
+        "nullish",
+        "coalescing",
+        "object"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "0 {\"visits\":0}",
+      "exercise": {
+        "expected": "Keep a saved visits count of zero and provide a default for a missing count.",
+        "completion": "An absent profile defaults to one while a profile with zero reports zero."
+      },
+      "related": [
+        "collections",
+        "node-files",
+        "object-copies"
+      ]
     },
     {
       "id": "async",
       "title": "Promises, async, and error handling",
       "section": "Core",
-      "explanation": "A Promise represents a pending result that can succeed or fail. An async function returns a Promise. Await waits for a result inside that function while the runtime can process other work.",
+      "explanation": "A Promise represents an eventual result. It can be pending, fulfilled, or rejected. An async function returns a Promise. Await waits for a result inside that function while the runtime can process other work.",
       "example": "const loadScore = async (id) => {\n  if (id < 0) throw new RangeError(\"Invalid ID\");\n  return id * 2;\n};\n\nasync function main() {\n  try {\n    const scores = await Promise.all([loadScore(2), loadScore(4)]);\n    console.log(scores);\n  } catch (error) {\n    console.error(error.message);\n  }\n}\nmain();",
       "api": [
         {
@@ -122,13 +228,37 @@
         }
       ],
       "practice": "Replace an ID with -1 and observe which branch runs. Compare with Promise.allSettled.",
-      "pitfall": "Promise.all rejects early on failure. It does not cancel the other operations."
+      "pitfall": "Promise.all rejects early on failure. It does not cancel the other operations.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "async",
+        "await",
+        "promises",
+        "all",
+        "errors",
+        "rejection"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "[ 4, 8 ]",
+      "exercise": {
+        "expected": "Resolve a collection of local promises and report an invalid ID clearly.",
+        "completion": "The result is in input order and the invalid ID reaches the catch branch."
+      },
+      "related": [
+        "flow",
+        "node-files",
+        "promise-results"
+      ]
     },
     {
       "id": "dom",
       "title": "Browser DOM and events",
       "section": "Browser APIs",
-      "explanation": "A browser exposes the page as a tree of elements. Use DOM methods to find or create nodes, and event listeners to react to user actions. Put this script in an HTML file and open it in a browser.",
+      "explanation": "A browser exposes the page as a tree of elements. Use DOM methods to find or create nodes, and event listeners to react to user actions. Put this script in an HTML file and open it in a browser. Save this as counter.html and open it in a browser. Click once to check the result.",
       "example": "<button id=\"count\" type=\"button\">Count: 0</button>\n<script>\n  const button = document.querySelector(\"#count\");\n  let count = 0;\n  button.addEventListener(\"click\", () => {\n    count += 1;\n    button.textContent = \"Count: \" + count;\n  });\n</script>",
       "api": [
         {
@@ -145,7 +275,29 @@
         }
       ],
       "practice": "Add a separate reset button that sets the same count back to zero.",
-      "pitfall": "Use textContent for user-provided text. innerHTML parses markup."
+      "pitfall": "Use textContent for user-provided text. innerHTML parses markup.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "browser",
+        "button",
+        "click",
+        "DOM",
+        "textContent"
+      ],
+      "exampleFile": "counter.html",
+      "exampleMode": "program",
+      "expectedOutput": "Count: 1",
+      "exercise": {
+        "expected": "Show a click counter in a local HTML document.",
+        "completion": "One click changes the button text to Count: 1."
+      },
+      "related": [
+        "flow",
+        "event-delegation"
+      ]
     },
     {
       "id": "node-files",
@@ -168,7 +320,448 @@
         }
       ],
       "practice": "Write and read an array of scores. Use a separate function to compute its average.",
-      "pitfall": "Code running in a browser does not have access to Node.js filesystem modules."
+      "pitfall": "Code running in a browser does not have access to Node.js filesystem modules.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "json",
+        "async"
+      ],
+      "keywords": [
+        "node",
+        "fs",
+        "esm",
+        "mjs",
+        "filesystem",
+        "temporary",
+        "promises"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "9",
+      "exercise": {
+        "expected": "Save and read a small JSON record in a temporary directory.",
+        "completion": "The record survives the read round trip and the temporary files are cleaned up."
+      },
+      "related": [
+        "json",
+        "async",
+        "node-tests"
+      ]
+    },
+    {
+      "id": "object-copies",
+      "title": "Copy the parts of an object you change",
+      "section": "Core",
+      "explanation": "Spreading an object creates a new outer object and copies its own enumerable properties. A nested object is still shared unless you copy it too. Build copies along the path you change when keeping the original is part of your program’s contract.",
+      "example": "const before = { title: \"Review\", progress: { done: false } };\nconst after = {\n  ...before,\n  progress: { ...before.progress, done: true },\n};\nconsole.log(before.progress.done, after.progress.done);",
+      "api": [
+        {
+          "name": "{ ...source }",
+          "description": "Copy own enumerable properties into a new object."
+        },
+        {
+          "name": "Object.is(a, b)",
+          "description": "Check whether two values are the same, including object identity."
+        }
+      ],
+      "practice": "Update one item of an array without mutating the array or the original item.",
+      "pitfall": "A spread only copies one level. Mutating a shared nested object can unexpectedly affect the original.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections",
+        "json"
+      ],
+      "keywords": [
+        "object",
+        "spread",
+        "shallow",
+        "copy",
+        "nested",
+        "references"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "false true",
+      "exercise": {
+        "expected": "The array, changed record, and any changed nested field have independent identities.",
+        "completion": "Verify that the original value is unchanged and that an untouched item can still be shared."
+      },
+      "references": [
+        {
+          "title": "ECMAScript language specification",
+          "url": "https://tc39.es/ecma262/"
+        }
+      ],
+      "related": [
+        "collections",
+        "json"
+      ]
+    },
+    {
+      "id": "closures",
+      "title": "Keep private state in a closure",
+      "section": "Core",
+      "explanation": "A closure is a function together with access to the surrounding bindings where it was created. Each call to the factory below creates a separate count. The returned function can update that count even after the factory has returned.",
+      "example": "function makeCounter(start = 0) {\n  let count = start;\n  return () => ++count;\n}\n\nconst left = makeCounter();\nconst right = makeCounter(10);\nconsole.log(left(), left(), right());",
+      "api": [
+        {
+          "name": "function factory()",
+          "description": "Create a fresh set of local bindings for each call."
+        },
+        {
+          "name": "return () => value",
+          "description": "Return a function that can read its enclosing bindings."
+        }
+      ],
+      "practice": "Make two independent trackers with increment and read operations.",
+      "pitfall": "A closure sees changes to a captured binding. It is not a frozen snapshot of that binding’s initial value.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "closure",
+        "scope",
+        "function",
+        "lexical",
+        "state"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "1 2 11",
+      "exercise": {
+        "expected": "Incrementing one tracker leaves the other tracker unchanged.",
+        "completion": "Create two trackers at the same start value and increment just one."
+      },
+      "references": [
+        {
+          "title": "ECMAScript language specification",
+          "url": "https://tc39.es/ecma262/"
+        }
+      ],
+      "related": [
+        "flow"
+      ]
+    },
+    {
+      "id": "destructuring",
+      "title": "Destructure records and handle missing values",
+      "section": "Syntax",
+      "explanation": "Object destructuring gives names to selected properties. A destructuring default applies only when a value is undefined. Use a deliberate null check or nullish coalescing when null should also mean missing. Rest collects the remaining own enumerable properties into a new object.",
+      "example": "const input = { title: \"Practice\", minutes: null, status: \"planned\" };\nconst { title, minutes = 20, ...details } = input;\nconsole.log(title, minutes ?? 20, details.status);",
+      "api": [
+        {
+          "name": "{ key, ...rest }",
+          "description": "Read a property and collect the remaining own enumerable properties."
+        },
+        {
+          "name": "??",
+          "description": "Use a fallback only when the left operand is null or undefined."
+        }
+      ],
+      "practice": "Write a function that formats a session with a default duration only when its value is missing.",
+      "pitfall": "Using || for a default also replaces meaningful values such as zero, false, and an empty string.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "destructuring",
+        "object",
+        "array",
+        "rest",
+        "default",
+        "undefined"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "Practice 20 planned",
+      "exercise": {
+        "expected": "A supplied zero remains zero. A missing duration gets the fallback.",
+        "completion": "Test absent, null, zero, and ordinary positive durations."
+      },
+      "references": [
+        {
+          "title": "ECMAScript language specification",
+          "url": "https://tc39.es/ecma262/"
+        }
+      ],
+      "related": [
+        "collections"
+      ]
+    },
+    {
+      "id": "sorting-numbers",
+      "title": "Sort numbers without changing the source",
+      "section": "Core",
+      "explanation": "Array.sort mutates its array. With no comparison function it sorts ordinary numeric values as strings, so 10 can precede 2. Copy the array first and pass a comparison for finite numbers.",
+      "example": "const raw = [10, 2, 9, 2];\nconst ordered = [...raw].sort((a, b) => a - b);\nconsole.log(ordered.join(\",\"));\nconsole.log(raw.join(\",\"));",
+      "api": [
+        {
+          "name": "array.sort(compare)",
+          "description": "Sort the array in place using the supplied ordering."
+        },
+        {
+          "name": "[...array]",
+          "description": "Create a shallow array copy before sorting."
+        }
+      ],
+      "practice": "Sort readings numerically from largest to smallest while keeping the original order available.",
+      "pitfall": "If data can contain NaN, reject it or define where it should sort. A comparator should describe a consistent order.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "array",
+        "sort",
+        "comparator",
+        "numeric",
+        "mutate",
+        "stable"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "2,2,9,10\n10,2,9,2",
+      "exercise": {
+        "expected": "Duplicates stay in the result and the source array is unchanged.",
+        "completion": "Use an empty array, repeated values, and two values whose numeric and text ordering differ."
+      },
+      "references": [
+        {
+          "title": "ECMAScript language specification",
+          "url": "https://tc39.es/ecma262/"
+        }
+      ],
+      "related": [
+        "collections"
+      ]
+    },
+    {
+      "id": "esm-modules",
+      "title": "Export and reuse a function from an ES module",
+      "section": "Toolchain",
+      "explanation": "ES modules provide explicit imports and exports. An .mjs file tells Node.js to load it as a module regardless of nearby package configuration. This file exports one function and runs a small demonstration. To create a separate caller, import the function from its file using a relative specifier with the extension.",
+      "example": "export function label(category, minutes) {\n  return category + \": \" + minutes + \"m\";\n}\n\nconsole.log(label(\"review\", 25));",
+      "api": [
+        {
+          "name": "export function",
+          "description": "Make a named function available to importing modules."
+        },
+        {
+          "name": "import { label } from \"./lesson.mjs\"",
+          "description": "Read the named export from a separate local module."
+        }
+      ],
+      "practice": "Split the function and demonstration into two .mjs files and import the function from the demonstration.",
+      "pitfall": "Importing executes a module’s top-level code. Move the demo call into the separate caller to keep the reusable module free of side effects.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "module",
+        "esm",
+        "export",
+        "import",
+        "mjs",
+        "specifier"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "review: 25m",
+      "exercise": {
+        "expected": "The caller prints the expected label once and the helper prints nothing on its own.",
+        "completion": "Run the helper directly and then run the caller with Node."
+      },
+      "references": [
+        {
+          "title": "Node.js 22 ECMAScript modules",
+          "url": "https://nodejs.org/docs/latest-v22.x/api/esm.html"
+        }
+      ],
+      "related": [
+        "flow"
+      ]
+    },
+    {
+      "id": "promise-results",
+      "title": "Keep successful results when a batch partly fails",
+      "section": "Core",
+      "explanation": "Promise.allSettled waits for every input promise to settle and reports a status for each input, in input order. Use it when a single failure should not discard the other results. Read value only from a fulfilled outcome and reason only from a rejected one.",
+      "example": "async function readLocalScore(number) {\n  if (number < 0) throw new RangeError(\"negative score\");\n  return number * 2;\n}\n\nconst outcomes = await Promise.allSettled([3, -1, 4].map(readLocalScore));\nfor (const item of outcomes) {\n  if (item.status === \"fulfilled\") console.log(item.value);\n  else console.log(\"skipped: \" + item.reason.message);\n}",
+      "api": [
+        {
+          "name": "Promise.allSettled()",
+          "description": "Collect all outcomes without failing the batch on the first rejected input."
+        },
+        {
+          "name": "item.status",
+          "description": "Select the matching result shape."
+        }
+      ],
+      "practice": "Build a local batch validator and collect the accepted values and rejection reasons separately.",
+      "pitfall": "Settling all outcomes does not cancel work. For operations that support cancellation, pass an abort signal separately.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "async",
+        "collections"
+      ],
+      "keywords": [
+        "Promise.allSettled",
+        "rejection",
+        "partial",
+        "success",
+        "async"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "6\nskipped: negative score\n8",
+      "exercise": {
+        "expected": "Report each rejection and keep every accepted value in its original order.",
+        "completion": "Test with all accepted, all rejected, and a mixed input."
+      },
+      "references": [
+        {
+          "title": "ECMAScript language specification",
+          "url": "https://tc39.es/ecma262/"
+        }
+      ],
+      "related": [
+        "async",
+        "collections"
+      ]
+    },
+    {
+      "id": "event-delegation",
+      "title": "Handle a list of buttons with event delegation",
+      "section": "Browser APIs",
+      "explanation": "A click on a descendant normally bubbles to its ancestor. One list listener can find the closest matching button instead of installing a separate listener for every row. Save this example as choices.html and open it in a browser. Click the Practice button to check the output.",
+      "example": "<!doctype html>\n<html lang=\"en\">\n<meta charset=\"utf-8\">\n<title>Study choices</title>\n<ul id=\"choices\">\n  <li><button type=\"button\" data-topic=\"Review\">Review</button></li>\n  <li><button type=\"button\" data-topic=\"Practice\">Practice</button></li>\n</ul>\n<output id=\"status\">Choose a topic</output>\n<script>\n  const choices = document.querySelector(\"#choices\");\n  const status = document.querySelector(\"#status\");\n  choices.addEventListener(\"click\", (event) => {\n    if (!(event.target instanceof Element)) return;\n    const button = event.target.closest(\"button[data-topic]\");\n    if (button && choices.contains(button)) {\n      status.textContent = \"Selected: \" + button.dataset.topic;\n    }\n  });\n</script>\n</html>",
+      "api": [
+        {
+          "name": "Element.closest(selector)",
+          "description": "Look from an element toward its ancestors for a match."
+        },
+        {
+          "name": "textContent",
+          "description": "Write a text value without treating it as HTML."
+        }
+      ],
+      "practice": "Append a third button after the listener is registered and keep the same listener.",
+      "pitfall": "The actual click target can be inside a button. Matching only event.target as the button misses those clicks.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "dom",
+        "collections"
+      ],
+      "keywords": [
+        "dom",
+        "event",
+        "delegation",
+        "closest",
+        "dynamic",
+        "buttons",
+        "browser"
+      ],
+      "exampleFile": "choices.html",
+      "exampleMode": "program",
+      "expectedOutput": "Selected: Practice",
+      "exercise": {
+        "expected": "Clicking the newly added button updates the output, and clicking an unrelated part of the page does not.",
+        "completion": "Test a click on an element inside the button and a click on the list’s surrounding whitespace."
+      },
+      "references": [
+        {
+          "title": "WHATWG DOM events and elements",
+          "url": "https://dom.spec.whatwg.org/"
+        }
+      ],
+      "related": [
+        "dom",
+        "collections"
+      ]
+    },
+    {
+      "id": "node-tests",
+      "title": "Test pure behavior with Node’s built-in assertions",
+      "section": "Projects",
+      "explanation": "A pure function returns a result from its arguments without changing shared state. Test a normal result and an invalid input separately. Node includes a strict assertions module, so this example needs no package installation. Run this file normally with Node.js.",
+      "example": "import assert from \"node:assert/strict\";\n\nfunction minutes(value) {\n  if (!Number.isInteger(value) || value < 0) {\n    throw new RangeError(\"expected a nonnegative integer\");\n  }\n  return value;\n}\n\nassert.equal(minutes(0), 0);\nassert.throws(() => minutes(-1), RangeError);\nconsole.log(\"2 checks passed\");",
+      "api": [
+        {
+          "name": "assert.equal()",
+          "description": "Check strict equality when imported from node:assert/strict."
+        },
+        {
+          "name": "assert.throws()",
+          "description": "Run a callback and require a matching exception."
+        }
+      ],
+      "practice": "Add checks for valid minutes, a fraction, and a numeric string.",
+      "pitfall": "Writing assert.throws(minutes(-1), RangeError) calls the function before the assertion can inspect the exception.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "node-files",
+        "flow"
+      ],
+      "keywords": [
+        "node",
+        "assert",
+        "strict",
+        "tests",
+        "exceptions",
+        "regression"
+      ],
+      "exampleFile": "lesson.mjs",
+      "exampleMode": "program",
+      "expectedOutput": "2 checks passed",
+      "exercise": {
+        "expected": "Only nonnegative integers pass validation.",
+        "completion": "Intentionally break one expected value, confirm the program exits unsuccessfully, and restore it."
+      },
+      "references": [
+        {
+          "title": "Node.js 22 assert module",
+          "url": "https://nodejs.org/docs/latest-v22.x/api/assert.html"
+        }
+      ],
+      "related": [
+        "node-files",
+        "flow"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "web",
+      "automation"
+    ],
+    "languageVersion": "ECMAScript 2022, Node.js 22+ for Node examples",
+    "prerequisites": [
+      "Know how to save source files.",
+      "Use Node.js 22 or newer for terminal examples. Lessons labeled Browser APIs run in a modern browser with local files."
+    ],
+    "miniProject": "Build an offline reading list. Group items by status, make a view that filters with DOM events, and add tests for invalid entries in the pure list logic. Render user text with textContent.",
+    "references": [
+      {
+        "title": "ECMAScript language specification",
+        "url": "https://tc39.es/ecma262/"
+      },
+      {
+        "title": "WHATWG DOM specification",
+        "url": "https://dom.spec.whatwg.org/"
+      },
+      {
+        "title": "Node.js 22 documentation",
+        "url": "https://nodejs.org/docs/latest-v22.x/api/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

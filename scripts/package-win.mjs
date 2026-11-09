@@ -70,6 +70,8 @@ try {
 
   const stage = join(scratch, 'app')
   const native = join(output, 'native')
+  const resources = ['ion-rg.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt']
+  if (await access(join(native, 'ion-pty.exe')).then(() => true, () => false)) resources.push('ion-pty.exe')
   await mkdir(stage)
   await writeFile(join(stage, 'package.json'), JSON.stringify({ name, productName, version, main, author }))
   await cp(output, join(stage, 'dist'), { recursive: true, filter: (path) => path !== native })
@@ -93,7 +95,7 @@ try {
       OriginalFilename: 'Ion IDE.exe',
       'requested-execution-level': 'asInvoker',
     },
-    extraResource: ['ion-rg.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt'].map((name) => join(native, name)),
+    extraResource: resources.map((name) => join(native, name)),
     asar: true,
     prune: false,
   })

@@ -12,9 +12,10 @@ interface PtyResult {
   signal?: string
   outputComplete: boolean
   detail?: string
+  unavailable?: boolean
 }
 
-export interface PtyOptions {
+interface PtyLaunchOptions {
   helper: string
   executable: string
   args: string[]
@@ -23,10 +24,17 @@ export interface PtyOptions {
   columns: number
   rows: number
   signal: AbortSignal
-  timeoutMs: number
-  budget: { remaining: number }
   ready(): void
   onOutput(text: string): void
+}
+
+export interface PtyOptions extends PtyLaunchOptions {
+  timeoutMs: number
+  budget: { remaining: number }
+}
+
+interface ShellPtyOptions extends PtyLaunchOptions {
+  shell: true
 }
 
 export interface PtySession {
@@ -35,16 +43,30 @@ export interface PtySession {
   result: Promise<PtyResult>
 }
 
-export function startPty(options: PtyOptions): PtySession {
+interface ShellPtySession extends PtySession {
+  pauseOutput(): void
+  resumeOutput(): void
+  writeInput(data: string): Promise<void>
+}
+
+export function startPty(options: PtyOptions): PtySession
+export function startPty(options: ShellPtyOptions): ShellPtySession
+export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession {
   if (options.signal.aborted) {
     return {
       input: () => {},
       resize: () => {},
+      pauseOutput: () => {},
+      resumeOutput: () => {},
+      writeInput: () => Promise.reject(new Error('The terminal session has closed.')),
       result: Promise.resolve({ state: 'cancelled', exitCode: null, outputComplete: true }),
     }
   }
 
-  const child = spawn(options.helper, [String(options.columns), String(options.rows), options.executable, ...options.args], {
+  const shell = 'shell' in options
+  const windows = process.platform === 'win32'
+  const mode = shell ? ['--shell'] : []
+  const child = spawn(options.helper, [String(options.columns), String(options.rows), ...mode, options.executable, ...options.args], {
     cwd: options.cwd,
     env: { ...options.environment, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
     shell: false,
@@ -58,6 +80,8 @@ export function startPty(options: PtyOptions): PtySession {
   let helperLine = ''
   let earlyOutput = ''
   let outputComplete = true
+  let detail: string | undefined
+  let unavailable = false
   let started = false
   let finished = false
   let lastSize = [options.columns, options.rows]
@@ -66,40 +90,53 @@ export function startPty(options: PtyOptions): PtySession {
     if (!text) return
     // The status and terminal pipes are independently scheduled.
     if (started) options.onOutput(text)
-    else earlyOutput += text
+    else {
+      earlyOutput += text
+      if (shell) child.stdout.pause()
+    }
   }
 
   function stop(reason: PtyState) {
     if (state !== 'exited' || finished) return
     state = reason
     if (reason === 'output-limit') outputComplete = false
-    child.kill('SIGTERM')
+    if (windows) child.stdin.end(Buffer.from([0x53, 0, 0]))
+    else child.kill('SIGTERM')
+    // The consumer can still be waiting on a paint acknowledgement when a shell is closed.
+    // Drain its pipe so Node can observe the helper exit.
+    if (shell) child.stdout.resume()
     // Normally the helper owns group termination and reaping. The guard is
     // only for a lost or unresponsive helper, after its normal grace period.
     guard = setTimeout(() => {
-      if (programPid && child.exitCode === null && child.signalCode === null) {
+      if (windows && child.exitCode === null && child.signalCode === null) outputComplete = false
+      if (!windows && programPid && child.exitCode === null && child.signalCode === null) {
         try { process.kill(-programPid, 'SIGKILL') } catch { /* The program already exited. */ }
       }
       child.kill('SIGKILL')
-    }, 1_000)
+    }, windows ? 3_500 : 1_000)
   }
   const abort = () => stop('cancelled')
-  const timer = setTimeout(() => stop('timeout'), options.timeoutMs)
+  const timer = !shell ? setTimeout(() => stop('timeout'), options.timeoutMs) : undefined
   options.signal.addEventListener('abort', abort, { once: true })
 
-  function send(opcode: number, bytes: Buffer) {
-    if (!started || finished || state !== 'exited' || !child.stdin.writable) return
-    if (child.stdin.writableLength + bytes.length + 3 > maxPendingBytes) return
+  function send(opcode: number, bytes: Buffer, written?: (error?: Error | null) => void): boolean {
+    if (!started || finished || state !== 'exited' || !child.stdin.writable) return false
+    if (child.stdin.writableLength + bytes.length + 3 > maxPendingBytes) return false
     const frame = Buffer.allocUnsafe(bytes.length + 3)
     frame[0] = opcode
     frame.writeUInt16BE(bytes.length, 1)
     bytes.copy(frame, 3)
-    child.stdin.write(frame)
+    child.stdin.write(frame, written)
+    return true
   }
 
   child.stdin.on('error', () => {})
   child.stdout.on('data', (bytes: Buffer) => {
     if (finished) return
+    if (shell) {
+      if (state === 'exited') collect(decoder.write(bytes))
+      return
+    }
     const count = Math.min(bytes.length, options.budget.remaining)
     if (count > 0) collect(decoder.write(bytes.subarray(0, count)))
     options.budget.remaining -= count
@@ -108,14 +145,19 @@ export function startPty(options: PtyOptions): PtySession {
       stop('output-limit')
     }
   })
+  if (shell) child.stdout.pause()
   child.stderr.on('data', (bytes: Buffer) => {
     helperLine += bytes.toString('utf8')
     for (;;) {
       const newline = helperLine.indexOf('\n')
       if (newline < 0) break
-      const line = helperLine.slice(0, newline)
+      const line = helperLine.slice(0, newline).replace(/\r$/, '')
       helperLine = helperLine.slice(newline + 1)
       if (line === 'INCOMPLETE') outputComplete = false
+      if (windows && line === 'UNAVAILABLE' && !started) unavailable = true
+      if (windows && /^ERROR \d+$/.test(line)) {
+        detail = 'Windows could not start the pseudoconsole (code ' + line.slice(6) + ').'
+      }
       const ready = /^READY ([1-9]\d*)$/.exec(line)
       if (ready && !started) {
         programPid = Number(ready[1])
@@ -133,11 +175,13 @@ export function startPty(options: PtyOptions): PtySession {
     helperLine = helperLine.slice(-1024)
   })
 
-  let detail: string | undefined
   const result = new Promise<PtyResult>((resolve) => {
     child.on('error', (error) => {
       if (state === 'exited') state = 'error'
-      detail = error.message
+      if (windows && !started && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        unavailable = true
+        detail = 'The Windows terminal helper is missing. Reinstall Ion from the Windows installer.'
+      } else detail = error.message
     })
     child.once('close', (exitCode, signal) => {
       finished = true
@@ -148,11 +192,12 @@ export function startPty(options: PtyOptions): PtySession {
       if (earlyOutput) options.onOutput(earlyOutput)
       if (state === 'exited' && !started) {
         state = 'error'
-        detail ??= 'The Run Console could not open a pseudoterminal.'
+        detail ??= unavailable ? 'Windows pseudoconsole support is unavailable. Install a current Windows build of Ion on Windows 10 (1809 or later) or Windows 11.'
+          : shell ? 'The terminal could not open a pseudoterminal.' : 'The Run Console could not open a pseudoterminal.'
       }
       // A forced helper signal is not evidence of a signal from the program.
       resolve({ state, exitCode, signal: state === 'exited' ? signal ?? undefined : undefined,
-        outputComplete, detail })
+        outputComplete, detail, unavailable: unavailable && !started && state === 'error' })
     })
   })
 
@@ -170,6 +215,17 @@ export function startPty(options: PtyOptions): PtySession {
       const bytes = Buffer.from(data)
       if (bytes.length && bytes.length <= maxFrameBytes) send(0x44, bytes)
     },
+    writeInput(data) {
+      const bytes = Buffer.from(data)
+      if (!bytes.length || bytes.length > maxFrameBytes) return Promise.reject(new Error('Send at most 16 KiB per terminal input chunk.'))
+      return new Promise((resolve, reject) => {
+        if (!send(0x44, bytes, (error) => error ? reject(error) : resolve())) {
+          reject(new Error('The terminal session is closed or its input buffer is busy.'))
+        }
+      })
+    },
+    pauseOutput() { child.stdout.pause() },
+    resumeOutput() { child.stdout.resume() },
     resize,
     result,
   }

@@ -1,0 +1,296 @@
+{
+  "schema": 2,
+  "id": "perl",
+  "name": "Perl",
+  "summary": "Learn Perl 5 variables, hashes, regular expressions, subroutines, and line-based input with small scripts.",
+  "version": 1,
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "automation"
+    ],
+    "languageVersion": "Perl 5.34 or newer",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "Install a Perl 5 interpreter to run examples from a terminal with perl lesson.pl. The examples use core features."
+    ],
+    "miniProject": "Build a report from status lines such as INFO 12. Read lines through a filehandle, validate each line with an anchored regex, add totals by status in a hash, and sort the report.",
+    "references": [
+      {
+        "title": "Perl documentation: perlintro",
+        "url": "https://perldoc.perl.org/5.34.1/perlintro"
+      },
+      {
+        "title": "Perl documentation: perlre",
+        "url": "https://perldoc.perl.org/5.34.1/perlre"
+      },
+      {
+        "title": "Perl documentation: perlsub",
+        "url": "https://perldoc.perl.org/5.34.1/perlsub"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "scalars",
+      "title": "Scalars, strictness, and interpolation",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "A scalar holds a single value. Its variable name begins with a dollar sign. Use my to declare a lexical variable. strict and warnings help catch mistakes early. Enable say to print a value with a newline.",
+      "example": "use strict;\nuse warnings;\nuse feature 'say';\n\nmy $item = 'chapter';\nmy $pages = 18;\nmy $total = $pages + 2;\nsay \"$item: $total pages\";",
+      "api": [
+        {
+          "name": "my",
+          "description": "Declare a lexical variable in the current scope."
+        },
+        {
+          "name": "use strict",
+          "description": "Enable checks including the requirement to declare ordinary lexical variables."
+        },
+        {
+          "name": "say",
+          "description": "Print values followed by a newline after enabling the feature."
+        }
+      ],
+      "practice": "Print a title and a numeric total after adding two reading lengths.",
+      "pitfall": "A double-quoted string interpolates a variable. A single-quoted string keeps its name as literal text.",
+      "expectedOutput": "chapter: 20 pages",
+      "keywords": [
+        "scalar",
+        "my",
+        "strict",
+        "warnings",
+        "interpolation"
+      ],
+      "prerequisites": [],
+      "related": [
+        "collections"
+      ],
+      "references": [
+        {
+          "title": "Perl documentation: perlintro",
+          "url": "https://perldoc.perl.org/5.34.1/perlintro"
+        }
+      ],
+      "exercise": {
+        "expected": "Declare the data with my and use double quotes to print the result.",
+        "completion": "Reading lengths 14 and 9 produce 23 pages in the report."
+      },
+      "exampleFile": "lesson.pl",
+      "exampleMode": "program"
+    },
+    {
+      "id": "collections",
+      "title": "Arrays, hashes, and defined defaults",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "An array stores an ordered list. A hash associates keys with values. Use the scalar form to access one element, such as $counts{$word}. The defined-or operator uses a fallback when the left value is undef.",
+      "example": "use strict;\nuse warnings;\nuse feature 'say';\n\nmy @items = ('tea', 'coffee', 'tea');\nmy %counts;\nfor my $item (@items) {\n    $counts{$item} = ($counts{$item} // 0) + 1;\n}\nfor my $key (sort keys %counts) {\n    say \"$key: $counts{$key}\";\n}",
+      "api": [
+        {
+          "name": "@items",
+          "description": "Use the array as a collection."
+        },
+        {
+          "name": "$counts{$key}",
+          "description": "Access one scalar value by hash key."
+        },
+        {
+          "name": "//",
+          "description": "Use the right operand only when the left operand is undefined."
+        }
+      ],
+      "practice": "Count tags in (\"code\", \"notes\", \"code\", \"lab\") and print them in sorted order.",
+      "pitfall": "Use // when zero is a valid value. The || operator also chooses its fallback for false values such as zero.",
+      "expectedOutput": "coffee: 1\ntea: 2",
+      "keywords": [
+        "array",
+        "hash",
+        "defined-or",
+        "sort",
+        "frequency"
+      ],
+      "prerequisites": [
+        "scalars"
+      ],
+      "related": [
+        "handles"
+      ],
+      "references": [
+        {
+          "title": "Perl documentation: perlintro",
+          "url": "https://perldoc.perl.org/5.34.1/perlintro"
+        },
+        {
+          "title": "Perl documentation: perlop",
+          "url": "https://perldoc.perl.org/5.34.1/perlop"
+        }
+      ],
+      "exercise": {
+        "expected": "Store one frequency per distinct tag.",
+        "completion": "The output reports code: 2, lab: 1, and notes: 1 in order."
+      },
+      "exampleFile": "lesson.pl",
+      "exampleMode": "program"
+    },
+    {
+      "id": "patterns",
+      "title": "Match a whole line and capture fields",
+      "section": "Text processing",
+      "difficulty": "intermediate",
+      "explanation": "The =~ operator matches a value against a pattern. Use the start and end anchors when every character must fit the pattern. Parentheses capture parts you want to extract after a successful match.",
+      "example": "use strict;\nuse warnings;\nuse feature 'say';\n\nfor my $line ('PASS 12', 'partial PASS 12', 'FAIL 3') {\n    if ($line =~ /\\A([A-Z]+) ([0-9]+)\\z/) {\n        my ($label, $count) = ($1, $2);\n        say \"$label: $count\";\n    } else {\n        say \"skipped\";\n    }\n}",
+      "api": [
+        {
+          "name": "=~",
+          "description": "Apply a match to a specific value."
+        },
+        {
+          "name": "\\A and \\z",
+          "description": "Anchor a match at the start and actual end of the string."
+        },
+        {
+          "name": "$1, $2",
+          "description": "Read captured groups after a successful match."
+        }
+      ],
+      "practice": "Parse an item name with lowercase letters followed by one space and a positive quantity. Reject trailing text.",
+      "pitfall": "A match without both anchors can accept a substring of invalid input. Check the complete format when validating records.",
+      "expectedOutput": "PASS: 12\nskipped\nFAIL: 3",
+      "keywords": [
+        "regex",
+        "match",
+        "anchors",
+        "capture groups",
+        "validation"
+      ],
+      "prerequisites": [
+        "scalars"
+      ],
+      "related": [
+        "handles"
+      ],
+      "references": [
+        {
+          "title": "Perl documentation: perlre",
+          "url": "https://perldoc.perl.org/5.34.1/perlre"
+        }
+      ],
+      "exercise": {
+        "expected": "Print the name and quantity only for valid records.",
+        "completion": "Accept \"tea 3\". Reject \"tea 0\", \"TEA 3\", and \"tea 3 more\"."
+      },
+      "exampleFile": "lesson.pl",
+      "exampleMode": "program"
+    },
+    {
+      "id": "subroutines",
+      "title": "Pass arguments and handle an empty list",
+      "section": "Core",
+      "difficulty": "intermediate",
+      "explanation": "A subroutine receives its arguments in @_. Give intermediate values local names. This average helper returns undef for empty input and a number for a nonempty list.",
+      "example": "use strict;\nuse warnings;\nuse feature 'say';\n\nsub average {\n    return undef if !@_;\n    my $total = 0;\n    $total += $_ for @_;\n    return $total / @_;\n}\n\nmy $mean = average(2, 4, 6);\nmy $empty = average();\nsay $mean // 'no values';\nsay $empty // 'no values';",
+      "api": [
+        {
+          "name": "sub",
+          "description": "Define a reusable operation."
+        },
+        {
+          "name": "@_",
+          "description": "Access the subroutine arguments. In scalar context this gives the count."
+        },
+        {
+          "name": "return",
+          "description": "End the subroutine and send a value to its caller."
+        }
+      ],
+      "practice": "Write a helper that returns the maximum of a numeric list or undef when it is empty. Include negative inputs.",
+      "pitfall": "The elements of @_ can alias caller variables. Copy arguments into lexical variables if you plan to modify them locally.",
+      "expectedOutput": "4\nno values",
+      "keywords": [
+        "subroutine",
+        "arguments",
+        "scalar context",
+        "average",
+        "undef"
+      ],
+      "prerequisites": [
+        "collections"
+      ],
+      "related": [
+        "patterns"
+      ],
+      "references": [
+        {
+          "title": "Perl documentation: perlsub",
+          "url": "https://perldoc.perl.org/5.34.1/perlsub"
+        }
+      ],
+      "exercise": {
+        "expected": "Distinguish an empty list from a list whose maximum is zero or negative.",
+        "completion": "The inputs (-5, -2, -7), (0), and () produce -2, 0, and no values."
+      },
+      "exampleFile": "lesson.pl",
+      "exampleMode": "program"
+    },
+    {
+      "id": "handles",
+      "title": "Read and close a filehandle",
+      "section": "Text processing",
+      "difficulty": "intermediate",
+      "explanation": "Use three-argument open to specify the mode and input independently. A scalar reference lets this example read text in memory. Read each line through the lexical handle, remove its line ending with chomp, and close the handle when finished.",
+      "example": "use strict;\nuse warnings;\nuse feature 'say';\n\nmy $text = \"tea\\n\\ncoffee\\n\";\nopen my $input, '<', \\$text or die \"open input: $!\";\nwhile (my $line = <$input>) {\n    chomp $line;\n    next unless length $line;\n    say \"item: $line\";\n}\nclose $input or die \"close input: $!\";",
+      "api": [
+        {
+          "name": "open HANDLE, MODE, INPUT",
+          "description": "Open a file or scalar for a specified mode and check success."
+        },
+        {
+          "name": "<$input>",
+          "description": "Read the next line from the lexical handle."
+        },
+        {
+          "name": "chomp",
+          "description": "Remove the current input record separator if it is present at the end."
+        }
+      ],
+      "practice": "Replace the in-memory stream with a file path supplied as an argument. Report missing files clearly and print nonempty lines.",
+      "pitfall": "Check open before reading from the handle. Use the separate mode and filename arguments for external files.",
+      "expectedOutput": "item: tea\nitem: coffee",
+      "keywords": [
+        "filehandle",
+        "three-argument open",
+        "chomp",
+        "input",
+        "close"
+      ],
+      "prerequisites": [
+        "scalars",
+        "collections"
+      ],
+      "related": [
+        "patterns"
+      ],
+      "references": [
+        {
+          "title": "Perl documentation: open",
+          "url": "https://perldoc.perl.org/5.34.1/functions/open"
+        },
+        {
+          "title": "Perl documentation: perlintro",
+          "url": "https://perldoc.perl.org/5.34.1/perlintro"
+        }
+      ],
+      "exercise": {
+        "expected": "Open a user-selected file for reading and handle failure explicitly.",
+        "completion": "A file containing two nonempty lines prints two records. A missing file reports an open error."
+      },
+      "exampleFile": "lesson.pl",
+      "exampleMode": "program"
+    }
+  ]
+}

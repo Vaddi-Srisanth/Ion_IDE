@@ -1,8 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, net, protocol, session, shell, type IpcMainInvokeEvent } from 'electron'
 import { createHash } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { defaultSettings, type Entry, type MenuCommand, type OptionalPanel, type RunResult } from '../shared/contracts'
 import { isThemeId } from '../shared/themes'
@@ -10,7 +10,8 @@ import { documentFormat } from '../shared/viewers'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { maxTextCopyBytes } from '../shared/large-text'
 import type { NotebookKernelStatus } from '../shared/notebook-kernel'
-import { runLanguage, type RunUpdate } from '../shared/run-console'
+import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
+import { diagnosticPackIds } from '../shared/learning-packs'
 import { entryName, fileText, isWithin, maxFileBytes, revision, WorkspaceFiles } from './files'
 import { readMarkdownImage, resolveMarkdownLink } from './markdown-assets'
 import { installMenu } from './menu'
@@ -19,7 +20,8 @@ import { quickOpenQuery, searchWorkspace } from './quick-open'
 import { RecoveryStore } from './recovery'
 import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
-import type { InteractiveRunner } from './run-console'
+import type { InteractiveRunner, NativeProject } from './run-console'
+import type { TerminalService } from './terminal/service'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
 import type { NotebookKernels } from './notebooks/kernel-service'
@@ -89,6 +91,9 @@ interface ActiveRun {
 }
 let activeRun: ActiveRun | null = null
 let interactiveRunner: InteractiveRunner | undefined
+let terminalService: Promise<TerminalService> | undefined
+let terminalFocused = false
+let ignoreTerminalAccelerators = false
 let webPreview: BrowserWindow | undefined
 let webPreviewOpening = false
 let practiceRun: { controller: AbortController; job?: Promise<unknown> } | null = null
@@ -105,6 +110,27 @@ let shortcutOverrides: ShortcutOverrides = defaultSettings.shortcuts
 let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
 const trustedSources = new Map<string, string>()
 const earlyFiles: string[] = []
+
+function ptyHelper(): string {
+  const executable = process.platform === 'win32' ? 'ion-pty.exe' : 'ion-pty'
+  return app.isPackaged ? join(process.resourcesPath, executable) : resolve(__dirname, '../native', executable)
+}
+
+function terminals(target: BrowserWindow): Promise<TerminalService> {
+  return terminalService ??= import('./terminal/service').then(({ TerminalService }) => {
+    if (target !== window) throw new Error('The terminal window has closed.')
+    return new TerminalService(ptyHelper(), (event) => {
+      if (target === window && !target.isDestroyed()) target.webContents.send('ion:terminal-event', event)
+    })
+  }).catch((error: unknown) => {
+    if (target === window) terminalService = undefined
+    throw error
+  })
+}
+
+function terminalDimension(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 2 && value <= 512
+}
 
 function viewers(target: BrowserWindow): Promise<ViewerService> {
   return viewerService ??= import('./viewers').then(({ ViewerService }) => {
@@ -152,12 +178,12 @@ const learning = () => import('./learning').then(({ LearningService }) => learni
 let packStore: InstanceType<typeof import('./learning/catalog-store').LearningPackStore> | undefined
 let learningSelectionGeneration = 0
 const learningPacks = () => import('./learning/catalog-store').then(({ LearningPackStore }) => packStore ??= new LearningPackStore(
-  app.getPath('userData'), join(__dirname, 'learning-catalog'),
+  app.getPath('userData'), join(__dirname, 'learning-catalog'), app.getVersion(),
 ))
 
-async function observesCLearning(generation: number, selection: number): Promise<boolean> {
+async function observesLearning(language: RunLanguage, generation: number, selection: number): Promise<boolean> {
   if (panel !== 'learn' || generation !== panelGeneration || selection !== learningSelectionGeneration) return false
-  const selected = await learningPacks().then((store) => store.isSelected('c')).catch(() => false)
+  const selected = await learningPacks().then((store) => store.isSelected(language)).catch(() => false)
   return selected && generation === panelGeneration && selection === learningSelectionGeneration
 }
 
@@ -317,7 +343,15 @@ function createWindow(): BrowserWindow {
   target.webContents.on('will-navigate', (event) => event.preventDefault())
   target.webContents.on('will-attach-webview', (event) => event.preventDefault())
   target.webContents.on('before-input-event', (event, input) => {
-    if (input.isComposing) return
+    const shellControl = terminalFocused && input.control && !input.meta && !input.alt && !input.shift
+    const terminalEdit = terminalFocused && keyboardPlatform === 'darwin' && input.meta
+      && !input.control && !input.alt && !input.shift && /^[cfv]$/i.test(input.key)
+    const ignoreMenu = terminalEdit || (shellControl && keyboardPlatform !== 'darwin')
+    if (ignoreTerminalAccelerators !== ignoreMenu) {
+      ignoreTerminalAccelerators = ignoreMenu
+      target.webContents.setIgnoreMenuShortcuts(ignoreMenu)
+    }
+    if (input.isComposing || shellControl || terminalEdit) return
     const command = shortcutBindings.get(inputShortcut(input, keyboardPlatform))
     if (!command) return
     event.preventDefault()
@@ -363,7 +397,12 @@ function createWindow(): BrowserWindow {
     viewerService = undefined
     const kernelCleanup = notebookKernels?.then((service) => service.dispose(), () => undefined)
     notebookKernels = undefined
-    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, interactive?.job, practiceRun?.job?.catch(() => undefined)])
+    const terminalCleanup = terminalService?.then((service) => service.closeAll()).catch(() => undefined)
+    terminalService = undefined
+    terminalFocused = false
+    ignoreTerminalAccelerators = false
+    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, interactive?.job,
+      practiceRun?.job?.catch(() => undefined)])
     if (restartAfterCrash) {
       void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
     } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
@@ -389,18 +428,26 @@ function cancelledRun(): RunResult {
 }
 
 async function approveRunSource(
-  target: BrowserWindow, scope: WorkspaceFiles, path: string, token: string, build?: 'maven' | 'gradle', signal?: AbortSignal,
+  target: BrowserWindow, scope: WorkspaceFiles, path: string, token: string, build?: 'maven' | 'gradle',
+  signal?: AbortSignal, nativeProject?: NativeProject,
 ): Promise<string | undefined> {
   if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
-  if (build || trustedSources.get(path) !== token) {
+  if (nativeProject || build || trustedSources.get(path) !== token) {
     const tool = build === 'maven' ? 'Maven' : 'Gradle'
+    const nativeSources = nativeProject?.sources.slice(0, 8).map((source) => relative(scope.rootPath ?? dirname(path), source))
+    const nativeDetail = nativeProject && nativeSources
+      ? `Ion will compile the saved files listed in .ion/build.json and run the result with your permissions. Review the source before continuing.\n\n${nativeSources.join('\n')}${
+        nativeProject.sources.length > nativeSources.length ? `\n…and ${nativeProject.sources.length - nativeSources.length} more.` : ''}`
+      : undefined
     const choice = await dialog.showMessageBox(target, {
       signal,
-      type: 'warning', buttons: ['Cancel', build ? `Run ${tool} Build` : 'Run Program'], defaultId: 0, cancelId: 0,
-      message: build ? `Run this project’s ${tool} build?` : 'Trust ' + basename(path) + ' for this window?',
-      detail: (build
+      type: 'warning', buttons: ['Cancel', nativeProject ? 'Run C/C++ Build' : build ? `Run ${tool} Build` : 'Run Program'],
+      defaultId: 0, cancelId: 0,
+      message: nativeProject ? 'Compile and run this C/C++ project?'
+        : build ? `Run this project’s ${tool} build?` : 'Trust ' + basename(path) + ' for this window?',
+      detail: (nativeDetail ?? (build
         ? `${tool} will use its local cache. Project build scripts, plugins, and the program can run code with your user account’s permissions. Review this project before continuing.`
-        : 'Only run code you trust. Programs run with your user account’s permissions and can access files and the network. Time and output limits apply. Programs run outside a security sandbox.')
+        : 'Only run code you trust. Programs run with your user account’s permissions and can access files and the network. Time and output limits apply. Programs run outside a security sandbox.'))
         + '\n\n' + path,
     })
     if (choice.response !== 1 || signal?.aborted || target.isDestroyed() || target !== window) return 'Run was not approved.'
@@ -409,6 +456,7 @@ async function approveRunSource(
     }
   }
   if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
+  if (nativeProject) return
   trustedSources.delete(path)
   trustedSources.set(path, token)
   if (trustedSources.size > 64) {
@@ -441,10 +489,11 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
   const workspaceRoot = scope.rootPath
   let scratch: string | undefined
   let sourceHash: string | undefined
+  let nativeProject: NativeProject | undefined
   let runtimeExcerpt = ''
   const emit = (update: RunUpdate) => {
-    if (sourceHash && update.kind === 'data' && update.stream === 'terminal' && runtimeExcerpt.length < 2200) {
-      runtimeExcerpt += update.text.slice(0, 2200 - runtimeExcerpt.length)
+    if (sourceHash && update.kind === 'data' && update.stream === 'terminal') {
+      runtimeExcerpt = (runtimeExcerpt + update.text).slice(-8192)
     }
     if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id, update })
   }
@@ -458,8 +507,16 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     }
     const stillCurrent = async () => {
       const current = await scope.inspect(path, 'file').catch(() => undefined)
-      return target === window && !signal.aborted && scope.rootPath === workspaceRoot
-        && current !== undefined && revision(current.stats) === token
+      if (target !== window || signal.aborted || scope.rootPath !== workspaceRoot || !current || revision(current.stats) !== token) return false
+      if (!nativeProject) return true
+      const checks = await Promise.all([
+        ...nativeProject.inputs.filter((input) => input.path !== path).map(async (input) => {
+          const file = await scope.inspect(input.path, 'file').catch(() => undefined)
+          return !!file && revision(file.stats) === input.revision
+        }),
+        ...nativeProject.includeDirectories.map((directory) => scope.inspect(directory, 'folder').then(() => true, () => false)),
+      ])
+      return target === window && !signal.aborted && scope.rootPath === workspaceRoot && checks.every(Boolean)
     }
     emit({ kind: 'phase', phase: 'preparing' })
     signal.throwIfAborted()
@@ -468,33 +525,33 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     const root = workspaceRoot && isWithin(workspaceRoot, path) ? workspaceRoot : null
     let plan: Awaited<ReturnType<typeof module.prepareRun>>
     try {
-      plan = await module.prepareRun({ path, root, scratch, signal })
+      if (root) nativeProject = await module.readNativeProject(scope, root, path)
+      plan = await module.prepareRun({ path, root, scratch, signal, nativeProject })
     } catch (error) {
       if (error instanceof module.MissingToolchainError) return { ...rejectedRun(error.message), status: 'missing-toolchain' }
       throw error
     }
     if (!await stillCurrent()) return signal.aborted ? cancelledRun() : rejectedRun('The source or workspace changed before the run.')
-    const denied = await approveRunSource(target, scope, path, token, plan.build, signal)
+    const denied = await approveRunSource(target, scope, path, token, plan.build, signal, nativeProject)
     if (signal.aborted) return cancelledRun()
     if (denied) return rejectedRun(denied)
     if (!await stillCurrent()) return rejectedRun('The source or workspace changed before the run.')
     const generation = panelGeneration
     const selection = learningSelectionGeneration
-    if (learn && plan.language === 'c' && await observesCLearning(generation, selection)) {
+    if (!nativeProject && learn && await observesLearning(plan.language, generation, selection)) {
       const source = await scope.read(path).catch(() => undefined)
       if (source?.revision === token) sourceHash = createHash('sha256').update(source.text).digest('hex')
     }
-    const helper = app.isPackaged ? join(process.resourcesPath, 'ion-pty') : resolve(__dirname, '../native/ion-pty')
-    const engine = interactiveRunner ??= new module.InteractiveRunner(helper)
+    const engine = interactiveRunner ??= new module.InteractiveRunner(ptyHelper())
     record.engine = engine
     const job = engine.run(plan, emit, signal, stillCurrent)
     if (record.size) engine.resize(...record.size)
     const result = await job
-    if (sourceHash && await observesCLearning(generation, selection) && await stillCurrent()) {
+    if (sourceHash && await observesLearning(plan.language, generation, selection) && await stillCurrent()) {
       try {
         const service = await learning()
         if (generation === panelGeneration && selection === learningSelectionGeneration) {
-          result.learning = await service.observe({ path, sourceHash, result: { ...result, programOutput: runtimeExcerpt } })
+          result.learning = await service.observe({ path, sourceHash, language: plan.language, result: { ...result, programOutput: runtimeExcerpt } })
         }
       } catch { /* Compiler output remains available if learning storage fails. */ }
     }
@@ -862,6 +919,18 @@ function registerIpc(): void {
     }
     return result
   })
+  handle('live-run-project-inputs', async (target, value) => {
+    const scope = files
+    const root = scope.rootPath
+    if (!root) return null
+    const { path } = await scope.inspect(value, 'file')
+    const language = runLanguage(path)
+    if (!isWithin(root, path) || (language !== 'c' && language !== 'cpp')) return null
+    const { readNativeProject } = await import('./run-console')
+    const project = await readNativeProject(scope, root, path)
+    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The workspace changed before the build.')
+    return project ? { manifest: project.manifest, paths: project.inputs.map(({ path }) => path) } : null
+  })
   handle('live-run-input', (target, id, input) => {
     if (activeRun && activeRun.owner === target && activeRun.id === id && !activeRun.controller.signal.aborted) {
       const text = validStdin(input)
@@ -877,6 +946,35 @@ function registerIpc(): void {
   })
   handle('live-run-cancel', (target, id) => {
     if (activeRun && activeRun.owner === target && activeRun.id === id) activeRun.controller.abort()
+  })
+  handle('terminal-create', async (target, columns, rows) => {
+    if (!terminalDimension(columns) || !terminalDimension(rows)) throw new Error('Invalid terminal dimensions.')
+    const scope = files
+    const root = scope.rootPath
+    const cwd = root ? (await scope.inspect(root, 'folder')).path : app.getPath('home')
+    if (target !== window || scope !== files) throw new Error('The terminal window has closed.')
+    const service = await terminals(target)
+    if (target !== window) throw new Error('The terminal window has closed.')
+    return service.create(cwd, columns, rows)
+  })
+  handle('terminal-attach', async (_target, id) => (await terminalService)?.attach(id))
+  handle('terminal-ack', async (_target, id, sequence) => (await terminalService)?.ack(id, sequence))
+  handle('terminal-input', async (_target, id, text) => (await terminalService)?.input(id, text))
+  handle('terminal-resize', async (_target, id, columns, rows) => (await terminalService)?.resize(id, columns, rows))
+  handle('terminal-close', async (_target, id) => (await terminalService)?.close(id))
+  handle('terminal-focus', (target, focused) => {
+    terminalFocused = focused === true && terminalService !== undefined
+    if (!terminalFocused && ignoreTerminalAccelerators) {
+      ignoreTerminalAccelerators = false
+      target.webContents.setIgnoreMenuShortcuts(false)
+    }
+  })
+  handle('terminal-copy', (_target, text) => {
+    if (typeof text !== 'string' || Buffer.byteLength(text) > 4 * 1024 * 1024) throw new Error('Terminal selection is too large to copy.')
+    if (text && terminalService) clipboard.writeText(text)
+  })
+  handle('terminal-paste', (target) => {
+    if (terminalFocused) target.webContents.paste()
   })
   handle('web-preview', async (target, value) => {
     if (webPreviewOpening) return
@@ -900,22 +998,23 @@ function registerIpc(): void {
   handle('learning-clear', () => withLearning((service) => service.clearHistory()))
   handle('learning-topic', (_target, id, action) => withLearning((service) => service.recordTopic(id, action)))
 
-  handle('learning-packs-library', async () => (await learningPacks()).getLibrary())
+  handle('learning-packs-library', async (_target, includeCatalog) => (await learningPacks()).getLibrary(includeCatalog !== false))
   handle('learning-packs-install', async (_target, id) => (await learningPacks()).install(id))
   handle('learning-packs-remove', async (_target, id) => {
     const library = await (await learningPacks()).remove(id)
-    if (id === 'c') learningSelectionGeneration++
+    if (diagnosticPackIds.some((pack) => pack === id)) learningSelectionGeneration++
     return library
   })
-  handle('learning-packs-select', async (_target, id) => {
-    const library = await (await learningPacks()).select(id)
+  handle('learning-packs-select', async (_target, id, includeCatalog) => {
+    const library = await (await learningPacks()).select(id, includeCatalog !== false)
     learningSelectionGeneration++
     return library
   })
   handle('learning-packs-topics', async (_target, id) => (await learningPacks()).getTopics(id))
   handle('learning-packs-lesson', async (_target, id, topic) => (await learningPacks()).getLesson(id, topic))
+  handle('learning-packs-details', async (_target, id) => (await learningPacks()).getDetails(id))
   let packImportPending = false
-  handle('learning-packs-import', async (target) => {
+  handle('learning-packs-import-preview', async (target) => {
     if (packImportPending) throw new Error('A learning pack import is already open.')
     packImportPending = true
     try {
@@ -925,10 +1024,49 @@ function registerIpc(): void {
       if (target !== window || selection.canceled || !selection.filePaths[0]) return null
       const store = await learningPacks()
       if (target !== window) return null
-      return await store.importFile(selection.filePaths[0])
+      return await store.previewFile(selection.filePaths[0])
     } finally {
       packImportPending = false
     }
+  })
+  handle('learning-packs-import-confirm', async (_target, token) => (await learningPacks()).confirmImport(token))
+  handle('learning-packs-import-discard', async (_target, token) => (await learningPacks()).discardImport(token))
+  let packExportPending = false
+  handle('learning-packs-export', async (target, id) => {
+    if (packExportPending) throw new Error('A learning pack export is already open.')
+    packExportPending = true
+    try {
+      const store = await learningPacks()
+      const { pack } = await store.getDetails(id)
+      if (target !== window) return false
+      const selection = await dialog.showSaveDialog(target, {
+        title: 'Export Learning Pack', defaultPath: pack.id + '.json', filters: [{ name: 'Ion Learning Pack', extensions: ['json'] }],
+      })
+      if (target !== window || selection.canceled || !selection.filePath) return false
+      const folder = await realpath(dirname(selection.filePath))
+      if (isWithin(await realpath(app.getPath('userData')), folder)) throw new Error('Export learning packs outside the active Ion profile.')
+      await store.exportFile(pack.id, join(folder, basename(selection.filePath)))
+      return true
+    } finally {
+      packExportPending = false
+    }
+  })
+  handle('learning-packs-exercise', async (target, id, topic) => {
+    const language = diagnosticPackIds.find((item) => item === id)
+    if (!language || panel !== 'learn') throw new Error('Open a runnable lesson in Learn to start this exercise.')
+    const lesson = await (await learningPacks()).getLesson(id, topic)
+    if (!lesson.exercise) throw new Error('This lesson does not have a Practice exercise.')
+    if (target !== window || panel !== 'learn') throw new Error('The Learn panel closed.')
+    const library = await practice()
+    const started = await library.startLearningExercise(language, lesson.id, language, {
+      title: lesson.title, topic: lesson.section,
+      difficulty: lesson.difficulty === 'advanced' ? 'Hard' : lesson.difficulty === 'intermediate' ? 'Medium' : 'Easy',
+      statement: [lesson.practice, 'Expected behavior', lesson.exercise.expected, 'Completion', lesson.exercise.completion].join('\n\n'),
+      samples: (lesson.exercise.samples ?? []).map((sample, index) => ({ ...sample, label: 'Sample ' + (index + 1) })),
+    })
+    if (target !== window) throw new Error('The Learn window closed.')
+    const path = await library.openAttempt(started.problem.id, started.attempt.id)
+    return { problemId: started.problem.id, entry: await files.grant(path, 'file', true) }
   })
 
   handle('projects-open', async (target, root) => (await activeProjects(target)).open(target, root))

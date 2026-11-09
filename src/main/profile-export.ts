@@ -5,7 +5,7 @@ import { isCustomThemeId } from '../shared/themes'
 import { isWithin } from './files'
 import type { PreferenceStore } from './preferences'
 import {
-  learningLibraryDirectory, learningLibraryRegistry, maxLearningLibraryBytes, maxLearningPackBytes, parseInstalledLibrary,
+  learningLibraryDirectory, learningLibraryRegistry, maxLearningLibraryBytes, packProfileFiles, parseInstalledLibrary,
 } from './learning/catalog-store'
 
 const KiB = 1024
@@ -114,9 +114,11 @@ export async function exportLocalProfile(userData: string, destination: string, 
     let learningPacks = 0
     if (library) {
       const { installed } = parseInstalledLibrary(library.toString('utf8'))
-      for (const { id } of installed) {
-        if (!await copy(join(learningLibraryDirectory, id + '.json'), maxLearningPackBytes)) {
-          throw new Error('Installed learning packs changed during export. Try again.')
+      for (const pack of installed) {
+        for (const file of await packProfileFiles(libraryFolder, pack)) {
+          if (!await copy(join(learningLibraryDirectory, file.name), file.limit)) {
+            throw new Error('Installed learning packs changed during export. Try again.')
+          }
         }
         learningPacks++
       }

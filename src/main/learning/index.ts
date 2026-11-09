@@ -7,7 +7,8 @@ import {
   diagnosticTitles, type ConceptId, type DiagnosticCategory, type LearningConcept, type LearningDiagnostic,
   type LearningFeedback, type LearningHistory, type LearningTopic,
 } from '../../shared/learning'
-import { diagnose, relatedConcepts, type ClassifiedDiagnostic } from './diagnostics'
+import type { RunLanguage } from '../../shared/run-console'
+import { diagnose, packDiagnostics, relatedConcepts, type ClassifiedDiagnostic } from './diagnostics'
 
 const topics: readonly LearningTopic[] = [
   { id: 'statements', title: 'Statements and semicolons' },
@@ -53,6 +54,7 @@ interface Observation {
   path: string
   sourceHash: string
   result: RunResult
+  language?: RunLanguage
 }
 
 function fresh(): State {
@@ -101,12 +103,15 @@ function parseState(text: string): State {
 }
 
 function resolution(category: DiagnosticCategory, result: RunResult): boolean {
-  if (category === 'runtime-memory-fault' || category === 'unclassified-runtime') return result.status === 'success'
+  if (category === 'runtime-memory-fault' || category === 'unclassified-runtime' || category === 'cpp-memory-access'
+    || category === 'java-null-reference' || category === 'java-array-index'
+    || category.startsWith('python-') || category.startsWith('javascript-')) return result.status === 'success'
   return result.status === 'success' || result.status === 'runtime-error'
 }
 
 function trackingKey(diagnostic: ClassifiedDiagnostic, result: RunResult): string | undefined {
   if ((diagnostic.severity !== 'error' && diagnostic.severity !== 'fatal error')
+    || (diagnostic.language !== 'c' && diagnostic.confidence === 'uncertain')
     || (diagnostic.phase === 'compile' && result.status !== 'compile-error')
     || (diagnostic.phase === 'runtime' && result.status !== 'runtime-error')) return
   return diagnostic.category + ':' + boundedHash(diagnostic.context ?? '')
@@ -169,11 +174,11 @@ export class LearningService {
     return this.serial(() => this.write(fresh()))
   }
 
-  observe({ path, sourceHash, result }: Observation): Promise<LearningFeedback> {
+  observe({ path, sourceHash, result, language = 'c' }: Observation): Promise<LearningFeedback> {
     if (!/^[a-f0-9]{64}$/.test(sourceHash)) return Promise.reject(new Error('Invalid learning source fingerprint.'))
     const hash = sourceHash.slice(0, 32)
     const file = boundedHash(path)
-    const records = diagnose(result)
+    const records = diagnose(result, language, path)
     const keyed = records.map((record) => {
       const key = trackingKey(record, result)
       const { context: _context, ...diagnostic } = record
@@ -206,7 +211,8 @@ export class LearningService {
           const existing = previous[key]
           occurrence = unchangedFailure || existing?.hashes.includes(hash) ? 'unchanged' : existing ? 'repeated'
             : Object.values(previous).some((entry) => entry.category !== category
-              && relatedConcepts[entry.category].some((concept) => concepts.includes(concept))) ? 'related' : 'new'
+              && ((relatedConcepts[entry.category] ?? []).some((concept) => concepts.includes(concept))
+                || (diagnostic.packTopic && packDiagnostics[entry.category]?.packTopic === diagnostic.packTopic))) ? 'related' : 'new'
           occurrences.set(key, occurrence)
           if (occurrence !== 'unchanged') {
             changed = true
@@ -239,10 +245,10 @@ export class LearningService {
         }
         await this.write({ ...state, files: Object.fromEntries(Object.entries(files).slice(-maxFiles)), categories })
       }
-      return { diagnostics, resolved: [...resolved] }
+      return { language, diagnostics, resolved: [...resolved] }
     }).catch(() => {
       const diagnostics = keyed.map(({ diagnostic }) => diagnostic)
-      return { diagnostics, resolved: [], historyUnavailable: true }
+      return { language, diagnostics, resolved: [], historyUnavailable: true }
     })
   }
 

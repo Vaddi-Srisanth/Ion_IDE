@@ -8,7 +8,7 @@ import { RunConsoleStore } from './run-console/store';
 import { isWithin } from './paths';
 import { Welcome } from './Welcome';
 import type { LearningFeedback } from '../shared/learning';
-import type { PackLibrary } from '../shared/learning-packs';
+import { diagnosticPackIds, type PackLibrary } from '../shared/learning-packs';
 import type { ThemeData } from '../shared/themes';
 import { documentFormat } from '../shared/viewers';
 import { canPreviewWeb, runLanguage } from '../shared/run-console';
@@ -18,6 +18,8 @@ import { commandEntries, displayShortcut, type ShortcutOverrides } from '../shar
 import { starterCode, starterLanguageFor, starterLanguages, type StarterLanguage } from '../shared/starter-code';
 import type { WorkspaceSearchMatch } from '../shared/workspace-search';
 import { captureEditorSession, EditorSessionWriter } from './editor-session';
+import type { BottomTab } from '../shared/terminal';
+import type { TerminalController } from './terminal/controller';
 
 type Dialog =
   | { kind: 'settings' }
@@ -69,14 +71,21 @@ export function App() {
   const [marketplaceVisible, setMarketplaceVisible] = useState(false);
   const [marketplaceContent, setMarketplaceContent] = useState<MarketplaceContent | null>(null);
   const [packLibrary, setPackLibrary] = useState<PackLibrary | null>(null);
+  const packVisibility = useRef<'hidden' | 'learn' | 'marketplace'>('hidden');
   const selectedLearningLanguage = useRef<string | null>(null);
   const applyPackLibrary = useCallback((library: PackLibrary) => {
     selectedLearningLanguage.current = library.selected;
-    setPackLibrary(library);
+    const visibility = packVisibility.current;
+    if (visibility === 'hidden') return;
+    setPackLibrary((previous) => ({
+      ...library,
+      catalog: visibility === 'learn' ? [] : library.catalog.length ? library.catalog : previous?.catalog ?? [],
+    }));
   }, []);
   const [packLoadError, setPackLoadError] = useState<string>();
   const [packAttempt, setPackAttempt] = useState(0);
   const [learningFeedback, setLearningFeedback] = useState<{ path: string; feedback: LearningFeedback } | null>(null);
+  const [practiceExercise, setPracticeExercise] = useState<string>();
   const practiceDraft = useRef(false);
   const projectDraft = useRef(false);
   const markPracticeDraft = useCallback((dirty: boolean) => { practiceDraft.current = dirty; }, []);
@@ -102,6 +111,9 @@ export function App() {
 
   const [treeRevision, setTreeRevision] = useState(0);
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [bottomTab, setBottomTab] = useState<BottomTab>('run');
+  const [terminalFocus, setTerminalFocus] = useState(0);
+  const terminalController = useRef<TerminalController | null>(null);
   const [runConsole] = useState(() => new RunConsoleStore());
   const { phase: runPhase } = useSyncExternalStore(runConsole.subscribe, runConsole.getSnapshot);
   const [lastRun, setLastRun] = useState<{ id: string; path: string; name: string } | null>(null);
@@ -249,9 +261,13 @@ export function App() {
   }, [panelKey, panelMode, panelRoot, panelAttempt, notify]);
 
   useLayoutEffect(() => {
-    learningPanel.current = packLibrary?.selected === 'c' && panelMode === 'learn'
+    packVisibility.current = !needsPackLibrary ? 'hidden' : marketplaceVisible ? 'marketplace' : 'learn';
+  }, [needsPackLibrary, marketplaceVisible]);
+
+  useLayoutEffect(() => {
+    learningPanel.current = diagnosticPackIds.some((id) => id === packLibrary?.selected) && panelMode === 'learn'
       && panelContent !== null && panelContent.key === panelKey && 'module' in panelContent;
-    if (!learningPanel.current) setLearningFeedback(null);
+    setLearningFeedback((current) => learningPanel.current && current?.feedback.language === packLibrary?.selected ? current : null);
   }, [packLibrary?.selected, panelMode, panelContent, panelKey]);
 
   useEffect(() => {
@@ -273,13 +289,13 @@ export function App() {
     }
     let current = true;
     setPackLoadError(undefined);
-    void bridge.learningPacks.getLibrary().then((library) => {
+    void bridge.learningPacks.getLibrary(marketplaceVisible).then((library) => {
       if (current) applyPackLibrary(library);
     }, (reason: unknown) => {
       if (current) setPackLoadError(errorMessage(reason));
     });
     return () => { current = false; };
-  }, [needsPackLibrary, packAttempt, applyPackLibrary]);
+  }, [needsPackLibrary, marketplaceVisible, packAttempt, applyPackLibrary]);
 
   const applySettings = useCallback((changes: Partial<Settings>) => {
     const next = { ...settingsRef.current, ...changes };
@@ -328,6 +344,24 @@ export function App() {
     setHasWorkspace(true);
     setScreen('editor');
   }, []);
+  useEffect(() => () => { terminalController.current?.dispose(); }, []);
+
+  function selectBottomTab(tab: BottomTab) {
+    setBottomTab(tab);
+    if (tab === 'terminal') setTerminalFocus((value) => value + 1);
+  }
+
+  function toggleBottom() {
+    const showing = !settingsRef.current.showOutput;
+    updateSettings({ showOutput: showing });
+    if (showing && bottomTab === 'terminal') setTerminalFocus((value) => value + 1);
+  }
+
+  function showTerminal() {
+    if (screen === 'welcome') enterWorkspace();
+    selectBottomTab('terminal');
+    if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
+  }
   async function resumeSession() {
     if (nativeDialogOpen.current || sessionStarted.current) return;
     nativeDialogOpen.current = true;
@@ -388,6 +422,7 @@ export function App() {
     }
   }
   const selectWorkspace = (next: WorkspaceMode) => {
+    if (next !== 'practice') setPracticeExercise(undefined);
     setMode(next);
     setAuxiliaryVisible(true);
     enterWorkspace();
@@ -689,6 +724,29 @@ export function App() {
         notify('New edits arrived while saving. Run again to include them.', true);
         return;
       }
+      const language = runLanguage(tab.name);
+      if (save && root && isWithin(tab.path, root.path) && (language === 'c' || language === 'cpp')) {
+        const dirty = documents.affected(root.path).filter((file) => file.dirty);
+        if (dirty.length) {
+          try {
+            const project = await bridge.runConsole.projectInputs(tab.path);
+            if (project) {
+              const paths = new Set(project.paths);
+              const inputs = documents.affected(root.path).filter((file) => file.path && paths.has(file.path));
+              if (inputs.some((file) => file.dirty && file.path === project.manifest)) {
+                notify('Save .ion/build.json before running the project.', true);
+                return;
+              }
+              if (!await saveMany(inputs)) return;
+            }
+          } catch (reason) {
+            notify(errorMessage(reason), true);
+            return;
+          }
+        }
+      }
+      if (request.cancelled) return;
+      setBottomTab('run');
       if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
       runConsole.start(tab.name, settingsRef.current.keepRunOutput);
       if ('dirty' in tab && tab.dirty) {
@@ -801,7 +859,12 @@ export function App() {
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
         case 'toggle-marketplace': if (screen === 'editor') toggleMarketplace(); break;
-        case 'toggle-output': updateSettings({ showOutput: !settingsRef.current.showOutput }); break;
+        case 'toggle-output': if (screen === 'editor') toggleBottom(); break;
+        case 'toggle-terminal':
+          if (screen === 'editor' && settingsRef.current.showOutput && bottomTab === 'terminal') toggleBottom();
+          else showTerminal();
+          break;
+        case 'focus-terminal': showTerminal(); break;
         case 'toggle-auxiliary': if (mode !== 'free' && screen === 'editor') toggleAuxiliary(); break;
         case 'settings': setDialog({ kind: 'settings' }); break;
       }
@@ -822,7 +885,7 @@ export function App() {
         <button className="button" onClick={() => setMarketplaceContent(null)}>Retry</button>
       </div>;
     }
-    return <marketplaceContent.Component {...learningPacks}
+    return <marketplaceContent.Component {...learningPacks} library={packLibrary?.catalog.length ? packLibrary : null}
       onClose={() => setMarketplaceVisible(false)} onLearn={learnFromMarketplace}/>;
   }
 
@@ -842,11 +905,17 @@ export function App() {
     }
     const module = panelContent.module;
     switch (module.mode) {
-      case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} onMarketplace={() => setMarketplaceVisible(true)}
-        feedback={learningFeedback?.path === active?.path ? learningFeedback?.feedback : undefined} onClose={closeAuxiliary}/>;
+      case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={marketplaceVisible} onMarketplace={() => setMarketplaceVisible(true)}
+        feedback={learningFeedback?.path === active?.path ? learningFeedback?.feedback : undefined} onClose={closeAuxiliary}
+        onExercise={({ entry, problemId }) => {
+          setPracticeExercise(problemId);
+          selectWorkspace('practice');
+          openEntry(entry);
+        }}/>;
       case 'projects': return <module.Component root={root} onOpenFolder={openFolder} resourceProfile={settings.resourceProfile}
         beforeRun={() => saveMany(root ? documents.affected(root.path) : [])} onDirtyChange={markProjectDraft}/>;
       case 'practice': return <module.Component bridge={bridge.practice} onOpenEntry={openEntry}
+        initialProblem={practiceExercise}
         onPrepareRun={(path) => saveMany(documents.affected(path))} onStopRun={stop}
         onClose={closeAuxiliary} onDirtyChange={markPracticeDraft}/>;
     }
@@ -859,7 +928,7 @@ export function App() {
   function availableCommand(id: MenuCommand): boolean {
     if (id === 'command-palette') return false;
     if (id === 'workspace-search') return Boolean(root);
-    if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings'].includes(id)) return true;
+    if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal'].includes(id)) return true;
     if (screen !== 'editor') return false;
     switch (id) {
       case 'insert-starter': return Boolean(starterTarget);
@@ -936,6 +1005,8 @@ export function App() {
           active={active} tabs={tabs} root={root} target={target}
           treeRevision={treeRevision} settings={settings} activeTheme={activeTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
+          bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
+          onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
           onSelect={documents.select} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openEntry} onTarget={setTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}
           onRename={(entry) => setDialog({ kind: 'rename', entry })} onTrash={(entry) => void trashEntry(entry)}

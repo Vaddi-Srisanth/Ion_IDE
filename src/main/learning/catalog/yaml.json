@@ -1,0 +1,269 @@
+{
+  "schema": 2,
+  "id": "yaml",
+  "name": "YAML",
+  "summary": "Read and write YAML configuration with nested mappings, sequences, multiline text, and predictable scalar types.",
+  "version": 1,
+  "metadata": {
+    "kind": "data-format",
+    "categories": [
+      "automation",
+      "web",
+      "data"
+    ],
+    "languageVersion": "YAML 1.2.2 Core schema",
+    "prerequisites": [
+      "Know how to save a plain text file and preserve indentation.",
+      "For exercises, use a local YAML parser configured to load only data and to reject unsupported types."
+    ],
+    "miniProject": "Create an offline study-plan configuration. Store a version, an ordered list of sessions, and a multiline note. Validate the structure after loading it. Test a missing title, a quoted scalar that resembles a Boolean, and a duplicate session ID.",
+    "references": [
+      {
+        "title": "YAML 1.2.2 specification",
+        "url": "https://yaml.org/spec/1.2.2/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "mappings",
+      "title": "Read mappings and nested values",
+      "section": "Syntax",
+      "explanation": "A mapping pairs keys with values. Block indentation marks nested collections. Use spaces for indentation and keep siblings at the same level. A comment begins with a separated # outside a quoted scalar.",
+      "example": "course: systems\ndefaults:\n  minutes: 25\n  reminders: true",
+      "api": [
+        {
+          "name": "key: value",
+          "description": "Write a mapping entry."
+        },
+        {
+          "name": "indented mapping",
+          "description": "Group nested entries beneath the parent key."
+        }
+      ],
+      "practice": "Add a second default setting and read it from the nested mapping.",
+      "pitfall": "Indentation changes the data structure. A stray space can move a setting under the wrong parent or make the document invalid.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "mapping",
+        "keys",
+        "indentation",
+        "nested",
+        "configuration",
+        "comments"
+      ],
+      "exampleFile": "study.yaml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The reader sees course at the root and both new and old settings inside defaults.",
+        "completion": "Try moving the new field to the root and compare the resulting shape."
+      },
+      "references": [
+        {
+          "title": "YAML 1.2.2 specification",
+          "url": "https://yaml.org/spec/1.2.2/"
+        }
+      ],
+      "related": [
+        "sequences",
+        "multiline",
+        "scalar-types"
+      ]
+    },
+    {
+      "id": "sequences",
+      "title": "Represent ordered items with block sequences",
+      "section": "Syntax",
+      "explanation": "A block sequence uses a dash for each item at the sequence’s indentation. An item can be a mapping whose fields describe one record. Use a sequence when record order matters. Each record in this example has a title and a duration.",
+      "example": "sessions:\n  - title: Read\n    minutes: 20\n  - title: Practice\n    minutes: 35",
+      "api": [
+        {
+          "name": "- item",
+          "description": "Start the next item of a block sequence."
+        },
+        {
+          "name": "mapping item",
+          "description": "Group fields that belong to one item."
+        }
+      ],
+      "practice": "Add a review session and compute total planned minutes.",
+      "pitfall": "Keeping each title beside a matching duration in separate lists makes it easy to lose their correspondence. Put the fields in the same item.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "mappings"
+      ],
+      "keywords": [
+        "sequence",
+        "list",
+        "dash",
+        "order",
+        "record"
+      ],
+      "exampleFile": "study.yaml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The result uses all sessions in source order and reports a total for their durations.",
+        "completion": "Use an empty sessions list and two items with equal durations."
+      },
+      "references": [
+        {
+          "title": "YAML 1.2.2 specification",
+          "url": "https://yaml.org/spec/1.2.2/"
+        }
+      ],
+      "related": [
+        "mappings",
+        "safe-settings"
+      ]
+    },
+    {
+      "id": "multiline",
+      "title": "Choose literal or folded multiline text",
+      "section": "Core",
+      "explanation": "A literal block marked with | keeps line breaks within its text. A folded block marked with > joins ordinary adjacent lines with spaces. A trailing minus in |- or >- strips the final line break. Blank lines and more-indented text can change how folding behaves.",
+      "example": "instructions: |-\n  Read chapter one.\n  Mark three questions.\nsummary: >-\n  Short practice\n  before the quiz.",
+      "api": [
+        {
+          "name": "|-",
+          "description": "Preserve internal line breaks and strip trailing line breaks."
+        },
+        {
+          "name": ">-",
+          "description": "Fold ordinary neighboring lines and strip trailing line breaks."
+        }
+      ],
+      "practice": "Store a short multiline code excerpt and a one-paragraph explanation.",
+      "pitfall": "A folded block can change the contents of text that depends on line boundaries. Use a literal block for text whose line breaks carry meaning.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "mappings"
+      ],
+      "keywords": [
+        "block",
+        "scalar",
+        "literal",
+        "folded",
+        "pipe",
+        "strip",
+        "newline"
+      ],
+      "exampleFile": "study.yaml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The excerpt retains its internal line breaks while the explanation reads as one paragraph.",
+        "completion": "Compare decoded text lengths and verify the absence of a final newline with the strip form."
+      },
+      "references": [
+        {
+          "title": "YAML 1.2.2 specification",
+          "url": "https://yaml.org/spec/1.2.2/"
+        }
+      ],
+      "related": [
+        "mappings"
+      ]
+    },
+    {
+      "id": "scalar-types",
+      "title": "Quote values when their type matters",
+      "section": "Core",
+      "explanation": "A YAML schema determines how plain values resolve to types. Under the YAML 1.2 Core schema, true and false are Boolean literals. Some older loaders treat words such as on or off as Booleans too. Quote an identifier or option label that must remain text across readers.",
+      "example": "enabled: true\nmode: \"on\"\nroomId: \"007\"\nseats: 7\nnextReview: null",
+      "api": [
+        {
+          "name": "plain scalar",
+          "description": "Write an unquoted value interpreted according to the reader’s schema."
+        },
+        {
+          "name": "quoted scalar",
+          "description": "Keep a value as text when it would otherwise resemble a different type."
+        }
+      ],
+      "practice": "Add a text flag with the label false and a numeric zero for retry count.",
+      "pitfall": "A reader using another schema can resolve some plain values differently. Use quotes and validate expected types for portable settings.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "mappings"
+      ],
+      "keywords": [
+        "schema",
+        "scalar",
+        "string",
+        "boolean",
+        "integer",
+        "quotes",
+        "null"
+      ],
+      "exampleFile": "study.yaml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "The flag is a string while retry count is an integer.",
+        "completion": "Verify that a quoted numeric identifier retains its leading zeros."
+      },
+      "references": [
+        {
+          "title": "YAML 1.2.2 specification",
+          "url": "https://yaml.org/spec/1.2.2/"
+        }
+      ],
+      "related": [
+        "mappings",
+        "safe-settings"
+      ]
+    },
+    {
+      "id": "safe-settings",
+      "title": "Validate versioned configuration after loading",
+      "section": "Projects",
+      "explanation": "Load configuration through a parser’s data-only API. Some YAML libraries can construct language objects from tags, which is unnecessary for a simple settings format. After parsing, verify the version, the expected mapping or sequence shapes, and required fields.",
+      "example": "version: 1\nprofile:\n  name: \"Evening study\"\n  sessions:\n    - id: \"review\"\n      minutes: 25\n    - id: \"practice\"\n      minutes: 35",
+      "api": [
+        {
+          "name": "version: 1",
+          "description": "Identify the application data contract."
+        },
+        {
+          "name": "safe loader",
+          "description": "Configure the parser to accept plain data without custom object construction."
+        }
+      ],
+      "practice": "Load the sample and validate a versioned plan with nonnegative durations and distinct session IDs.",
+      "pitfall": "YAML parsing does not enforce the required fields or uniqueness rules of your application. Treat unknown or unsupported tags as errors for this format.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "sequences",
+        "scalar-types"
+      ],
+      "keywords": [
+        "version",
+        "validate",
+        "safe",
+        "load",
+        "duplicate",
+        "expected",
+        "fields"
+      ],
+      "exampleFile": "study.yaml",
+      "exampleMode": "fragment",
+      "exercise": {
+        "expected": "A supported valid plan loads, while wrong types, missing fields, and duplicate IDs report errors.",
+        "completion": "Try a string duration and a repeated ID in separate modified files."
+      },
+      "references": [
+        {
+          "title": "YAML 1.2.2 specification",
+          "url": "https://yaml.org/spec/1.2.2/"
+        }
+      ],
+      "related": [
+        "sequences",
+        "scalar-types"
+      ]
+    }
+  ]
+}

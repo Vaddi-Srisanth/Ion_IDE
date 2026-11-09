@@ -129,7 +129,7 @@ export async function stubDialogs(app, choices) {
     dialog.showSaveDialog = async () => ({ canceled: !data.save, filePath: data.save })
     dialog.showMessageBox = async (_window, options) => {
       const buttons = options?.buttons ?? []
-      const runIndex = buttons.findIndex((label) => /^Run(?: (?:C )?Program| (?:Maven|Gradle) Build)?$/i.test(label))
+      const runIndex = buttons.findIndex((label) => /^Run(?: (?:C )?Program| (?:Maven|Gradle|C\/C\+\+) Build)?$/i.test(label))
       const testIndex = buttons.findIndex((label) => /^(Approve|Run) Test$/.test(label))
       const automaticIndex = buttons.indexOf('Enable Automatic Test')
       const approved = automaticIndex >= 0 && data.allowAutomatic ? automaticIndex : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1

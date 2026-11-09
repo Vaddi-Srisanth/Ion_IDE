@@ -1,9 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "python",
   "name": "Python",
   "summary": "Build confidence with core Python, collections, files, JSON, and the standard library.",
-  "version": 1,
+  "version": 2,
   "lessons": [
     {
       "id": "values",
@@ -26,13 +26,32 @@
         }
       ],
       "practice": "Change the quantity and price. Predict the formatted output before you run it.",
-      "pitfall": "Adding a string to an integer raises TypeError. Convert deliberately or use an f-string."
+      "pitfall": "Adding a string to an integer raises TypeError. Convert deliberately or use an f-string.",
+      "difficulty": "beginner",
+      "prerequisites": [],
+      "keywords": [
+        "assignment",
+        "numbers",
+        "boolean",
+        "f-string",
+        "types"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "3 items cost $8.25\nbool",
+      "exercise": {
+        "expected": "Print an item count and a total formatted to two decimal places.",
+        "completion": "The result ends with two decimal digits for an integer-valued total too."
+      },
+      "related": [
+        "flow"
+      ]
     },
     {
       "id": "flow",
       "title": "Conditions, loops, and ranges",
       "section": "Syntax",
-      "explanation": "A colon starts an indented suite. Use if, elif, and else for alternatives. A for loop takes successive values from an iterable. A while loop repeats while its condition holds.",
+      "explanation": "A colon ends the header. In the multiline form, an indented body follows. Use if, elif, and else for alternatives. A for loop takes successive values from an iterable. A while loop repeats while its condition holds.",
       "example": "for index in range(1, 6):\n    if index % 2 == 0:\n        print(index, \"even\")\n    else:\n        print(index, \"odd\")",
       "api": [
         {
@@ -48,8 +67,45 @@
           "description": "Pair values from both iterables, stopping at the shorter one by default."
         }
       ],
-      "practice": "List the numbers from 10 down to 1. Print only the multiples of 3.",
-      "pitfall": "Keep indentation consistent. A misplaced indent changes which block executes."
+      "practice": "Read a nonnegative upper bound from stdin. Print multiples of 3 down to 1 in descending order.",
+      "pitfall": "Keep indentation consistent. A misplaced indent changes which block executes.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "values"
+      ],
+      "keywords": [
+        "loop",
+        "range",
+        "indentation",
+        "enumerate",
+        "zip"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "1 odd\n2 even\n3 odd\n4 even\n5 odd",
+      "exercise": {
+        "expected": "Print each multiple on a separate line and no lines when there are no multiples.",
+        "completion": "Try an exact multiple, a value between multiples, and a bound below 3.",
+        "samples": [
+          {
+            "input": "10\n",
+            "expectedOutput": "9\n6\n3\n"
+          },
+          {
+            "input": "2\n",
+            "expectedOutput": ""
+          },
+          {
+            "input": "6\n",
+            "expectedOutput": "6\n3\n"
+          }
+        ]
+      },
+      "related": [
+        "values",
+        "collections",
+        "iterators"
+      ]
     },
     {
       "id": "collections",
@@ -76,7 +132,31 @@
         }
       ],
       "practice": "Count the first letters of several words. Use a set to show how many distinct letters appear.",
-      "pitfall": "list.sort() modifies the list and returns None. Use sorted() when you need a new list."
+      "pitfall": "list.sort() modifies the list and returns None. Use sorted() when you need a new list.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "flow"
+      ],
+      "keywords": [
+        "list",
+        "dict",
+        "set",
+        "tuple",
+        "counting"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "['ion', 'learn'] {'ion': 2, 'learn': 1} ('total', 3)",
+      "exercise": {
+        "expected": "Count each word in a list and report unique words in sorted order.",
+        "completion": "Repeated words increment their count and empty input produces an empty result."
+      },
+      "related": [
+        "flow",
+        "functions",
+        "files-json",
+        "tools"
+      ]
     },
     {
       "id": "functions",
@@ -99,7 +179,31 @@
         }
       ],
       "practice": "Write a function that returns the lengths of words longer than a threshold.",
-      "pitfall": "Avoid a list or dictionary as a default parameter when callers need independent values. Defaults are evaluated once."
+      "pitfall": "Avoid a list or dictionary as a default parameter when callers need independent values. Defaults are evaluated once.",
+      "difficulty": "beginner",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "function",
+        "default",
+        "comprehension",
+        "math",
+        "import"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "[2.0, 3.0]",
+      "exercise": {
+        "expected": "Return the square roots of nonnegative values under an adjustable limit.",
+        "completion": "Inputs above the limit and negative inputs are excluded."
+      },
+      "related": [
+        "collections",
+        "objects",
+        "errors",
+        "mutable-defaults"
+      ]
     },
     {
       "id": "objects",
@@ -118,14 +222,37 @@
         }
       ],
       "practice": "Add a quantity field and a total_cents method to Receipt.",
-      "pitfall": "Type hints help readers and tools. Ordinary Python execution does not enforce them."
+      "pitfall": "Type hints help readers and tools. Ordinary Python execution does not enforce them.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions"
+      ],
+      "keywords": [
+        "class",
+        "dataclass",
+        "constructor",
+        "type",
+        "hints",
+        "instance"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "Pencil: $1.25",
+      "exercise": {
+        "expected": "Model a study session with a dataclass and print a readable summary.",
+        "completion": "Two instances can store different durations without sharing state."
+      },
+      "related": [
+        "functions",
+        "typed-boundaries"
+      ]
     },
     {
       "id": "errors",
       "title": "Exceptions and validation",
       "section": "Core",
       "explanation": "Wrap an operation that may fail in try, then catch specific error types with except. Validate values at the boundary and use raise when a function cannot produce a meaningful result.",
-      "example": "def positive_count(text):\n    value = int(text)\n    if value <= 0:\n        raise ValueError(\"Enter a positive count\")\n    return value\n\nfor text in [\"3\", \"zero\", \"-2\"]:\n    try:\n        print(positive_count(text))\n    except ValueError as error:\n        print(\"Invalid:\", error)",
+      "example": "def positive_count(text):\n    value = int(text)\n    if value <= 0:\n        raise ValueError(\"Enter a positive count\")\n    return value\n\nfor text in [\"3\", \"zero\", \"-2\"]:\n    try:\n        print(positive_count(text))\n    except ValueError:\n        print(\"Invalid:\", text)",
       "api": [
         {
           "name": "ValueError",
@@ -141,7 +268,31 @@
         }
       ],
       "practice": "Extend positive_count to reject counts above 100. Try 0, 1, 100, 101, and invalid text.",
-      "pitfall": "Keep the try block narrow so a genuine bug elsewhere does not look like a user input error."
+      "pitfall": "Keep the try block narrow so a genuine bug elsewhere does not look like a user input error.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions"
+      ],
+      "keywords": [
+        "exception",
+        "ValueError",
+        "raise",
+        "try",
+        "except"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "3\nInvalid: zero\nInvalid: -2",
+      "exercise": {
+        "expected": "Validate a count from text with a clear error for malformed or nonpositive values.",
+        "completion": "Handle valid input, nonnumeric text, zero, and a negative count."
+      },
+      "related": [
+        "functions",
+        "files-json",
+        "context-manager",
+        "typed-boundaries"
+      ]
     },
     {
       "id": "files-json",
@@ -164,7 +315,32 @@
         }
       ],
       "practice": "Save two named scores and calculate the average after reading the data back.",
-      "pitfall": "JSON decoding can fail, and valid JSON can have an unexpected shape. Check both."
+      "pitfall": "JSON decoding can fail, and valid JSON can have an unexpected shape. Check both.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections",
+        "errors"
+      ],
+      "keywords": [
+        "pathlib",
+        "json",
+        "files",
+        "temporary",
+        "UTF-8"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "17",
+      "exercise": {
+        "expected": "Save and load a dictionary containing a list of scores.",
+        "completion": "Verify the score total after reloading and check the behavior of malformed JSON."
+      },
+      "related": [
+        "collections",
+        "errors",
+        "context-manager",
+        "typed-boundaries"
+      ]
     },
     {
       "id": "tools",
@@ -187,7 +363,400 @@
         }
       ],
       "practice": "Add an outlier and compare statistics.mean with statistics.median.",
-      "pitfall": "Use explicit validation for real inputs. Python can omit assert statements when optimization is enabled."
+      "pitfall": "Use explicit validation for real inputs. Python can omit assert statements when optimization is enabled.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections"
+      ],
+      "keywords": [
+        "counter",
+        "statistics",
+        "mean",
+        "assertions"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "[(15, 2)]",
+      "exercise": {
+        "expected": "Find the most common reading and compare it with the mean.",
+        "completion": "Use a list whose mode differs from its mean and explain each number."
+      },
+      "related": [
+        "collections"
+      ]
+    },
+    {
+      "id": "mutable-defaults",
+      "title": "Avoid shared mutable default arguments",
+      "section": "Core",
+      "explanation": "Python evaluates a default argument expression when the function is defined. A list used as that default can therefore carry changes from one call to the next. Use None to request a fresh list, then construct it inside the function.",
+      "example": "def add_tag(tag, tags=None):\n    if tags is None:\n        tags = []\n    tags.append(tag)\n    return tags\n\nprint(add_tag(\"math\"))\nprint(add_tag(\"art\"))",
+      "api": [
+        {
+          "name": "is None",
+          "description": "Check whether the caller requested the default state."
+        },
+        {
+          "name": "list.append()",
+          "description": "Change the current list in place."
+        }
+      ],
+      "practice": "Write a function that appends a study result to an optional caller-provided list.",
+      "pitfall": "Checking if not tags would also replace a deliberately supplied empty list.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions",
+        "collections"
+      ],
+      "keywords": [
+        "mutable",
+        "default",
+        "arguments",
+        "list",
+        "None",
+        "aliasing"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "['math']\n['art']",
+      "exercise": {
+        "expected": "Calls without a list each receive a fresh one. A supplied empty list receives the new result.",
+        "completion": "Compare two default calls and one call with an explicit empty list."
+      },
+      "references": [
+        {
+          "title": "Python tutorial, default argument values",
+          "url": "https://docs.python.org/3.11/tutorial/controlflow.html#default-argument-values"
+        }
+      ],
+      "related": [
+        "functions",
+        "collections"
+      ]
+    },
+    {
+      "id": "iterators",
+      "title": "Generate values lazily with yield",
+      "section": "Core",
+      "explanation": "Calling a generator function creates an iterator. The body starts when iteration asks for a value and pauses at each yield. This lets you process values one at a time without constructing a complete output list.",
+      "example": "def valid_minutes(values):\n    for value in values:\n        if 0 <= value <= 180:\n            yield value\n\nstream = valid_minutes([12, -1, 45, 400, 20])\nprint(next(stream))\nprint(list(stream))",
+      "api": [
+        {
+          "name": "yield",
+          "description": "Return one item to the caller and suspend the generator."
+        },
+        {
+          "name": "next(iterator)",
+          "description": "Advance the iterator, or raise StopIteration if it is exhausted."
+        }
+      ],
+      "practice": "Yield each cleaned nonblank line from an iterable of text lines.",
+      "pitfall": "An iterator can be consumed. A second loop over the same exhausted generator produces no values.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "flow",
+        "functions"
+      ],
+      "keywords": [
+        "yield",
+        "generator",
+        "iterator",
+        "lazy",
+        "next"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "12\n[45, 20]",
+      "exercise": {
+        "expected": "The result drops blank lines and strips surrounding whitespace.",
+        "completion": "Read one item with next, then consume the rest and verify that the first item does not appear again."
+      },
+      "references": [
+        {
+          "title": "Python tutorial, generators",
+          "url": "https://docs.python.org/3.11/tutorial/classes.html#generators"
+        }
+      ],
+      "related": [
+        "flow",
+        "functions"
+      ]
+    },
+    {
+      "id": "context-manager",
+      "title": "Use context managers for deterministic cleanup",
+      "section": "Standard library",
+      "explanation": "A with statement asks a context manager to set up a resource and handle exit from the block. File objects close at exit even if the body raises an exception. Opening a text file with an explicit encoding avoids depending on the machine’s default.",
+      "example": "from pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nwith TemporaryDirectory() as folder:\n    path = Path(folder) / \"notes.txt\"\n    path.write_text(\"ion\", encoding=\"utf-8\")\n    with path.open(encoding=\"utf-8\") as stream:\n        print(stream.read())\n    print(\"closed:\", stream.closed)",
+      "api": [
+        {
+          "name": "Path.open()",
+          "description": "Open a file from a pathlib path."
+        },
+        {
+          "name": "with resource as name",
+          "description": "Bind the managed object within a block and run exit handling afterward."
+        }
+      ],
+      "practice": "Read the first line of a temporary file, then raise an example exception inside the with block.",
+      "pitfall": "The name can still refer to the file object after the block, but the file is already closed.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "errors",
+        "files-json"
+      ],
+      "keywords": [
+        "with",
+        "context",
+        "manager",
+        "resource",
+        "closed",
+        "io"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "ion\nclosed: True",
+      "exercise": {
+        "expected": "Handle the expected exception outside the with block and verify the resource is closed.",
+        "completion": "Run the normal path and the exception path, using a temporary file each time."
+      },
+      "references": [
+        {
+          "title": "Python tutorial, predefined cleanup actions",
+          "url": "https://docs.python.org/3.11/tutorial/errors.html#predefined-clean-up-actions"
+        }
+      ],
+      "related": [
+        "errors",
+        "files-json"
+      ]
+    },
+    {
+      "id": "sorting-keys",
+      "title": "Sort structured data with keys and tie-breakers",
+      "section": "Standard library",
+      "explanation": "sorted returns a new list and accepts a function that extracts a comparison key. A tuple key compares its first element, then later elements as needed. Python’s sort is stable, so equal keys retain their original order.",
+      "example": "rows = [(\"Zoe\", 8), (\"Ada\", 8), (\"Sam\", 10)]\nranking = sorted(rows, key=lambda row: (-row[1], row[0]))\nfor name, score in ranking:\n    print(f\"{name}: {score}\")",
+      "api": [
+        {
+          "name": "sorted(iterable, key=...)",
+          "description": "Create a sorted list using a key function."
+        },
+        {
+          "name": "tuple key",
+          "description": "Compare several ordering keys in sequence."
+        }
+      ],
+      "practice": "Rank sessions by descending minutes and then ascending activity name.",
+      "pitfall": "reverse=True reverses every part of the ordering, including the tie-breaker. Negate a numeric key when only that key should descend.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "collections",
+        "functions"
+      ],
+      "keywords": [
+        "sorted",
+        "key",
+        "tuple",
+        "stable",
+        "sort",
+        "tie"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "Sam: 10\nAda: 8\nZoe: 8",
+      "exercise": {
+        "expected": "Activities with equal minutes are ordered by name and the input stays unchanged.",
+        "completion": "Use duplicate durations, an empty input, and a negative test value if your data policy allows it."
+      },
+      "references": [
+        {
+          "title": "Python sorting guide",
+          "url": "https://docs.python.org/3.11/howto/sorting.html"
+        }
+      ],
+      "related": [
+        "collections",
+        "functions"
+      ]
+    },
+    {
+      "id": "typed-boundaries",
+      "title": "Validate typed data at runtime",
+      "section": "Core",
+      "explanation": "Type hints help a checker and readers understand intended shapes. They do not validate the result of json.loads. At a boundary, check the actual value before building a typed result. Python bool is a subclass of int, so the check below requires the exact built-in int type for minutes.",
+      "example": "import json\nfrom typing import TypedDict\n\nclass Session(TypedDict):\n    activity: str\n    minutes: int\n\ndef parse_session(raw: object) -> Session:\n    if not isinstance(raw, dict):\n        raise ValueError(\"expected an object\")\n    activity, minutes = raw.get(\"activity\"), raw.get(\"minutes\")\n    if not isinstance(activity, str) or not activity.strip():\n        raise ValueError(\"activity is required\")\n    if type(minutes) is not int or minutes < 0:\n        raise ValueError(\"expected nonnegative integer minutes\")\n    return {\"activity\": activity, \"minutes\": minutes}\n\nitem = parse_session(json.loads('{\"activity\":\"read\",\"minutes\":25}'))\nprint(f\"{item['activity']}: {item['minutes']}\")",
+      "api": [
+        {
+          "name": "TypedDict",
+          "description": "Describe the field types of a dictionary for a type checker."
+        },
+        {
+          "name": "isinstance()",
+          "description": "Check an object against a class or accepted set of classes at runtime."
+        }
+      ],
+      "practice": "Extend the input validator with a required day field and report the invalid field in each error.",
+      "pitfall": "An annotation alone will not stop a JSON Boolean or string from reaching your function.",
+      "difficulty": "advanced",
+      "prerequisites": [
+        "objects",
+        "errors",
+        "files-json"
+      ],
+      "keywords": [
+        "type",
+        "hint",
+        "TypedDict",
+        "json",
+        "validation",
+        "isinstance",
+        "bool"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "read: 25",
+      "exercise": {
+        "expected": "Return a validated record with precise errors for missing fields and incorrect types.",
+        "completion": "Include true, a numeric string, and a negative number for minutes."
+      },
+      "references": [
+        {
+          "title": "Python 3.11 typing module",
+          "url": "https://docs.python.org/3.11/library/typing.html"
+        }
+      ],
+      "related": [
+        "errors",
+        "files-json"
+      ]
+    },
+    {
+      "id": "csv-tables",
+      "title": "Read quoted CSV rows safely",
+      "section": "Standard library",
+      "explanation": "A CSV parser understands quoting and separators inside quoted fields. DictReader maps each row to its header names. When opening a real CSV file for this module, pass newline=\"\" so the parser can handle line endings correctly.",
+      "example": "import csv\nfrom io import StringIO\n\nsource = StringIO('activity,minutes\\n\"read, review\",25\\npractice,10\\n')\nrows = list(csv.DictReader(source))\nfor row in rows:\n    print(row[\"activity\"], int(row[\"minutes\"]))",
+      "api": [
+        {
+          "name": "csv.DictReader()",
+          "description": "Yield dictionaries whose keys come from the CSV header by default."
+        },
+        {
+          "name": "StringIO",
+          "description": "Provide an in-memory text stream for a reproducible local example."
+        }
+      ],
+      "practice": "Group total minutes by activity from a CSV file.",
+      "pitfall": "Splitting text on commas breaks a quoted field that contains a comma.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "files-json",
+        "errors"
+      ],
+      "keywords": [
+        "csv",
+        "DictReader",
+        "quoted",
+        "delimiter",
+        "newline",
+        "rows"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "read, review 25\npractice 10",
+      "exercise": {
+        "expected": "Quoted commas stay inside the activity name and a malformed duration is reported with its row number.",
+        "completion": "Try quoted text, repeated activities, and a missing duration."
+      },
+      "references": [
+        {
+          "title": "Python 3.11 CSV module",
+          "url": "https://docs.python.org/3.11/library/csv.html"
+        }
+      ],
+      "related": [
+        "files-json",
+        "errors"
+      ]
+    },
+    {
+      "id": "unittest",
+      "title": "Use the standard library to test behavior",
+      "section": "Projects",
+      "explanation": "A unittest.TestCase groups named test methods. Test an expected value and a rejected input independently, so a change that breaks either behavior is easy to diagnose. A test suite can run with the standard library, with no external dependency.",
+      "example": "import unittest\n\ndef duration(raw):\n    value = int(raw)\n    if value < 0:\n        raise ValueError(\"negative minutes\")\n    return value\n\nclass DurationTests(unittest.TestCase):\n    def test_zero(self):\n        self.assertEqual(duration(\"0\"), 0)\n\n    def test_negative(self):\n        with self.assertRaises(ValueError):\n            duration(\"-1\")\n\ntests = unittest.defaultTestLoader.loadTestsFromTestCase(DurationTests)\nresult = unittest.TestResult()\ntests.run(result)\nprint(f\"{result.testsRun} tests passed\" if result.wasSuccessful() else \"failure\")\nraise SystemExit(0 if result.wasSuccessful() else 1)",
+      "api": [
+        {
+          "name": "assertEqual()",
+          "description": "Compare the actual and expected values with a useful failure message."
+        },
+        {
+          "name": "assertRaises()",
+          "description": "Require an exception of the expected type from the enclosed behavior."
+        }
+      ],
+      "practice": "Add tests for malformed text and an ordinary positive value.",
+      "pitfall": "Testing only the successful input leaves error handling unprotected.",
+      "difficulty": "intermediate",
+      "prerequisites": [
+        "functions",
+        "errors"
+      ],
+      "keywords": [
+        "unittest",
+        "test",
+        "case",
+        "assertRaises",
+        "regression",
+        "edge",
+        "cases"
+      ],
+      "exampleFile": "lesson.py",
+      "exampleMode": "program",
+      "expectedOutput": "2 tests passed",
+      "exercise": {
+        "expected": "The suite covers success and rejection and returns an unsuccessful status when a test fails.",
+        "completion": "Deliberately change one expected value, observe failure, and then restore it."
+      },
+      "references": [
+        {
+          "title": "Python 3.11 unittest module",
+          "url": "https://docs.python.org/3.11/library/unittest.html"
+        }
+      ],
+      "related": [
+        "functions",
+        "errors"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "core",
+      "automation",
+      "data"
+    ],
+    "languageVersion": "Python 3.11+",
+    "prerequisites": [
+      "Know how to save a source file.",
+      "Use Python 3.11 or newer. Examples use the standard library and need no packages."
+    ],
+    "miniProject": "Build a local study-log report. Read a CSV file with names and minutes, reject malformed rows, and group totals by activity. Add tests for quoted fields, empty input, and a malformed duration.",
+    "references": [
+      {
+        "title": "Python 3.11 standard library",
+        "url": "https://docs.python.org/3.11/library/"
+      },
+      {
+        "title": "Python 3.11 tutorial",
+        "url": "https://docs.python.org/3.11/tutorial/"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  }
 }

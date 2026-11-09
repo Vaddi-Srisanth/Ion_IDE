@@ -74,7 +74,7 @@ async function assertProcessExited(pid) {
 }
 
 await withScratch('recovery', async (scratch) => {
-  const folder = join(scratch, 'workspace λ with spaces')
+  const folder = join(scratch, 'workspace café with spaces')
   const profile = join(scratch, 'profile')
   const original = join(folder, 'original notes.txt')
   const saved = join(folder, 'recovered copy.txt')
@@ -88,7 +88,7 @@ await withScratch('recovery', async (scratch) => {
   await Promise.all([mkdir(folder), mkdir(profile)])
   await Promise.all([
     writeFile(original, originalText),
-    writeFile(program, '#include <stdio.h>\n#include <unistd.h>\nint main(void) { printf("ION-RECOVERY-PID:%d\\n", (int)getpid()); fflush(stdout); return getchar() == EOF; }\n'),
+    writeFile(program, '#include <stdio.h>\n#ifdef _WIN32\n#include <process.h>\n#define getpid _getpid\n#else\n#include <unistd.h>\n#endif\nint main(void) { printf("ION-RECOVERY-PID:%d\\n", (int)getpid()); fflush(stdout); return getchar() == EOF; }\n'),
   ])
 
   const first = await launch(target, profile)
@@ -166,11 +166,12 @@ await withScratch('recovery', async (scratch) => {
     const proc = interrupted.app.process()
     if (proc.exitCode === null && proc.signalCode === null) {
       const exited = once(proc, 'exit')
-      proc.kill('SIGKILL')
+      assert.equal(proc.kill('SIGKILL'), true, 'The operating system accepted the forced termination.')
       await exited
     }
   }
-  assert.equal(interrupted.app.process().signalCode, 'SIGKILL')
+  if (process.platform === 'win32') assert.notEqual(interrupted.app.process().exitCode, 0)
+  else assert.equal(interrupted.app.process().signalCode, 'SIGKILL')
 
   const relaunched = await launch(target, profile)
   const relaunchedProcess = relaunched.app.process()

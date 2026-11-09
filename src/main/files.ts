@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { constants, type BigIntStats } from 'node:fs'
 import { access, copyFile, lstat, link, mkdir, open, opendir, realpath, rename, rm } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import type { Entry, EntryKind, FileContents, FileRevision } from '../shared/contracts'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { documentFormat } from '../shared/viewers'
@@ -12,7 +13,9 @@ const maxDirectoryEntries = 4000
 const noFollow = constants.O_NOFOLLOW ?? 0
 const nonBlock = constants.O_NONBLOCK ?? 0
 const windows = process.platform === 'win32'
-const windowsDeviceName = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i
+const windowsDeviceName = /^(?:con|conin\$|conout\$|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i
+const windowsReplaceDelays = [25, 50, 100, 200, 400]
+const fileChanged = 'FILE_CHANGED: This file changed on disk. Reopen it or use Save As to keep your edits.'
 
 function errorCode(error: unknown): string | undefined {
   if (error instanceof Error && 'code' in error && typeof error.code === 'string') return error.code
@@ -20,14 +23,21 @@ function errorCode(error: unknown): string | undefined {
 
 export function isWithin(root: string, path: string): boolean {
   const fromRoot = relative(root, path)
-  return !isAbsolute(fromRoot) && fromRoot !== '..' && !fromRoot.startsWith('..' + sep)
+  if (isAbsolute(fromRoot) || fromRoot === '..' || fromRoot.startsWith('..' + sep)) return false
+  // Windows path.relative folds case even for separate directories on case-sensitive NTFS.
+  return !windows || path === root || path.startsWith(root.endsWith(sep) ? root : root + sep)
+}
+
+function invalidWindowsName(name: string): boolean {
+  return /[<>:"|?*\x01-\x1f]|[ .]$/.test(name) || windowsDeviceName.test(name)
 }
 
 function absolutePath(value: unknown): string {
   if (typeof value !== 'string' || !isAbsolute(value) || value !== resolve(value) || value.includes('\0') || value.length > 4096) {
     throw new Error('Invalid file path.')
   }
-  if (windows && (/^\\\\[?.]\\/.test(value) || value.replace(/^[a-z]:/i, '').includes(':'))) {
+  if (windows && (/^\\\\[?.]\\/.test(value) || value.replace(/^[a-z]:/i, '').includes(':')
+    || value.slice(parse(value).root.length).split(sep).some(invalidWindowsName))) {
     throw new Error('Choose a regular Windows file or folder.')
   }
   return value
@@ -35,10 +45,10 @@ function absolutePath(value: unknown): string {
 
 export function entryName(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || value === '.' || value === '..'
-    || Buffer.byteLength(value) > 255 || /[/\\\x00-\x1f\x7f]/.test(value)) {
+    || (windows ? value.length : Buffer.byteLength(value)) > 255 || /[/\\\x00-\x1f\x7f]/.test(value)) {
     throw new Error('Enter a valid file or folder name.')
   }
-  if (windows && (/[<>:"|?*]|[ .]$/.test(value) || windowsDeviceName.test(value))) {
+  if (windows && invalidWindowsName(value)) {
     throw new Error('Enter a valid Windows file or folder name.')
   }
   return value
@@ -91,6 +101,23 @@ async function existingStats(path: string): Promise<BigIntStats | null> {
   }
 }
 
+async function saveAsTarget(path: string): Promise<{ path: string; before: BigIntStats | null }> {
+  if (!windows) return { path, before: await existingStats(path) }
+  try {
+    const before = await lstat(path, { bigint: true })
+    if (!before.isFile()) throw new Error('Choose a regular file as the destination.')
+    const canonical = await realpath(path)
+    // The native picker can return the user's case spelling. Accept only that alias in its chosen folder.
+    if (dirname(canonical) !== dirname(path) || relative(path, canonical) !== '') {
+      throw new Error('Choose a regular file as the destination.')
+    }
+    return { path: canonical, before }
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return { path, before: null }
+    throw error
+  }
+}
+
 async function readStableBytes(path: string, limit: number): Promise<{ data: Buffer; stats: BigIntStats }> {
   const handle = await open(path, constants.O_RDONLY | noFollow | nonBlock)
   try {
@@ -115,6 +142,27 @@ async function readStableBytes(path: string, limit: number): Promise<{ data: Buf
   }
 }
 
+async function replaceSource(temporary: string, path: string, parent: string, expected: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      // A program that blocked the previous attempt may have changed the file before releasing it.
+      if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
+      const current = await existingStats(path)
+      if (!current || revision(current) !== expected) throw new Error(fileChanged)
+      await rename(temporary, path)
+      return
+    } catch (error) {
+      const code = errorCode(error)
+      if (!windows || (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES')) throw error
+      const wait = windowsReplaceDelays[attempt]
+      if (wait === undefined) {
+        throw new Error('Windows could not replace this file. Close any program using it, check write permissions, or use Save As.', { cause: error })
+      }
+      await delay(wait)
+    }
+  }
+}
+
 async function writeAtomically(path: string, text: string, previous: BigIntStats | null): Promise<string> {
   const parent = dirname(path)
   if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
@@ -131,14 +179,10 @@ async function writeAtomically(path: string, text: string, previous: BigIntStats
       await handle.close()
     }
 
-    if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
     if (previous) {
-      const current = await existingStats(path)
-      if (!current || revision(current) !== revision(previous)) {
-        throw new Error('FILE_CHANGED: This file changed on disk. Reopen it or use Save As to keep your edits.')
-      }
-      await rename(temporary, path)
+      await replaceSource(temporary, path, parent, revision(previous))
     } else {
+      if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
       // A hard link publishes the completed file only if the destination is still absent.
       try {
         await link(temporary, path)
@@ -324,7 +368,7 @@ export class WorkspaceFiles {
         // A metadata update or identical replacement can change the revision without changing the editor's base text.
         const current = baseHash === undefined ? null : await readStableBytes(path, limit).catch(() => null)
         if (!current || contentHash(current.data) !== baseHash) {
-          throw new Error('FILE_CHANGED: This file changed on disk. Reopen it or use Save As to keep your edits.')
+          throw new Error(fileChanged)
         }
         stats = current.stats
       }
@@ -339,8 +383,7 @@ export class WorkspaceFiles {
     const text = fileText(content, isNotebookName(selected) ? maxNotebookBytes : maxTextCopyBytes)
     return this.serialize(async () => {
       const parent = await realpath(dirname(selected))
-      const path = join(parent, entryName(basename(selected)))
-      const before = await existingStats(path)
+      const { path, before } = await saveAsTarget(join(parent, entryName(basename(selected))))
       if (before && !before.isFile()) throw new Error('Choose a regular file as the destination.')
       if (before && (!confirmOverwrite || !await confirmOverwrite(path))) return null
       const updatedRevision = await writeAtomically(path, text, before)
@@ -374,15 +417,20 @@ export class WorkspaceFiles {
       const kind = stats.isFile() ? 'file' : 'folder'
       const destination = join(dirname(path), name)
       if (destination === path) return toEntry(path, kind)
+      const caseOnly = windows && relative(path, destination) === ''
       try {
         const target = await lstat(destination, { bigint: true })
-        if (target.dev !== stats.dev || target.ino !== stats.ino || await realpath(destination) !== path) {
+        if ((windows && !caseOnly) || target.dev !== stats.dev || target.ino !== stats.ino
+          || await realpath(destination) !== path) {
           throw new Error('A file or folder with that name already exists.')
         }
       } catch (error) {
         if (errorCode(error) !== 'ENOENT') throw error
       }
       await rename(path, destination)
+      if (caseOnly && await realpath(destination) !== destination) {
+        throw new Error('Windows kept the original filename case. Rename to a different name first, then rename it again.')
+      }
       for (const file of [...this.files]) {
         if (isWithin(path, file)) {
           this.files.delete(file)
@@ -396,7 +444,11 @@ export class WorkspaceFiles {
   trash(value: unknown, confirm: (path: string) => Promise<boolean>, moveToTrash: (path: string) => Promise<void>): Promise<boolean> {
     return this.serialize(async () => {
       const { path, stats } = await this.inspect(value)
-      if (path === this.root) throw new Error('Move the workspace folder to Trash from Finder after closing it.')
+      if (path === this.root) {
+        throw new Error(windows
+          ? 'Close the workspace before moving its folder to the Recycle Bin from File Explorer.'
+          : 'Move the workspace folder to Trash from Finder after closing it.')
+      }
       if (!await confirm(path)) return false
       const current = await this.inspect(path)
       if (revision(current.stats) !== revision(stats)) throw new Error('The selected item changed while confirming.')

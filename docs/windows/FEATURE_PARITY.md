@@ -7,6 +7,7 @@ Ion uses the same workbench and local data stores on both platforms. The table d
 | Workbench | Editing, tabs, explorer, autosave, recovery, local themes, shortcuts, and workspace search | Same features, with Ctrl-based shortcuts and a native Windows menu |
 | Standalone Run | C, C++, Java, Python, and JavaScript with local toolchains | Same language targets, with Windows tool discovery |
 | Interactive input | Pseudo-terminal for ordinary character input and resize events | Line input over pipes. Enter sends a line, Backspace edits it, Ctrl+C stops the program, and Ctrl+D or Ctrl+Z sends end-of-input. Raw keystrokes and terminal-size notifications are unavailable |
+| General-purpose Terminal | The user's local shell in a separate bottom-panel tab | Use an external shell for general commands. One-click Run Console remains available |
 | Maven and Gradle | Ion can run supported projects from the local build-tool cache | Run these build tools in a separate terminal |
 | Preview | Local web and Markdown, Jupyter, and read-only PDF, DOCX, XLSX, and CSV | Shared preview and notebook implementation. A local Python kernel is required for notebook execution |
 | PowerPoint | Static slide preview with a compatible LibreOffice installation and the macOS converter restrictions | Opens the original in its associated desktop app |

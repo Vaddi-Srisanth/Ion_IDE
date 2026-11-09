@@ -44,6 +44,7 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
         command('next-tab'), command('previous-tab'),
         { type: 'separator' },
         command('toggle-explorer'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
+        command('toggle-terminal'), command('focus-terminal'),
         command('toggle-document-split'), command('focus-document-split'),
         command('markdown-preview'), command('markdown-split'),
         { type: 'separator' }, { role: 'togglefullscreen' },

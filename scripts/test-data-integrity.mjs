@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, openFromExplorer,
@@ -8,6 +8,7 @@ import { artifact, atPath, close, createProject, editorShows, eventually, launch
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
+const selectAll = process.platform === 'darwin' ? 'Meta+a' : 'Control+a'
 
 await withScratch('data-integrity', async (scratch) => {
   const project = await createProject(join(scratch, 'workspace'))
@@ -33,7 +34,7 @@ await withScratch('data-integrity', async (scratch) => {
     await openFolder(page, project)
     await openFromExplorer(page, source, 'Original source')
     await page.locator('.monaco-editor .view-line').first().click()
-    await page.keyboard.press('Meta+a')
+    await page.keyboard.press(selectAll)
     await page.keyboard.insertText(buffer)
     await editorShows(page, buffer)
     await eventually(() => page.evaluate(async (text) => {
@@ -94,12 +95,20 @@ await withScratch('data-integrity', async (scratch) => {
   const originalRecent = join(project.directory, 'old recent.txt')
   const recentProfile = join(scratch, 'recent-profile')
   await mkdir(recentProfile)
-  await Promise.all([writeFile(privateFile, 'private'), symlink(privateFile, originalRecent)])
+  await writeFile(privateFile, 'private')
+  const linked = await symlink(privateFile, originalRecent, 'file').then(() => true, (error) => {
+    if (process.platform === 'win32' && error.code === 'EPERM') {
+      console.log('SKIP recent-file symbolic link: Windows account lacks symbolic-link privileges.')
+      return false
+    }
+    throw error
+  })
   await writeFile(join(recentProfile, 'preferences.json'), JSON.stringify({
     version: 1, settings: {}, recents: [{ path: originalRecent, name: 'old recent.txt', kind: 'file', lastOpened: 1 }],
   }))
-  const second = await launch(target, recentProfile)
-  try {
+  if (linked) {
+    const second = await launch(target, recentProfile)
+    try {
     const { page } = second
     await page.locator('.recent-entry').filter({ hasText: 'old recent.txt' }).click()
     await page.getByTestId('status').getByText(/local source path changed/i).waitFor()
@@ -109,8 +118,9 @@ await withScratch('data-integrity', async (scratch) => {
     }, privateFile)
     assert.equal(granted, false)
     console.log('PASS a recent file replaced with a symlink cannot grant access to another file')
-  } finally {
-    await close(second)
+    } finally {
+      await close(second)
+    }
   }
 
   const autosaveProfile = join(scratch, 'autosave-profile')
@@ -121,11 +131,15 @@ await withScratch('data-integrity', async (scratch) => {
     await stubDialogs(app, { folder: project.directory, save: join(project.directory, 'recovered edit.txt') })
     await openFolder(page, project)
     await openFromExplorer(page, source, replacement.trim())
-    // macOS can update an extended attribute without changing the file contents.
-    execFileSync('/usr/bin/xattr', ['-w', 'org.ion.test.autosave', 'metadata only', source])
+    if (process.platform === 'darwin') {
+      execFileSync('/usr/bin/xattr', ['-w', 'org.ion.test.autosave', 'metadata only', source])
+    } else {
+      const info = await stat(source)
+      await utimes(source, info.atime, new Date(info.mtimeMs + 2000))
+    }
     const replaceText = async (text) => {
       await page.locator('.monaco-editor .view-line').first().click()
-      await page.keyboard.press('Meta+a')
+      await page.keyboard.press(selectAll)
       await page.keyboard.insertText(text)
       await editorShows(page, text)
     }

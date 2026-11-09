@@ -1,0 +1,306 @@
+{
+  "schema": 2,
+  "id": "bash",
+  "name": "Bash",
+  "summary": "Write scripts that preserve filenames, inspect exit status, read lines, and manage temporary output.",
+  "version": 1,
+  "metadata": {
+    "kind": "language",
+    "categories": [
+      "automation",
+      "systems"
+    ],
+    "languageVersion": "Bash 3.2 or newer",
+    "prerequisites": [
+      "Know how to save a plain text file.",
+      "Run examples with bash lesson.sh from a terminal. The temporary-file example uses Unix mktemp, rm, and rmdir. Windows users need a Bash environment with these commands."
+    ],
+    "miniProject": "Build a reading-list report from a text file. Keep filenames quoted, skip blank or comment lines, and report a nonzero status for missing input. Test with a path that contains spaces.",
+    "references": [
+      {
+        "title": "GNU Bash manual: Quoting",
+        "url": "https://www.gnu.org/software/bash/manual/html_node/Quoting.html"
+      },
+      {
+        "title": "GNU Bash manual: Arrays",
+        "url": "https://www.gnu.org/software/bash/manual/html_node/Arrays.html"
+      },
+      {
+        "title": "GNU Bash manual: Bash Builtins",
+        "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html"
+      }
+    ],
+    "attribution": {
+      "author": "Ion IDE",
+      "license": "Project preview terms"
+    }
+  },
+  "lessons": [
+    {
+      "id": "quoting",
+      "title": "Quote paths and preserve arguments",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "Double quotes keep spaces in an expanded value together. Single quotes make the text inside them literal. In a script or function, \"$@\" expands to the original arguments as separate words.",
+      "example": "#!/usr/bin/env bash\nname='study notes.txt'\nset -- \"$name\" 'lab notes.txt'\nprintf 'count: %s\\n' \"$#\"\nfor argument in \"$@\"; do\n    printf '<%s>\\n' \"$argument\"\ndone",
+      "api": [
+        {
+          "name": "\"$@\"",
+          "description": "Forward every original argument without merging it with its neighbors."
+        },
+        {
+          "name": "\"$#\"",
+          "description": "Read the number of positional arguments."
+        },
+        {
+          "name": "printf",
+          "description": "Write values using an explicit format."
+        }
+      ],
+      "practice": "Set three arguments, including one with spaces and one containing an asterisk. Print each argument between brackets.",
+      "pitfall": "An unquoted expansion can split a filename into words and interpret glob characters.",
+      "expectedOutput": "count: 2\n<study notes.txt>\n<lab notes.txt>",
+      "keywords": [
+        "quoting",
+        "argument",
+        "word splitting",
+        "glob",
+        "printf"
+      ],
+      "prerequisites": [],
+      "related": [
+        "status",
+        "arrays"
+      ],
+      "references": [
+        {
+          "title": "GNU Bash manual: Quoting",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Quoting.html"
+        },
+        {
+          "title": "GNU Bash manual: Special Parameters",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Special-Parameters.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Preserve each argument exactly as written.",
+        "completion": "There are three output lines, and the asterisk remains a literal character."
+      },
+      "exampleFile": "lesson.sh",
+      "exampleMode": "program"
+    },
+    {
+      "id": "status",
+      "title": "Exit status, tests, and functions",
+      "section": "Syntax",
+      "difficulty": "beginner",
+      "explanation": "A command reports zero for success and a nonzero status otherwise. The if condition executes a command and inspects that status. A shell function can use return to send a status to its caller.",
+      "example": "#!/usr/bin/env bash\nreport() {\n    if [ \"$#\" -eq 0 ]; then\n        return 2\n    fi\n    printf 'ready: %s\\n' \"$1\"\n}\n\nreport 'study notes'\nif report; then\n    printf 'ready\\n'\nelse\n    printf 'status: %s\\n' \"$?\"\nfi",
+      "api": [
+        {
+          "name": "test / [ ]",
+          "description": "Check a condition. Leave spaces around the opening and closing tokens."
+        },
+        {
+          "name": "return",
+          "description": "Finish a function and set its status."
+        },
+        {
+          "name": "$?",
+          "description": "Read the status of the immediately preceding command."
+        }
+      ],
+      "practice": "Write a function that prints its first argument only if the argument contains text. Use status 2 otherwise.",
+      "pitfall": "Read $? before running another command. A later command replaces the status.",
+      "expectedOutput": "ready: study notes\nstatus: 2",
+      "keywords": [
+        "exit status",
+        "condition",
+        "test",
+        "function",
+        "return"
+      ],
+      "prerequisites": [
+        "quoting"
+      ],
+      "related": [
+        "lines"
+      ],
+      "references": [
+        {
+          "title": "GNU Bash manual: Exit Status",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html"
+        },
+        {
+          "title": "GNU Bash manual: Bash Builtins",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Distinguish valid input from a missing or empty first argument.",
+        "completion": "A nonempty argument prints once. Both no argument and an empty argument return status 2."
+      },
+      "exampleFile": "lesson.sh",
+      "exampleMode": "program"
+    },
+    {
+      "id": "arrays",
+      "title": "Keep filenames in an indexed array",
+      "section": "Core",
+      "difficulty": "beginner",
+      "explanation": "A Bash indexed array holds separate strings under numeric indices. Append elements with +=(...). Quote the all-elements expansion so every original value stays a separate argument.",
+      "example": "#!/usr/bin/env bash\ntasks=('read chapter' 'review notes')\ntasks+=('run samples')\nprintf 'tasks: %s\\n' \"${#tasks[@]}\"\nprintf '%s\\n' \"${tasks[@]}\"",
+      "api": [
+        {
+          "name": "array=(...)",
+          "description": "Create an indexed array with one element per quoted value."
+        },
+        {
+          "name": "array+=(...)",
+          "description": "Append elements to an indexed array."
+        },
+        {
+          "name": "${array[@]}",
+          "description": "Expand all indexed values. Put the expansion in double quotes."
+        }
+      ],
+      "practice": "Store two filenames, append a third, and print the first and last values separately.",
+      "pitfall": "Bash arrays are a Bash feature. Running the example as sh can fail.",
+      "expectedOutput": "tasks: 3\nread chapter\nreview notes\nrun samples",
+      "keywords": [
+        "indexed array",
+        "append",
+        "array expansion",
+        "filename"
+      ],
+      "prerequisites": [
+        "quoting"
+      ],
+      "related": [
+        "lines"
+      ],
+      "references": [
+        {
+          "title": "GNU Bash manual: Arrays",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Arrays.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Use an indexed array for filenames containing spaces.",
+        "completion": "Changing the filenames changes the printed values without splitting a path."
+      },
+      "exampleFile": "lesson.sh",
+      "exampleMode": "program"
+    },
+    {
+      "id": "lines",
+      "title": "Read complete lines safely",
+      "section": "Text processing",
+      "difficulty": "intermediate",
+      "explanation": "The read builtin stores input in a variable. IFS= keeps leading and trailing whitespace. The -r option preserves literal backslashes. Redirect the input to the loop when it should read a file or here-document.",
+      "example": "#!/usr/bin/env bash\nwhile IFS= read -r row; do\n    case \"$row\" in\n        ''|\\#*) continue ;;\n    esac\n    printf '<%s>\\n' \"$row\"\ndone <<'DATA'\n# examples\n  first item\npath\\example\n\nDATA",
+      "api": [
+        {
+          "name": "IFS= read -r",
+          "description": "Read one line without trimming whitespace or interpreting backslashes."
+        },
+        {
+          "name": "case",
+          "description": "Choose actions using shell patterns."
+        },
+        {
+          "name": "<<'DATA'",
+          "description": "Supply literal multi-line input with a quoted delimiter."
+        }
+      ],
+      "practice": "Skip blank and comment lines in a reading list. Print each remaining line with a number while preserving its spacing.",
+      "pitfall": "An unterminated last line can set the variable while read returns failure. Handle that case explicitly if your input may lack a final newline.",
+      "expectedOutput": "<  first item>\n<path\\example>",
+      "keywords": [
+        "read",
+        "IFS",
+        "case",
+        "here-document",
+        "whitespace"
+      ],
+      "prerequisites": [
+        "quoting",
+        "status"
+      ],
+      "related": [
+        "temporary-files"
+      ],
+      "references": [
+        {
+          "title": "GNU Bash manual: Bash Builtins",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html"
+        },
+        {
+          "title": "GNU Bash manual: Redirections",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Print a numbered list of data lines.",
+        "completion": "Comments and empty lines do not consume a number. A line beginning with two spaces retains them."
+      },
+      "exampleFile": "lesson.sh",
+      "exampleMode": "program"
+    },
+    {
+      "id": "temporary-files",
+      "title": "Create and clean up temporary output",
+      "section": "Reliability",
+      "difficulty": "intermediate",
+      "explanation": "A temporary directory gives each run its own output location. Check that creation succeeds. Register cleanup once you have the directory, then quote every use of the generated path.",
+      "example": "#!/usr/bin/env bash\nfolder=$(mktemp -d) || exit 1\ncleanup() {\n    if [ -f \"$folder/report.txt\" ]; then\n        rm -- \"$folder/report.txt\"\n    fi\n    rmdir -- \"$folder\"\n}\ntrap cleanup EXIT\n\nprintf 'items: 3\\n' > \"$folder/report.txt\" || exit 1\nwhile IFS= read -r line; do\n    printf 'report: %s\\n' \"$line\"\ndone < \"$folder/report.txt\"",
+      "api": [
+        {
+          "name": "$(command)",
+          "description": "Use the output of a command as a value."
+        },
+        {
+          "name": "trap cleanup EXIT",
+          "description": "Run a cleanup function when this shell exits."
+        },
+        {
+          "name": ">",
+          "description": "Open the destination for output, replacing its existing contents."
+        }
+      ],
+      "practice": "Write two report lines into a temporary file, read them back, and check that the directory disappears after the script exits.",
+      "pitfall": "A fixed path such as /tmp/report.txt can collide with another run. Give each run its own directory.",
+      "expectedOutput": "report: items: 3",
+      "keywords": [
+        "mktemp",
+        "trap",
+        "redirection",
+        "cleanup",
+        "temporary directory"
+      ],
+      "prerequisites": [
+        "status",
+        "lines"
+      ],
+      "related": [
+        "quoting"
+      ],
+      "references": [
+        {
+          "title": "GNU Bash manual: Bash Builtins",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html"
+        },
+        {
+          "title": "GNU Bash manual: Redirections",
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html"
+        }
+      ],
+      "exercise": {
+        "expected": "Keep temporary output private to the run and remove the files you created.",
+        "completion": "Two consecutive runs produce the same output and leave no temporary report files."
+      },
+      "exampleFile": "lesson.sh",
+      "exampleMode": "program"
+    }
+  ]
+}

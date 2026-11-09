@@ -32,7 +32,10 @@ interface Fixture {
 
 test('reviewed Apple Clang and GCC fixtures classify structured diagnostics conservatively', async () => {
   const cases = JSON.parse(await readFile(casesPath, 'utf8')) as Fixture[]
-  assert.equal(cases.length, 40)
+  const cPack = JSON.parse(await readFile(resolve('src/main/learning/catalog/c.json'), 'utf8')) as {
+    lessons: Array<{ id: string }>
+  }
+  assert.equal(cases.length, 50)
   const report = { classified: 0, correct: 0, incorrect: 0, abstained: 0, classifiedExpected: 0 }
   for (const item of cases) {
     const label = item.compiler + ' ' + item.id
@@ -49,6 +52,10 @@ test('reviewed Apple Clang and GCC fixtures classify structured diagnostics cons
     assert.ok(primary.location?.line && primary.location?.column, label)
     assert.ok(item.output.includes(primary.raw.split('\n')[0]), label)
     assert.equal(primary.category, item.expectedClassification ?? item.expected, label)
+    if (primary.category === 'format-argument-type') {
+      assert.ok(cPack.lessons.some(({ id }) => id === primary.packTopic), label)
+      assert.match(primary.guidance ?? '', /expected and actual types/, label)
+    }
     if (item.expected !== 'unclassified-compiler') report.classifiedExpected += 1
     if (primary.confidence === 'high') {
       assert.ok(primary.concepts.length > 0, label)
@@ -60,7 +67,31 @@ test('reviewed Apple Clang and GCC fixtures classify structured diagnostics cons
       report.abstained += 1
     }
   }
-  assert.deepEqual(report, { classified: 29, correct: 29, incorrect: 0, abstained: 11, classifiedExpected: 30 })
+  assert.deepEqual(report, { classified: 35, correct: 35, incorrect: 0, abstained: 15, classifiedExpected: 36 })
+})
+
+test('format guidance requires a matching compiler option and warnings do not enter error history', async () => {
+  const message = "/fixture.c:3:20: warning: format specifies type 'int' but the argument has type 'double'"
+  for (const compileOutput of [message, message + ' [-Wformat-security]']) {
+    const [diagnostic] = diagnose(run({ status: 'success', exitCode: 0, compileOutput }))
+    assert.equal(diagnostic.confidence, 'uncertain')
+    assert.equal(diagnostic.guidance, undefined)
+    assert.equal(diagnostic.raw, compileOutput)
+  }
+  const directory = await mkdtemp(join(tmpdir(), 'ion-learning-format-'))
+  try {
+    const service = new LearningService(join(directory, 'learning.json'), packs)
+    const feedback = await service.observe({
+      path: '/fixture.c', sourceHash: digest('format example'),
+      result: run({ status: 'success', exitCode: 0, compileOutput: message + ' [-Wformat]' }),
+    })
+    assert.equal(feedback.diagnostics[0].category, 'format-argument-type')
+    assert.equal(feedback.diagnostics[0].severity, 'warning')
+    assert.equal(feedback.diagnostics[0].occurrence, undefined)
+    assert.deepEqual((await service.getHistory()).categories, [])
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('missing locations and unrecognized diagnostics preserve the original compiler output', () => {

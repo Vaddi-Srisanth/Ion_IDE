@@ -3,7 +3,8 @@ import {
   diagnosticTitles, type ConceptId, type LearningBridge, type LearningConcept, type LearningDiagnostic,
   type LearningFeedback, type LearningHistory,
 } from '../../shared/learning'
-import type { LearningPacksBridge, PackLesson, PackLibrary, PackSummary, PackTopic } from '../../shared/learning-packs'
+import { diagnosticPackIds, type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
+  type PackReference, type PackSummary, type PackTopic } from '../../shared/learning-packs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 import './learning.css'
@@ -13,11 +14,13 @@ interface Props {
   feedback?: LearningFeedback
   packs: LearningPacksBridge
   library: PackLibrary | null
+  includeCatalog: boolean
   loadError?: string
   onRetry?(): void
   onLibraryChange(library: PackLibrary): void
   onMarketplace(): void
   onClose(): void
+  onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>) => void
 }
 
 type View = 'result' | 'topics' | 'history'
@@ -29,10 +32,11 @@ function locationLabel(location: LearningDiagnostic['location']): string {
   return name + ':' + location.line + (location.column ? ':' + location.column : '')
 }
 
-function Description({ diagnostic, encourage, onExplain }: {
+function Description({ diagnostic, encourage, onExplain, onLesson }: {
   diagnostic: LearningDiagnostic
   encourage: boolean
   onExplain(id: ConceptId): void
+  onLesson(id: string): void
 }) {
   const concept = diagnostic.concepts[0]
   const title = diagnosticTitles[diagnostic.category]
@@ -40,7 +44,8 @@ function Description({ diagnostic, encourage, onExplain }: {
     <section className="learning-diagnostic" data-testid="learning-diagnostic" data-category={diagnostic.category}>
       <h3>{title}</h3>
       <p className="learning-meta">
-        {diagnostic.compiler === 'unknown' ? 'C' : diagnostic.compiler === 'clang' ? 'Clang' : 'GCC'}
+        {({ clang: 'Clang', gcc: 'GCC', javac: 'javac', python: 'Python', node: 'Node.js' } as Record<string, string>)[diagnostic.compiler]
+          ?? 'Run output'}
         {' · '}{diagnostic.phase === 'runtime' ? 'runtime' : diagnostic.severity}
         {diagnostic.location && <> · {locationLabel(diagnostic.location)}</>}
       </p>
@@ -51,12 +56,16 @@ function Description({ diagnostic, encourage, onExplain }: {
       {diagnostic.confidence === 'uncertain' && (
         <p className="learning-copy">The available evidence does not point to a single concept. Start with the original message{diagnostic.location ? ' and the first location it reports.' : '.'}</p>
       )}
-      {concept && (
+      {diagnostic.guidance && <p className="learning-copy">{diagnostic.guidance}</p>}
+      {(concept || diagnostic.packTopic) && (
         <>
           {encourage && (
             <p className="learning-encouragement" data-testid="learning-encouragement">Keep going, you've got this. Want to revisit the concept?</p>
           )}
-          <button className="button" data-testid="learning-show-explanation" onClick={() => onExplain(concept)}>
+          <button className="button" data-testid="learning-show-explanation" onClick={() => {
+            if (diagnostic.packTopic) onLesson(diagnostic.packTopic)
+            else if (concept) onExplain(concept)
+          }}>
             {diagnostic.occurrence === 'repeated' ? 'Show Explanation Again' : 'Show Explanation'}
           </button>
         </>
@@ -93,14 +102,40 @@ function Concept({ concept, titles, onRead }: {
   )
 }
 
-function PackLessonReader({ packs, packId, topicId, onBack }: {
+function References({ references }: { references: PackReference[] }) {
+  const [error, setError] = useState<string>()
+  if (!references.length) return null
+  return <details className="learning-reference">
+    <summary>Online references</summary>
+    <ul>{references.map(({ title, url }) => <li key={url}>
+      <button type="button" className="button" title={url} onClick={() => {
+        setError(undefined)
+        void window.ion.markdown.openLink(null, url).catch((reason: unknown) => setError(errorMessage(reason)))
+      }}>{title}</button>
+    </li>)}</ul>
+    {error && <p role="alert" className="learning-error">{error}</p>}
+  </details>
+}
+
+function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise }: {
   packs: LearningPacksBridge
-  packId: string
+  pack: PackSummary
   topicId: string
+  topics: PackTopic[]
   onBack(): void
+  onTopic(id: string): void
+  onExercise: Props['onExercise']
 }) {
   const [lesson, setLesson] = useState<Load<PackLesson> | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string>()
+  const mounted = useRef(false)
   const back = useRef<HTMLButtonElement>(null)
+  const packId = pack.id
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   useEffect(() => { back.current?.focus() }, [])
   useEffect(() => {
     let active = true
@@ -110,17 +145,22 @@ function PackLessonReader({ packs, packId, topicId, onBack }: {
     )
     return () => { active = false }
   }, [packId, packs, topicId])
+  const showTopic = (id: string) => topics.find((topic) => topic.id === id)?.title ?? id
   return (
     <>
       <button ref={back} type="button" className="button learning-back" onClick={onBack}>Back to topics</button>
       {!lesson ? <p className="learning-copy" role="status">Opening lesson…</p>
         : 'error' in lesson ? <p className="learning-error" role="alert">{lesson.error}</p>
           : <article className="learning-concept learning-pack-lesson" data-testid="learning-pack-lesson" data-topic={lesson.value.id}>
-            <p className="learning-kicker">{lesson.value.section}</p>
+            <p className="learning-kicker">{lesson.value.section}{lesson.value.difficulty && ' · ' + lesson.value.difficulty}</p>
             <h3>{lesson.value.title}</h3>
+            {!!lesson.value.prerequisites?.length && <p className="learning-meta">Before this lesson, read {lesson.value.prerequisites.map(showTopic).join(', ')}.</p>}
             <p>{lesson.value.explanation}</p>
             <h4>Example</h4>
+            {lesson.value.exampleFile && <p className="learning-meta">{lesson.value.exampleFile}</p>}
             <pre><code>{lesson.value.example}</code></pre>
+            {lesson.value.expectedOutput && <details className="learning-reference"><summary>Expected example output</summary>
+              <pre>{lesson.value.expectedOutput}</pre></details>}
             {lesson.value.api.length > 0 && <>
               <h4>Key APIs and syntax</h4>
               <dl className="learning-api-list">
@@ -136,26 +176,51 @@ function PackLessonReader({ packs, packId, topicId, onBack }: {
             <div className="learning-exercise">
               <h4>Try it yourself</h4>
               <p>{lesson.value.practice}</p>
+              {lesson.value.exercise && <>
+                <h4>Expected behavior</h4><p>{lesson.value.exercise.expected}</p>
+                <h4>Completion criteria</h4><p>{lesson.value.exercise.completion}</p>
+                {!!lesson.value.exercise.samples?.length && <details>
+                  <summary>Sample inputs and outputs</summary>
+                  {lesson.value.exercise.samples.map(({ input, expectedOutput }, index) => <div key={index}>
+                    <p>Input {index + 1}</p><pre>{input || '(empty)'}</pre><p>Output</p><pre>{expectedOutput || '(empty)'}</pre>
+                  </div>)}
+                </details>}
+                {diagnosticPackIds.some((id) => id === packId) && <button className="button" type="button"
+                  data-testid="learning-start-exercise" disabled={starting} onClick={() => {
+                    setStarting(true)
+                    setStartError(undefined)
+                    void packs.startExercise(packId, topicId).then(
+                      (result) => { if (mounted.current) onExercise(result) },
+                      (reason: unknown) => { if (mounted.current) setStartError(errorMessage(reason)) },
+                    ).finally(() => { if (mounted.current) setStarting(false) })
+                  }}>{starting ? 'Opening Practice…' : 'Open in Practice'}</button>}
+                {startError && <p role="alert" className="learning-error">{startError}</p>}
+              </>}
             </div>
+            {!!lesson.value.related?.length && <><h4>Related lessons</h4><div className="learning-related">
+              {lesson.value.related.map((id) => <button className="button" key={id} onClick={() => onTopic(id)}>{showTopic(id)}</button>)}
+            </div></>}
+            <References references={lesson.value.references ?? []}/>
           </article>}
     </>
   )
 }
 
-function PackTopics({ packs, pack, topicId, onTopic }: {
+function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
   packs: LearningPacksBridge
   pack: PackSummary
   topicId: string | null
   onTopic(id: string | null): void
+  onExercise: Props['onExercise']
 }) {
-  const [topics, setTopics] = useState<Load<PackTopic[]> | null>(null)
+  const [details, setDetails] = useState<Load<PackDetails> | null>(null)
   const index = useRef<HTMLDivElement>(null)
   const previousTopic = useRef<string>(null)
   useEffect(() => {
     let active = true
-    void packs.getTopics(pack.id).then(
-      (value) => { if (active) setTopics({ value }) },
-      (reason: unknown) => { if (active) setTopics({ error: errorMessage(reason) }) },
+    void packs.getDetails(pack.id).then(
+      (value) => { if (active) setDetails({ value }) },
+      (reason: unknown) => { if (active) setDetails({ error: errorMessage(reason) }) },
     )
     return () => { active = false }
   }, [pack.id, packs])
@@ -164,12 +229,14 @@ function PackTopics({ packs, pack, topicId, onTopic }: {
     index.current?.querySelector<HTMLButtonElement>(`[data-topic="${CSS.escape(previousTopic.current)}"]`)?.focus()
     previousTopic.current = null
   }, [topicId])
-  if (topicId) return <PackLessonReader key={topicId} packs={packs} packId={pack.id} topicId={topicId} onBack={() => onTopic(null)}/>
-  if (!topics) return <p className="learning-copy" role="status">Opening topics…</p>
-  if ('error' in topics) return <p className="learning-error" role="alert">{topics.error}</p>
+  if (!details) return <p className="learning-copy" role="status">Opening topics…</p>
+  if ('error' in details) return <p className="learning-error" role="alert">{details.error}</p>
+  const { topics, prerequisites, references, miniProject } = details.value
+  if (topicId) return <PackLessonReader key={topicId} packs={packs} pack={pack} topicId={topicId} topics={topics}
+    onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise}/>
 
   const sections = new Map<string, PackTopic[]>()
-  for (const topic of topics.value) {
+  for (const topic of topics) {
     const group = sections.get(topic.section)
     if (group) group.push(topic)
     else sections.set(topic.section, [topic])
@@ -178,8 +245,10 @@ function PackTopics({ packs, pack, topicId, onTopic }: {
     <div ref={index}>
       <div className="learning-pack-intro">
         <h3>{pack.name}</h3>
-        <span>{topics.value.length} {topics.value.length === 1 ? 'topic' : 'topics'} · Available offline</span>
+        <span>{topics.length} {topics.length === 1 ? 'topic' : 'topics'} · Available offline</span>
       </div>
+      {!!prerequisites.length && <details className="learning-reference"><summary>Prerequisites</summary>
+        <ul>{prerequisites.map((item) => <li key={item}>{item}</li>)}</ul></details>}
       {[...sections].map(([section, items]) => <section className="learning-topic-section" key={section}>
         <h4>{section}</h4>
         <ul className="learning-topic-list">{items.map(({ id, title }) => (
@@ -187,11 +256,15 @@ function PackTopics({ packs, pack, topicId, onTopic }: {
             onClick={() => { previousTopic.current = id; onTopic(id) }}><span>{title}</span><Icon name="chevron" size={13}/></button></li>
         ))}</ul>
       </section>)}
+      {miniProject && <details className="learning-reference"><summary>Mini-project</summary><p>{miniProject}</p></details>}
+      <References references={references}/>
     </div>
   )
 }
 
-function DiagnosticResults({ bridge, feedback }: { bridge: LearningBridge; feedback?: LearningFeedback }) {
+function DiagnosticResults({ bridge, feedback, pack, onLesson }: {
+  bridge: LearningBridge; feedback?: LearningFeedback; pack: PackSummary; onLesson(id: string): void
+}) {
   const [reader, setReader] = useState<{ feedback: LearningFeedback | undefined; result: Load<LearningConcept> | null } | null>(null)
   const [titles, setTitles] = useState(() => new Map<ConceptId, string>())
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -234,7 +307,7 @@ function DiagnosticResults({ bridge, feedback }: { bridge: LearningBridge; feedb
   const diagnostics = feedback?.diagnostics.filter(({ severity }) => severity !== 'note') ?? []
   const firstErrors = diagnostics.filter(({ severity }) => severity === 'error' || severity === 'fatal error')
   const results = firstErrors.length > 0 ? firstErrors : diagnostics
-  const encourageIndex = results.findIndex(({ occurrence, concepts }) => occurrence === 'repeated' && concepts.length > 0)
+  const encourageIndex = results.findIndex(({ occurrence, concepts, packTopic }) => occurrence === 'repeated' && (concepts.length > 0 || packTopic))
   return <>
     {feedback?.historyUnavailable && <p className="learning-error" role="status">Local history is unavailable. You can still open explanations for this run.</p>}
     {feedback?.resolved.length ? (
@@ -245,11 +318,11 @@ function DiagnosticResults({ bridge, feedback }: { bridge: LearningBridge; feedb
     ) : null}
     {results.length ? results.slice(0, 8).map((diagnostic, index) => (
       <Description key={diagnostic.category + index} diagnostic={diagnostic} encourage={index === encourageIndex}
-        onExplain={(id) => void readConcept(id, 'viewed')}/>
+        onExplain={(id) => void readConcept(id, 'viewed')} onLesson={onLesson}/>
     )) : (
       <p className="learning-copy">{feedback
         ? 'This run did not produce a compiler or runtime diagnostic for this file.'
-        : 'Run a saved C file in Learn mode to see explanations for compiler or runtime diagnostics.'}</p>
+        : 'Run a saved ' + pack.name + ' file in Learn mode to see explanations for compiler or runtime diagnostics.'}</p>
     )}
     {results.length > 8 && <p className="learning-copy">See Output for the complete compiler messages.</p>}
   </>
@@ -349,40 +422,44 @@ function LearningNav({ view = 'topics', diagnostics = false, hasFeedback = false
   </nav>
 }
 
-function LanguageContent({ bridge, feedback, packs, pack }: {
+function LanguageContent({ bridge, feedback, packs, pack, onExercise }: {
   bridge: LearningBridge
   feedback?: LearningFeedback
   packs: LearningPacksBridge
   pack: PackSummary
+  onExercise: Props['onExercise']
 }) {
   const [view, setView] = useState<View>('topics')
   const [topicId, setTopicId] = useState<string | null>(null)
   const seenFeedback = useRef(feedback)
   const scroll = useRef<HTMLDivElement>(null)
-  const c = pack.id === 'c'
+  const diagnostics = Boolean(pack.diagnostics)
   const hasFeedback = Boolean(feedback?.diagnostics.length || feedback?.resolved.length)
 
   useEffect(() => {
-    if (!c || !feedback || seenFeedback.current === feedback) return
+    if (!diagnostics || !feedback || seenFeedback.current === feedback) return
     seenFeedback.current = feedback
     if (view === 'topics' && !topicId && hasFeedback) setView('result')
-  }, [c, feedback, hasFeedback, topicId, view])
+  }, [diagnostics, feedback, hasFeedback, topicId, view])
   useEffect(() => { scroll.current?.scrollTo(0, 0) }, [view])
 
   return <>
-    <LearningNav view={view} diagnostics={c} hasFeedback={hasFeedback} onSelect={(next) => {
+    <LearningNav view={view} diagnostics={diagnostics} hasFeedback={hasFeedback} onSelect={(next) => {
       if (next === 'topics') setTopicId(null)
       setView(next)
     }}/>
     <div ref={scroll} className="learning-scroll">
-      {view === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId}/>
-        : view === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback}/>
+      {view === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}/>
+        : view === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} onLesson={(id) => {
+          setTopicId(id)
+          setView('topics')
+        }}/>
           : <DiagnosticHistory bridge={bridge} feedback={feedback}/>}
     </div>
   </>
 }
 
-export function LearningPane({ bridge, feedback, packs, library, loadError, onRetry, onLibraryChange, onMarketplace, onClose }: Props) {
+export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, onRetry, onLibraryChange, onMarketplace, onClose, onExercise }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
@@ -392,7 +469,7 @@ export function LearningPane({ bridge, feedback, packs, library, loadError, onRe
     setError(null)
     setChanging(true)
     try {
-      onLibraryChange(await packs.select(id || null))
+      onLibraryChange(await packs.select(id || null, includeCatalog))
     } catch (reason) {
       setError(errorMessage(reason))
     } finally {
@@ -420,7 +497,7 @@ export function LearningPane({ bridge, feedback, packs, library, loadError, onRe
       </div>}
       {error && <p className="learning-error learning-language-error" role="alert">{error}</p>}
       {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
-        bridge={bridge} feedback={selected.id === 'c' ? feedback : undefined}/>
+        bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} onExercise={onExercise}/>
         : <>
           <LearningNav/>
           <div className="learning-scroll">

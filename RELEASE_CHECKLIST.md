@@ -5,10 +5,20 @@
 1. On a target Mac, install Node.js and npm, Xcode Command Line Tools, a JDK, Python 3, and Node.js for the language matrix. Run `npm ci`, then `npm run test:regression`. Retain the console results. With LibreOffice available, run `node scripts/test-paged-viewer.mjs --require-powerpoint`.
 2. Preserve the previous release's production bundles. Run `npm run test:workspaces -- --prepare-target <previous-dist> --target dist` to create a disposable profile with the older build and reopen it with the candidate. Check settings, recents, source files, learning history, practice attempts, and roadmap evidence.
 3. Run the matched extended process-tree benchmarks in [PERFORMANCE.md](PERFORMANCE.md) on the same Mac and power source. Use `npm run check:performance` with the report pair. Investigate a repeatable failure before packaging.
-4. Run `npm run package:dmg` and `node scripts/verify-mac-release.mjs`. Check app version, architecture, signing, disk image checksum, mounted launch, PTY, and recovery. Keep the previous installer available.
-5. Cross-build Windows setup with `npm run package:win`, then install and exercise the exact installer on a Windows x64 machine. [Native Windows checklist](docs/windows/KNOWN_ISSUES.md)
-6. Confirm the preview’s no-project-license terms, dependency notices, secret scan of the staged source and history, and CI status before publishing. Keep user profiles, logs, and installers out of Git history. Publish installer assets and checksums through GitHub Releases after the distribution checks. [Distribution notes](docs/DISTRIBUTION.md)
-7. Test the final artifacts on their target operating systems and document the signing status. The preview uses an ad-hoc-signed, unnotarized Mac build and unsigned Windows setup. For a signed production release, use Developer ID signing and Apple notarization on macOS and a publisher certificate for Windows.
+4. Run `npm run package:dmg` and `node scripts/verify-mac-release.mjs`. Check app version, architecture, signing, disk image checksum, mounted launch, PTY, and recovery. Use the Developer ID and notarization gate for trusted distribution. [Mac signing](docs/macos/SIGNING.md)
+5. Run `npm run package:win` and `npm run test:release:win` on a disposable native Windows x64 machine. For a signed release, verify the installed executable and the exact setup program. [Windows signing](docs/windows/SIGNING.md)
+6. Confirm the preview’s no-project-license terms, dependency notices, and a secret scan of the candidate source and reachable history. Keep user profiles, logs, and installers out of Git history. [Distribution notes](docs/DISTRIBUTION.md)
+7. Create the version tag from the tested commit. Require both native jobs to pass for that exact tag and SHA, then download the two installer artifacts and their JSON evidence from the same successful Actions run and attempt. A failed tag run remains a release blocker even if a branch run at the same commit passed.
+8. Verify the downloaded installers against the manifests before uploading. For example, from the repository with the matching tag available, substitute the tag and paths for the new release.
+
+   ```sh
+   tag=v0.9.4
+   commit=$(git rev-parse --verify "$tag^{commit}")
+   node scripts/release-evidence.mjs verify "$tag" "$commit" \
+     path/to/macos-installer.dmg.json path/to/windows-installer.exe.json > SHA256SUMS
+   ```
+
+   Each JSON file belongs beside its installer. Verify the run and attempt against the GitHub run page. Publish those exact bytes and the generated checksums through GitHub Releases, then confirm the published digests. For a correction, use a new version and tag so installed copies and the updater can identify it.
 
 ## 0.6.2 verification record
 
