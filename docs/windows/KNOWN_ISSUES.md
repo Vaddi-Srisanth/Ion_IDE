@@ -4,6 +4,7 @@ Windows x64 is a preview target. Packaging on macOS does not exercise Windows di
 
 - The setup is unsigned. A publisher warning may appear on download or launch. Administrator-managed policies can prevent installation.
 - On systems without usable ConPTY, Run Console shows its line-input fallback. Use an external terminal for programs that require raw keys or terminal dimensions in that environment.
+- The integrated Windows shell defaults to Command Prompt. Use Windows Terminal separately for PowerShell.
 - Windows PPTX opens in the system-associated application. Ion does not yet have an isolated Windows LibreOffice conversion path.
 - C and C++ Run uses GCC-compatible compiler drivers. Use an external developer shell for MSVC projects.
 - Windows ARM64 and Linux installers are outside this release.

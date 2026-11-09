@@ -98,12 +98,12 @@ await withScratch('windows-bench', async (scratch) => {
         const input = page.getByTestId('terminal-input')
         await input.waitFor()
         const renderedShell = '[data-testid="terminal-pane"] .xterm-rows'
-        await (await page.waitForFunction((selector) => /PS .*?>/.test(document.querySelector(selector)?.textContent ?? ''),
+        await (await page.waitForFunction((selector) => /[a-z]:\\[^>]*>/i.test(document.querySelector(selector)?.textContent ?? ''),
           renderedShell, { timeout: 15_000 })).dispose()
         sample.terminal = await measure(session)
         const terminalChildren = children(sample.terminal.last)
         assert.ok(terminalChildren.some(({ name }) => /^ion-pty\.exe$/i.test(name)), 'Real Windows PTY helper is running.')
-        assert.ok(terminalChildren.some(({ name }) => /^powershell\.exe$/i.test(name)), 'System PowerShell is running.')
+        assert.ok(terminalChildren.some(({ name }) => /^cmd\.exe$/i.test(name)), 'System Command Prompt is running.')
         await page.getByTestId('terminal-close').click()
         await noChildren(session, idleChildren)
         sample.terminalClosed = await measure(session)

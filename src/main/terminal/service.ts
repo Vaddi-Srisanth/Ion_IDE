@@ -52,8 +52,6 @@ function shellEnvironment(shell: string): NodeJS.ProcessEnv {
 }
 
 async function windowsShell(cwd: string) {
-  const powershellHome = join(windowsSystemDirectory, 'WindowsPowerShell', 'v1.0')
-  const powershell = join(powershellHome, 'powershell.exe')
   const cmd = join(windowsSystemDirectory, 'cmd.exe')
   const paths = await workspaceSafeWindowsToolPaths(cwd)
   const environment = {
@@ -67,13 +65,8 @@ async function windowsShell(cwd: string) {
     HOMEPATH: process.env.HOMEPATH,
     USERNAME: process.env.USERNAME,
   }
-  if (await access(powershell, constants.X_OK).then(() => true, () => false)) {
-    // Use Windows PowerShell's own modules even when Ion was launched from PowerShell 7.
-    return { executable: powershell, args: ['-NoLogo', '-NoProfile'], environment: {
-      ...environment, PSModulePath: join(powershellHome, 'Modules'),
-    } }
-  }
-  return { executable: cmd, args: ['/D', '/Q'], environment }
+  // cmd's AutoRun registry entries can run arbitrary scripts in the current folder.
+  return { executable: cmd, args: ['/D'], environment }
 }
 
 function dimension(value: unknown): number {
