@@ -131,16 +131,27 @@ async function verifyTerminal(app, page, workspaceName) {
   const type = (command) => typeLine(pane.getByTestId('terminal-input'), command)
   const ipc = await app.evaluateHandle(({ ipcMain }) => {
     const channel = 'ion:terminal-input'
+    const ackChannel = 'ion:terminal-ack'
     const handlers = ipcMain._invokeHandlers
     const original = handlers?.get(channel)
+    const originalAck = handlers?.get(ackChannel)
     const writes = []
-    if (!original) return { available: false, writes, restore() {} }
+    const acks = []
+    if (!original || !originalAck) return { available: false, writes, acks, restore() {} }
     handlers.set(channel, (event, id, data) => {
       if (writes.length >= 32) writes.shift()
       writes.push(typeof data === 'string' ? data.slice(0, 256) : typeof data)
       return original(event, id, data)
     })
-    return { available: true, writes, restore() { handlers.set(channel, original) } }
+    handlers.set(ackChannel, (event, id, sequence) => {
+      if (acks.length >= 12) acks.shift()
+      acks.push(sequence)
+      return originalAck(event, id, sequence)
+    })
+    return { available: true, writes, acks, restore() {
+      handlers.set(channel, original)
+      handlers.set(ackChannel, originalAck)
+    } }
   })
   let keyboardWrites
   const diagnostics = await page.evaluateHandle(() => {
@@ -173,19 +184,22 @@ async function verifyTerminal(app, page, workspaceName) {
       const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
       return [...rows].some((row) => /^PS .+>/.test(row.textContent?.trim() ?? ''))
     }, undefined, { timeout: 15_000 })).dispose()
-    await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
-    const workspaceMarker = 'ION-WORKSPACE:' + workspaceName
-    try {
-      await terminalShows(page, workspaceMarker, 'terminal-pane')
-    } catch (error) {
-      keyboardWrites = await ipc.evaluate(({ available, writes }) => ({ available, writes }))
-      // Probe the same queued command with only a carriage return through the native bridge.
-      // The original keyboard assertion still fails if the probe succeeds.
-      const comparison = await page.evaluate((id) => window.ion.terminal.input(id, '\r'), first)
-        .then(() => terminalShows(page, workspaceMarker, 'terminal-pane', 2500))
-        .then(() => 'Direct carriage return submitted the queued command.', (reason) => String(reason))
-      throw new Error('Keyboard Enter did not submit the PowerShell command. ' + comparison, { cause: error })
+    async function expectCommand(command, marker) {
+      await type(command)
+      try {
+        await terminalShows(page, marker, 'terminal-pane')
+      } catch (error) {
+        keyboardWrites = await ipc.evaluate(({ available, writes, acks }) => ({ available, writes, acks }))
+        // Probe the same queued command with only a carriage return through the native bridge.
+        // The original keyboard assertion still fails if the probe succeeds.
+        const comparison = await page.evaluate((id) => window.ion.terminal.input(id, '\r'), first)
+          .then(() => terminalShows(page, marker, 'terminal-pane', 2500))
+          .then(() => 'Direct carriage return submitted the queued command.', (reason) => String(reason))
+        throw new Error('The PowerShell command did not produce ' + marker + '. ' + comparison, { cause: error })
+      }
     }
+    await expectCommand("[Console]::WriteLine(('ION-'+'PS-OK'))", 'ION-PS-OK')
+    await expectCommand("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))", 'ION-WORKSPACE:' + workspaceName)
     await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
     const pidHandle = await page.waitForFunction(() => {
       const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
@@ -220,9 +234,10 @@ async function verifyTerminal(app, page, workspaceName) {
     const observed = await diagnostics.evaluate(({ events, enter }) => ({
       events, enter,
       focus: document.activeElement?.getAttribute('data-testid'),
-      visible: document.querySelector('[data-testid="terminal-pane"]')?.textContent?.slice(-1600),
+      visible: [...document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')]
+        .map((row) => row.textContent).join('\n').slice(-1600),
     })).catch(() => null)
-    const writes = keyboardWrites ?? await ipc.evaluate(({ available, writes }) => ({ available, writes })).catch(() => null)
+    const writes = keyboardWrites ?? await ipc.evaluate(({ available, writes, acks }) => ({ available, writes, acks })).catch(() => null)
     throw new Error(`Windows Terminal verification failed. ${error.message} Observed: ${JSON.stringify({ ...observed, ipc: writes })}`, { cause: error })
   } finally {
     await diagnostics.evaluate(({ unsubscribe }) => unsubscribe()).catch(() => {})

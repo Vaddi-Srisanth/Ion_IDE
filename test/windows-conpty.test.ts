@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { stripVTControlCharacters } from 'node:util'
@@ -176,6 +176,12 @@ test('Windows terminal launches in the workspace and explicit close cleans up a 
   assert.equal(events.length, 0)
   terminal.attach(first.id)
   terminal.attach(second.id)
+  if (/powershell/i.test(first.title)) {
+    await terminal.input(first.id, "Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
+    await terminal.input(first.id, '\r')
+    await until(() => stripVTControlCharacters(output.get(first.id) ?? '').includes('ION-WORKSPACE:' + basename(workspace)),
+      'PowerShell did not print its active workspace through Write-Output and Split-Path.')
+  }
   const shellCommand = /powershell/i.test(first.title)
     ? '& "' + process.execPath + '" .\\job.cjs'
     : '"' + process.execPath + '" .\\job.cjs'

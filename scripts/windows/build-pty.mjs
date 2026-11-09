@@ -63,7 +63,9 @@ export async function buildWindowsPty(destination, arch) {
   try {
     await mkdir(dirname(destination), { recursive: true })
     await run('cl.exe', ['/nologo', '/std:c++17', '/O2', '/W4', '/EHsc', '/MT', '/DUNICODE', '/D_UNICODE',
-      resolve('src/main/run-console/pty-windows.cpp'), '/Fe:' + resolve(destination)], {
+      resolve('src/main/run-console/pty-windows.cpp'), '/Fe:' + resolve(destination),
+      // The parent supplies the three transport pipes. The helper itself needs no console host.
+      '/link', '/SUBSYSTEM:WINDOWS', '/ENTRY:wmainCRTStartup'], {
       ...quiet, cwd: scratch, env,
     })
     await requireX64Executable(destination)

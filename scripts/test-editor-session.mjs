@@ -31,13 +31,14 @@ async function launchSession(profile) {
 }
 
 async function quitWithDrafts(session, action) {
+  const process = session.app.process()
   const quitting = close(session)
   const settled = quitting.catch(() => undefined)
   try {
     const prompt = session.page.getByRole('dialog', { name: 'Unsaved changes' })
     await prompt.getByRole('button', { name: action, exact: true }).click()
     await quitting
-    assert.equal(session.app.process().exitCode, 0, 'Graceful session quit exited cleanly.')
+    assert.equal(process.exitCode, 0, 'Graceful session quit exited cleanly.')
   } catch (error) {
     throw new Error('The editor session could not quit using ' + action + '.', { cause: error })
   } finally {
