@@ -149,7 +149,7 @@ test('Windows ConPTY bounds busy program output and execution time', { skip, tim
 
 test('Windows terminal launches in the workspace and explicit close cleans up a detached child', { skip, timeout: 30_000 }, async (t) => {
   await access(helper)
-  const workspace = await mkdtemp(join(tmpdir(), 'ion shell λ '))
+  const workspace = await mkdtemp(join(tmpdir(), 'ion shell '))
   const script = join(workspace, 'job.cjs')
   await writeFile(script, String.raw`
     const { spawn } = require('node:child_process');
@@ -170,17 +170,19 @@ test('Windows terminal launches in the workspace and explicit close cleans up a 
     await rm(workspace, { force: true, recursive: true })
   })
   const first = await terminal.create(workspace, 100, 30)
-  assert.match(first.title, /^(?:powershell|cmd)\.exe$/i)
+  assert.match(first.title, /^cmd\.exe$/i)
   const second = await terminal.create(workspace, 100, 30)
   assert.notEqual(first.id, second.id)
   assert.equal(events.length, 0)
   terminal.attach(first.id)
   terminal.attach(second.id)
-  const shellCommand = /powershell/i.test(first.title)
-    ? '& "' + process.execPath + '" .\\job.cjs'
-    : '"' + process.execPath + '" .\\job.cjs'
-  await terminal.input(first.id, shellCommand)
-  await until(() => stripVTControlCharacters(output.get(first.id) ?? '').includes('job.cjs'), 'Shell did not echo the command.')
+  await terminal.input(first.id, 'echo ION-WORKSPACE:%CD%')
+  await terminal.input(first.id, '\r')
+  await until(() => stripVTControlCharacters(output.get(first.id) ?? '').toLowerCase()
+    .includes(('ION-WORKSPACE:' + workspace).toLowerCase()), 'Command Prompt did not print its active workspace.')
+  await terminal.input(first.id, 'dir /b *.cjs\r')
+  await until(() => stripVTControlCharacters(output.get(first.id) ?? '').includes('job.cjs'), 'Command Prompt did not list the fixture.')
+  await terminal.input(first.id, '"' + process.execPath + '" .\\job.cjs')
   await terminal.input(first.id, '\r')
   const child = await until(() => {
     const match = /ION_JOB:(\d+)/.exec(stripVTControlCharacters(output.get(first.id) ?? ''))

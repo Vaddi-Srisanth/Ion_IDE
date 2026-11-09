@@ -1,6 +1,6 @@
 # Ion IDE 0.9.5 Windows release readiness
 
-**Verdict: Windows x64 test preview. Hold the public 0.9.5 release while the integrated PowerShell command path and retail Windows checklist are open.** The public download remains 0.9.4. This candidate uses the shared Electron app and local data stores.
+**Windows x64 test preview.** Hold the public 0.9.5 release pending the retail Windows checklist. The public download remains 0.9.4. This candidate uses the shared Electron app and local data stores.
 
 ## Windows evidence
 
@@ -8,33 +8,44 @@
 | --- | --- |
 | Toolchains | Hosted Windows x64 compiled and ran real C and C++ with MinGW-w64. A JDK compiled packaged Java, multiple source files and a local JAR. Windows Maven and Gradle compiled and launched real applications in offline mode using local caches. CI populated the Maven cache before the offline run. [Native toolchain run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674160987) |
 | Workspace files | Native Windows tests covered Unicode, case-only rename, case-alias Save As with confirmation, paths longer than 260 characters, junction escapes, device names, alternate streams, and concurrent sharing locks. Both transient retries and external changes were exercised. [Native filesystem run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674160987) |
-| Run Console and Terminal | The published foundation passed line-based JavaScript input, rerun, and Stop. The candidate adds on-demand ConPTY with a Windows Job Object and retains a labeled fallback when ConPTY is unavailable. The first ConPTY suite exposed interactive input and output failures. After correcting inherited console handles, native Ctrl+C, output and time limits, detached-child cleanup, and labeled fallback passed. Input and Unicode arguments also reached the program. The resize fixture read Node’s cached terminal dimensions. Native measurement of the requested size and GUI PowerShell command submission are separate release checks. [Revised helper run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42676915651) [Published foundation run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42670896874) · [Initial ConPTY run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674798317) |
+| Run Console and Terminal | The published foundation passed line-based JavaScript input, rerun, and Stop. The candidate adds on-demand ConPTY with a Windows Job Object and retains a labeled fallback when ConPTY is unavailable. The first ConPTY suite exposed interactive input and output failures. After correcting inherited console handles, native Ctrl+C, output and time limits, detached-child cleanup, and labeled fallback passed. Input and Unicode arguments also reached the program. A subsequent native run passed all five ConPTY tests, including native resize, Unicode arguments, raw input, processed Ctrl+C, limits and child cleanup. Windows PowerShell 5.1 accepted keyboard input but stalled during an ordinary pipeline, including in a native test without the UI. The preview now uses system Command Prompt with AutoRun disabled. Use Windows Terminal separately for PowerShell workflows. [ConPTY evidence](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42678474698/job/129366200087) [Revised helper run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42676915651) [Published foundation run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42670896874) · [Initial ConPTY run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674798317) |
 | Editing and recovery | The native Windows desktop passed external conflict protection, autosave, retained dirty edits, renderer crash, forced application exit, detached draft recovery, and deliberate discard. The installed app passed workspace search, editing, saving and reopening. [Native candidate tests](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853) |
 | Viewers and workspaces | The production desktop smoke covers PDF search and split view, DOCX tables, quoted CSV, XLSX sheet selection, Markdown, saved Jupyter content, the PowerPoint external-open route, and Learn and Projects with the renderer offline. This passed on native Windows. The same suite verified a trusted Unicode file drop and rejection of a page-generated drop. [Native candidate tests](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853) |
 | Installation and upgrade | Native Windows passed setup, upgrading from the actual published 0.9.4 installer, Start shortcut, version metadata, included PTY, Open With registration, opening a Unicode file in the existing instance, offline edit/save, and uninstall with preserved preferences and files. [Installer job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853/job/129362703856) |
 | macOS regression | Hosted Apple Silicon passed the full desktop regression and mounted disk-image smoke, including bundled PTY, local search, offline viewers and crash recovery. [macOS job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853/job/129362703898) |
 | Signing | No Authenticode signing identity was available for this preview. Windows may show a publisher or reputation warning or block it under policy. The build supports signing and verifying the app, setup and its first-party PTY helper when an appropriate identity is provisioned. [Signing guide](docs/windows/SIGNING.md) |
 
-Native Windows desktop automation verified all five one-click toolchains, including real C compiler errors, packaged Java sources and interactive Node and Python input. The same run exercised PowerShell process launch. Its keyboard-submission check remains open. Hosted tests are recorded separately from manual retail verification. [Windows desktop job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853/job/129362703248)
+Native Windows desktop automation verified all five one-click toolchains, including real C compiler errors, packaged Java sources and interactive Node and Python input. The earlier native test confirmed shell launch and console input. The final candidate uses Command Prompt for the Windows shell. Hosted tests are separate from manual retail verification. [Windows desktop job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853/job/129362703248)
 
 ## Native Windows performance
 
-The comparison reference is the 0.9.4 foundation at `7767e311` with the same benchmark harness. It ran on GitHub’s Windows Server 2025 x64 image, build 26100, an AMD EPYC 9V45 host with about 16 GiB of visible RAM. Each sample series used three production launches with distinct profiles, three warm launches reusing those profiles, and roughly three-second CPU windows per stage. The fixture has one C source and nine text tabs, a 1,000-file tree expanded six folders, a two-page PDF, and a waiting Node process. Fresh-profile startup includes automation and retains OS filesystem caches. [Baseline logs and raw samples](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674502931)
+The matched comparison ran both production builds on the same GitHub-hosted Windows Server 2025 x64 VM, build 26100, with an AMD EPYC 7763 processor and about 16 GiB visible RAM. The baseline was the 0.9.4 foundation at `7767e311`. The 0.9.5 build included the native helper optimization and still used PowerShell for the shell workload. Each build had three fresh-profile and three warm launches. The candidate ran first. Fresh-profile launch includes automation and retains OS filesystem caches. The fixture used one C source and nine text tabs, a 1,000-file tree expanded six folders, a two-page PDF, and a waiting Node process. [Matched run and raw samples](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42678965800)
 
-| Stage, median | 0.9.4 summed working set | 0.9.4 private bytes | 0.9.4 CPU, % of one core |
+| Stage, median | 0.9.4 working set / private bytes | 0.9.5 working set / private bytes | CPU, baseline → candidate |
 | --- | ---: | ---: | ---: |
-| Idle Welcome | 298.7 MiB | 135.4 MiB | 0.00% |
-| One C file | 354.0 MiB | 180.8 MiB | 0.00% |
-| Ten tabs | 361.5 MiB | 184.2 MiB | 0.00% |
-| Medium project | 376.8 MiB | 201.8 MiB | 0.00% |
-| PDF open | 425.7 MiB | 232.1 MiB | 0.00% |
-| Run Console with waiting Node process | 466.9 MiB | 247.5 MiB | 0.00% |
+| Idle Welcome | 301.6 / 134.9 MiB | 298.7 / 137.2 MiB | 0.00% → 0.00% |
+| One C file | 353.4 / 179.0 MiB | 347.1 / 174.7 MiB | 0.00% → 0.45% |
+| Ten tabs | 365.4 / 187.1 MiB | 363.6 / 186.7 MiB | 0.00% → 0.46% |
+| Medium project | 379.4 / 203.6 MiB | 377.8 / 202.0 MiB | 0.00% → 0.00% |
+| PDF open | 431.6 / 234.6 MiB | 429.4 / 234.8 MiB | 0.00% → 0.00% |
+| Run Console with waiting Node process | 466.9 / 249.9 MiB | 474.2 / 254.4 MiB | 0.45% → 0.00% |
+| Integrated PowerShell after its first prompt | — | 480.5 / 271.7 MiB | 5.44% candidate |
+| After closing PowerShell | — | 388.7 / 208.4 MiB | 1.82% candidate |
 
-Baseline launch medians were **403 ms fresh-profile** and **265 ms warm**. Opening the first source took **237 ms**, and compiling C through visible output took **224 ms**. The baseline completed 35 iterations in 61 seconds, switching source tabs and building and running C each time. Private bytes after cleanup went from **226.9 to 231.7 MiB** over those samples.
+| Latency, median | 0.9.4 | 0.9.5 |
+| --- | ---: | ---: |
+| Fresh profile to Welcome | 545 ms | 621 ms |
+| Warm profile to Welcome | 419 ms | 418 ms |
+| First source file | 360 ms | 355 ms |
+| Compile C to visible output | 297 ms | 307 ms |
 
-Summed working set can count shared resident pages more than once. Private bytes count private committed virtual memory, some of which can be outside RAM. CPU is process CPU-time delta as a percentage of one logical core. A reported zero is below the resolution of the short sample. Windows measurements use the actual Electron PID, all discoverable descendants, and profile-owned helper processes. They cannot be equated with macOS RSS or attributed footprint. The short soak checks process reaping and catches obvious growth. It cannot establish memory bounds for a multi-hour session.
+The fresh-profile median was 75 ms slower in this three-trial comparison. One candidate C run took 2.94 seconds, compared with a 0.62-second maximum in the baseline. Warm launch was essentially unchanged. Treat startup changes as provisional because the baseline ran second on the same VM. Earlier independent VMs also gave a slower fresh-profile candidate, with host differences. [Earlier baseline](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674502931) · [Earlier candidate](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677995551)
 
-The first candidate run stalled at visible C output, so its benchmark did not complete. No before/after resource improvement is claimed from that run. [Initial candidate benchmark](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42674719290)
+Both builds completed 28 mixed tab and C-run iterations in about 61 seconds. The candidate’s private bytes ranged from 217.3 to 238.7 MiB and ended at 236.6 MiB. The baseline ranged from 211.0 to 243.6 MiB and ended at 217.1 MiB. All observed compiler and program processes exited after their runs. Closing the Terminal removed PowerShell, the helper, and its console host in all three trials. The short soak can catch obvious growth. A multi-hour retail test is still needed.
+
+Profiling the first candidate exposed a second console host for the native transport, about 6.7 MiB working set and 1.2 MiB private bytes. The optimized helper uses a Windows subsystem executable because Ion supplies its transport streams. The matched run confirmed one console host per live session instead of two. PowerShell and the other native terminal processes together used a median 83.3 MiB working set and 58.7 MiB private bytes.
+
+Summed working set can count shared resident pages more than once. Private bytes count private committed virtual memory, some of which can be outside RAM. CPU is a process-time delta as a percentage of one logical core over a roughly three-second window. Zero is below that window’s resolution. The PowerShell figures include activity shortly after startup or shutdown. An earlier candidate measured 0.00% after the prompt on a separate VM, so these samples do not establish sustained shell CPU use.
 
 To reproduce against a production build on Windows:
 
@@ -54,6 +65,10 @@ Use `--target` to point to another production build directory. Omit `--terminal`
 - Windows PowerPoint uses **Open in Default Application**. Headless LibreOffice does not isolate untrusted input from local files or the network. An isolated Windows converter requires a separate implementation and native escape tests. [Compatibility audit](WINDOWS_COMPATIBILITY_AUDIT.md)
 - One-click C/C++ expects a GCC-compatible compiler. MSVC and clang-cl projects require a separately configured developer shell. Some Windows GCC and JDK distributions have path-encoding limitations. Linux and native Windows ARM64 installers are outside this gate.
 - The installer checks for x64 Windows 10 or later. ConPTY requires Windows 10 version 1809 or later. The automated evidence is for Windows Server 2025 x64. Retail Windows 11 x64 and any Windows 10 release are separate qualification targets. [Microsoft ConPTY requirements](https://learn.microsoft.com/en-us/windows/console/createpseudoconsole)
+
+## Installer evidence
+
+The checksum-verified 0.9.5 test setup from source `81b9bf91c19c69bc358cf0669e659ca3ce9597b0` is **119,593,134 bytes**. Its SHA-256 is `eef24e7a324f607857d84be8011539701c5c84533502af0a621121ed328d1ae1`. This artifact predates the transport subsystem change. [Native installer artifact and manifest](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42677488853)
 
 ## Manual retail Windows release gate
 

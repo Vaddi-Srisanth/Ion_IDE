@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { artifact, close, editorShows, eventually, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { windowsProcessTree } from './windows/process-tree.mjs'
 
 const windowsInputFilename = 'verify-input λ.cjs'
 const pythonInputFilename = 'prompt λ.py'
@@ -125,112 +126,61 @@ async function verifyToolchains(page) {
   }
 }
 
-async function verifyTerminal(app, page, workspaceName) {
+async function verifyTerminal(session, workspace) {
+  const { page } = session
   const pane = page.getByTestId('terminal-pane')
   const selector = pane.getByTestId('terminal-session')
   const type = (command) => typeLine(pane.getByTestId('terminal-input'), command)
-  const ipc = await app.evaluateHandle(({ ipcMain }) => {
-    const channel = 'ion:terminal-input'
-    const handlers = ipcMain._invokeHandlers
-    const original = handlers?.get(channel)
-    const writes = []
-    if (!original) return { available: false, writes, restore() {} }
-    handlers.set(channel, (event, id, data) => {
-      if (writes.length >= 32) writes.shift()
-      writes.push(typeof data === 'string' ? data.slice(0, 256) : typeof data)
-      return original(event, id, data)
-    })
-    return { available: true, writes, restore() { handlers.set(channel, original) } }
-  })
-  let keyboardWrites
-  const diagnostics = await page.evaluateHandle(() => {
-    const events = []
-    const enter = []
-    const onKey = (event) => {
-      if (event.key !== 'Enter' || event.target?.getAttribute?.('data-testid') !== 'terminal-input') return
-      queueMicrotask(() => enter.push({
-        key: event.key, code: event.code, keyCode: event.keyCode, defaultPrevented: event.defaultPrevented,
-        composing: event.isComposing, trusted: event.isTrusted, alt: event.altKey, ctrl: event.ctrlKey,
-      }))
-    }
-    document.addEventListener('keydown', onKey, true)
-    const unlisten = window.ion.terminal.onEvent((event) => {
-      if (events.length >= 12) events.shift()
-      events.push(event.kind === 'data' ? { ...event, text: event.text.slice(0, 512) } : event)
-    })
-    return { events, enter, unsubscribe() {
-      document.removeEventListener('keydown', onKey, true)
-      unlisten()
-    } }
-  })
+  const shellPids = async () => {
+    const { members } = await windowsProcessTree(session)
+    const helpers = new Set(members.filter(({ name }) => /^ion-pty\.exe$/i.test(name)).map(({ pid }) => pid))
+    return members.filter(({ name, parent }) => /^cmd\.exe$/i.test(name) && helpers.has(parent)).map(({ pid }) => pid)
+  }
 
   try {
     await page.getByTestId('bottom-terminal-tab').click()
     await selector.waitFor()
-    assert.match(await selector.locator('option:checked').textContent(), /powershell\.exe/i)
+    assert.match(await selector.locator('option:checked').textContent(), /cmd\.exe/i)
     const first = await selector.inputValue()
-    await (await page.waitForFunction(() => {
-      const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
-      return [...rows].some((row) => /^PS .+>/.test(row.textContent?.trim() ?? ''))
-    }, undefined, { timeout: 15_000 })).dispose()
-    await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
-    const workspaceMarker = 'ION-WORKSPACE:' + workspaceName
-    try {
-      await terminalShows(page, workspaceMarker, 'terminal-pane')
-    } catch (error) {
-      keyboardWrites = await ipc.evaluate(({ available, writes }) => ({ available, writes }))
-      // Probe the same queued command with only a carriage return through the native bridge.
-      // The original keyboard assertion still fails if the probe succeeds.
-      const comparison = await page.evaluate((id) => window.ion.terminal.input(id, '\r'), first)
-        .then(() => terminalShows(page, workspaceMarker, 'terminal-pane', 2500))
-        .then(() => 'Direct carriage return submitted the queued command.', (reason) => String(reason))
-      throw new Error('Keyboard Enter did not submit the PowerShell command. ' + comparison, { cause: error })
-    }
-    await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
-    const pidHandle = await page.waitForFunction(() => {
-      const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
-      return Number([...rows].map((row) => /^ION-SHELL-PID:(\d+)$/.exec(row.textContent?.trim())?.[1]).find(Boolean))
-    })
-    let pid
-    try { pid = await pidHandle.jsonValue() } finally { await pidHandle.dispose() }
-    assert.ok(Number.isSafeInteger(pid) && pid > 0, 'PowerShell did not report its process ID.')
-    assert.doesNotThrow(() => process.kill(pid, 0))
+    await type('echo ION-WORKSPACE:%CD%')
+    await terminalShows(page, 'ION-WORKSPACE:' + workspace, 'terminal-pane')
+    await type('dir /b *.cpp')
+    await terminalShows(page, 'native.cpp', 'terminal-pane')
+    const pids = await shellPids()
+    assert.equal(pids.length, 1, 'The first terminal owns one real Command Prompt process.')
+    const [pid] = pids
 
     await pane.getByTestId('terminal-new').click()
     await eventually(async () => await selector.locator('option').count() === 2, 'Second terminal did not open.')
     const second = await selector.inputValue()
     assert.notEqual(first, second)
+    const both = await shellPids()
+    assert.equal(both.length, 2)
+    assert.ok(both.includes(pid))
+
     await selector.selectOption(first)
     await pane.getByTestId('terminal-hide').click()
     await pane.waitFor({ state: 'hidden' })
     assert.doesNotThrow(() => process.kill(pid, 0))
     await page.getByRole('button', { name: 'Toggle Console' }).click()
     assert.equal(await selector.inputValue(), first)
-    await terminalShows(page, 'ION-SHELL-PID:' + pid, 'terminal-pane')
+    await type('echo ION-RESUMED:%CD%')
+    await terminalShows(page, 'ION-RESUMED:' + workspace, 'terminal-pane')
     await pane.getByTestId('terminal-close').click()
     await eventually(() => {
       try { process.kill(pid, 0); return false } catch (error) {
         if (error.code !== 'ESRCH') throw error
         return true
       }
-    }, 'Closing the terminal did not release the PowerShell process.')
+    }, 'Closing the terminal did not release its Command Prompt process.')
     assert.equal(await selector.inputValue(), second)
     await pane.getByTestId('terminal-close').click()
+    await eventually(async () => (await shellPids()).length === 0, 'The remaining Command Prompt process did not close.')
   } catch (error) {
-    const observed = await diagnostics.evaluate(({ events, enter }) => ({
-      events, enter,
-      focus: document.activeElement?.getAttribute('data-testid'),
-      visible: document.querySelector('[data-testid="terminal-pane"]')?.textContent?.slice(-1600),
-    })).catch(() => null)
-    const writes = keyboardWrites ?? await ipc.evaluate(({ available, writes }) => ({ available, writes })).catch(() => null)
-    throw new Error(`Windows Terminal verification failed. ${error.message} Observed: ${JSON.stringify({ ...observed, ipc: writes })}`, { cause: error })
-  } finally {
-    await diagnostics.evaluate(({ unsubscribe }) => unsubscribe()).catch(() => {})
-    await diagnostics.dispose()
-    await ipc.evaluate(({ restore }) => restore()).catch(() => {})
-    await ipc.dispose()
+    const transcript = await pane.locator('.xterm-rows > div').allTextContents().catch(() => [])
+    throw new Error(`Windows Terminal verification failed. Transcript: ${JSON.stringify(transcript.join('\n').slice(-1600))}`, { cause: error })
   }
-  console.log('PASS PowerShell starts in the workspace, two sessions switch independently, and closing reaps the process.')
+  console.log('PASS Command Prompt runs workspace commands, two sessions switch independently, and closing reaps the shell.')
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -258,7 +208,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       await session.page.locator('.recent-entry').filter({ hasText: workspaceName }).click()
       await verifyWindowsConsole(session.page)
       await verifyToolchains(session.page)
-      await verifyTerminal(session.app, session.page, workspaceName)
+      await verifyTerminal(session, project)
     } finally {
       await close(session)
     }

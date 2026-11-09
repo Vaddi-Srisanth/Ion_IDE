@@ -370,8 +370,13 @@ if (values.edit) await withScratch('notebook-edit', async (scratch) => {
     assert.match(await recoveredTab.getByTestId('close-tab').getAttribute('class'), /\btab-dirty\b/)
     await restarted.getByTestId('save-file').click()
     await waitForFile(readFile, recoveredPath, recoveryMarker)
+    const savedRecovery = atPath(restarted, 'close-tab', recoveredPath)
+    await savedRecovery.waitFor()
+    await eventually(async () => !/\btab-dirty\b/.test(await savedRecovery.getAttribute('class') ?? ''),
+      'The recovered notebook did not acknowledge its completed save.')
     assert.equal(await readFile(path, 'utf8'), external)
     assert.deepEqual(JSON.parse(await readFile(recoveredPath, 'utf8')).metadata, originalNotebook.metadata)
+    await closeNotebook(restarted, recoveredPath)
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
     completed = true

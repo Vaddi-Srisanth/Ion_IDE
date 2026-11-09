@@ -109,15 +109,15 @@ await withScratch('data-integrity', async (scratch) => {
   if (linked) {
     const second = await launch(target, recentProfile)
     try {
-    const { page } = second
-    await page.locator('.recent-entry').filter({ hasText: 'old recent.txt' }).click()
-    await page.getByTestId('status').getByText(/local source path changed/i).waitFor()
-    assert.equal(await page.getByTestId('workspace').count(), 0)
-    const granted = await page.evaluate(async (path) => {
-      try { await window.ion.readFile(path); return true } catch { return false }
-    }, privateFile)
-    assert.equal(granted, false)
-    console.log('PASS a recent file replaced with a symlink cannot grant access to another file')
+      const { page } = second
+      await page.locator('.recent-entry').filter({ hasText: 'old recent.txt' }).click()
+      await page.getByTestId('status').getByText(/local source path changed/i).waitFor()
+      assert.equal(await page.getByTestId('workspace').count(), 0)
+      const granted = await page.evaluate(async (path) => {
+        try { await window.ion.readFile(path); return true } catch { return false }
+      }, privateFile)
+      assert.equal(granted, false)
+      console.log('PASS a recent file replaced with a symlink cannot grant access to another file')
     } finally {
       await close(second)
     }

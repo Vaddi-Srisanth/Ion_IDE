@@ -52,16 +52,21 @@ function shellEnvironment(shell: string): NodeJS.ProcessEnv {
 }
 
 async function windowsShell(cwd: string) {
-  const powershell = join(windowsSystemDirectory, 'WindowsPowerShell', 'v1.0', 'powershell.exe')
   const cmd = join(windowsSystemDirectory, 'cmd.exe')
   const paths = await workspaceSafeWindowsToolPaths(cwd)
   const environment = {
     ...windowsEnvironment(paths, tmpdir()), ComSpec: cmd, PATHEXT: '.COM;.EXE;.BAT;.CMD', TERM_PROGRAM: 'Ion',
+    ProgramFiles: process.env.ProgramFiles,
+    'ProgramFiles(x86)': process.env['ProgramFiles(x86)'],
+    ProgramW6432: process.env.ProgramW6432,
+    ProgramData: process.env.ProgramData,
+    SystemDrive: process.env.SystemDrive,
+    HOMEDRIVE: process.env.HOMEDRIVE,
+    HOMEPATH: process.env.HOMEPATH,
+    USERNAME: process.env.USERNAME,
   }
-  if (await access(powershell, constants.X_OK).then(() => true, () => false)) {
-    return { executable: powershell, args: ['-NoLogo', '-NoProfile'], environment }
-  }
-  return { executable: cmd, args: ['/D', '/Q'], environment }
+  // cmd's AutoRun registry entries can run arbitrary scripts in the current folder.
+  return { executable: cmd, args: ['/D'], environment }
 }
 
 function dimension(value: unknown): number {
