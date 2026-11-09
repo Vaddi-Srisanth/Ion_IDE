@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { EventEmitter, once } from 'node:events'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { InteractiveRunner } from '../src/main/run-console/engine'
@@ -53,26 +56,36 @@ test('pipe console stops running code on interrupt and bounds program output', {
 
 test('Windows Run Console stops the process tree', { skip: process.platform !== 'win32', timeout: 10_000 }, async (t) => {
   const controller = new AbortController()
-  t.after(() => controller.abort())
+  const cwd = await mkdtemp(join(tmpdir(), 'ion-line-stop-'))
+  t.after(async () => {
+    controller.abort()
+    await rm(cwd, { recursive: true, force: true })
+  })
   const events = new EventEmitter()
   const child = `
     const { spawn } = require('node:child_process');
     const worker = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'ignore', windowsHide: true });
-    worker.once('spawn', () => process.stdout.write(String(worker.pid) + '\\n'));
+    worker.once('spawn', () => process.stdout.write('ION_WORKER_PID:' + worker.pid + '\\n'));
     setInterval(() => {}, 1000);
   `
   let output = ''
-  const runner = new InteractiveRunner('unused', { compileMs: 5000, programMs: 5000, outputBytes: 4096 })
+  const runner = new InteractiveRunner(join(cwd, 'missing-ion-pty.exe'), { compileMs: 5000, programMs: 5000, outputBytes: 4096 })
   const running = runner.run({
-    cwd: process.cwd(), language: 'javascript', label: 'process tree test', toolchain: process.execPath,
+    cwd, language: 'javascript', label: 'process tree test', toolchain: process.execPath,
     run: { executable: process.execPath, args: ['-e', child], environment },
   }, (event) => {
     if (event.kind !== 'data') return
     output += event.text
-    if (/^\d+\r?\n/.test(output)) events.emit('pid', Number.parseInt(output, 10))
+    const pid = /ION_WORKER_PID:(\d+)\r?\n/.exec(output)?.[1]
+    if (pid) events.emit('pid', Number(pid))
   }, controller.signal)
-  const [pid] = await once(events, 'pid') as [number]
+  const pid = await Promise.race([
+    once(events, 'pid').then(([pid]) => Number(pid)),
+    running.then((result) => assert.fail(`Worker did not start (${result.status}): ${output}`)),
+  ])
   try {
+    assert.match(output, /Using line input/)
+    assert.doesNotThrow(() => process.kill(pid, 0), 'The worker is alive before cancellation.')
     controller.abort()
     assert.equal((await running).status, 'cancelled')
     for (let attempt = 0; attempt < 20; attempt++) {
