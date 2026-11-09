@@ -13,7 +13,7 @@ These milestones describe product scope. The current package uses its own releas
 
 - Preserve the implemented C concept library, recognized GCC and Clang diagnostics, repetition tracking across distinct source revisions, and local history. Keep raw diagnostics visible when categorization is uncertain.
 - Expand the C diagnostic corpus with representative compiler versions and keep the optional panel and history usable during a real edit, compile, and correction loop. Verify that repeated identical runs leave the repetition count unchanged.
-- Offer individually installable offline lessons through Marketplace. Ion 0.8.0 ships 11 packs covering core syntax, APIs, examples, and exercises. Language-specific diagnostic mapping beyond C needs a separate verified corpus.
+- Maintain the 19 individually installable offline packs and their syntax guides, API examples, and exercises. Extend the reviewed diagnostic corpus for C, C++, Java, Python, and JavaScript as new toolchain output is verified. Learning Lens currently uses the C single-file workflow.
 
 ## Release 0.3 — Project Intelligence
 

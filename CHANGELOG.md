@@ -1,12 +1,19 @@
 # Changelog
 
-## 0.9.4 release preparation
+## 0.9.5 source candidate
+
+- Added Learning Lens for recognized C compiler errors. Open an explanation from Problems, jump to the corresponding source highlight, revisit the explanation after a meaningful retry, and see when a successful compile resolves the error. Ion keeps the original compiler message and lets you turn the Lens off. [Candidate notes](docs/releases/0.9.5.md) · [Performance measurements](PERFORMANCE.md#learning-lens)
+- Expanded the offline Learning Marketplace to 19 packs and 162 lessons. Added practice exercises with sample tests for supported languages and refined reviewed diagnostic explanations for C, C++, Java, Python, and JavaScript. [Learning packs](docs/LEARNING_PACKS.md)
+- Added a general-purpose Terminal alongside the Run Console. Verified zsh on macOS and Command Prompt on hosted Windows x64 before Learning Lens. Shell sessions start on demand and keep running when you hide the panel. [Terminal measurements](PERFORMANCE.md#integrated-terminal-on-macos)
+- Added explicit multi-file C and C++ builds and launchers for offline Windows Maven and Gradle projects with local toolchains and dependencies. Hardened Windows file saves, recovery, and Open With handling. [Windows verification](WINDOWS_RELEASE_READINESS.md)
+
+## 0.9.4 public preview
 
 - Added a Windows x64 installer target and Windows-specific toolchain discovery, line input, and process cleanup. [Platform comparison](docs/windows/FEATURE_PARITY.md) · [Native CI](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/workflows/desktop-build.yml)
 - Hardened the macOS terminal helper against losing unread output when a short program exits.
 - Added an Updates panel for checking GitHub Releases, verifying installer downloads, and revealing the downloaded file. Checking at launch is opt-in.
 - Updated the bundled DOMPurify sanitizer to 3.4.17 and included the Monaco and DOMPurify notices in production builds.
-- Updated Welcome to describe the local runner accurately. Added installer, development, testing, and security reporting instructions. [Release notes](docs/releases/0.9.4.md)
+- Updated Welcome to describe the local runner accurately. Added installer, development, testing, and security reporting instructions. [Public release and downloads](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.4) · [Release notes](docs/releases/0.9.4.md)
 
 ## 0.9.4 editor reliability
 

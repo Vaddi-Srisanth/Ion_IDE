@@ -3,13 +3,15 @@
 Windows x64 is a preview target. Packaging on macOS does not exercise Windows dialogs, file semantics, process cleanup, or toolchains.
 
 - The setup is unsigned. A publisher warning may appear on download or launch. Administrator-managed policies can prevent installation.
-- Run uses line-based interactive input. Programs that depend on a terminal, raw keys, or resize notifications may need a separate terminal.
-- Integrated Java Maven and Gradle builds, and in-app PowerPoint slide rendering, are macOS features. Windows has separate terminal and default application workflows.
+- On systems without usable ConPTY, Run Console shows its line-input fallback. Use an external terminal for programs that require raw keys or terminal dimensions in that environment.
+- The integrated Windows shell defaults to Command Prompt. Use Windows Terminal separately for PowerShell.
+- Windows PPTX opens in the system-associated application. Ion does not yet have an isolated Windows LibreOffice conversion path.
+- C and C++ Run uses GCC-compatible compiler drivers. Use an external developer shell for MSVC projects.
 - Windows ARM64 and Linux installers are outside this release.
 
 ## Native Windows release checklist
 
-The repository’s [Windows CI job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/workflows/desktop-build.yml) checks installation, offline editing, and uninstallation using the installer. It separately runs interactive JavaScript in a native production build with only the approval dialog substituted in the test harness. The native **Run Program** approval click and the remaining toolchain and viewer matrix need manual testing.
+The [candidate readiness report](../../WINDOWS_RELEASE_READINESS.md) records native CI results and the checks still needed on retail Windows.
 
 - [ ] On Windows x64, download the final setup, check its checksum, install it as an ordinary user, launch from Start, and check that preferences remain intact after upgrading and uninstalling.
 - [ ] Open and save a file in a path containing spaces and Unicode. Check external-edit protection, checkpoint recovery, session resume, and workspace search.

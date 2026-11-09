@@ -1,5 +1,120 @@
 # Performance
 
+Paths under `performance-results/` refer to local benchmark outputs and logs. Reproduction commands are listed with the relevant workloads.
+
+## Learning Lens
+
+The baseline is the production worktree build immediately before Learning Lens. Both builds used Electron 45.2.3 on the same Apple M3 with 24 GiB RAM and macOS 27.2 (26B123). The benchmark interleaves three fresh-profile launches of each build. It installs and selects the C pack locally, opens one C file, verifies four real compiler failures per launch, opens the same explanation, types twelve characters, and closes Learn. The renderer runs offline and the script checks for outbound requests. Each memory sample follows a 500 ms settle and a 1.5-second CPU window. The OS file cache is left intact.
+
+| Median | Before | Learning Lens |
+| --- | ---: | ---: |
+| Fresh profile to Welcome | 405.3 ms | 399.6 ms |
+| Welcome process-tree RSS | 439.6 MiB | 436.7 MiB |
+| Learn and editor open, before first run | 520.0 MiB | 517.0 MiB |
+| Compiler error and explanation open | 540.1 MiB | 540.8 MiB |
+| After closing Learn | 545.3 MiB | 547.1 MiB |
+| CPU with explanation open, % of one logical core | 0.00% | 0.65% |
+| Keydown to second animation callback, 36 keys per build | 32.0 ms | 31.5 ms |
+| Run click to verified compiler feedback, 12 runs per build | 127.8 ms | 121.7 ms |
+| Production payload before Electron packaging | 13,979,729 B | 13,998,088 B |
+
+With the explanation open, the observed ranges were 539.0–542.7 MiB before and 539.7–542.3 MiB after. Typing ranged from 25.9–32.4 ms before and 20.0–32.4 ms after. These samples do not establish a speedup or long-session memory behavior. RSS sums the app and its helpers and can count shared pages more than once. The keyboard measurement is a Chromium frame-callback proxy. Native input-to-display latency, GPU utilization, OS-cache-cold and warm launches, and a native Windows before/after series are outside this run. The release job is configured to run the Windows desktop smoke.
+
+No new dependencies or background services were added. Problems and marker updates use the bounded last compiler result. Source tokens are compared only after a recognized C compile failure when the compiled bytes still match. Lessons load on demand. The original editor model and undo stack remain in place.
+
+```sh
+npm run bench:learning-lens -- --compare <preserved-production-dist> --target dist --out performance-results/learning-lens/matched.json
+```
+
+Raw samples are in `performance-results/learning-lens/matched.json`. Use `npm run test:learning-lens` against a production build to exercise the native desktop workflow.
+
+The macOS regression suite passed with 150 automated cases and 12 platform or opt-in skips. The Apple Silicon disk image was staged outside the synced workspace to avoid Finder metadata on the signed bundle. The delivered 125,091,328-byte image passed its checksum, strict signature verification, and mounted offline smoke test.
+
+## Windows x64
+
+Run `node scripts/benchmark-windows.mjs --label candidate --terminal` against a production build on Windows. The harness measures the actual Electron process tree, including native child processes, with separate working-set, private-byte, and CPU figures. It samples fresh and warm startup, one file, ten tabs, a medium project, PDF, Run Console, Terminal, and cleanup after repeated runs. The [Windows release report](WINDOWS_RELEASE_READINESS.md) records the native measurements, hardware, and protocol limits.
+
+## Adoption changes
+
+The baseline was a preserved production build with Marketplace 2.0 and Terminal already present. The final candidate added the durable update preference, explicit C/C++ project builds, and the reviewed C diagnostic rule. Both ran on Apple M3, 24 GiB, macOS 27.2 (26B123), Electron 45.2.3, and battery power. Each used five fresh and five warm launches, ten seconds of idle, the same saved source fixtures, six panel cycles, six native executions, and twelve mixed editing and run rounds. OS caches were left intact.
+
+| Measure | Baseline | Final local build |
+| --- | ---: | ---: |
+| Fresh / warm Welcome, median ms | 388.30 / 380.79 | 393.58 / 414.77 |
+| Welcome idle CPU, % of one core | 0.32 | 0.26 |
+| Welcome idle RSS / footprint, MiB | 433.63 / 126.57 | 422.06 / 123.69 |
+| One C file RSS / footprint, MiB | 518.30 / 334.50 | 507.30 / 333.15 |
+| Ten tabs RSS / footprint, MiB | 534.55 / 366.77 | 522.67 / 363.83 |
+| Medium project RSS / footprint, MiB | 563.31 / 390.08 | 551.55 / 392.74 |
+| Typing to second animation callback, median ms | 31.85 | 31.75 |
+| Rotating tab switch, median ms | 49.96 | 49.99 |
+| Short C Run / Stop, median ms | 198.17 / 52.54 | 190.74 / 57.00 |
+| Mixed workload CPU, % of one core | 38.67 | 36.46 |
+
+All 32 enforced comparisons passed. Seven active-footprint comparisons remain advisory with one measured pair. Both builds reaped the app process tree and left zero native children at settled checkpoints. Median warm launch rose by 33.98 ms in this pair. An earlier short candidate attempt timed out on a fresh-process quit and completed on retry. Summed RSS can count shared mappings more than once. The measured differences describe these workloads and do not establish a durable memory reduction. Terminal overhead is measured separately below. The LLDB-DAP feasibility test introduced no debugger service to Ion.
+
+In a separate Mac desktop test, warm Run-to-result medians over three correct executions were 177.47 ms for a standalone C file, 182.29 ms for two configured C sources, and 457.60 ms for two configured C++ sources. The timings include compilation, the approval flow with the native dialog stubbed, and output rendering. The C and C++ fixtures are different programs. The test also covered cleanup, changes during approval, and failure without launching an older executable.
+
+```sh
+npm run bench:resources -- --target "$ION_BUILD" --label adoption \
+  --idle-seconds 10 --settle-ms 850 --launches 5 --cycles 6 --executions 6 --extended-rounds 12
+npm run check:performance -- --baseline-report baseline.json --candidate-report candidate.json
+npm run test:native-projects -- --measure
+```
+
+Baseline raw samples (`performance-results/resources-adoption-gate-baseline-2026-11-09T18-05-52.027Z.json`) · Final raw samples (`performance-results/resources-adoption-final-2026-11-09T18-10-56.899Z.json`) · Gate results (`performance-results/adoption-ci/final-performance-gate.log`)
+
+## Integrated Terminal on macOS
+
+Compared production builds before and after adding the integrated shell. Both used Electron 45.2.3 on an Apple M3 Mac with 24 GiB RAM and macOS 27.2 (26B123), on battery power. The benchmark ran three fresh disposable profiles per build with OS caches intact. It opened the same source file offline, then sampled the full process tree after a 1.2-second settle and again five seconds later. The candidate additionally opened one shell, opened a second, hid the panel, closed both, and ran eight more create-and-close cycles. The shells used isolated zsh startup files.
+
+| Workload | Shell and PTY helper processes | Summed RSS (MiB) | macOS footprint (MiB) | CPU (% of one core) |
+| --- | ---: | ---: | ---: | ---: |
+| Previous build, editor only | 0 | 513.77 | 202.04 | 1.64 |
+| Terminal build, before opening Terminal | 0 | 523.88 | 207.42 | 0.81 |
+| One idle shell visible | 2 | 538.36 | 227.56 | 1.20 |
+| Two idle shells, panel visible | 4 | 542.45 | 193.22 | 1.02 |
+| Two idle shells, panel hidden | 4 | 543.17 | 203.95 | 0.08 |
+| Both shells closed | 0 | 528.19 | 195.18 | 2.24 |
+| After eight more create-and-close cycles | 0 | 536.66 | 199.44 | 0.12 |
+
+Memory is the median of six samples per stage. Summed RSS can count shared mappings more than once. Footprint uses macOS per-process accounting. CPU is the median of three interval averages. The shell and PTY helper each used less than 0.01% of one core at every measured idle interval. The higher CPU reading just after closing both shells came from Electron processes.
+
+The candidate showed its first shell prompt in **117.50 ms** median. Fresh-profile time to Welcome was **390.64 ms** before and **417.41 ms** after. Startup samples ranged from 326 to 527 ms before and 387 to 542 ms after. These runs establish that no shell or xterm code loaded before the first console request. They leave the cause of the startup and editor-memory differences unresolved.
+
+Closing both sessions left **4.30 MiB** of median RSS above the candidate's initial editor idle reading. After eight additional cycles, closed RSS was **8.48 MiB** above the first closed stage and footprint was **4.27 MiB** above it. No shell or helper remained at either closed stage. These short runs measure process cleanup and remaining memory at the sampled points. Long-session memory behavior remains unmeasured.
+
+```sh
+npm run bench:terminal -- --mode baseline --target "$ION_BASELINE_BUILD"
+npm run build
+npm run bench:terminal -- --mode candidate
+```
+
+Raw baseline (`performance-results/terminal-baseline-2026-11-09T17-35-07.999Z.json`) · Raw candidate (`performance-results/terminal-candidate-2026-11-09T17-43-09.695Z.json`)
+
+## Marketplace 2.0 library scaling
+
+Measured on an Apple M3 Mac with 24 GiB RAM, macOS 27.2 (26B123), and Electron 45.2.3. The production benchmark launched a separate offline Ion session three times per library size. Each profile had the same 19 bundled listings and the stated number of installed synthetic packs, with 15 lessons per installed pack. Every session opened the same source file, measured it after one second of idle, opened Marketplace, searched for five packs, and closed Marketplace. The open sample settled for one second and the closed sample for three seconds. No network requests were observed.
+
+| Installed packs | Editor idle RSS / footprint (MiB) | Marketplace open RSS / footprint (MiB) | After close RSS / footprint (MiB) | Open median (ms) | Search median (ms) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | 503.02 / 318.38 | 509.45 / 351.49 | 507.36 / 248.69 | 55.78 | 5.38 |
+| 10 | 506.48 / 329.82 | 513.38 / 349.47 | 518.70 / 276.21 | 52.90 | 4.02 |
+| 25 | 502.56 / 321.58 | 509.36 / 343.96 | 507.48 / 244.47 | 50.53 | 4.49 |
+| 50 | 505.00 / 319.02 | 511.17 / 345.08 | 509.69 / 245.57 | 62.69 | 4.92 |
+| 100 | 504.14 / 320.07 | 518.55 / 346.52 | 523.14 / 246.65 | 52.86 | 4.43 |
+
+Memory values are medians across three runs, summed across the four-process Electron tree. RSS can count shared mappings more than once. Footprint uses the macOS process accounting API. The timing measures run from a sidebar click or input to the requested content appearing in the DOM. They include automation overhead. Search medians use 15 queries per size. The slowest observed open was 145.92 ms at 50 packs, and the slowest search was 67.02 ms at 100.
+
+The 100-pack editor-only median was 1.12 MiB higher in RSS and 1.69 MiB higher in footprint than the zero-pack run. The Marketplace chunk was unloaded before the sidebar opened. At 25, 50, and 100 installed packs the list rendered only a window of rows. After closing at 100 packs, median footprint dropped by 99.87 MiB from the open sample, while median RSS stayed 19.00 MiB above the initial idle sample. The measurements show considerable run-to-run variation in footprint. One open and close per process cannot establish long-session leak behavior.
+
+```sh
+npm run build
+npm run bench:marketplace
+```
+
+Raw macOS benchmark (`performance-results/learning-marketplace-2026-11-09T17-30-03.667Z.json`)
+
 ## 0.9.4 public preview check
 
 The final preview was compared with the earlier 0.9.4 editor build on the same Apple M3 Mac (24 GiB, macOS 27.2, Electron 45.2.3). Both use production bundles, three fresh-profile launches and three warm-profile launches, six seconds of idle sampling, ten C executions, and twelve mixed coding rounds. OS caches were left intact. Update checks were off. Two separate low-duty soak workloads were running during the final measurement. Treat small differences as variation, not a measured improvement attributable to a particular change.
@@ -76,7 +191,7 @@ Search in Files is new. On 1,016 eligible files with three matching lines in two
 
 The verified Apple Silicon bundle grew from 272,504,658 to 277,040,186 logical bytes (+4.33 MiB, +1.7%). The disk image grew from 123,120,640 to 124,949,504 bytes (+1.74 MiB, +1.5%). Most of the change is the signed ripgrep executable, which is launched on demand. Type checking, the production build, 117 unit tests, the complete desktop regression, and the mounted installer passed. The viewer regression exercised the missing-LibreOffice fallback. Windows and Intel Mac execution were outside this release's verification.
 
-[Core baseline](performance-results/resources-reliability-093-baseline-2026-11-09T12-19-20.376Z.json) · [Core candidate](performance-results/resources-reliability-094-candidate-2026-11-09T12-33-15.797Z.json) · [Study baseline](performance-results/session-reliability-093-baseline-study-2026-11-09T12-21-13.402Z.json) · [Study candidate](performance-results/session-reliability-094-candidate-study-2026-11-09T12-34-08.004Z.json) · [Regression](performance-results/reliability-094-regression.log) · [Packaged check](performance-results/reliability-094-release-check.log)
+Core baseline (`performance-results/resources-reliability-093-baseline-2026-11-09T12-19-20.376Z.json`) · Core candidate (`performance-results/resources-reliability-094-candidate-2026-11-09T12-33-15.797Z.json`) · Study baseline (`performance-results/session-reliability-093-baseline-study-2026-11-09T12-21-13.402Z.json`) · Study candidate (`performance-results/session-reliability-094-candidate-study-2026-11-09T12-34-08.004Z.json`) · Regression (`performance-results/reliability-094-regression.log`) · Packaged check (`performance-results/reliability-094-release-check.log`)
 
 To repeat the core and study workloads, use each preserved production directory with the same options:
 
@@ -93,7 +208,7 @@ The soak rotates ten tabs and writes a verified edit every 30 seconds. Every fou
 /usr/bin/caffeinate -i node scripts/benchmark-session-lifecycle.mjs --target "$ION_BUILD" --label "$ION_LABEL-soak" --soak-only --soak-seconds 7200 --interval-seconds 30
 ```
 
-[Baseline soak samples](performance-results/session-reliability-093-baseline-soak-2026-11-09T12-21-57.987Z.json) · [Candidate soak samples](performance-results/session-reliability-094-candidate-soak-2026-11-09T12-35-28.631Z.json)
+Baseline soak samples (`performance-results/session-reliability-093-baseline-soak-2026-11-09T12-21-57.987Z.json`) · Candidate soak samples (`performance-results/session-reliability-094-candidate-soak-2026-11-09T12-35-28.631Z.json`)
 
 Once both complete, `scripts/summarize-session-soak.mjs` writes `performance-results/reliability-094-soak-comparison.md` with sampled peaks, final memory, and latency comparisons.
 
@@ -114,9 +229,9 @@ The same Apple M3 Mac with 24 GiB RAM, macOS 27.2, and Electron 45.2.3 ran the p
 | Typing to second animation callback, median ms | 32.00 | 31.85 |
 | Populated Practice RSS / attributed footprint, MiB | 601.52 / 475.02 | 605.48 / 475.97 |
 
-The baseline Practice stage contains a manually entered problem. The 0.9.0 stage contains a supplied problem, its sample definitions, and an open Python starter. The automated difficulty selection took 6 ms to show matches, and clicking Start took 68 ms through opening the starter. These are single interactive measurements from before the final Practice styling adjustment. The desktop suite also ran all four sample cases of one challenge in all five supported languages and verified an offline relaunch. [0.8.1 samples](performance-results/resources-guided-practice-baseline-2026-11-09T10-27-40.591Z.json) · [0.9.0 samples](performance-results/resources-guided-practice-release-2026-11-09T10-40-57.283Z.json)
+The baseline Practice stage contains a manually entered problem. The 0.9.0 stage contains a supplied problem, its sample definitions, and an open Python starter. The automated difficulty selection took 6 ms to show matches, and clicking Start took 68 ms through opening the starter. These are single interactive measurements from before the final Practice styling adjustment. The desktop suite also ran all four sample cases of one challenge in all five supported languages and verified an offline relaunch. 0.8.1 samples (`performance-results/resources-guided-practice-baseline-2026-11-09T10-27-40.591Z.json`) · 0.9.0 samples (`performance-results/resources-guided-practice-release-2026-11-09T10-40-57.283Z.json`)
 
-The mounted 0.9.0 build passed the offline Practice and release checks. Type checking and all 102 unit tests passed. The interactive console suite stopped twice during the combined run and passed when run separately. The remaining regression suites passed. [Release check](performance-results/practice-090-release.log)
+The mounted 0.9.0 build passed the offline Practice and release checks. Type checking and all 102 unit tests passed. The interactive console suite stopped twice during the combined run and passed when run separately. The remaining regression suites passed. Release check (`performance-results/practice-090-release.log`)
 
 ## 0.8.0 Learning Marketplace
 
@@ -134,11 +249,11 @@ The comparison used the preserved 0.7.1 production build and 0.8.0 on the same A
 | Typing to second animation callback, median ms | 31.80 | 31.90 |
 | Populated Learn RSS / attributed footprint, MiB | 588.27 / 455.32 | 597.02 / 482.27 |
 
-The measurements show similar core editing costs in this run. The populated Learn samples represent different content, with the old C explanation on 0.7.1 and a selected pack lesson on 0.8.0. The new run also opened Marketplace first. Marketplace alongside Learn used 593.42 MiB summed RSS and 468.01 MiB attributed footprint after the earlier editor and runner stages. Installing the bundled C pack took 45 ms and opening the first lesson took 64 ms in that run. [0.7.1 samples](performance-results/resources-learning-marketplace-baseline-2026-11-09T10-05-45.407Z.json) · [0.8.0 samples](performance-results/resources-learning-marketplace-release-2026-11-09T10-12-26.461Z.json)
+The measurements show similar core editing costs in this run. The populated Learn samples represent different content, with the old C explanation on 0.7.1 and a selected pack lesson on 0.8.0. The new run also opened Marketplace first. Marketplace alongside Learn used 593.42 MiB summed RSS and 468.01 MiB attributed footprint after the earlier editor and runner stages. Installing the bundled C pack took 45 ms and opening the first lesson took 64 ms in that run. 0.7.1 samples (`performance-results/resources-learning-marketplace-baseline-2026-11-09T10-05-45.407Z.json`) · 0.8.0 samples (`performance-results/resources-learning-marketplace-release-2026-11-09T10-12-26.461Z.json`)
 
-The first Marketplace implementation took a median 302.8 ms from a renderer click to the first catalog button appearing in the DOM. Replacing the suspense reveal with an explicit asynchronous load brought the median to 4.3 ms across three fresh sessions with Learn already open. The metric measures DOM readiness and excludes display latency. [Before](performance-results/marketplace-080-first-open-probe.json) · [After](performance-results/marketplace-080-first-open-final.json)
+The first Marketplace implementation took a median 302.8 ms from a renderer click to the first catalog button appearing in the DOM. Replacing the suspense reveal with an explicit asynchronous load brought the median to 4.3 ms across three fresh sessions with Learn already open. The metric measures DOM readiness and excludes display latency. Before (`performance-results/marketplace-080-first-open-probe.json`) · After (`performance-results/marketplace-080-first-open-final.json`)
 
-The Apple Silicon bundle grew by 133,947 logical bytes and the disk image grew by 46,592 bytes compared with 0.7.1. Type checking, the production build, all 92 unit tests, the full desktop regression suite, and the offline Marketplace install and lesson check from the mounted disk image passed. [Release check](performance-results/marketplace-080-release.log)
+The Apple Silicon bundle grew by 133,947 logical bytes and the disk image grew by 46,592 bytes compared with 0.7.1. Type checking, the production build, all 92 unit tests, the full desktop regression suite, and the offline Marketplace install and lesson check from the mounted disk image passed. Release check (`performance-results/marketplace-080-release.log`)
 
 ## 0.7.1 Offline Markdown preview
 
@@ -173,13 +288,13 @@ Median fresh-profile startup was 376 ms before and 387 ms after. Welcome used 1.
 
 Every sampled return to Source kept one Monaco instance and released all rendered images. The first implementation recreated thousands of DOM nodes on each toggle. In the shipped build, the renderer held 5,525–6,547 DOM nodes after the five-second settle, down from 39,776–59,319. A separate diagnostic garbage collection converged to 5,525 nodes and 14.98 MiB median renderer heap. Switching to C removed the preview pane.
 
-During rapid toggles, the median late-cycle macOS footprint still grew by 43.11 MiB from the early-cycle sample. Per-process samples showed 30–37 MiB of late-cycle growth in GPU footprint. The GPU footprint fell by 127–133 MiB during the five-second idle period. The test observed no buildup of live preview panes, images, or editor instances over 96 cycles across three sessions. Native allocations remained elevated in the short window. [First implementation samples](performance-results/markdown-preview-2026-11-09T09-47-52.865Z.json) · [Matched release samples](performance-results/markdown-preview-2026-11-09T09-53-04.322Z.json)
+During rapid toggles, the median late-cycle macOS footprint still grew by 43.11 MiB from the early-cycle sample. Per-process samples showed 30–37 MiB of late-cycle growth in GPU footprint. The GPU footprint fell by 127–133 MiB during the five-second idle period. The test observed no buildup of live preview panes, images, or editor instances over 96 cycles across three sessions. Native allocations remained elevated in the short window. First implementation samples (`performance-results/markdown-preview-2026-11-09T09-47-52.865Z.json`) · Matched release samples (`performance-results/markdown-preview-2026-11-09T09-53-04.322Z.json`)
 
-The final production bundle adds a guard against observer callbacks queued before cleanup. A single session on that exact bundle ran 100 cycles with a 30-second natural settle. Peak sampled RSS was 636.30 MiB. Between cycles 80 and 100, RSS increased from 622.69 to 635.53 MiB and footprint increased from 555.38 to 585.15 MiB. After 30 seconds idle, RSS fell to 580.22 MiB and footprint fell to 216.41 MiB. The source-only 0.7.0 run settled at 506.61 MiB RSS and 155.66 MiB footprint. Renderer heap settled at 15.56 MiB with 5,525 DOM nodes. A subsequent diagnostic collection freed 0.16 MiB of heap. Every sampled return to Source had one editor and zero preview images, and switching to C released the preview. Native memory grew during the burst and receded during idle. The test observed no accumulating live preview resources. [Final production 100-cycle report](performance-results/markdown-preview-2026-11-09T09-56-36.699Z.json)
+The final production bundle adds a guard against observer callbacks queued before cleanup. A single session on that exact bundle ran 100 cycles with a 30-second natural settle. Peak sampled RSS was 636.30 MiB. Between cycles 80 and 100, RSS increased from 622.69 to 635.53 MiB and footprint increased from 555.38 to 585.15 MiB. After 30 seconds idle, RSS fell to 580.22 MiB and footprint fell to 216.41 MiB. The source-only 0.7.0 run settled at 506.61 MiB RSS and 155.66 MiB footprint. Renderer heap settled at 15.56 MiB with 5,525 DOM nodes. A subsequent diagnostic collection freed 0.16 MiB of heap. Every sampled return to Source had one editor and zero preview images, and switching to C released the preview. Native memory grew during the burst and receded during idle. The test observed no accumulating live preview resources. Final production 100-cycle report (`performance-results/markdown-preview-2026-11-09T09-56-36.699Z.json`)
 
 The production build emits a 9.57 kB JavaScript preview chunk and 3.18 kB stylesheet before compression. It reuses the existing Marked dependency and Monaco grammars. The native test confirms that ordinary code editing and Markdown Source mode leave the preview chunk unloaded until the first preview. The same test uses a byte-for-byte copy of `Coupling.md` and verifies that the original bytes stay intact.
 
-The Apple Silicon app bundle grew by 25,111 logical bytes and the disk image grew by 2,048 bytes compared with 0.7.0. Type checking, the production build, all 88 unit tests, the desktop regression suite, and an offline smoke test from the mounted disk image passed. [Release check](performance-results/markdown-071-release-check.log)
+The Apple Silicon app bundle grew by 25,111 logical bytes and the disk image grew by 2,048 bytes compared with 0.7.0. Type checking, the production build, all 88 unit tests, the desktop regression suite, and an offline smoke test from the mounted disk image passed. Release check (`performance-results/markdown-071-release-check.log`)
 
 ## 0.7.0 macOS offline notebook support
 
@@ -200,20 +315,20 @@ The comparison uses preserved 0.6.4 and 0.7.0 production bundles on an Apple M3 
 
 Welcome appeared at 396 ms on 0.6.4 and 398 ms on 0.7.0. The 1.5-second Welcome CPU sample was 8.65% and 3.65% of one core. The short window is sensitive to startup activity. Opening the small notebook took 45 ms as JSON and 87 ms in the notebook view. The 100-cell file took 37 ms as JSON and 60 ms in the notebook view. The first large plot appeared after 96 ms. Opening time covers the click through visible content or the first decoded plot.
 
-The follow-up scroll probe observed movement on all ten wheel inputs per build. Median wheel-to-movement plus one animation callback was 32.70 ms in the raw Monaco editor and 18.25 ms in the native 100-cell view. These are timing proxies for the tested viewport and input, with neither display latency nor frame rate included. [Scroll report](performance-results/notebook-scroll-confirmation/notebooks-2026-11-09T09-26-43.914Z.json)
+The follow-up scroll probe observed movement on all ten wheel inputs per build. Median wheel-to-movement plus one animation callback was 32.70 ms in the raw Monaco editor and 18.25 ms in the native 100-cell view. These are timing proxies for the tested viewport and input, with neither display latency nor frame rate included. Scroll report (`performance-results/notebook-scroll-confirmation/notebooks-2026-11-09T09-26-43.914Z.json`)
 
 A basic Anaconda kernel started and executed its first cell in 797 ms. The broker and kernel processes accounted for 124.28 MiB RSS and 89.85 MiB attributed footprint. The paired change in the full tree was 128.06 MiB RSS and 84.41 MiB footprint. Whole-tree RSS measured 525.00 MiB before the run, 649.41 MiB while the kernel was running, and 525.84 MiB after Stop. No kernel descendants remained after Stop.
 
-The first trial also reopened the large plot notebook ten times. The closed-tab RSS samples rose from 616.80 to 693.77 MiB, and the attributed footprint rose from 441.90 to 512.94 MiB. The renderer accounted for most of the rise. Every close left zero mounted notebook cells or decoded image elements. The short-interval snapshots show retained memory after tab closure, and do not establish its lifetime. [Matched benchmark report](performance-results/notebooks-2026-11-09T09-23-46.671Z.json)
+The first trial also reopened the large plot notebook ten times. The closed-tab RSS samples rose from 616.80 to 693.77 MiB, and the attributed footprint rose from 441.90 to 512.94 MiB. The renderer accounted for most of the rise. Every close left zero mounted notebook cells or decoded image elements. The short-interval snapshots show retained memory after tab closure, and do not establish its lifetime. Matched benchmark report (`performance-results/notebooks-2026-11-09T09-23-46.671Z.json`)
 
-A separate 20-cycle diagnostic reopened the same plot notebook with 450 ms settles. Whole-tree RSS and attributed footprint measured 516.23 / 320.32 MiB before opening, peaked at 713.59 / 609.61 MiB, and ended at 699.98 / 560.82 MiB after close 20. After 6.5 seconds of natural idle they fell to 649.09 / 381.94 MiB. An explicit renderer GC used only by the diagnostic reduced them to 621.39 / 335.68 MiB. Renderer JS heap use was 13.37 MiB before the first open, 32.37 MiB after natural idle, and 13.16 MiB after that GC. Zero notebook cells or image elements remained at every close. This run found collectible renderer allocations and memory the process tree still held. It leaves the length of that residency and behavior over longer sessions open. [Diagnostic data](performance-results/notebook-plot-residency-2026-11-09T09-30-12.416Z.json) · [Diagnostic script](performance-results/notebook-plot-residency.mjs)
+A separate 20-cycle diagnostic reopened the same plot notebook with 450 ms settles. Whole-tree RSS and attributed footprint measured 516.23 / 320.32 MiB before opening, peaked at 713.59 / 609.61 MiB, and ended at 699.98 / 560.82 MiB after close 20. After 6.5 seconds of natural idle they fell to 649.09 / 381.94 MiB. An explicit renderer GC used only by the diagnostic reduced them to 621.39 / 335.68 MiB. Renderer JS heap use was 13.37 MiB before the first open, 32.37 MiB after natural idle, and 13.16 MiB after that GC. Zero notebook cells or image elements remained at every close. This run found collectible renderer allocations and memory the process tree still held. It leaves the length of that residency and behavior over longer sessions open. Diagnostic data (`performance-results/notebook-plot-residency-2026-11-09T09-30-12.416Z.json`) · Diagnostic script (`performance-results/notebook-plot-residency.mjs`)
 
 ```sh
 npm run bench:notebooks -- --baseline performance-results/ion-0.6.4-before-notebooks-dist --candidate dist \
   --trials 3 --cycles 10 --settle 450 --kernel-python /path/to/python
 ```
 
-The desktop notebook checks cover safe saved output, 240-cell virtualization, source fallback, save conflicts, detached recovery after a renderer crash, actual Python state between cells, live Pandas and Matplotlib output, tab switching during execution, and kernel cleanup. The full IDE regression passed on rerun after an initial Run Console input timeout. The packaged Apple Silicon app passed its mounted smoke test, including opening a notebook offline. The DMG grew from 123,003,904 to 123,047,936 bytes. [Notebook tests](performance-results/notebook-070-final-desktop.log) · [Full regression](performance-results/notebook-070-regression-retry.log) · [Mounted release check](performance-results/notebook-070-release-check.log)
+The desktop notebook checks cover safe saved output, 240-cell virtualization, source fallback, save conflicts, detached recovery after a renderer crash, actual Python state between cells, live Pandas and Matplotlib output, tab switching during execution, and kernel cleanup. The full IDE regression passed on rerun after an initial Run Console input timeout. The packaged Apple Silicon app passed its mounted smoke test, including opening a notebook offline. The DMG grew from 123,003,904 to 123,047,936 bytes. Notebook tests (`performance-results/notebook-070-final-desktop.log`) · Full regression (`performance-results/notebook-070-regression-retry.log`) · Mounted release check (`performance-results/notebook-070-release-check.log`)
 
 ## 0.6.4 macOS large-file reopen memory
 
@@ -245,10 +360,10 @@ Holding each distinct file open for one second allowed whole-file syntax work. I
 
 | Raw trials | 0.6.3 | 0.6.4 |
 | --- | --- | --- |
-| Eight rapid reopens of one file | [Before](performance-results/editor-residency-before-063-final-same-2026-11-09T08-20-40.786Z.json) | [After](performance-results/editor-residency-after-064-final-same-2026-11-09T08-21-29.458Z.json) |
-| Eight distinct files | [Before](performance-results/editor-residency-before-063-final-distinct-2026-11-09T08-22-18.981Z.json) | [After](performance-results/editor-residency-after-064-final-distinct-2026-11-09T08-23-07.401Z.json) |
-| Eight distinct files held open for one second | [Before](performance-results/editor-residency-before-063-longer-distinct-2026-11-09T08-23-56.338Z.json) | [After](performance-results/editor-residency-after-064-longer-distinct-2026-11-09T08-24-26.215Z.json) |
-| 24 distinct files | [Before](performance-results/editor-residency-before-063-extended-distinct-2026-11-09T08-24-55.972Z.json) | [After](performance-results/editor-residency-after-064-extended-distinct-2026-11-09T08-25-13.661Z.json) |
+| Eight rapid reopens of one file | Before (`performance-results/editor-residency-before-063-final-same-2026-11-09T08-20-40.786Z.json`) | After (`performance-results/editor-residency-after-064-final-same-2026-11-09T08-21-29.458Z.json`) |
+| Eight distinct files | Before (`performance-results/editor-residency-before-063-final-distinct-2026-11-09T08-22-18.981Z.json`) | After (`performance-results/editor-residency-after-064-final-distinct-2026-11-09T08-23-07.401Z.json`) |
+| Eight distinct files held open for one second | Before (`performance-results/editor-residency-before-063-longer-distinct-2026-11-09T08-23-56.338Z.json`) | After (`performance-results/editor-residency-after-064-longer-distinct-2026-11-09T08-24-26.215Z.json`) |
+| 24 distinct files | Before (`performance-results/editor-residency-before-063-extended-distinct-2026-11-09T08-24-55.972Z.json`) | After (`performance-results/editor-residency-after-064-extended-distinct-2026-11-09T08-25-13.661Z.json`) |
 
 ```sh
 npm run build
@@ -260,7 +375,7 @@ done
 
 Use `--open-ms 1000` to keep the syntax pass eligible to finish before each close. Use `--rounds 24` to check a longer rapid-reopen burst. Run builds and benchmarks sequentially on the same machine.
 
-The production regression passed all 76 automated tests and the desktop suites. The large-file test covers visible and deep multiline syntax colors, folding, wrapping, Find/Replace, undo/redo, exact disk saves, and reopening an external revision. Separate runs verified PowerPoint through local LibreOffice and the upgrade of a disposable 0.6.3 profile. The Apple Silicon disk image passed checksum and signature verification, and the mounted copy passed offline viewer, terminal, theme, and crash recovery checks. The packaged main and renderer entries match the benchmarked production bundle. [Regression log](performance-results/large-file-064-regression.log) · [PowerPoint log](performance-results/large-file-064-powerpoint.log) · [Upgrade log](performance-results/large-file-064-upgrade.log) · [Packaging log](performance-results/large-file-064-package.log)
+The production regression passed all 76 automated tests and the desktop suites. The large-file test covers visible and deep multiline syntax colors, folding, wrapping, Find/Replace, undo/redo, exact disk saves, and reopening an external revision. Separate runs verified PowerPoint through local LibreOffice and the upgrade of a disposable 0.6.3 profile. The Apple Silicon disk image passed checksum and signature verification, and the mounted copy passed offline viewer, terminal, theme, and crash recovery checks. The packaged main and renderer entries match the benchmarked production bundle. Regression log (`performance-results/large-file-064-regression.log`) · PowerPoint log (`performance-results/large-file-064-powerpoint.log`) · Upgrade log (`performance-results/large-file-064-upgrade.log`) · Packaging log (`performance-results/large-file-064-package.log`)
 
 ## 0.6.3 macOS editor and viewer memory
 
@@ -298,7 +413,7 @@ The initial project snapshot dropped 62.55 MiB in attributed footprint, with 61.
 
 The shorter repeat used the same source, tab, project and 1.5-second settling steps, with one startup pair, a five-second idle window, and no extended coding rounds. One-file footprint moved **247.77 → 232.08 MiB**, ten tabs **312.27 → 257.16 MiB**, and the project **314.97 → 248.69 MiB**. The project GPU helper moved **147.33 → 84.89 MiB**. Project summed RSS moved **545.61 → 541.09 MiB**. The repeat supports a lower graphics footprint during code editing, with a much smaller change in whole-tree RSS. These reports are `performance-results/resources-mac-memory-repeat-baseline-2026-11-09T08-05-17.282Z.json` and `performance-results/resources-mac-memory-repeat-candidate-2026-11-09T08-05-53.103Z.json`.
 
-A separate compositor diagnostic found **12 → 9 layers** and **5 → 2 drawing layers**. The two 2× Retina screenshots were byte-identical at 2520 × 1580. Twelve wheel inputs moved the editor in both builds, with median scroll-to-animation-callback proxy latency of 33.20 → 33.05 ms. The probe does not measure presented FPS, compositor frame pacing, or GPU utilization. [Compositor JSON](performance-results/editor-compositor-2026-11-09T07-56-27.831Z/result.json)
+A separate compositor diagnostic found **12 → 9 layers** and **5 → 2 drawing layers**. The two 2× Retina screenshots were byte-identical at 2520 × 1580. Twelve wheel inputs moved the editor in both builds, with median scroll-to-animation-callback proxy latency of 33.20 → 33.05 ms. The probe does not measure presented FPS, compositor frame pacing, or GPU utilization. Compositor JSON (`performance-results/editor-compositor-2026-11-09T07-56-27.831Z/result.json`)
 
 Raw matched reports are `performance-results/resources-mac-performance-baseline-2026-11-09T07-48-59.815Z.json` and `performance-results/resources-mac-performance-candidate-2026-11-09T07-55-00.329Z.json`. All 32 enforced comparisons passed. The initial pair's active footprint checks were advisory under the gate's two-observation rule. Gate output is `performance-results/mac-performance-gate.log`.
 

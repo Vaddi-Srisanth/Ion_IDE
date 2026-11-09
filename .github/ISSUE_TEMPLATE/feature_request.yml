@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an improvement to an editing, running, or learning workflow.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the task you want to accomplish. If the request is for a learning pack or lesson, include the language and the topic you want to study. This issue is public.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to do?
+      description: Describe your current workflow and where you get stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: What would help?
+      description: Describe what Ion would do and how you would tell it is working.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Other context
+      description: Add a workaround, related issue, or platform or offline requirement if relevant.

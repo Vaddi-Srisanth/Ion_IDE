@@ -1,6 +1,6 @@
 # Ion IDE on Windows
 
-The Windows preview targets x64 PCs. Native Windows runtime verification is pending. See the [release assets](https://github.com/Vaddi-Srisanth/Ion_IDE/releases) when the release is available, or [build the installer](BUILD.md) from source.
+The public Windows preview targets x64 PCs. Download the public installer from [GitHub Releases](https://github.com/Vaddi-Srisanth/Ion_IDE/releases). The 0.9.5 source candidate adds native terminal, Java build, and file handling changes. [Candidate evidence](../../WINDOWS_RELEASE_READINESS.md) · [Build from source](BUILD.md)
 
 1. Run `Ion-IDE-0.9.4-windows-x64-setup.exe` and open **Ion IDE** from Start. Setup installs for the current user and includes Electron and ripgrep.
 2. Open a file or folder from Welcome. The editor, local previews, Learn, Projects, and the Practice catalog require no account or toolchain.

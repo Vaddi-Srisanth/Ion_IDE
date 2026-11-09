@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a crash, an incorrect result, or a workflow that stopped working.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Share a small example you can publish, and redact private paths, documents, and credentials. For vulnerabilities, use the [security reporting instructions](https://github.com/Vaddi-Srisanth/Ion_IDE/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Ion IDE version and build
+      description: Include the version from the app or installer and the commit SHA if you built from source.
+      placeholder: 0.9.4 public preview
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      placeholder: macOS 15.7 on Apple Silicon or Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest example that reproduces the issue and the toolchain and version when relevant.
+      placeholder: Open a new folder, create a file, then select Run.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What happened and what did you expect?
+      description: Include the exact error text if available, after removing any private information.
+    validations:
+      required: true
