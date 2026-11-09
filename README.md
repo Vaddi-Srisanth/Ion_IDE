@@ -13,7 +13,9 @@ Once a release is published, open its **Assets** section and choose the installe
 | macOS 13+ on Apple Silicon (M-series) | `Ion-IDE-0.9.4-mac-arm64.dmg` | Open the `.dmg`, drag **Ion IDE** to **Applications**, then open it from Applications. |
 | Windows x64 preview | `Ion-IDE-0.9.4-windows-x64-setup.exe` | Run the downloaded setup, then open **Ion IDE** from Start. |
 
-Apple Silicon has native runtime coverage. Windows is a preview target with native runtime verification pending. Both installers bundle the desktop runtime. Install a language toolchain separately when you want to compile or run code. The Mac build is ad-hoc signed and has no Apple notarization. The Windows setup is unsigned. Your operating system may show a publisher or security prompt. [Windows platform differences](docs/windows/FEATURE_PARITY.md)
+Apple Silicon has native runtime coverage. Windows x64 is a preview target; see the [native CI results](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/workflows/desktop-build.yml) and [Windows platform differences](docs/windows/FEATURE_PARITY.md). Both installers bundle the desktop runtime. Install a language toolchain separately when you want to compile or run code.
+
+The Mac build is ad-hoc signed and has no Apple notarization. Gatekeeper rejected it under the default assessment. Read [Apple's guidance on unnotarized apps](https://support.apple.com/en-us/102445) before deciding whether to open it. Windows setup is unsigned, so Windows may warn or block it. Compare the installer against `SHA256SUMS` in the release assets.
 
 Use **Preferences → Updates** to check GitHub Releases and download the installer for this computer. Ion checks the download against GitHub’s SHA-256 digest and reveals the verified file in Downloads. Save your work and quit Ion before opening the installer. Automatic checking at launch is opt-in.
 

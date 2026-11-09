@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
@@ -67,6 +67,51 @@ test('native Run Console owns a real terminal and cleans up after a run', { skip
     assert.equal(voluntary.signal, undefined)
   })
 
+  await t.test('a fast program keeps output while the PTY relay is paused', async () => {
+    const marker = join(scratch, 'program-wrote-output')
+    const source = join(scratch, 'fast.c')
+    const program = join(scratch, 'fast')
+    await writeFile(source, `
+      #include <fcntl.h>
+      #include <signal.h>
+      #include <unistd.h>
+      int main(int argc, char **argv) {
+        if (argc != 2 || kill(getppid(), SIGSTOP) < 0) return 1;
+        if (write(STDOUT_FILENO, "fast stdout\\n", 12) != 12) return 2;
+        if (write(STDERR_FILENO, "fast stderr\\n", 12) != 12) return 3;
+        int marker = open(argv[1], O_WRONLY | O_CREAT | O_EXCL, 0600);
+        if (marker < 0) return 4;
+        close(marker);
+        return 0;
+      }
+    `)
+    await execute('/usr/bin/xcrun', ['clang', source, '-o', program])
+    const child = spawn(helper, ['80', '24', program, marker], { cwd: scratch })
+    const closed = once(child, 'close')
+    const timeout = setTimeout(() => { child.kill('SIGCONT'); child.kill('SIGTERM') }, 3000)
+    let output = ''
+    child.stdout.setEncoding('utf8').on('data', (text) => { output += text })
+    child.stderr.resume()
+    try {
+      let written = false
+      for (let attempt = 0; attempt < 100 && !written; attempt++) {
+        written = await access(marker).then(() => true, () => false)
+        if (!written) await delay(10)
+      }
+      assert.equal(written, true)
+      // Keep the relay paused while the child reaches exit with unread tty bytes.
+      await delay(100)
+      child.kill('SIGCONT')
+      assert.deepEqual(await closed, [0, null])
+      assert.equal(output, 'fast stdout\r\nfast stderr\r\n')
+    } finally {
+      child.kill('SIGCONT')
+      child.kill('SIGTERM')
+      await closed
+      clearTimeout(timeout)
+    }
+  })
+
   await t.test('Stop reaps a program and a subprocess that ignored TERM', async () => {
     const controller = new AbortController()
     let descendant = 0
@@ -125,6 +170,27 @@ test('native Run Console owns a real terminal and cleans up after a run', { skip
       assert.equal(signal, 'SIGTERM')
       assert.ok(program > 0)
       assert.throws(() => process.kill(program, 0), { code: 'ESRCH' })
+    } finally {
+      clearTimeout(emergency)
+    }
+  })
+
+  await t.test('closing the output reader releases the program even with input still open', async () => {
+    const child = spawn(helper, ['80', '24', '/usr/bin/yes'], { cwd: scratch })
+    const closed = once(child, 'close')
+    let emergencyUsed = false
+    const emergency = setTimeout(() => {
+      emergencyUsed = true
+      child.stdin.end()
+      child.kill('SIGTERM')
+    }, 2000)
+    child.stdout.once('data', () => child.stdout.destroy())
+    child.stderr.resume()
+    try {
+      const [code, signal] = await closed
+      assert.equal(emergencyUsed, false)
+      assert.equal(code, null)
+      assert.equal(signal, 'SIGKILL')
     } finally {
       clearTimeout(emergency)
     }

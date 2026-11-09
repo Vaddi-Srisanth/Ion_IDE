@@ -4,6 +4,7 @@ The release was prepared with disposable profiles. The existing installation, us
 
 | Severity | Finding | Disposition |
 | --- | --- | --- |
+| High | The first hosted Mac run exposed a successful, fast C++ rerun that displayed no terminal output. | The macOS helper retains the controlling terminal so Darwin can drain pending output when a fast process exits. A native regression exercises delayed relay reads and preserves both output streams. |
 | High | The Mac-only terminal and toolchain assumptions prevented a dependable Windows release. | Windows now resolves installed toolchains, sends input through a line-based console, and stops child process trees. It has a per-user setup program and native installed-app verification in CI. |
 | Medium | Monaco 0.57.0 embedded DOMPurify 3.4.15 even though the lockfile selected a patched copy. The npm audit alone did not catch that embedded version. | The build replaces that one import with 3.4.17 and includes the relevant notices. The production JavaScript was checked for the patched version. No reachable exploit was demonstrated. [Upstream advisory](https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7) |
 | Medium | A failed or interrupted installer download could be mistaken for a valid installer if written directly to its final name. | The updater streams to a temporary file, checks byte count and SHA-256, marks the file as downloaded from the internet, then renames it. Failures and cancellations discard the staging folder. Ion never opens the installer itself. |

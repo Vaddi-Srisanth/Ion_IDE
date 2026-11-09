@@ -7,6 +7,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
 import { editorShows, eventually, withScratch } from './desktop-harness.mjs'
+import { verifyWindowsConsole, windowsInputFilename, windowsInputSource } from './verify-windows-run-console.mjs'
 
 assert.equal(process.platform, 'win32', 'Use a disposable Windows machine for this installed-app test.')
 assert.ok(process.env.LOCALAPPDATA && process.env.APPDATA)
@@ -29,38 +30,10 @@ for (const path of [installDir, shortcut, profile]) {
 }
 const quiet = { windowsHide: true, timeout: 120_000 }
 
-function approveNativeRun(pid) {
-  // Exercise the real Windows trust dialog. Only invoke a button in this test's app process.
-  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
-    Add-Type -AssemblyName UIAutomationClient
-    $root = [Windows.Automation.AutomationElement]::RootElement
-    $owner = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, [int]${pid})
-    $name = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Run Program')
-    for ($attempt = 0; $attempt -lt 60; $attempt++) {
-      foreach ($window in $root.FindAll([Windows.Automation.TreeScope]::Children, $owner)) {
-        $button = $window.FindFirst([Windows.Automation.TreeScope]::Descendants, $name)
-        if ($button -and $button.Current.IsEnabled) {
-          $button.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
-          exit 0
-        }
-      }
-      Start-Sleep -Milliseconds 150
-    }
-    throw 'The installed app did not show a Run Program trust button.'
-  `], { windowsHide: true, timeout: 15_000 })
-}
-
-function terminalShows(page, marker) {
-  return page.waitForFunction((expected) => {
-    const rows = document.querySelectorAll('[data-testid="run-console-terminal"] .xterm-rows > div')
-    return [...rows].map((row) => row.textContent).join('').includes(expected)
-  }, marker, { timeout: 15_000 })
-}
-
 await withScratch('windows-release', async (scratch) => {
   const project = join(scratch, 'Release test workspace')
   const source = join(project, 'verify.txt')
-  const inputProgram = join(project, 'verify-input.js')
+  const inputProgram = join(project, windowsInputFilename)
   const original = 'Windows setup search marker'
   const edited = 'Saved by the installed Windows editor'
   const userFile = join(installDir, 'App', 'uninstall-preservation-test.txt')
@@ -73,11 +46,7 @@ await withScratch('windows-release', async (scratch) => {
     await mkdir(profile)
     profileOwned = true
     await writeFile(source, original)
-    await writeFile(inputProgram, `
-const prompt = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
-console.log('ION-WINDOWS-INPUT');
-prompt.once('line', (line) => { console.log('ION-WINDOWS-ANSWER:' + line); prompt.close(); });
-`)
+    await writeFile(inputProgram, windowsInputSource)
     await writeFile(prefs, JSON.stringify({
       version: 1,
       settings: { autoSave: false, openFullScreen: false },
@@ -137,23 +106,8 @@ prompt.once('line', (line) => { console.log('ION-WINDOWS-ANSWER:' + line); promp
     await (await editorShows(page, edited)).dispose()
     console.log('PASS silent install, Start menu shortcut, bundled search, and offline open/edit/save/reopen.')
 
-    await page.getByTestId('explorer-entry').filter({ hasText: 'verify-input.js' }).click()
-    await (await editorShows(page, 'ION-WINDOWS-INPUT')).dispose()
-    await Promise.all([approveNativeRun(child.pid), page.getByTestId('run').click()])
-    await (await terminalShows(page, 'ION-WINDOWS-INPUT')).dispose()
-    await page.getByTestId('run-console-input').focus()
-    await page.keyboard.insertText('hello')
-    await page.keyboard.press('Enter')
-    await page.locator('[data-testid="output"][data-status="success"]').waitFor()
-    await (await terminalShows(page, 'ION-WINDOWS-ANSWER:hello')).dispose()
-    await page.getByTestId('run-console-clear').click()
-    await page.waitForFunction(() => !document.querySelector('[data-testid="run-console-terminal"] .xterm-rows')
-      ?.textContent?.includes('ION-WINDOWS-INPUT'))
-    await page.getByTestId('run-console-rerun').click()
-    await (await terminalShows(page, 'ION-WINDOWS-INPUT')).dispose()
-    await page.getByTestId('run-console-stop').click()
-    await page.locator('[data-testid="output"][data-status="cancelled"]').waitFor()
-    console.log('PASS update opt-in persists, interactive JavaScript accepts input, and Stop cancels a waiting program.')
+    await verifyWindowsConsole(page, child.pid)
+    console.log('PASS update opt-in persists.')
 
     const exited = once(child, 'exit')
     await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',

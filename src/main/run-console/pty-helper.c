@@ -122,7 +122,6 @@ static void relay(pid_t child, int master) {
     int64_t drain_deadline = 0;
     int exited = 0;
     int terminal_end = 0;
-    int console_closed = 0;
 
     for (;;) {
         const int64_t now = now_ms();
@@ -131,9 +130,9 @@ static void relay(pid_t child, int master) {
             signal_job(child, SIGKILL);
             drain_deadline = now + drain_ms;
         }
-        if (exited && (console_closed || (terminal_end && !output.size))) break;
+        if (exited && terminal_end && !output.size) break;
         if (exited && now >= drain_deadline) {
-            if (!console_closed) (void)write(STDERR_FILENO, "INCOMPLETE\n", 11);
+            (void)write(STDERR_FILENO, "INCOMPLETE\n", 11);
             break;
         }
         if (!exited && stopping && !stop_deadline) {
@@ -151,8 +150,8 @@ static void relay(pid_t child, int master) {
         struct pollfd fds[] = {
             {wake_pipe[0], POLLIN, 0},
             {!exited && !stopping ? STDIN_FILENO : -1, read_input ? POLLIN : 0, 0},
-            {!terminal_end && !console_closed && terminal_events ? master : -1, terminal_events, 0},
-            {output.size && !console_closed ? STDOUT_FILENO : -1, POLLOUT, 0},
+            {!terminal_end && terminal_events ? master : -1, terminal_events, 0},
+            {output.size ? STDOUT_FILENO : -1, POLLOUT, 0},
         };
         const int64_t deadline = exited ? drain_deadline : stop_deadline;
         const int timeout = deadline && deadline != INT64_MAX ? (int)(deadline - now) : -1;
@@ -185,7 +184,12 @@ static void relay(pid_t child, int master) {
             ssize_t count = write(STDOUT_FILENO, output.bytes + output.sent, output.size - output.sent);
             if (count > 0) output.sent += (size_t)count;
             if (output.sent == output.size) output.sent = output.size = 0;
-            else if (count < 0 && errno != EAGAIN && errno != EINTR) console_closed = stopping = 1;
+            else if (count < 0 && errno != EAGAIN && errno != EINTR) {
+                // The child may be waiting for its tty to drain. Let main
+                // close the master before it waits for the child to exit.
+                signal_job(child, SIGKILL);
+                break;
+            }
         }
     }
 }
@@ -220,6 +224,14 @@ int main(int argc, char **argv) {
         install_handler(SIGPIPE, SIG_DFL);
         close(wake_pipe[0]);
         close(wake_pipe[1]);
+#ifdef __APPLE__
+        // Retain the session's controlling tty until Darwin drains its output.
+        // Otherwise a fast program can close the last slave fd before relay()
+        // runs, and older Darwin kernels can discard the pending bytes.
+        // https://bugs.ruby-lang.org/issues/20682
+        int terminal = open("/dev/tty", O_WRONLY | O_NOCTTY);
+        if (terminal >= 0) close(terminal);
+#endif
         struct rlimit core_limit = {0, 0};
         (void)setrlimit(RLIMIT_CORE, &core_limit);
         execv(argv[3], &argv[3]);

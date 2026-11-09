@@ -50,6 +50,9 @@ jobs:
       - run: npm run typecheck
       - name: Run portable and Windows-specific unit tests
         run: npm test -- line-console run-plans workspace-search shortcuts updates
+      - run: npm run build
+      - name: Verify interactive Run Console
+        run: node scripts/verify-windows-run-console.mjs
       - name: Locate NSIS
         shell: pwsh
         run: |

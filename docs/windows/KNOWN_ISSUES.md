@@ -9,7 +9,7 @@ Windows x64 is a preview target. Packaging on macOS does not exercise Windows di
 
 ## Native Windows release checklist
 
-The repository’s Windows CI job includes an installer smoke test. Its result is pending.
+The repository’s [Windows CI job](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/workflows/desktop-build.yml) includes installer, offline editing, interactive JavaScript, and uninstall checks. The checklist below covers broader manual testing, including toolchains and features outside that smoke test.
 
 - [ ] On Windows x64, download the final setup, check its checksum, install it as an ordinary user, launch from Start, and check that preferences remain intact after upgrading and uninstalling.
 - [ ] Open and save a file in a path containing spaces and Unicode. Check external-edit protection, checkpoint recovery, session resume, and workspace search.
