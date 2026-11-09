@@ -417,8 +417,7 @@ async function approveRunSource(
   }
 }
 
-function startInteractive(target: BrowserWindow, id: unknown, value: unknown, learn: boolean, expectedRevision: unknown): Promise<RunResult> {
-  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return Promise.resolve(rejectedRun('Invalid run request.'))
+function startInteractive(target: BrowserWindow, id: string, value: unknown, learn: boolean, expectedRevision: unknown): Promise<RunResult> {
   if (expectedRevision !== undefined && (typeof expectedRevision !== 'string' || !expectedRevision.length || expectedRevision.length > 256)) {
     return Promise.resolve(rejectedRun('Invalid source revision.'))
   }
@@ -853,8 +852,16 @@ function registerIpc(): void {
     }
     return moved
   })
-  handle('live-run-start', (target, id, path, learn, expectedRevision) =>
-    startInteractive(target, id, path, learn === true, expectedRevision))
+  handle('live-run-start', async (target, id, path, learn, expectedRevision) => {
+    if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return rejectedRun('Invalid run request.')
+    const result = await startInteractive(target, id, path, learn === true, expectedRevision)
+    // The invoke reply and the streamed updates are delivered separately. The
+    // renderer uses an ordered marker on the update channel to finish the run.
+    if (target === window && !target.isDestroyed()) {
+      target.webContents.send('ion:live-run-update', { id, update: { kind: 'complete' } })
+    }
+    return result
+  })
   handle('live-run-input', (target, id, input) => {
     if (activeRun && activeRun.owner === target && activeRun.id === id && !activeRun.controller.signal.aborted) {
       const text = validStdin(input)

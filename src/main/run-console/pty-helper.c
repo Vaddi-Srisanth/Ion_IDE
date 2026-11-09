@@ -115,7 +115,7 @@ static int read_control(struct control *frame, int master) {
     return 1;
 }
 
-static void relay(pid_t child, int master) {
+static void relay(pid_t child, int master, int *retained_slave) {
     struct control frame = {0};
     struct output output = {0};
     int64_t stop_deadline = 0;
@@ -145,6 +145,7 @@ static void relay(pid_t child, int master) {
 
         const int input_ready = frame.length && frame.size == frame.length;
         const int read_input = !exited && !stopping && !input_ready;
+        const int final_read = exited && *retained_slave >= 0 && !output.size;
         const short terminal_events =
             (!output.size ? POLLIN : 0) | (input_ready && !stopping && !exited ? POLLOUT : 0);
         struct pollfd fds[] = {
@@ -154,7 +155,7 @@ static void relay(pid_t child, int master) {
             {output.size ? STDOUT_FILENO : -1, POLLOUT, 0},
         };
         const int64_t deadline = exited ? drain_deadline : stop_deadline;
-        const int timeout = deadline && deadline != INT64_MAX ? (int)(deadline - now) : -1;
+        const int timeout = final_read ? 0 : (deadline && deadline != INT64_MAX ? (int)(deadline - now) : -1);
         if (poll(fds, sizeof(fds) / sizeof(*fds), timeout) < 0) {
             if (errno == EINTR) continue;
             signal_job(child, SIGKILL);
@@ -175,10 +176,19 @@ static void relay(pid_t child, int master) {
                 frame.header_size = frame.size = frame.length = frame.sent = 0;
             }
         }
-        if (fds[2].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL) && !output.size) {
-            ssize_t count = read(master, output.bytes, sizeof(output.bytes));
+        if (final_read || (fds[2].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL) && !output.size)) {
+            ssize_t count;
+            do {
+                count = read(master, output.bytes, sizeof(output.bytes));
+            } while (count < 0 && errno == EINTR);
             if (count > 0) output.size = (size_t)count;
-            else if (!count || (count < 0 && errno != EAGAIN && errno != EINTR)) terminal_end = 1;
+            else {
+                if (!count || errno != EAGAIN) terminal_end = 1;
+                if (final_read) {
+                    close(*retained_slave);
+                    *retained_slave = -1;
+                }
+            }
         }
         if (fds[3].revents & (POLLOUT | POLLHUP | POLLERR | POLLNVAL)) {
             ssize_t count = write(STDOUT_FILENO, output.bytes + output.sent, output.size - output.sent);
@@ -210,13 +220,32 @@ int main(int argc, char **argv) {
     install_handler(SIGPIPE, SIG_IGN);
 
     int master = -1;
+    int retained_slave = -1;
     struct winsize size = {.ws_col = (unsigned short)columns, .ws_row = (unsigned short)rows};
+#ifdef __APPLE__
+    // Darwin can discard unread output as the last slave fd closes. Keep our
+    // slave fd until the relay has read any queued bytes after the child exits.
+    // https://bugs.ruby-lang.org/issues/20682
+    if (openpty(&master, &retained_slave, NULL, NULL, &size) < 0) {
+        perror("Ion PTY");
+        return 125;
+    }
+    pid_t child = fork();
+#else
     pid_t child = forkpty(&master, NULL, NULL, &size);
+#endif
     if (child < 0) {
         perror("Ion PTY");
         return 125;
     }
     if (!child) {
+#ifdef __APPLE__
+        close(master);
+        if (login_tty(retained_slave) < 0) {
+            perror("Ion controlling terminal");
+            _exit(125);
+        }
+#endif
         install_handler(SIGCHLD, SIG_DFL);
         install_handler(SIGTERM, SIG_DFL);
         install_handler(SIGINT, SIG_DFL);
@@ -224,14 +253,6 @@ int main(int argc, char **argv) {
         install_handler(SIGPIPE, SIG_DFL);
         close(wake_pipe[0]);
         close(wake_pipe[1]);
-#ifdef __APPLE__
-        // Retain the session's controlling tty until Darwin drains its output.
-        // Otherwise a fast program can close the last slave fd before relay()
-        // runs, and older Darwin kernels can discard the pending bytes.
-        // https://bugs.ruby-lang.org/issues/20682
-        int terminal = open("/dev/tty", O_WRONLY | O_NOCTTY);
-        if (terminal >= 0) close(terminal);
-#endif
         struct rlimit core_limit = {0, 0};
         (void)setrlimit(RLIMIT_CORE, &core_limit);
         execv(argv[3], &argv[3]);
@@ -243,9 +264,10 @@ int main(int argc, char **argv) {
     if (nonblocking(master) < 0 || nonblocking(STDIN_FILENO) < 0 || nonblocking(STDOUT_FILENO) < 0) {
         signal_job(child, SIGKILL);
     } else {
-        relay(child, master);
+        relay(child, master, &retained_slave);
     }
     close(master);
+    if (retained_slave >= 0) close(retained_slave);
 
     int status;
     pid_t waited;

@@ -205,6 +205,13 @@ int main(void) {
   try {
     const { app, page } = session
     await app.context().setOffline(true)
+    await page.evaluate(() => {
+      const events = globalThis.ionRunTestEvents = []
+      window.ion.runConsole.onUpdate(({ id, update }) => {
+        events.push({ id, update: update.kind === 'data' ? { ...update, text: update.text.slice(0, 300) } : update })
+        if (events.length > 24) events.shift()
+      })
+    })
     await stubDialogs(app, { folder: project.directory, allowRun: true })
     await openFolder(page, project)
     assert.deepEqual((await resourceSnapshot(session)).processes.filter((kind) => kind === 'child'), [],
@@ -376,6 +383,8 @@ int main(void) {
     }
     if (!session.page.isClosed()) console.error('Visible console:', await session.page.locator('.run-console').innerText({ timeout: 500 })
       .then((text) => text.slice(-2500)).catch(() => ''))
+    if (!session.page.isClosed()) console.error('Recent console events:', JSON.stringify(await session.page
+      .evaluate(() => globalThis.ionRunTestEvents).catch(() => null)))
     throw error
   } finally {
     await close(session)

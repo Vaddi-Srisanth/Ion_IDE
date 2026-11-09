@@ -116,6 +116,7 @@ await withScratch('word-viewer', async (scratch) => {
   await mkdir(profile)
   await writeFile(join(profile, 'preferences.json'), JSON.stringify({ version: 1, settings: { autoSave: false } }))
   const session = await launch(target, profile)
+  let completed = false
   try {
     const { app, page } = session
     await app.context().setOffline(true)
@@ -207,7 +208,19 @@ await withScratch('word-viewer', async (scratch) => {
     console.log('PASS offline DOCX headings, inline formatting, table and raster image')
     console.log('PASS section search, zoom, navigation, side-by-side code and image resource disposal')
     console.log('PASS original archive unchanged and malformed DOCX safely handled')
+    completed = true
   } finally {
-    await close(session)
+    const closing = close(session)
+    if (completed) {
+      await closing
+    } else {
+      // A failure before Undo can leave the disposable source edit open.
+      // Dismiss that quit prompt without hiding the original test failure.
+      const discard = session.page.getByRole('dialog', { name: 'Unsaved changes', exact: true })
+        .filter({ hasText: 'Save your open files or keep your edits as drafts before closing Ion.' })
+        .getByRole('button', { name: 'Discard', exact: true })
+      await Promise.all([closing, discard.click({ timeout: 3000 }).catch(() => {})])
+        .catch((error) => console.error('DOCX test teardown also failed.', error))
+    }
   }
 })

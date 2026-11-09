@@ -11,7 +11,12 @@ export const windowsInputFilename = 'verify-input.cjs'
 export const windowsInputSource = `
 const prompt = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
 console.log('ION-WINDOWS-INPUT');
-prompt.once('line', (line) => { console.log('ION-WINDOWS-ANSWER:' + line); prompt.close(); });
+prompt.once('line', (line) => {
+  process.stdout.write('ION-WINDOWS-ANSWER:' + line + '\\n', () => {
+    prompt.close();
+    process.stdin.destroy();
+  });
+});
 `
 
 function approveNativeRun(pid) {
@@ -42,7 +47,8 @@ async function consoleDiagnostics(page) {
     return {
       phase: output?.getAttribute('data-phase'),
       status: output?.getAttribute('data-status'),
-      visible: output?.textContent?.slice(-1200),
+      message: output?.querySelector('.run-console-footer')?.textContent?.slice(0, 200),
+      transcript: output?.querySelector('.xterm-rows')?.textContent?.slice(-1200),
       events: window.ionWindowsSmokeEvents,
     }
   }).catch(() => null)

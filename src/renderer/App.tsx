@@ -105,7 +105,7 @@ export function App() {
   const [runConsole] = useState(() => new RunConsoleStore());
   const { phase: runPhase } = useSyncExternalStore(runConsole.subscribe, runConsole.getSnapshot);
   const [lastRun, setLastRun] = useState<{ id: string; path: string; name: string } | null>(null);
-  const liveRun = useRef<{ id: string; cancelled: boolean } | null>(null);
+  const liveRun = useRef<{ id: string; cancelled: boolean; complete?: () => void } | null>(null);
   const consoleSize = useRef<[number, number] | null>(null);
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -433,7 +433,10 @@ export function App() {
   }, [openEntry, refreshRecents]);
 
   useEffect(() => bridge.runConsole.onUpdate(({ id, update }) => {
-    if (liveRun.current?.id === id) runConsole.update(update);
+    const request = liveRun.current;
+    if (request?.id !== id) return;
+    if (update.kind === 'complete') request.complete?.();
+    else runConsole.update(update);
   }), [runConsole]);
 
   async function openNative(operation: () => Promise<Entry | null>, onOpened?: (entry: Entry) => void) {
@@ -665,7 +668,7 @@ export function App() {
     if (screen !== 'editor' || !requested || !runLanguage(requested.name)
       || selected?.error || running.current) return;
     running.current = true;
-    const request = { id: crypto.randomUUID(), cancelled: false };
+    const request: NonNullable<typeof liveRun.current> = { id: crypto.randomUUID(), cancelled: false };
     liveRun.current = request;
     try {
       const save = settingsRef.current.saveBeforeRun;
@@ -688,9 +691,10 @@ export function App() {
       setLastRun({ id: tab.id, path: tab.path, name: tab.name });
       try {
         const expectedRevision = selected && save ? documents.savedRevision(tab.id) : undefined;
+        const streamed = new Promise<void>((resolve) => { request.complete = resolve; });
         const launch = bridge.runConsole.start(request.id, tab.path, learningPanel.current, expectedRevision);
         if (consoleSize.current) void bridge.runConsole.resize(request.id, ...consoleSize.current).catch(() => {});
-        const { learning, ...result } = await launch;
+        const [{ learning, ...result }] = await Promise.all([launch, streamed]);
         if (result.sourceChanged && selected) documents.markConflict(tab.id, tab.path);
         if (learningPanel.current) setLearningFeedback(learning ? { path: tab.path, feedback: learning } : null);
         runConsole.finish(result);
