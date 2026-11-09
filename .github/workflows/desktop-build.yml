@@ -1,14 +1,19 @@
-name: Windows native performance candidate
+name: Matched Windows native performance
 on: [push, workflow_dispatch]
 permissions:
   contents: read
 jobs:
-  candidate:
+  benchmark:
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 22
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 7767e3116002adf0390caf37122c43937632db8f
+          path: windows-benchmark-baseline
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
@@ -17,15 +22,24 @@ jobs:
       - name: Locate GCC
         shell: pwsh
         run: |
-          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
-          Write-Host $gcc
-          Split-Path $gcc >> $env:GITHUB_PATH
+          $gcc = 'C:\mingw64\bin'
+          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          $gcc >> $env:GITHUB_PATH
       - run: npm ci
       - run: npm run build
-      - run: node scripts/benchmark-windows.mjs --label candidate --terminal
+      - run: npm ci
+        working-directory: windows-benchmark-baseline
+      - run: npm run build
+        working-directory: windows-benchmark-baseline
+      - name: Run candidate benchmark
+        run: node scripts/benchmark-windows.mjs --label candidate --terminal
+      - name: Run baseline benchmark on the same VM
+        run: node scripts/benchmark-windows.mjs --target windows-benchmark-baseline/dist --label baseline
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: windows-performance-candidate
-          path: performance-results/windows-candidate.json
+          name: windows-performance-matched
+          path: |
+            performance-results/windows-baseline.json
+            performance-results/windows-candidate.json
           if-no-files-found: error
           retention-days: 14

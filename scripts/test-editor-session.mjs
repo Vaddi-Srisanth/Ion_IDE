@@ -12,17 +12,22 @@ const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 
 async function launchSession(profile) {
   const session = await launch(target, profile)
-  if (process.platform === 'darwin') {
-    // Drive the renderer through Playwright without allowing host keyboard
-    // input to modify the disposable files while the fixture runs.
-    await session.app.evaluate(async ({ BrowserWindow }) => {
+  if (process.platform !== 'darwin') return session
+  // Drive the renderer through Playwright without allowing host keyboard
+  // input to modify the disposable files while the fixture runs.
+  try {
+    await eventually(() => session.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible()),
+      'The test window did not finish its initial show.')
+    await session.app.evaluate(({ BrowserWindow }) => {
       const [window] = BrowserWindow.getAllWindows()
       window.webContents.setBackgroundThrottling(false)
-      if (!window.isVisible()) await new Promise((resolve) => window.once('show', resolve))
       window.hide()
     })
+    return session
+  } catch (error) {
+    await terminateIfRunning(session.app.process())
+    throw error
   }
-  return session
 }
 
 async function quitWithDrafts(session, action) {
@@ -123,16 +128,7 @@ await withScratch('editor-session', async (scratch) => {
   assert.deepEqual(keptView.selections, [{
     selectionStartLineNumber: 140, selectionStartColumn: 1, positionLineNumber: 140, positionColumn: 4,
   }])
-  const savedDrafts = kept.tabs.filter(({ draftId }) => draftId)
-  if (savedDrafts.length !== 1 || savedDrafts[0].path !== named) {
-    const unexpected = await Promise.all(savedDrafts.map(async ({ name, draftId }) => {
-      const bytes = await readFile(join(profile, 'recovery', draftId + '.draft'))
-      const content = bytes.subarray(8 + bytes.readUInt32BE(0)).toString('utf8')
-      return { name, length: content.length, content: content.slice(0, 100) }
-    }))
-    console.error('Unexpected fixture drafts', unexpected)
-  }
-  assert.deepEqual(savedDrafts.map(({ path }) => path), [named])
+  assert.deepEqual(kept.tabs.filter(({ draftId }) => draftId).map(({ path }) => path), [named])
 
   const second = await launchSession(profile)
   const secondProcess = second.app.process()

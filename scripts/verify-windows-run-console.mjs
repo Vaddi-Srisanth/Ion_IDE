@@ -31,11 +31,11 @@ async function consoleDiagnostics(page) {
   }).catch(() => null)
 }
 
-async function terminalShows(page, marker, surface = 'run-console-terminal') {
+async function terminalShows(page, marker, surface = 'run-console-terminal', timeout = 15_000) {
   const handle = await page.waitForFunction(({ expected, target }) => {
     const rows = document.querySelectorAll('[data-testid="' + target + '"] .xterm-rows > div')
     return [...rows].map((row) => row.textContent).join('').includes(expected)
-  }, { expected: marker, target: surface }, { polling: 100, timeout: 15_000 })
+  }, { expected: marker, target: surface }, { polling: 100, timeout })
     .catch((error) => { throw new Error(`${surface} did not show ${marker}.`, { cause: error }) })
   await handle.dispose()
 }
@@ -125,17 +125,43 @@ async function verifyToolchains(page) {
   }
 }
 
-async function verifyTerminal(page, workspaceName) {
+async function verifyTerminal(app, page, workspaceName) {
   const pane = page.getByTestId('terminal-pane')
   const selector = pane.getByTestId('terminal-session')
   const type = (command) => typeLine(pane.getByTestId('terminal-input'), command)
+  const ipc = await app.evaluateHandle(({ ipcMain }) => {
+    const channel = 'ion:terminal-input'
+    const handlers = ipcMain._invokeHandlers
+    const original = handlers?.get(channel)
+    const writes = []
+    if (!original) return { available: false, writes, restore() {} }
+    handlers.set(channel, (event, id, data) => {
+      if (writes.length >= 32) writes.shift()
+      writes.push(typeof data === 'string' ? data.slice(0, 256) : typeof data)
+      return original(event, id, data)
+    })
+    return { available: true, writes, restore() { handlers.set(channel, original) } }
+  })
+  let keyboardWrites
   const diagnostics = await page.evaluateHandle(() => {
     const events = []
-    const unsubscribe = window.ion.terminal.onEvent((event) => {
-      if (events.length >= 12) return
+    const enter = []
+    const onKey = (event) => {
+      if (event.key !== 'Enter' || event.target?.getAttribute?.('data-testid') !== 'terminal-input') return
+      queueMicrotask(() => enter.push({
+        key: event.key, code: event.code, keyCode: event.keyCode, defaultPrevented: event.defaultPrevented,
+        composing: event.isComposing, trusted: event.isTrusted, alt: event.altKey, ctrl: event.ctrlKey,
+      }))
+    }
+    document.addEventListener('keydown', onKey, true)
+    const unlisten = window.ion.terminal.onEvent((event) => {
+      if (events.length >= 12) events.shift()
       events.push(event.kind === 'data' ? { ...event, text: event.text.slice(0, 512) } : event)
     })
-    return { events, unsubscribe }
+    return { events, enter, unsubscribe() {
+      document.removeEventListener('keydown', onKey, true)
+      unlisten()
+    } }
   })
 
   try {
@@ -148,7 +174,18 @@ async function verifyTerminal(page, workspaceName) {
       return [...rows].some((row) => /^PS .+>/.test(row.textContent?.trim() ?? ''))
     }, undefined, { timeout: 15_000 })).dispose()
     await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
-    await terminalShows(page, 'ION-WORKSPACE:' + workspaceName, 'terminal-pane')
+    const workspaceMarker = 'ION-WORKSPACE:' + workspaceName
+    try {
+      await terminalShows(page, workspaceMarker, 'terminal-pane')
+    } catch (error) {
+      keyboardWrites = await ipc.evaluate(({ available, writes }) => ({ available, writes }))
+      // Probe the same queued command with only a carriage return through the native bridge.
+      // The original keyboard assertion still fails if the probe succeeds.
+      const comparison = await page.evaluate((id) => window.ion.terminal.input(id, '\r'), first)
+        .then(() => terminalShows(page, workspaceMarker, 'terminal-pane', 2500))
+        .then(() => 'Direct carriage return submitted the queued command.', (reason) => String(reason))
+      throw new Error('Keyboard Enter did not submit the PowerShell command. ' + comparison, { cause: error })
+    }
     await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
     const pidHandle = await page.waitForFunction(() => {
       const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
@@ -180,15 +217,18 @@ async function verifyTerminal(page, workspaceName) {
     assert.equal(await selector.inputValue(), second)
     await pane.getByTestId('terminal-close').click()
   } catch (error) {
-    const observed = await diagnostics.evaluate(({ events }) => ({
-      events,
+    const observed = await diagnostics.evaluate(({ events, enter }) => ({
+      events, enter,
       focus: document.activeElement?.getAttribute('data-testid'),
       visible: document.querySelector('[data-testid="terminal-pane"]')?.textContent?.slice(-1600),
     })).catch(() => null)
-    throw new Error(`Windows Terminal verification failed. Observed: ${JSON.stringify(observed)}`, { cause: error })
+    const writes = keyboardWrites ?? await ipc.evaluate(({ available, writes }) => ({ available, writes })).catch(() => null)
+    throw new Error(`Windows Terminal verification failed. ${error.message} Observed: ${JSON.stringify({ ...observed, ipc: writes })}`, { cause: error })
   } finally {
     await diagnostics.evaluate(({ unsubscribe }) => unsubscribe()).catch(() => {})
     await diagnostics.dispose()
+    await ipc.evaluate(({ restore }) => restore()).catch(() => {})
+    await ipc.dispose()
   }
   console.log('PASS PowerShell starts in the workspace, two sessions switch independently, and closing reaps the process.')
 }
@@ -218,7 +258,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       await session.page.locator('.recent-entry').filter({ hasText: workspaceName }).click()
       await verifyWindowsConsole(session.page)
       await verifyToolchains(session.page)
-      await verifyTerminal(session.page, workspaceName)
+      await verifyTerminal(session.app, session.page, workspaceName)
     } finally {
       await close(session)
     }
