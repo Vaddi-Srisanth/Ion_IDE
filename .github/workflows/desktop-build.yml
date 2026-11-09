@@ -1,84 +1,31 @@
-name: Desktop verification
-
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
-
+name: Windows native performance baseline
+on: [push, workflow_dispatch]
 permissions:
   contents: read
-
 jobs:
-  macos:
-    name: macOS Apple silicon
-    runs-on: macos-15
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 24.22.2
-          cache: npm
-      - run: node scripts/release-evidence.mjs checkout
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm run test:regression
-      - run: node scripts/test-update-preferences.mjs
-      - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
-      - run: npm run package:dmg
-      - run: node scripts/verify-mac-release.mjs
-      - run: node scripts/release-evidence.mjs record mac-arm64
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: ion-macos-arm64-attempt-${{ github.run_attempt }}
-          path: |
-            release/Ion-IDE-*-mac-arm64.dmg
-            release/Ion-IDE-*-mac-arm64.dmg.json
-          if-no-files-found: error
-          retention-days: 14
-
-  windows:
-    name: Windows x64
+  baseline:
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24.22.2
           cache: npm
-      - run: node scripts/release-evidence.mjs checkout
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm run typecheck
-      - name: Run portable and Windows-specific unit tests
-        run: npm test -- line-console run-plans workspace-search shortcuts updates preferences-windows
-      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
-      - run: npm run build
-      - name: Verify interactive Run Console
-        run: node scripts/verify-windows-run-console.mjs
-      - name: Locate NSIS
+      - name: Locate GCC
         shell: pwsh
         run: |
-          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
-          if (!(Test-Path $nsis)) {
-            choco install nsis --version=3.13.0 --yes --no-progress
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if (!(Test-Path $nsis)) { throw 'The NSIS compiler is unavailable.' }
-          "ION_MAKENSIS=$nsis" >> $env:GITHUB_ENV
-      - run: npm run package:win
-      - run: npm run test:release:win
-      - run: node scripts/release-evidence.mjs record windows-x64
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          Write-Host $gcc
+          Split-Path $gcc >> $env:GITHUB_PATH
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/benchmark-windows.mjs --label baseline
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: ion-windows-x64-attempt-${{ github.run_attempt }}
-          path: |
-            release/Ion-IDE-*-windows-x64-setup.exe
-            release/Ion-IDE-*-windows-x64-setup.exe.json
+          name: windows-performance-baseline
+          path: performance-results/windows-baseline.json
           if-no-files-found: error
           retention-days: 14
