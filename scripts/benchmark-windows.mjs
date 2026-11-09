@@ -44,7 +44,7 @@ async function noChildren(session, idleChildren) {
 }
 
 await withScratch('windows-bench', async (scratch) => {
-  const project = await createProject(join(scratch, 'workspace ü'), { medium: true })
+  const project = await createProject(join(scratch, 'benchmark workspace'), { medium: true })
   const pdf = join(project.directory, 'local study.pdf')
   const waiting = join(project.directory, 'waiting.js')
   await writeFile(pdf, pdfFixture(2))
