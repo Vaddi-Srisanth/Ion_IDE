@@ -79,12 +79,18 @@ await withScratch('windows-release', async (scratch) => {
     const preferences = page.getByRole('dialog', { name: 'Preferences' })
     const updateOptIn = preferences.getByRole('checkbox', { name: /^Check for updates on launch/ })
     assert.equal(await updateOptIn.isChecked(), false, 'network checks start disabled')
-    await updateOptIn.check()
-    await eventually(async () => JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch === true,
-      'Update opt-in was not saved.')
-    await updateOptIn.uncheck()
-    await eventually(async () => JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch === false,
-      'Update opt-out was not saved.')
+    const saveUpdateConsent = async (enabled) => {
+      await updateOptIn.click()
+      await eventually(async () => {
+        const error = await preferences.getByRole('alert').filter({ hasText: 'Could not save the update preference' }).first()
+          .textContent({ timeout: 100 }).catch(() => null)
+        if (error) throw new Error(error)
+        return await updateOptIn.isEnabled() && await updateOptIn.isChecked() === enabled
+      }, `The update checkbox did not acknowledge the saved preference (${enabled}).`)
+      assert.equal(JSON.parse(await readFile(prefs, 'utf8')).settings.checkUpdatesOnLaunch, enabled)
+    }
+    await saveUpdateConsent(true)
+    await saveUpdateConsent(false)
     await preferences.getByRole('button', { name: 'Done', exact: true }).click()
     await page.locator('.recent-entry').filter({ hasText: 'Release test workspace' }).click()
     await page.getByRole('button', { name: 'Search in Files', exact: true }).click()

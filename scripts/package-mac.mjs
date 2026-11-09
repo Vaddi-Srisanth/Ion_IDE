@@ -1,11 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { FuseV1Options, FuseVersion, flipFuses } from '@electron/fuses'
 import { packager } from '@electron/packager'
 import { macDocumentInfo } from './macos-document-types.mjs'
+import { electronSigningOptions, loadMacSigning, signMacImage, verifyMacApp } from './mac-signing.mjs'
 
 if (process.platform !== 'darwin') throw new Error('Package Ion IDE on a Mac')
 const arch = process.env.ION_MAC_ARCH ?? process.arch
@@ -16,6 +17,7 @@ const { name, productName, version, main } = metadata
 const manifest = { name, productName, version, main }
 const release = resolve(process.env.ION_MAC_OUTPUT_DIR ?? 'release')
 const app = join(release, `Ion IDE-${version}-darwin-${arch}`, 'Ion IDE.app')
+const signing = loadMacSigning()
 const scratch = await mkdtemp(join(tmpdir(), 'ion-package-'))
 const command = (binary, args) => execFileSync(binary, args, { stdio: 'inherit' })
 
@@ -26,7 +28,7 @@ try {
     await mkdir(volume)
     const copy = join(volume, 'Ion IDE.app')
     command('/usr/bin/ditto', ['--norsrc', '--noextattr', app, copy])
-    command('/usr/bin/codesign', ['--verify', '--deep', '--strict', copy])
+    await verifyMacApp(copy, signing)
     await symlink('/Applications', join(volume, 'Applications'))
     const filename = `Ion-IDE-${manifest.version}-mac-${arch}.dmg`
     const image = join(scratch, filename)
@@ -38,8 +40,16 @@ try {
       command('/usr/bin/hdiutil', ['create', '-format', 'UDZO', '-fs', 'APFS',
         '-volname', 'Ion IDE', '-srcfolder', volume, image])
     }
+    if (signing) await signMacImage(image, signing, scratch)
     command('/usr/bin/hdiutil', ['verify', image])
-    await cp(image, join(release, filename))
+    const publish = await mkdtemp(join(release, '.ion-dmg-'))
+    try {
+      const stagedImage = join(publish, filename)
+      await cp(image, stagedImage)
+      await rename(stagedImage, join(release, filename))
+    } finally {
+      await rm(publish, { recursive: true, force: true })
+    }
     console.log(join(release, filename))
   } else {
     // Use the pinned Electron package's checksums to verify cached runtimes offline.
@@ -51,6 +61,7 @@ try {
     await mkdir(stage)
     await writeFile(join(stage, 'package.json'), JSON.stringify(manifest))
     const native = resolve('dist/native')
+    const nativeTools = ['ion-pty', 'ion-rg']
     await cp('dist', join(stage, 'dist'), { recursive: true, filter: (path) => resolve(path) !== native })
     command('/usr/bin/swift', ['scripts/macos-icon.swift', iconset])
     command('/usr/bin/iconutil', ['-c', 'icns', iconset, '-o', icon])
@@ -67,33 +78,39 @@ try {
       platform: 'darwin',
       arch,
       icon,
-      extraResource: ['ion-pty', 'ion-rg', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt'].map((name) => join(native, name)),
+      extraResource: [...nativeTools, 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt'].map((name) => join(native, name)),
+      afterCopyExtraResources: [async ({ buildPath }) => {
+        const bundle = join(buildPath, 'Ion IDE.app')
+        for (const name of nativeTools) {
+          const executable = join(bundle, 'Contents/Resources', name)
+          const architectures = execFileSync('/usr/bin/lipo', ['-archs', executable], { encoding: 'utf8' }).trim().split(/\s+/)
+          if (!architectures.includes(arch === 'x64' ? 'x86_64' : 'arm64')) {
+            throw new Error(name + ' is missing the requested ' + arch + ' architecture.')
+          }
+          if (!signing) command('/usr/bin/codesign', ['--force', '--sign', '-', executable])
+        }
+        // The bundle has been named and its resources copied. Packager signs it after this hook.
+        await flipFuses(bundle, {
+          version: FuseVersion.V1,
+          [FuseV1Options.RunAsNode]: false,
+          [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+          [FuseV1Options.EnableNodeCliInspectArguments]: false,
+          [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+          [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+          [FuseV1Options.OnlyLoadAppFromAsar]: true,
+        })
+      }],
+      ...(signing && { osxSign: await electronSigningOptions(signing, scratch) }),
       asar: true,
       prune: false,
     })
     // File Provider can attach Finder metadata to bundles in synced folders.
     const signedApp = join(packageDirectory, 'Ion IDE.app')
-    for (const name of ['ion-pty', 'ion-rg']) {
-      const executable = join(signedApp, 'Contents/Resources', name)
-      const architectures = execFileSync('/usr/bin/lipo', [executable, '-archs'], { encoding: 'utf8' }).trim().split(/\s+/)
-      if (!architectures.includes(arch === 'x64' ? 'x86_64' : 'arm64')) {
-        throw new Error(`${name} is missing the requested ${arch} architecture.`)
-      }
-      command('/usr/bin/codesign', ['--force', '--sign', '-', executable])
-    }
-    await flipFuses(signedApp, {
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
-    })
-    command('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', signedApp])
-    command('/usr/bin/codesign', ['--verify', '--deep', '--strict', signedApp])
+    if (!signing) command('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', signedApp])
+    await verifyMacApp(signedApp, signing)
     await rm(app, { recursive: true, force: true })
     command('/usr/bin/ditto', ['--norsrc', '--noextattr', signedApp, app])
+    await verifyMacApp(app, signing)
     console.log(app)
   }
 } finally {

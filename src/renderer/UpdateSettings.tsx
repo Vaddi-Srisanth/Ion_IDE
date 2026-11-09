@@ -13,11 +13,17 @@ function description(status: UpdateStatus): string {
   }
 }
 
-export function UpdateSettings({ onLaunch, onChange }: { onLaunch: boolean; onChange(value: boolean): void }) {
+export function UpdateSettings({ onLaunch, onChange, ready }: {
+  onLaunch: boolean;
+  onChange(value: boolean): Promise<void>;
+  ready: boolean;
+}) {
   const [status, setStatus] = useState<UpdateStatus>();
   const [busy, setBusy] = useState<'check' | 'download'>();
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const bridge = window.ion.updates;
   useEffect(() => {
     let mounted = true;
@@ -43,11 +49,24 @@ export function UpdateSettings({ onLaunch, onChange }: { onLaunch: boolean; onCh
     }
   }
 
+  async function saveLaunch(enabled: boolean) {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onChange(enabled);
+    } catch (reason) {
+      setSaveError('Could not save the update preference. ' + errorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return <div className="settings-group">
     <h3>Updates</h3>
     <label className="setting">
-      <span><b>Check for updates on launch</b><small>Contact GitHub when Ion opens.</small></span>
-      <input type="checkbox" checked={onLaunch} onChange={(event) => onChange(event.target.checked)}/>
+      <span><b>Check for updates on launch</b><small>{saving ? 'Saving preference…' : 'Contact GitHub when Ion opens.'}</small></span>
+      <input type="checkbox" checked={onLaunch} disabled={!ready || saving}
+        onChange={(event) => void saveLaunch(event.target.checked)}/>
     </label>
     <div className="setting">
       <div><b>{status ? `Ion ${status.current}` : 'Ion IDE'}</b>
@@ -64,5 +83,6 @@ export function UpdateSettings({ onLaunch, onChange }: { onLaunch: boolean; onCh
         : <button className="button" type="button" disabled={Boolean(busy)} onClick={() => void perform('download')}>Download Update</button>}
     </div>}
     {error && <p className="form-error" role="alert">{error}</p>}
+    {saveError && <p className="form-error" role="alert">{saveError}</p>}
   </div>;
 }

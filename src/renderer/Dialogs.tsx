@@ -34,11 +34,14 @@ export function Modal({ title, className = '', children, onClose, busy = false }
 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
-export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChange, onShortcutChange, onExportProfile, onClose }: {
+export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChange, onUpdateLaunchChange,
+  preferencesReady, onShortcutChange, onExportProfile, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string): Promise<void>;
   onChange(patch: Partial<Settings>): void;
+  onUpdateLaunchChange(enabled: boolean): Promise<void>;
+  preferencesReady: boolean;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
   onClose(): void;
@@ -60,7 +63,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
   };
   return (
     <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy}>
-      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={(checkUpdatesOnLaunch) => onChange({ checkUpdatesOnLaunch })}/>
+      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady}/>
       <div className="settings-group">
         <h3>Window</h3>
         <div className="setting">

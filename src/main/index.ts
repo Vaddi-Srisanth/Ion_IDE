@@ -363,7 +363,7 @@ function createWindow(): BrowserWindow {
     viewerService = undefined
     const kernelCleanup = notebookKernels?.then((service) => service.dispose(), () => undefined)
     notebookKernels = undefined
-    const cleanup = Promise.all([runner.drain(), previewCleanup, kernelCleanup, interactive?.job, practiceRun?.job?.catch(() => undefined)])
+    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, interactive?.job, practiceRun?.job?.catch(() => undefined)])
     if (restartAfterCrash) {
       void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
     } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {

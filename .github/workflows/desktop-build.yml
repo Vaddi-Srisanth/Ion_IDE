@@ -19,17 +19,22 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.22.2
           cache: npm
+      - run: node scripts/release-evidence.mjs checkout
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run test:regression
+      - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
       - run: npm run package:dmg
       - run: node scripts/verify-mac-release.mjs
+      - run: node scripts/release-evidence.mjs record mac-arm64
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ion-macos-arm64
-          path: release/Ion-IDE-*-mac-arm64.dmg
+          name: ion-macos-arm64-attempt-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-mac-arm64.dmg
+            release/Ion-IDE-*-mac-arm64.dmg.json
           if-no-files-found: error
           retention-days: 14
 
@@ -43,13 +48,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.22.2
           cache: npm
+      - run: node scripts/release-evidence.mjs checkout
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run typecheck
       - name: Run portable and Windows-specific unit tests
-        run: npm test -- line-console run-plans workspace-search shortcuts updates
+        run: npm test -- line-console run-plans workspace-search shortcuts updates preferences-windows
+      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
       - run: npm run build
       - name: Verify interactive Run Console
         run: node scripts/verify-windows-run-console.mjs
@@ -58,16 +65,19 @@ jobs:
         run: |
           $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
           if (!(Test-Path $nsis)) {
-            choco install nsis --yes --no-progress
+            choco install nsis --version=3.13.0 --yes --no-progress
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           if (!(Test-Path $nsis)) { throw 'The NSIS compiler is unavailable.' }
           "ION_MAKENSIS=$nsis" >> $env:GITHUB_ENV
       - run: npm run package:win
       - run: npm run test:release:win
+      - run: node scripts/release-evidence.mjs record windows-x64
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ion-windows-x64
-          path: release/Ion-IDE-*-windows-x64-setup.exe
+          name: ion-windows-x64-attempt-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-windows-x64-setup.exe
+            release/Ion-IDE-*-windows-x64-setup.exe.json
           if-no-files-found: error
           retention-days: 14

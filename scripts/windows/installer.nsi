@@ -5,9 +5,12 @@ InstallDir "$LOCALAPPDATA\Programs\Ion IDE"
 RequestExecutionLevel user
 CRCCheck force
 SetCompressor /SOLID lzma
+!ifndef ION_PUBLISHER
+  !define ION_PUBLISHER "Vaddi Srisanth"
+!endif
 VIProductVersion "${ION_VERSION}.0"
 VIAddVersionKey "ProductName" "Ion IDE"
-VIAddVersionKey "CompanyName" "Vaddi Srisanth"
+VIAddVersionKey "CompanyName" "${ION_PUBLISHER}"
 VIAddVersionKey "FileDescription" "Ion IDE Setup"
 VIAddVersionKey "FileVersion" "${ION_VERSION}"
 VIAddVersionKey "ProductVersion" "${ION_VERSION}"
@@ -60,7 +63,7 @@ Section "Ion IDE"
   IfErrors failed
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "Ion IDE"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${ION_VERSION}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "Vaddi Srisanth"
+  WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "${ION_PUBLISHER}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\App\Ion IDE.exe"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'

@@ -297,6 +297,12 @@ export function App() {
     }).catch((reason: unknown) => notify(`Could not save preferences. ${errorMessage(reason)}`, true));
   }, [applySettings, notify]);
 
+  async function changeUpdateLaunch(enabled: boolean) {
+    if (!preferencesLoaded.current) throw new Error('Ion could not load your preferences.');
+    const saved = await bridge.updateSettings({ checkUpdatesOnLaunch: enabled });
+    applySettings({ checkUpdatesOnLaunch: saved.checkUpdatesOnLaunch });
+  }
+
   const changeTheme = useCallback(async (selection: string) => {
     if (!preferencesReady || themeChanging.current) throw new Error('Please wait for the current theme to finish loading.');
     themeChanging.current = true;
@@ -980,7 +986,8 @@ export function App() {
       </Suspense>
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
-        onChange={updateSettings} onThemeChange={changeTheme} onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
+        onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady}
+        onThemeChange={changeTheme} onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
         onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'recovery' && <ConfirmDialog title="Recover unsaved edits"
         message={`Ion found ${recoveryDrafts.length} unsaved ${recoveryDrafts.length === 1 ? 'draft' : 'drafts'}. Restore them as separate tabs to review and save.`}
