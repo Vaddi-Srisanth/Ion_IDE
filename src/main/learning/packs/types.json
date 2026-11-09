@@ -1,0 +1,18 @@
+{
+  "explanation": "An expression has a type, and the context where you use it may expect another. C allows some implicit conversions, such as between arithmetic types, but incompatible structures or pointer and integer values need closer inspection.",
+  "example": "int apples = 4;\ndouble price_each = 1.25;\ndouble total = apples * price_each;",
+  "exampleExplanation": "The multiplication converts the integer to a compatible arithmetic type. The result fits the double destination.",
+  "misconceptions": [
+    "A cast can change how an expression is interpreted, but it cannot make an invalid address or incompatible layout safe.",
+    "Character strings and single characters have different types. Double quotes and single quotes are meaningful."
+  ],
+  "related": [
+    "names",
+    "functions",
+    "pointers"
+  ],
+  "reference": {
+    "title": "Local C reference on value and destination types",
+    "text": "Assignment, initialization, return statements, and argument passing each have an expected type. Compare the type the diagnostic says was supplied with the type it expected. Distinct structure types remain distinct even if their field lists happen to look alike."
+  }
+}

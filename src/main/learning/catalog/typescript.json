@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "id": "typescript",
+  "name": "TypeScript",
+  "summary": "Use static types to model JavaScript programs, validate boundaries, and design reusable APIs.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "types",
+      "title": "Annotations and inference",
+      "section": "Syntax",
+      "explanation": "TypeScript checks JavaScript code before it runs. It infers types from values and accepts annotations for useful boundaries such as function parameters. Type annotations are removed when JavaScript is produced.",
+      "example": "const item = \"Notebook\";\n\nfunction total(quantity: number, cents: number): number {\n  return quantity * cents;\n}\n\nconsole.log(item, total(3, 275));",
+      "api": [
+        {
+          "name": "string / number / boolean",
+          "description": "Describe common primitive values."
+        },
+        {
+          "name": "number[]",
+          "description": "Describe an array of numeric values."
+        },
+        {
+          "name": "tsc --noEmit --strict",
+          "description": "Check types without writing JavaScript when the TypeScript compiler is installed."
+        }
+      ],
+      "practice": "Pass a string to total and see where the checker reports the mistake.",
+      "pitfall": "Static annotations do not convert runtime values or validate incoming data."
+    },
+    {
+      "id": "objects",
+      "title": "Object types, optional fields, and readonly",
+      "section": "Core",
+      "explanation": "An interface or type alias can name an object shape. Use ? for a property that may be absent and readonly to disallow assignment through that typed reference.",
+      "example": "interface Entry {\n  readonly id: string;\n  label: string;\n  score?: number;\n}\n\nfunction describe(entry: Entry): string {\n  return entry.label + \": \" + (entry.score ?? \"pending\");\n}\n\nconsole.log(describe({ id: \"a1\", label: \"Arrays\" }));",
+      "api": [
+        {
+          "name": "interface Name { ... }",
+          "description": "Declare an object shape that can be implemented or extended."
+        },
+        {
+          "name": "type Name = ...",
+          "description": "Name a type expression, including a union."
+        },
+        {
+          "name": "Readonly<T>",
+          "description": "Make top-level properties read-only to the checker."
+        }
+      ],
+      "practice": "Add a required status field with two allowed string values.",
+      "pitfall": "readonly provides a compile-time check and does not freeze a JavaScript object."
+    },
+    {
+      "id": "narrow",
+      "title": "Unions, guards, and control flow",
+      "section": "Core",
+      "explanation": "A union allows one of several types. A typeof check, a property test, or a tagged field narrows the available possibilities along a control-flow path.",
+      "example": "type Result =\n  | { state: \"ok\"; score: number }\n  | { state: \"error\"; message: string };\n\nfunction label(result: Result): string {\n  switch (result.state) {\n    case \"ok\": return \"Score: \" + result.score;\n    case \"error\": return \"Error: \" + result.message;\n  }\n}\n\nconsole.log(label({ state: \"ok\", score: 8 }));",
+      "api": [
+        {
+          "name": "typeof value === \"string\"",
+          "description": "Narrow a value to string in the true branch."
+        },
+        {
+          "name": "\"key\" in value",
+          "description": "Check whether an object has a property, including inherited properties."
+        },
+        {
+          "name": "never",
+          "description": "Represent a state with no possible value, useful for exhaustiveness checks."
+        }
+      ],
+      "practice": "Add a pending result variant and update label to handle it.",
+      "pitfall": "A type assertion such as value as Result bypasses part of checking without adding a runtime test."
+    },
+    {
+      "id": "generics",
+      "title": "Generic functions and key constraints",
+      "section": "Core",
+      "explanation": "Type parameters describe a relationship between types. A constraint limits what callers may supply. keyof T gives the property key types of T, and T[K] describes the value behind a key.",
+      "example": "function read<T, K extends keyof T>(record: T, key: K): T[K] {\n  return record[key];\n}\n\nconst score = read({ label: \"Arrays\", score: 9 }, \"score\");\nconsole.log(score.toFixed(1));",
+      "api": [
+        {
+          "name": "<T>",
+          "description": "Introduce a type parameter."
+        },
+        {
+          "name": "K extends keyof T",
+          "description": "Require K to be a key type for T."
+        },
+        {
+          "name": "T[K]",
+          "description": "Read a property type from an object type."
+        }
+      ],
+      "practice": "Read the label property and confirm that the returned value has string methods.",
+      "pitfall": "A generic parameter used only once often gives the caller little information. Use it to connect inputs or outputs."
+    },
+    {
+      "id": "utilities",
+      "title": "Utility types for API shapes",
+      "section": "Standard types",
+      "explanation": "Derive a related shape from an existing type. Keep required fields on objects that represent complete data, and use a separate type for updates that may omit fields.",
+      "example": "interface Note {\n  id: string;\n  title: string;\n  body: string;\n}\n\ntype NotePatch = Partial<Pick<Note, \"title\" | \"body\">>;\n\nfunction update(note: Note, patch: NotePatch): Note {\n  return { ...note, ...patch };\n}\n\nconsole.log(update({ id: \"1\", title: \"Draft\", body: \"\" }, { title: \"Ready\" }));",
+      "api": [
+        {
+          "name": "Pick<T, K> / Omit<T, K>",
+          "description": "Keep or exclude specified properties."
+        },
+        {
+          "name": "Partial<T>",
+          "description": "Make the top-level properties optional."
+        },
+        {
+          "name": "Record<K, V>",
+          "description": "Describe an object with key type K and value type V."
+        }
+      ],
+      "practice": "Create a public note type exposing only id and title.",
+      "pitfall": "Partial is shallow. Nested fields keep their original requirements."
+    },
+    {
+      "id": "runtime",
+      "title": "Runtime validation at data boundaries",
+      "section": "Core",
+      "explanation": "Treat values from a file, HTTP response, or user as unknown until you inspect them. A type guard connects the runtime check to the type checker.",
+      "example": "type Score = { points: number };\n\nfunction isScore(value: unknown): value is Score {\n  return typeof value === \"object\" && value !== null &&\n    \"points\" in value && typeof value.points === \"number\" &&\n    Number.isFinite(value.points);\n}\n\nconst decoded: unknown = JSON.parse('{\"points\":8}');\nif (isScore(decoded)) console.log(decoded.points);",
+      "api": [
+        {
+          "name": "unknown",
+          "description": "Require validation or narrowing before using a value."
+        },
+        {
+          "name": "value is Score",
+          "description": "Tell the checker which type a successful predicate establishes."
+        },
+        {
+          "name": "Number.isFinite(value)",
+          "description": "Reject NaN and infinite numeric values."
+        }
+      ],
+      "practice": "Update the guard to require an integer between 0 and 100. Use TypeScript 4.9 or newer for this form of property narrowing.",
+      "pitfall": "JSON.parse can throw before validation runs. Catch that error when handling external input."
+    },
+    {
+      "id": "modules",
+      "title": "Modules, promises, and toolchain configuration",
+      "section": "Toolchain",
+      "explanation": "Import runtime values using import and types using import type. A Promise<T> resolves to T. Choose compiler settings for the runtime that will execute the emitted JavaScript.",
+      "example": "export type Task = { id: string; complete: boolean };\n\nexport async function complete(task: Task): Promise<Task> {\n  return { ...task, complete: true };\n}\n\ncomplete({ id: \"1\", complete: false }).then(console.log);",
+      "api": [
+        {
+          "name": "tsconfig.json",
+          "description": "Set language, module resolution, and type-checking options for a project."
+        },
+        {
+          "name": "strict",
+          "description": "Enable stricter checks for nullability, function parameters, and other common mistakes."
+        },
+        {
+          "name": "Promise<T>",
+          "description": "Describe the successful result type of an asynchronous operation."
+        }
+      ],
+      "practice": "Move Task into its own module and bring it into another source file using import type.",
+      "pitfall": "The output module format must match the JavaScript runtime and project configuration."
+    }
+  ]
+}

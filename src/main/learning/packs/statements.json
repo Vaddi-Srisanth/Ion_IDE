@@ -1,0 +1,17 @@
+{
+  "explanation": "C uses semicolons to end expression statements, return statements, and ordinary declarations. A line break is usually whitespace, so splitting two statements across lines does not separate them by itself.",
+  "example": "int score = 4;\nscore += 2;\nreturn score;",
+  "exampleExplanation": "The declaration, the update, and the return each end with their own semicolon. These are independent statements.",
+  "misconceptions": [
+    "The diagnostic can point at the next token because that is where the compiler discovered the missing boundary.",
+    "A closing brace does not always need a semicolon. A function body ends with a brace, while a structure definition used as a declaration ends with a semicolon."
+  ],
+  "related": [
+    "names",
+    "functions"
+  ],
+  "reference": {
+    "title": "Local C reference on statement boundaries",
+    "text": "An expression statement has an optional expression followed by a semicolon. A return statement has the keyword return, an optional expression, and a semicolon. A compound statement is a sequence of declarations and statements enclosed by braces. The three clauses of a for header have their own punctuation rules."
+  }
+}

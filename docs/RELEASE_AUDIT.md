@@ -1,0 +1,17 @@
+# Ion IDE 0.9.4 preview audit
+
+The release was prepared with disposable profiles. The existing installation, user profile, projects, and in-progress long-session benchmarks were left untouched.
+
+| Severity | Finding | Disposition |
+| --- | --- | --- |
+| High | The Mac-only terminal and toolchain assumptions prevented a dependable Windows release. | Windows now resolves installed toolchains, sends input through a line-based console, and stops child process trees. It has a per-user setup program and native installed-app verification in CI. |
+| Medium | Monaco 0.57.0 embedded DOMPurify 3.4.15 even though the lockfile selected a patched copy. The npm audit alone did not catch that embedded version. | The build replaces that one import with 3.4.17 and includes the relevant notices. The production JavaScript was checked for the patched version. No reachable exploit was demonstrated. [Upstream advisory](https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7) |
+| Medium | A failed or interrupted installer download could be mistaken for a valid installer if written directly to its final name. | The updater streams to a temporary file, checks byte count and SHA-256, marks the file as downloaded from the internet, then renames it. Failures and cancellations discard the staging folder. Ion never opens the installer itself. |
+
+The review covered preload permissions and IPC sender checks, path and revision validation for files, local process launching, notebook kernels, renderer network controls, document parsing, external links, and the optional AI planner. The normal workbench uses context isolation, a sandboxed renderer, and a restrictive content security policy. The runner and notebook kernel execute with the user's account privileges. Windows tree termination, POSIX process groups, and time and output limits are resource controls. Optional AI planning sends the previewed content to the chosen provider; approved local tests are declarative. See [Security](../SECURITY.md) for details.
+
+The dependency audit reported zero known npm advisories. Gitleaks scanned the existing Git history, the local checkpoint tree, and the staged source. Generated installers, profiles, recovery drafts, dependencies, and local benchmark logs are excluded from Git. These checks do not prove the absence of undisclosed vulnerabilities or secrets outside the inspected paths.
+
+On macOS, the type check and production build passed. The unit suite passed 125 tests with one Windows-only skip. The desktop checks exercised offline editing, conflict recovery, session restore, workspace search, all five Run Console languages, themes, optional workspaces, Markdown, notebook editing and recovery, and local document viewers. An editor-selection assertion timed out in the combined run and passed on a separate rerun; the remaining desktop checks then passed. PowerPoint rendering passed with a local LibreOffice engine, and its missing-engine fallback also passed. The release disk image was mounted and the packaged app launched with a disposable profile.
+
+The Mac preview is ad-hoc signed without Apple notarization, and the Windows preview is unsigned. Windows uses line-based console input and opens PowerPoint externally. See [Windows limitations](windows/KNOWN_ISSUES.md) and [distribution notes](DISTRIBUTION.md). A completed two-hour soak and results on lower-memory hardware are separate from the short [performance comparisons](../PERFORMANCE.md).

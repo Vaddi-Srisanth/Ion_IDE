@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "id": "html",
+  "name": "HTML",
+  "summary": "Structure accessible pages with semantic elements, links, media, tables, forms, and native controls.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "document",
+      "title": "Page structure and semantic regions",
+      "section": "Syntax",
+      "explanation": "HTML gives content a structure. Use headings for a meaningful outline. Put the primary page content in main and related navigational links in nav. Save this example as a local .html file and open it in a browser.",
+      "example": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Study notes</title>\n  </head>\n  <body>\n    <header><p>Ion Study</p></header>\n    <main>\n      <h1>Study notes</h1>\n      <section>\n        <h2>Today's goal</h2>\n        <p>Write a small page with a clear outline.</p>\n      </section>\n    </main>\n    <footer><p>Personal notes</p></footer>\n  </body>\n</html>",
+      "api": [
+        {
+          "name": "<!doctype html>",
+          "description": "Request modern standards mode in browsers."
+        },
+        {
+          "name": "<title>",
+          "description": "Provide the document title shown in a tab or bookmark."
+        },
+        {
+          "name": "<main>",
+          "description": "Identify the primary content of the page."
+        },
+        {
+          "name": "lang",
+          "description": "Declare the language so assistive technology can read text appropriately."
+        }
+      ],
+      "practice": "Add a section with a descriptive heading and a paragraph explaining the next task.",
+      "pitfall": "Pick headings for structure. Use CSS to control their visual size."
+    },
+    {
+      "id": "links",
+      "title": "Links, lists, and relative paths",
+      "section": "Core",
+      "explanation": "A link uses href to identify a destination. A fragment such as #summary targets an element id in the same page. Relative paths are resolved from the current document when there is no base override.",
+      "example": "<nav aria-label=\"Page sections\">\n  <ul>\n    <li><a href=\"#summary\">Study summary</a></li>\n    <li><a href=\"examples/loops.html\">Loop examples</a></li>\n  </ul>\n</nav>\n<section id=\"summary\">\n  <h2>Study summary</h2>\n  <ol>\n    <li>Read the concept.</li>\n    <li>Write a small example.</li>\n  </ol>\n</section>",
+      "api": [
+        {
+          "name": "<a href=\"...\">",
+          "description": "Create a link to a URL, file, or section."
+        },
+        {
+          "name": "<ol> / <ul>",
+          "description": "Mark up an ordered or unordered list."
+        },
+        {
+          "name": "id",
+          "description": "Assign a unique document identifier for fragments and other references."
+        }
+      ],
+      "practice": "Create examples/loops.html beside the current page, then test both navigation links.",
+      "pitfall": "Use descriptive link text so users know what will open. Each id must be unique."
+    },
+    {
+      "id": "media",
+      "title": "Local images, captions, and responsive assets",
+      "section": "Core",
+      "explanation": "An img provides an image and a text alternative. Use figure and figcaption when the image benefits from a visible caption. Provide the source image dimensions so the browser can reserve space before decoding.",
+      "example": "<figure>\n  <img src=\"images/study-chart.png\" width=\"640\" height=\"400\"\n       alt=\"Study time rises from 20 minutes on Monday to 40 on Friday\">\n  <figcaption>Study time this week</figcaption>\n</figure>",
+      "api": [
+        {
+          "name": "alt",
+          "description": "Describe useful visual information. Use an empty alt attribute for a decorative image."
+        },
+        {
+          "name": "width and height",
+          "description": "Provide intrinsic dimensions so layout can reserve the correct aspect ratio."
+        },
+        {
+          "name": "srcset / sizes",
+          "description": "Offer alternative image sources and describe the intended rendered width."
+        }
+      ],
+      "practice": "Save a local image to the expected folder and revise the alternative text to describe your own image.",
+      "pitfall": "A caption and an alt attribute serve different roles. Avoid needless repetition."
+    },
+    {
+      "id": "tables",
+      "title": "Tables, captions, and header relationships",
+      "section": "Core",
+      "explanation": "Use a table for row-and-column data. A caption describes what the table contains. Header cells use th, and scope helps connect them to the relevant rows or columns.",
+      "example": "<table>\n  <caption>Practice log</caption>\n  <thead>\n    <tr><th scope=\"col\">Topic</th><th scope=\"col\">Minutes</th></tr>\n  </thead>\n  <tbody>\n    <tr><th scope=\"row\">Functions</th><td>25</td></tr>\n    <tr><th scope=\"row\">Lists</th><td>15</td></tr>\n  </tbody>\n</table>",
+      "api": [
+        {
+          "name": "<caption>",
+          "description": "Name or summarize a data table."
+        },
+        {
+          "name": "<thead> / <tbody>",
+          "description": "Group header rows and body rows."
+        },
+        {
+          "name": "<th scope=\"row\">",
+          "description": "Associate a header with the other cells in that row."
+        }
+      ],
+      "practice": "Add a Date column and a third row. Verify that every data row has the same logical columns.",
+      "pitfall": "Use CSS grid or flexbox for page layout. A table communicates relationships among data."
+    },
+    {
+      "id": "forms",
+      "title": "Labels, inputs, and form submission",
+      "section": "Browser features",
+      "explanation": "A label connects visible text to an input and gives it an accessible name. A submitted input generally needs a name attribute. With GET, named fields are encoded in the URL query string.",
+      "example": "<form action=\"search.html\" method=\"get\">\n  <label for=\"search\">Search topics</label>\n  <input id=\"search\" name=\"q\" type=\"search\" required maxlength=\"80\">\n  <button type=\"submit\">Search</button>\n</form>",
+      "api": [
+        {
+          "name": "for and id",
+          "description": "Associate a label with an input."
+        },
+        {
+          "name": "type / required / maxlength",
+          "description": "Describe input and ask the browser to enforce basic constraints."
+        },
+        {
+          "name": "name",
+          "description": "Identify the field in the submitted data."
+        },
+        {
+          "name": "method=\"get\"",
+          "description": "Send the form fields as URL query parameters."
+        }
+      ],
+      "practice": "Create a search.html file and inspect the query string after submitting a term. The destination page needs code to interpret it.",
+      "pitfall": "Client-side validation helps users. A backend must still validate any submitted data."
+    },
+    {
+      "id": "controls",
+      "title": "Native disclosure and keyboard access",
+      "section": "Browser features",
+      "explanation": "Use elements with built-in interaction when possible. A button handles keyboard activation, and details exposes a disclosure control with a summary. Users can navigate interactive elements using Tab.",
+      "example": "<details>\n  <summary>Show the exercise hint</summary>\n  <p>Try the smallest input and the largest expected input.</p>\n</details>\n\n<p><a href=\"exercise.html\">Open the exercise</a></p>",
+      "api": [
+        {
+          "name": "<details> / <summary>",
+          "description": "Create a browser-managed disclosure widget."
+        },
+        {
+          "name": "<button type=\"button\">",
+          "description": "Create an action control that will not submit a form."
+        },
+        {
+          "name": "aria-label",
+          "description": "Supply an accessible name when visible text cannot name the element."
+        }
+      ],
+      "practice": "Test the disclosure by keyboard. Confirm that Tab focuses it and Enter or Space activates it.",
+      "pitfall": "Avoid using a clickable div for a button. It lacks native keyboard and focus behavior."
+    }
+  ]
+}

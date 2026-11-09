@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "id": "css",
+  "name": "CSS",
+  "summary": "Learn the cascade, box model, flexbox, grid, responsive styles, and accessible UI states.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "selectors",
+      "title": "Selectors, cascade, and inheritance",
+      "section": "Syntax",
+      "explanation": "A rule pairs selectors with declarations. Conflicts depend on the cascade, including origin, importance, and layer, then specificity and source order among otherwise comparable rules. Some properties, including color, inherit by default.",
+      "example": "/* Try with <main><p class=\"note\">Study note</p></main>. */\nmain { color: #202639; }\np { line-height: 1.55; }\n.note { color: #194a7a; }\nmain .note { color: #0d3c66; }",
+      "api": [
+        {
+          "name": ".class",
+          "description": "Select elements with a matching class token."
+        },
+        {
+          "name": "ancestor descendant",
+          "description": "Select a matching element within a matching ancestor."
+        },
+        {
+          "name": "color: inherit",
+          "description": "Use the inherited color of the parent."
+        }
+      ],
+      "practice": "Add another paragraph without the class. Predict its computed color and compare in browser developer tools.",
+      "pitfall": "An extra selector can make a rule harder to override. Prefer simple selectors where possible."
+    },
+    {
+      "id": "box",
+      "title": "Box model, sizing, and overflow",
+      "section": "Core",
+      "explanation": "The box model separates content, padding, border, and margin. With border-box, the specified width includes padding and border. Use max-inline-size to cap a box while allowing it to shrink.",
+      "example": "/* Try with <article class=\"card\">A long study note</article>. */\n.card {\n  box-sizing: border-box;\n  inline-size: 100%;\n  max-inline-size: 28rem;\n  margin-inline: auto;\n  padding: 1rem;\n  border: 1px solid #778399;\n  overflow-wrap: anywhere;\n}",
+      "api": [
+        {
+          "name": "box-sizing: border-box",
+          "description": "Count padding and border inside the declared dimensions."
+        },
+        {
+          "name": "margin-inline: auto",
+          "description": "Center a block inline when its available space and width allow."
+        },
+        {
+          "name": "overflow-wrap: anywhere",
+          "description": "Allow long otherwise unbreakable text to wrap."
+        }
+      ],
+      "practice": "Add padding and compare the rendered width with border-box and content-box.",
+      "pitfall": "A fixed width can overflow a narrow viewport. Constrain the width and allow it to shrink."
+    },
+    {
+      "id": "flex",
+      "title": "Flexbox and one-dimensional alignment",
+      "section": "Layout",
+      "explanation": "Flexbox organizes items along a main axis. justify-content distributes space on that axis, while align-items controls the cross axis. flex-wrap allows another row or column when items do not fit.",
+      "example": "/* Try with a .toolbar containing three buttons, one with class .push. */\n.toolbar {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 0.5rem;\n}\n\n.toolbar .push { margin-inline-start: auto; }",
+      "api": [
+        {
+          "name": "display: flex",
+          "description": "Lay out direct children as flex items."
+        },
+        {
+          "name": "flex-wrap: wrap",
+          "description": "Allow flex items to flow onto another line."
+        },
+        {
+          "name": "gap",
+          "description": "Create space between items without adding outside margins."
+        }
+      ],
+      "practice": "Narrow the viewport and observe when the buttons wrap. Change flex-direction to column and identify the new main axis.",
+      "pitfall": "justify-content affects the main axis, which can be vertical."
+    },
+    {
+      "id": "grid",
+      "title": "Grid, tracks, and reusable layouts",
+      "section": "Layout",
+      "explanation": "Grid defines rows and columns and places direct children in cells. Use minmax to keep a column flexible and repeat with auto-fit to adapt the number of columns to available space.",
+      "example": "/* Try with a .topics container and several article children. */\n.topics {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));\n  gap: 1rem;\n}\n\n.topics article { min-inline-size: 0; padding: 0.75rem; }",
+      "api": [
+        {
+          "name": "display: grid",
+          "description": "Lay out direct children as grid items."
+        },
+        {
+          "name": "minmax(minimum, maximum)",
+          "description": "Give a grid track flexible lower and upper limits."
+        },
+        {
+          "name": "1fr",
+          "description": "Allocate one share of available flexible track space."
+        }
+      ],
+      "practice": "Add five cards and resize the browser. Note where an extra column appears.",
+      "pitfall": "If content refuses to shrink, inspect its minimum inline size and long unbreakable words."
+    },
+    {
+      "id": "responsive",
+      "title": "Responsive rules and theme variables",
+      "section": "Layout",
+      "explanation": "Custom properties hold reusable values and can change with the cascade. Media queries apply declarations according to characteristics such as viewport width and the user’s color scheme.",
+      "example": ":root { --paper: #fff; --ink: #17223a; }\nbody { background: var(--paper); color: var(--ink); margin: 1rem; }\n\n@media (prefers-color-scheme: dark) {\n  :root { --paper: #151a25; --ink: #e6ebf5; }\n}\n\n@media (min-width: 48rem) {\n  body { margin: 2rem; }\n}",
+      "api": [
+        {
+          "name": "--name",
+          "description": "Declare a CSS custom property."
+        },
+        {
+          "name": "var(--name, fallback)",
+          "description": "Read a custom property or use a fallback."
+        },
+        {
+          "name": "@media (min-width: 48rem)",
+          "description": "Apply rules once the viewport meets the threshold."
+        }
+      ],
+      "practice": "Add a reusable border color in both themes and apply it to the card example.",
+      "pitfall": "Color contrast needs checking in each theme, including hover and focus states."
+    },
+    {
+      "id": "states",
+      "title": "Interactive states and accessible focus",
+      "section": "Browser features",
+      "explanation": "Pseudo-classes match a state or relationship. Preserve a visible focus indicator for keyboard users. Motion can be useful in small doses, and the reduced-motion preference lets users ask to avoid it.",
+      "example": "/* Try with <button class=\"action\" type=\"button\">Open lesson</button>. */\n.action { padding: 0.55rem 0.8rem; }\n.action:hover { text-decoration: underline; }\n.action:focus-visible { outline: 2px solid #3778bc; outline-offset: 3px; }\n\n@media (prefers-reduced-motion: no-preference) {\n  .action { transition: background-color 120ms ease; }\n}",
+      "api": [
+        {
+          "name": ":hover",
+          "description": "Match an element under a pointing device."
+        },
+        {
+          "name": ":focus-visible",
+          "description": "Match focus when the browser determines that a focus indicator should be shown."
+        },
+        {
+          "name": ":disabled",
+          "description": "Match supported form controls that are disabled."
+        }
+      ],
+      "practice": "Use Tab to focus the button, then test a disabled button and verify that important information remains visible.",
+      "pitfall": "Avoid hover-only information. Touch and keyboard users need a way to reach the same content."
+    }
+  ]
+}

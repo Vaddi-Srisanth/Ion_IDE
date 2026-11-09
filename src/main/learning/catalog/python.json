@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "id": "python",
+  "name": "Python",
+  "summary": "Build confidence with core Python, collections, files, JSON, and the standard library.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "values",
+      "title": "Values, names, and output",
+      "section": "Syntax",
+      "explanation": "Assign a name with =. Python determines the type of the value at runtime. A string, integer, float, and Boolean are distinct kinds of values. An f-string inserts values between braces and can format numbers.",
+      "example": "items = 3\nprice = 2.75\ndiscounted = False\nprint(f\"{items} items cost ${items * price:.2f}\")\nprint(type(discounted).__name__)",
+      "api": [
+        {
+          "name": "print(value)",
+          "description": "Write values to the console."
+        },
+        {
+          "name": "int(text) / float(text)",
+          "description": "Convert valid numeric text. Conversion can raise ValueError."
+        },
+        {
+          "name": "type(value)",
+          "description": "Inspect the runtime type of a value."
+        }
+      ],
+      "practice": "Change the quantity and price. Predict the formatted output before you run it.",
+      "pitfall": "Adding a string to an integer raises TypeError. Convert deliberately or use an f-string."
+    },
+    {
+      "id": "flow",
+      "title": "Conditions, loops, and ranges",
+      "section": "Syntax",
+      "explanation": "A colon starts an indented suite. Use if, elif, and else for alternatives. A for loop takes successive values from an iterable. A while loop repeats while its condition holds.",
+      "example": "for index in range(1, 6):\n    if index % 2 == 0:\n        print(index, \"even\")\n    else:\n        print(index, \"odd\")",
+      "api": [
+        {
+          "name": "range(start, stop, step)",
+          "description": "Generate integer positions without allocating a list. The stop value is excluded."
+        },
+        {
+          "name": "enumerate(items, start=0)",
+          "description": "Produce an index and value for each item."
+        },
+        {
+          "name": "zip(a, b)",
+          "description": "Pair values from both iterables, stopping at the shorter one by default."
+        }
+      ],
+      "practice": "List the numbers from 10 down to 1. Print only the multiples of 3.",
+      "pitfall": "Keep indentation consistent. A misplaced indent changes which block executes."
+    },
+    {
+      "id": "collections",
+      "title": "Lists, dictionaries, sets, and tuples",
+      "section": "Core",
+      "explanation": "Use a list for a sequence you need to change, a tuple for a fixed sequence, a dictionary for key-to-value lookups, and a set for membership and uniqueness. Lists and tuples are indexed from zero.",
+      "example": "words = [\"ion\", \"learn\", \"ion\"]\ncounts = {}\nfor word in words:\n    counts[word] = counts.get(word, 0) + 1\npair = (\"total\", len(words))\nprint(sorted(set(words)), counts, pair)",
+      "api": [
+        {
+          "name": "list.append(item)",
+          "description": "Append one item in place."
+        },
+        {
+          "name": "dict.get(key, default)",
+          "description": "Read a key or return the fallback."
+        },
+        {
+          "name": "set.add(item)",
+          "description": "Include an item once."
+        },
+        {
+          "name": "sorted(iterable)",
+          "description": "Return a new sorted list without changing the input."
+        }
+      ],
+      "practice": "Count the first letters of several words. Use a set to show how many distinct letters appear.",
+      "pitfall": "list.sort() modifies the list and returns None. Use sorted() when you need a new list."
+    },
+    {
+      "id": "functions",
+      "title": "Functions, comprehensions, and modules",
+      "section": "Core",
+      "explanation": "Use def to name a reusable operation and return to send back a result. Comprehensions combine a transform and an optional filter. Import standard modules by name to reuse their functions.",
+      "example": "from math import sqrt\n\ndef small_roots(values, limit=20):\n    return [sqrt(value) for value in values if 0 <= value <= limit]\n\nprint(small_roots([4, 9, 25, -1]))",
+      "api": [
+        {
+          "name": "math.sqrt(value)",
+          "description": "Return the square root of a non-negative value."
+        },
+        {
+          "name": "sum(items)",
+          "description": "Add numeric values from an iterable."
+        },
+        {
+          "name": "any(items) / all(items)",
+          "description": "Test whether at least one item or every item is truthy."
+        }
+      ],
+      "practice": "Write a function that returns the lengths of words longer than a threshold.",
+      "pitfall": "Avoid a list or dictionary as a default parameter when callers need independent values. Defaults are evaluated once."
+    },
+    {
+      "id": "objects",
+      "title": "Classes and dataclasses",
+      "section": "Core",
+      "explanation": "A class keeps related state and operations together. Instance methods receive the current object through self. A dataclass can generate the initializer and useful comparison and display methods from its declared fields.",
+      "example": "from dataclasses import dataclass\n\n@dataclass\nclass Receipt:\n    name: str\n    cents: int\n\n    def label(self) -> str:\n        return f\"{self.name}: ${self.cents / 100:.2f}\"\n\nprint(Receipt(\"Pencil\", 125).label())",
+      "api": [
+        {
+          "name": "@dataclass",
+          "description": "Generate common methods from annotated fields."
+        },
+        {
+          "name": "isinstance(value, Class)",
+          "description": "Test whether a value belongs to a class or one of its subclasses."
+        }
+      ],
+      "practice": "Add a quantity field and a total_cents method to Receipt.",
+      "pitfall": "Type hints help readers and tools. Ordinary Python execution does not enforce them."
+    },
+    {
+      "id": "errors",
+      "title": "Exceptions and validation",
+      "section": "Core",
+      "explanation": "Wrap an operation that may fail in try, then catch specific error types with except. Validate values at the boundary and use raise when a function cannot produce a meaningful result.",
+      "example": "def positive_count(text):\n    value = int(text)\n    if value <= 0:\n        raise ValueError(\"Enter a positive count\")\n    return value\n\nfor text in [\"3\", \"zero\", \"-2\"]:\n    try:\n        print(positive_count(text))\n    except ValueError as error:\n        print(\"Invalid:\", error)",
+      "api": [
+        {
+          "name": "ValueError",
+          "description": "Report a valid type that carries an unacceptable value."
+        },
+        {
+          "name": "FileNotFoundError",
+          "description": "Report an attempted file access where the path is missing."
+        },
+        {
+          "name": "finally",
+          "description": "Run cleanup after a try block, including when an exception occurs."
+        }
+      ],
+      "practice": "Extend positive_count to reject counts above 100. Try 0, 1, 100, 101, and invalid text.",
+      "pitfall": "Keep the try block narrow so a genuine bug elsewhere does not look like a user input error."
+    },
+    {
+      "id": "files-json",
+      "title": "Files, paths, and JSON",
+      "section": "Standard library",
+      "explanation": "pathlib represents paths as values you can compose. JSON converts simple data to text for storage or exchange. Choose an encoding and validate decoded data before relying on it.",
+      "example": "import json\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nwith TemporaryDirectory() as folder:\n    path = Path(folder) / \"scores.json\"\n    path.write_text(json.dumps({\"scores\": [8, 9]}), encoding=\"utf-8\")\n    saved = json.loads(path.read_text(encoding=\"utf-8\"))\n    print(sum(saved[\"scores\"]))",
+      "api": [
+        {
+          "name": "Path.read_text() / Path.write_text()",
+          "description": "Read or write the contents of a small text file."
+        },
+        {
+          "name": "json.dumps() / json.loads()",
+          "description": "Encode a value to JSON text or decode JSON text."
+        },
+        {
+          "name": "with path.open(...) as file",
+          "description": "Open a file and close it automatically when the block ends."
+        }
+      ],
+      "practice": "Save two named scores and calculate the average after reading the data back.",
+      "pitfall": "JSON decoding can fail, and valid JSON can have an unexpected shape. Check both."
+    },
+    {
+      "id": "tools",
+      "title": "Counters, statistics, and assertions",
+      "section": "Standard library",
+      "explanation": "Reuse tested tools for common operations. Counter tallies repeated values, statistics handles descriptive calculations, and a small assertion can make an example self-checking.",
+      "example": "from collections import Counter\nfrom statistics import mean\n\nreadings = [12, 15, 15, 18]\ncounts = Counter(readings)\nprint(counts.most_common(1))\nassert mean(readings) == 15",
+      "api": [
+        {
+          "name": "collections.Counter(items)",
+          "description": "Count hashable values."
+        },
+        {
+          "name": "statistics.mean(values)",
+          "description": "Compute the arithmetic mean of nonempty data."
+        },
+        {
+          "name": "unittest.TestCase.assertEqual(a, b)",
+          "description": "Compare two values in a repeatable unit test."
+        }
+      ],
+      "practice": "Add an outlier and compare statistics.mean with statistics.median.",
+      "pitfall": "Use explicit validation for real inputs. Python can omit assert statements when optimization is enabled."
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+.markdown-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  scroll-padding-top: 22px;
+  scrollbar-width: thin;
+  background: var(--background);
+  color: var(--text);
+}
+
+.markdown-content {
+  max-width: 52rem;
+  margin-inline: auto;
+  padding: clamp(20px, 4%, 42px) clamp(16px, 5%, 48px) 64px;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child { margin-top: 0; }
+.markdown-content > :last-child { margin-bottom: 0; }
+.markdown-content :is(p, ul, ol, dl, blockquote, pre, .markdown-table, figure, details) { margin: .85em 0; }
+.markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.25em 0 .4em;
+  color: var(--ink);
+  font-weight: 680;
+  line-height: 1.25;
+}
+.markdown-content h1 { font-size: clamp(24px, 3vw, 34px); letter-spacing: -.035em; }
+.markdown-content h2 { font-size: 22px; letter-spacing: -.02em; }
+.markdown-content h3 { font-size: 18px; }
+.markdown-content h4 { font-size: 16px; }
+.markdown-content h5 { font-size: 14px; }
+.markdown-content h6 { font-size: 13px; color: var(--muted); }
+.markdown-content :is(h1, h2) { padding-bottom: .32em; border-bottom: 1px solid var(--subtle-border); }
+.markdown-content strong { color: var(--ink); }
+.markdown-content a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: .16em; }
+.markdown-content a:hover { color: var(--ink); }
+.markdown-content ul, .markdown-content ol { padding-inline-start: 1.55em; }
+.markdown-content li + li { margin-top: .18em; }
+.markdown-content li :is(ol, ul, p) { margin-block: .24em; }
+.markdown-content li:has(> input[type='checkbox']), .markdown-content li:has(> p > input[type='checkbox']) { list-style: none; }
+.markdown-content input[type='checkbox'] { margin: 0 .38em 0 -1.25em; vertical-align: -.08em; accent-color: var(--accent); }
+.markdown-content blockquote { padding: .12em .8em; border-left: 3px solid var(--accent); color: var(--muted); }
+.markdown-content blockquote > :first-child { margin-top: .3em; }
+.markdown-content blockquote > :last-child { margin-bottom: .3em; }
+.markdown-content hr { height: 0; margin: 1.4em 0; border: 0; border-top: 1px solid var(--border); }
+.markdown-content :is(code, pre, kbd, samp) { font-family: var(--mono); }
+.markdown-content code { padding: .12em .28em; border-radius: 4px; background: var(--surface-2); color: var(--ink); font-size: .9em; }
+.markdown-content pre {
+  overflow: auto;
+  scrollbar-width: thin;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: .8em .95em;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+.markdown-content pre code { padding: 0; background: transparent; color: inherit; font-size: inherit; }
+.markdown-table { max-width: 100%; overflow: auto; scrollbar-width: thin; }
+.markdown-content table { border-collapse: collapse; font-size: .95em; }
+.markdown-content th { background: var(--surface-2); color: var(--ink); font-weight: 630; text-align: left; }
+.markdown-content :is(th, td) { border: 1px solid var(--border); padding: .42em .68em; }
+.markdown-content tbody tr:nth-child(even) { background: var(--surface); }
+.markdown-image { display: inline-block; max-width: 100%; vertical-align: top; }
+.markdown-image img { display: block; max-width: 100%; height: auto; border-radius: 5px; }
+.markdown-image-note, .markdown-notice { color: var(--muted); font-size: .92em; }
+.markdown-image-note { padding: .1em .35em; border: 1px solid var(--subtle-border); border-radius: 4px; }
+.markdown-notice { padding: .45em .7em; border-left: 2px solid var(--border); background: var(--surface); }

@@ -1,0 +1,17 @@
+{
+  "explanation": "Operators build expressions from values. Precedence decides which operators bind first, while parentheses make the intended grouping clear.",
+  "example": "int subtotal = 2 + 3 * 4;\nint grouped = (2 + 3) * 4;",
+  "exampleExplanation": "Multiplication binds first in subtotal. Parentheses make the addition happen first in grouped.",
+  "misconceptions": [
+    "Assignment uses = and comparison uses ==.",
+    "Precedence groups operands. It does not generally determine which operand the program evaluates first."
+  ],
+  "related": [
+    "types",
+    "conditions"
+  ],
+  "reference": {
+    "title": "Local C reference on operator grouping",
+    "text": "Parentheses group an expression. Arithmetic, comparison, and logical operators each apply to specific operand types. Split an expression into named intermediate results when its evaluation order or types are difficult to see."
+  }
+}

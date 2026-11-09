@@ -1,0 +1,146 @@
+.practice-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--panel);
+}
+.practice-heading,
+.practice-section-heading,
+.practice-form-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.practice-heading {
+  flex: none;
+  min-height: 40px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+.practice-heading h2 { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; }
+.practice-nav { display: flex; flex: none; gap: 3px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.practice-nav button {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 29px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.practice-nav button:hover { background: var(--surface-2); color: var(--ink); }
+.practice-nav button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); }
+.practice-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 14px; }
+.practice-discovery, .practice-matches, .practice-challenge-preview { display: grid; gap: 10px; min-width: 0; }
+.practice-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px 8px;
+}
+.practice-intro h3, .practice-preview-heading h4 { margin: 0; color: var(--ink); font-size: 14px; }
+.practice-intro p { flex-basis: 100%; }
+.practice-catalog-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 10px;
+}
+.practice-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.practice-filters .practice-label { flex-basis: 114px; }
+.practice-catalog-state {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.practice-catalog-state > svg { color: var(--accent); }
+.practice-matches h4 { margin: 0; color: var(--ink); font-size: 12px; }
+.practice-challenge-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.practice-challenge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.practice-challenge > div:first-child { flex: 1 1 100px; min-width: 0; }
+.practice-challenge h5 { margin: 0; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.practice-challenge-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.practice-challenge-actions .button { min-height: 25px; font-size: 11px; }
+.practice-preview-heading { display: grid; gap: 4px; }
+.practice-challenge-preview > .button { justify-self: start; }
+.practice-challenge-preview .practice-section { margin-top: 0; }
+.practice-footer { flex: none; padding: 7px 10px; border-top: 1px solid var(--border); }
+.practice-footer .button { min-height: 25px; color: var(--muted); font-size: 11px; }
+.practice-footer .button:hover { color: var(--ink); }
+.practice-library,
+.practice-attempt,
+.practice-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.practice-library { margin-bottom: 12px; }
+.practice-label { display: grid; flex: 1 1 100px; gap: 5px; min-width: 0; color: var(--muted); font-size: 11px; }
+.practice-pane select,
+.practice-modal input,
+.practice-modal select,
+.practice-modal textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: var(--ink);
+  background: var(--background);
+  font-size: 12px;
+}
+.practice-muted { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.practice-notice { margin: 0 0 8px; color: var(--mint); font-size: 11px; }
+.practice-section { display: grid; gap: 8px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--border); }
+.practice-section h3, .practice-form-section h3 { color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.practice-section h4 { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.practice-statement, .practice-source { line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.practice-source { color: var(--muted); font: 11px var(--mono); user-select: text; }
+.practice-run-actions { align-items: center; }
+.practice-section-heading > span { color: var(--muted); font-size: 11px; }
+.practice-sample { overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 11px; }
+.practice-sample summary { cursor: pointer; color: var(--ink); }
+.practice-sample summary b { margin-left: 7px; color: var(--muted); font-size: 10px; }
+.practice-sample[data-status="passed"] summary b { color: var(--mint); }
+.practice-sample[data-status="failed"] summary b { color: var(--danger); }
+.practice-sample[data-status="unavailable"] summary b { color: var(--amber); }
+.practice-sample p { margin-top: 6px; }
+.practice-sample pre { margin: 4px 0; white-space: pre-wrap; font: 11px var(--mono); }
+.practice-modal { width: min(540px, calc(100vw - 32px)); }
+.practice-form { display: grid; gap: 10px; }
+.practice-form-content { display: grid; gap: 10px; max-height: min(58vh, 520px); padding: 0 2px 2px; overflow: auto; }
+.practice-form-content label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; }
+.practice-form-grid { display: grid; gap: 8px; grid-template-columns: 1fr 2fr; }
+.practice-form textarea { resize: vertical; font-family: var(--mono); }
+.practice-form fieldset { display: grid; gap: 8px; min-width: 0; margin: 0; border: 1px solid var(--border); border-radius: 5px; }
+.practice-form legend { padding: 0 4px; color: var(--muted); font-size: 11px; }
+.practice-form fieldset .button { justify-self: end; }

@@ -1,0 +1,17 @@
+{
+  "explanation": "A declaration tells the compiler the name and type of an object or function. At a use of that name, the compiler needs a declaration visible at that point.",
+  "example": "int points = 3;\nint bonus = points + 2;",
+  "exampleExplanation": "The first line declares points. The second line can use it because the declaration is already visible.",
+  "misconceptions": [
+    "C identifiers are case-sensitive. points and Points are different names.",
+    "An undeclared-name diagnostic can come from a typo, a missing declaration, or a declaration that belongs to another scope."
+  ],
+  "related": [
+    "types",
+    "scope"
+  ],
+  "reference": {
+    "title": "Local C reference on declarations",
+    "text": "A declaration supplies a type and a declarator, such as int score. A definition also provides an object or a function body. A prototype such as int total(int); declares a function and its parameter types. Headers can make declarations visible to more than one source file."
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "id": "rust",
+  "name": "Rust",
+  "summary": "Learn Rust expressions, ownership, borrowing, collections, and recoverable errors.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "entry",
+      "title": "Bindings, functions, and expressions",
+      "section": "Syntax",
+      "explanation": "Rust infers many types and lets you annotate them when useful. Bindings are immutable by default. A function can return the last expression of a block when that expression has no trailing semicolon.",
+      "example": "fn total(count: u32, cents: u32) -> u32 {\n    count * cents\n}\n\nfn main() {\n    let count = 3;\n    let mut cents = 275;\n    cents += 25;\n    println!(\"{} cents\", total(count, cents));\n}",
+      "api": [
+        {
+          "name": "let / let mut",
+          "description": "Introduce an immutable or mutable binding."
+        },
+        {
+          "name": "println!(...)",
+          "description": "Format a message and print a newline."
+        },
+        {
+          "name": "cargo run",
+          "description": "Build and run the current Cargo package."
+        }
+      ],
+      "practice": "Add a quantity parameter and a fixed discount. Predict the return type before checking it.",
+      "pitfall": "A semicolon after the last expression changes the block value to ()."
+    },
+    {
+      "id": "flow",
+      "title": "Ranges, iteration, and pattern matching",
+      "section": "Syntax",
+      "explanation": "if can return a value when both branches agree on a type. for consumes values from an iterable. match compares against patterns and must handle every possibility.",
+      "example": "fn main() {\n    for score in 0..=5 {\n        let label = match score {\n            0 => \"none\",\n            1..=3 => \"some\",\n            _ => \"many\",\n        };\n        println!(\"{score}: {label}\");\n    }\n}",
+      "api": [
+        {
+          "name": "start..end / start..=end",
+          "description": "Build a range with an exclusive or inclusive end."
+        },
+        {
+          "name": "match value { ... }",
+          "description": "Select an arm based on a pattern."
+        },
+        {
+          "name": "if let Some(x) = value",
+          "description": "Run a block when an Option contains a value."
+        }
+      ],
+      "practice": "Classify scores into three bands and add a label for the top band.",
+      "pitfall": "An exclusive range stops before its endpoint. Check which endpoint semantics the task needs."
+    },
+    {
+      "id": "ownership",
+      "title": "Ownership, borrowing, and slices",
+      "section": "Core",
+      "explanation": "Each owned value has an owner and is cleaned up when that owner leaves scope. Passing an owned String by value usually moves it. Borrow it as &str when a function just needs to read the text.",
+      "example": "fn first_word(text: &str) -> Option<&str> {\n    text.split_whitespace().next()\n}\n\nfn main() {\n    let mut title = String::from(\"Ion notes\");\n    println!(\"{:?}\", first_word(&title));\n    title.push_str(\" today\");\n    println!(\"{title}\");\n}",
+      "api": [
+        {
+          "name": "String::from(text)",
+          "description": "Create an owned UTF-8 string."
+        },
+        {
+          "name": "&T / &mut T",
+          "description": "Borrow for shared access or exclusive mutable access."
+        },
+        {
+          "name": "str::split_whitespace()",
+          "description": "Iterate over nonempty parts separated by whitespace."
+        }
+      ],
+      "practice": "Write a function that returns the final word as a borrowed slice. Test with an empty string.",
+      "pitfall": "You cannot mutate a value while a shared reference to it still needs to be used."
+    },
+    {
+      "id": "collections",
+      "title": "Vectors, maps, and iterator adapters",
+      "section": "Standard library",
+      "explanation": "Vec grows as you add elements. HashMap associates a key with a value. An iterator can lazily transform elements until a consuming operation requests its output.",
+      "example": "use std::collections::HashMap;\n\nfn main() {\n    let labels = vec![\"ion\", \"learn\", \"ion\"];\n    let mut counts = HashMap::new();\n    for label in labels.iter().copied() {\n        *counts.entry(label).or_insert(0) += 1;\n    }\n    println!(\"{:?}\", counts.get(\"ion\"));\n}",
+      "api": [
+        {
+          "name": "Vec::push(value)",
+          "description": "Append an item."
+        },
+        {
+          "name": "Vec::get(index)",
+          "description": "Return an optional reference, avoiding a panic on a bad index."
+        },
+        {
+          "name": "HashMap::entry(key).or_insert(value)",
+          "description": "Access an entry and initialize it when missing."
+        },
+        {
+          "name": "Iterator::map() / filter() / collect()",
+          "description": "Transform, filter, and gather values."
+        }
+      ],
+      "practice": "Count only labels longer than two characters, then print the count for a missing name.",
+      "pitfall": "Indexing with [] can panic. Use get for positions from untrusted input."
+    },
+    {
+      "id": "types",
+      "title": "Structs, enums, and traits",
+      "section": "Core",
+      "explanation": "A struct bundles named fields. An enum can hold data in different variants. A trait defines shared behavior and an impl block supplies the methods for a type.",
+      "example": "struct Topic { name: String }\nenum Progress { Pending, Complete(u8) }\n\ntrait Label {\n    fn label(&self) -> &str;\n}\n\nimpl Label for Topic {\n    fn label(&self) -> &str { &self.name }\n}\n\nfn main() {\n    let topic = Topic { name: String::from(\"Ownership\") };\n    for state in [Progress::Pending, Progress::Complete(9)] {\n        match state {\n            Progress::Pending => println!(\"{} is pending\", topic.label()),\n            Progress::Complete(score) => println!(\"{}: {score}\", topic.label()),\n        }\n    }\n}",
+      "api": [
+        {
+          "name": "impl Trait for Type",
+          "description": "Provide a trait implementation for a type."
+        },
+        {
+          "name": "Option<T>",
+          "description": "Express a value that may be absent."
+        },
+        {
+          "name": "Result<T, E>",
+          "description": "Express success with T or failure with E."
+        }
+      ],
+      "practice": "Add an InProgress variant with a percentage and update the match.",
+      "pitfall": "Choose a variant with named fields when several values need clear roles."
+    },
+    {
+      "id": "errors",
+      "title": "Parsing, filesystem errors, and tests",
+      "section": "Standard library",
+      "explanation": "Use Result for errors that callers may handle. In a compatible return type, ? returns early on an error. Paths and filesystem operations are available in std::path and std::fs.",
+      "example": "fn double(text: &str) -> Result<i32, std::num::ParseIntError> {\n    let value: i32 = text.trim().parse()?;\n    Ok(value.saturating_mul(2))\n}\n\nfn main() {\n    match double(\" 21 \") {\n        Ok(value) => println!(\"{value}\"),\n        Err(error) => eprintln!(\"Invalid count: {error}\"),\n    }\n    assert_eq!(double(\"3\").ok(), Some(6));\n}",
+      "api": [
+        {
+          "name": "str::parse::<T>()",
+          "description": "Convert text to a type implementing FromStr."
+        },
+        {
+          "name": "std::fs::read_to_string(path)",
+          "description": "Read an entire UTF-8 text file or return an I/O error."
+        },
+        {
+          "name": "std::path::Path::join(part)",
+          "description": "Create a path with another component."
+        },
+        {
+          "name": "cargo test",
+          "description": "Run tests in the current package."
+        }
+      ],
+      "practice": "Check that invalid text returns Err, then use std::fs::read_to_string to supply a number from a small local file.",
+      "pitfall": "Avoid unwrap on untrusted inputs. Use match, a fallback, or propagation instead."
+    }
+  ]
+}

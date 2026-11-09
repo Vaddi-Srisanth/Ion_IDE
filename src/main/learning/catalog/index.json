@@ -1,0 +1,79 @@
+[
+  {
+    "id": "python",
+    "name": "Python",
+    "summary": "Build confidence with core Python, collections, files, JSON, and the standard library.",
+    "version": 1,
+    "topicCount": 8
+  },
+  {
+    "id": "javascript",
+    "name": "JavaScript",
+    "summary": "Learn JavaScript syntax, collections, promises, browser APIs, and local Node.js modules.",
+    "version": 1,
+    "topicCount": 7
+  },
+  {
+    "id": "java",
+    "name": "Java",
+    "summary": "Learn Java program structure, classes, collections, exceptions, streams, and file APIs.",
+    "version": 1,
+    "topicCount": 7
+  },
+  {
+    "id": "typescript",
+    "name": "TypeScript",
+    "summary": "Use static types to model JavaScript programs, validate boundaries, and design reusable APIs.",
+    "version": 1,
+    "topicCount": 7
+  },
+  {
+    "id": "c",
+    "name": "C",
+    "summary": "Learn C syntax, memory, strings, structs, and the standard headers used in everyday programs.",
+    "version": 1,
+    "topicCount": 7
+  },
+  {
+    "id": "cpp",
+    "name": "C++",
+    "summary": "Learn modern C++ values, containers, algorithms, references, and resource ownership.",
+    "version": 1,
+    "topicCount": 7
+  },
+  {
+    "id": "go",
+    "name": "Go",
+    "summary": "Learn Go syntax, slices, interfaces, errors, JSON, and concurrency with the standard library.",
+    "version": 1,
+    "topicCount": 6
+  },
+  {
+    "id": "rust",
+    "name": "Rust",
+    "summary": "Learn Rust expressions, ownership, borrowing, collections, and recoverable errors.",
+    "version": 1,
+    "topicCount": 6
+  },
+  {
+    "id": "sql",
+    "name": "SQL (SQLite)",
+    "summary": "Learn SQL queries, joins, grouping, transactions, and indexes with local SQLite.",
+    "version": 1,
+    "topicCount": 6
+  },
+  {
+    "id": "html",
+    "name": "HTML",
+    "summary": "Structure accessible pages with semantic elements, links, media, tables, forms, and native controls.",
+    "version": 1,
+    "topicCount": 6
+  },
+  {
+    "id": "css",
+    "name": "CSS",
+    "summary": "Learn the cascade, box model, flexbox, grid, responsive styles, and accessible UI states.",
+    "version": 1,
+    "topicCount": 6
+  }
+]

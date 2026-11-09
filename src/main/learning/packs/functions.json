@@ -1,0 +1,17 @@
+{
+  "explanation": "A function prototype describes the return type and the parameters a caller must supply. At a call, compare the number, order, and types of the argument expressions to the visible prototype.",
+  "example": "int clamp(int value, int maximum) {\n    return value < maximum ? value : maximum;\n}\n\nint main(void) {\n    int result = clamp(8, 5);\n    return result == 5 ? 0 : 1;\n}",
+  "exampleExplanation": "The prototype implied by the definition takes two integers. The call supplies a value first and a maximum second.",
+  "misconceptions": [
+    "A function result and its parameters describe different parts of the call.",
+    "C does not supply default arguments for ordinary functions. A variadic prototype explicitly indicates which additional arguments are accepted."
+  ],
+  "related": [
+    "types",
+    "scope"
+  ],
+  "reference": {
+    "title": "Local C reference on prototypes and call arguments",
+    "text": "A prototype such as int clamp(int, int); specifies two parameters. An argument expression is supplied at the call site. A prototype using (void) specifies zero parameters. Check the diagnostic notes for the declaration the compiler used."
+  }
+}

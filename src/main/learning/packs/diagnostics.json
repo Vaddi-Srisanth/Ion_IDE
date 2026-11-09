@@ -1,0 +1,18 @@
+{
+  "explanation": "A compiler diagnostic describes what the compiler observed and often gives a file, line, and column. That location may be where the compiler noticed a problem after reading earlier code.",
+  "example": "example.c:4:12: error: expected ';' after expression",
+  "exampleExplanation": "This sample points to line 4, column 12. Inspect the end of the expression and the preceding statement boundary.",
+  "misconceptions": [
+    "Warnings can accompany an executable that compiled successfully.",
+    "A single early syntax problem can cause later messages that disappear after the first issue is resolved."
+  ],
+  "related": [
+    "statements",
+    "names",
+    "types"
+  ],
+  "reference": {
+    "title": "Local C reference on following a diagnostic",
+    "text": "Start with the first error. Read the source excerpt, underline, and any notes about declarations. If no source location appears, the message may come from the linker or environment. Compare the next compiler run after making a small change."
+  }
+}

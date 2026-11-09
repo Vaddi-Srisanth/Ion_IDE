@@ -1,0 +1,18 @@
+{
+  "explanation": "Scope is the part of the source where a name can be used. A name declared inside a block is usually visible from its declaration to the end of that block. A second declaration in the same scope can conflict with the first.",
+  "example": "int total = 3;\n{\n    int bonus = 2;\n    total += bonus;\n}\nreturn total;",
+  "exampleExplanation": "The inner block can see total. The return statement is outside the block where bonus was declared.",
+  "misconceptions": [
+    "Scope is where a name is visible. Lifetime is how long its object exists.",
+    "An inner declaration can hide an outer name. Two incompatible declarations in the same scope are a different situation."
+  ],
+  "related": [
+    "names",
+    "memory",
+    "functions"
+  ],
+  "reference": {
+    "title": "Local C reference on block and file scope",
+    "text": "A name declared inside a compound statement has block scope. A declaration outside all functions has file scope beginning at its declaration. A function parameter in a definition is visible throughout the function body. Start tracing a scope diagnostic at the use or second declaration and look outward through enclosing braces."
+  }
+}

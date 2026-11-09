@@ -1,0 +1,17 @@
+{
+  "explanation": "A pointer value can designate an object in memory. The address operator & obtains an address, and the indirection operator * accesses the object designated by a valid pointer.",
+  "example": "int score = 4;\nint *address = &score;\n*address = 7;",
+  "exampleExplanation": "address contains the address of score. Dereferencing address lets the last line update score.",
+  "misconceptions": [
+    "The star in a pointer declaration describes a type. The star in an expression dereferences a value.",
+    "A variable of pointer type can still hold a null, uninitialized, or dangling value. The type alone does not prove dereferencing it is safe."
+  ],
+  "related": [
+    "types",
+    "memory"
+  ],
+  "reference": {
+    "title": "Local C reference on address and indirection",
+    "text": "For an object x of type T, &x has type pointer to T. Applying unary * to a valid pointer to T produces an expression designating the referenced object. Check both the pointer type and whether the referenced object exists at the time of access."
+  }
+}

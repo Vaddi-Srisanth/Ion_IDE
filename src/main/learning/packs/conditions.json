@@ -1,0 +1,18 @@
+{
+  "explanation": "An if statement runs a branch when its condition compares unequal to zero. An else branch handles the remaining case. Logical operators can combine smaller tests.",
+  "example": "int score = 8;\nif (score >= 0 && score <= 10) {\n    score += 1;\n}",
+  "exampleExplanation": "Both comparisons must be true for the branch to execute.",
+  "misconceptions": [
+    "A comparison such as 0 <= score <= 10 does not test a range as it does in algebra.",
+    "A semicolon immediately after an if condition creates an empty controlled statement."
+  ],
+  "related": [
+    "operators",
+    "loops",
+    "statements"
+  ],
+  "reference": {
+    "title": "Local C reference on logical tests",
+    "text": "The && operator stops when its left operand is false. The || operator stops when its left operand is true. Use braces to show which statements belong to each branch."
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "id": "javascript",
+  "name": "JavaScript",
+  "summary": "Learn JavaScript syntax, collections, promises, browser APIs, and local Node.js modules.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "values",
+      "title": "Values, bindings, and comparisons",
+      "section": "Syntax",
+      "explanation": "Use const when a binding will keep referring to the same value and let when you intend to reassign it. JavaScript has primitives such as number, string, Boolean, undefined, and null, as well as objects. Use strict comparisons to avoid implicit conversions.",
+      "example": "const title = \"Ion Notes\";\nconst count = Number(\"3\");\nlet ready = false;\nif (count === 3) ready = true;\nconsole.log(title, ready);",
+      "api": [
+        {
+          "name": "console.log(...)",
+          "description": "Write values to the developer console or terminal."
+        },
+        {
+          "name": "Number(text)",
+          "description": "Convert a value to a number. Invalid numeric text produces NaN."
+        },
+        {
+          "name": "Number.isFinite(value)",
+          "description": "Check for a finite number without converting its type."
+        }
+      ],
+      "practice": "Read three values as strings and print only the ones that convert to finite numbers.",
+      "pitfall": "const prevents reassignment of a binding. Properties of its object can still change."
+    },
+    {
+      "id": "flow",
+      "title": "Branches, loops, and functions",
+      "section": "Syntax",
+      "explanation": "Functions receive inputs and return values. Arrow functions are concise for callbacks. Use for...of to iterate over values from an array or another iterable.",
+      "example": "const isEven = (value) => value % 2 === 0;\n\nfunction sumEven(values) {\n  let total = 0;\n  for (const value of values) {\n    if (isEven(value)) total += value;\n  }\n  return total;\n}\n\nconsole.log(sumEven([2, 3, 8]));",
+      "api": [
+        {
+          "name": "function name(...)",
+          "description": "Declare a reusable operation."
+        },
+        {
+          "name": "(value) => expression",
+          "description": "Write a function that returns the expression."
+        },
+        {
+          "name": "return value",
+          "description": "End the current function and hand a result to the caller."
+        }
+      ],
+      "practice": "Implement a function that counts values within an inclusive interval.",
+      "pitfall": "for...in iterates enumerable property keys. Use for...of when you need the values of an iterable."
+    },
+    {
+      "id": "collections",
+      "title": "Arrays, objects, maps, and sets",
+      "section": "Core",
+      "explanation": "Use arrays for ordered items, objects for named fields, Map for dynamic keys of any type, and Set for unique values. Array methods can express a transformation without manual indexing.",
+      "example": "const rows = [\n  { category: \"study\", minutes: 30 },\n  { category: \"break\", minutes: 10 },\n  { category: \"study\", minutes: 45 },\n];\nconst study = rows.filter((row) => row.category === \"study\");\nconst total = study.reduce((sum, row) => sum + row.minutes, 0);\nconsole.log(total, new Set(rows.map((row) => row.category)).size);",
+      "api": [
+        {
+          "name": "Array.map() / Array.filter()",
+          "description": "Transform every item or keep items matching a condition."
+        },
+        {
+          "name": "Array.reduce()",
+          "description": "Combine items into a result. Provide an initial value for an empty input."
+        },
+        {
+          "name": "Map.set() / Map.get()",
+          "description": "Set or read a key-value entry."
+        },
+        {
+          "name": "Set.add() / Set.has()",
+          "description": "Add a unique value or test membership."
+        }
+      ],
+      "practice": "Group minutes by category in a Map. Display each category total.",
+      "pitfall": "Array.sort mutates the array and compares strings by default. Use a comparator for numbers."
+    },
+    {
+      "id": "json",
+      "title": "Object access, defaults, and JSON",
+      "section": "Core",
+      "explanation": "Access object fields with a dot for a fixed name or brackets for a computed name. Optional chaining stops at null or undefined. Nullish coalescing provides a fallback for those same two values.",
+      "example": "const raw = '{\"profile\":{\"nickname\":\"\",\"visits\":0}}';\nconst record = JSON.parse(raw);\nconst visits = record.profile?.visits ?? 1;\nconsole.log(visits, JSON.stringify({ visits }));",
+      "api": [
+        {
+          "name": "JSON.parse(text)",
+          "description": "Decode valid JSON text. Invalid JSON throws SyntaxError."
+        },
+        {
+          "name": "JSON.stringify(value)",
+          "description": "Encode data representable by JSON as text."
+        },
+        {
+          "name": "Object.entries(object)",
+          "description": "List the own enumerable string-keyed properties as key-value pairs."
+        }
+      ],
+      "practice": "Change the payload to omit profile. Explain why 0 still survives when visits is present.",
+      "pitfall": "JSON parsing checks syntax. Validate the shape before trusting fields in external data."
+    },
+    {
+      "id": "async",
+      "title": "Promises, async, and error handling",
+      "section": "Core",
+      "explanation": "A Promise represents a pending result that can succeed or fail. An async function returns a Promise. Await waits for a result inside that function while the runtime can process other work.",
+      "example": "const loadScore = async (id) => {\n  if (id < 0) throw new RangeError(\"Invalid ID\");\n  return id * 2;\n};\n\nasync function main() {\n  try {\n    const scores = await Promise.all([loadScore(2), loadScore(4)]);\n    console.log(scores);\n  } catch (error) {\n    console.error(error.message);\n  }\n}\nmain();",
+      "api": [
+        {
+          "name": "await promise",
+          "description": "Read a successful result or throw its rejection inside an async function."
+        },
+        {
+          "name": "Promise.all(iterable)",
+          "description": "Wait for all successes in input order, or reject if any input rejects."
+        },
+        {
+          "name": "try / catch",
+          "description": "Handle exceptions and awaited promise rejections."
+        }
+      ],
+      "practice": "Replace an ID with -1 and observe which branch runs. Compare with Promise.allSettled.",
+      "pitfall": "Promise.all rejects early on failure. It does not cancel the other operations."
+    },
+    {
+      "id": "dom",
+      "title": "Browser DOM and events",
+      "section": "Browser APIs",
+      "explanation": "A browser exposes the page as a tree of elements. Use DOM methods to find or create nodes, and event listeners to react to user actions. Put this script in an HTML file and open it in a browser.",
+      "example": "<button id=\"count\" type=\"button\">Count: 0</button>\n<script>\n  const button = document.querySelector(\"#count\");\n  let count = 0;\n  button.addEventListener(\"click\", () => {\n    count += 1;\n    button.textContent = \"Count: \" + count;\n  });\n</script>",
+      "api": [
+        {
+          "name": "document.querySelector(selector)",
+          "description": "Return the first matching element or null."
+        },
+        {
+          "name": "Element.addEventListener(type, listener)",
+          "description": "Register an event handler."
+        },
+        {
+          "name": "Node.textContent",
+          "description": "Set plain text without interpreting it as HTML."
+        }
+      ],
+      "practice": "Add a separate reset button that sets the same count back to zero.",
+      "pitfall": "Use textContent for user-provided text. innerHTML parses markup."
+    },
+    {
+      "id": "node-files",
+      "title": "Modules, paths, and files in Node.js",
+      "section": "Node.js APIs",
+      "explanation": "A module exposes named functions or values with export and uses import to load dependencies. Node.js provides filesystem and path APIs that are separate from browser JavaScript. Save this example as study.mjs.",
+      "example": "import { writeFile, readFile, mkdtemp, rm } from \"node:fs/promises\";\nimport { tmpdir } from \"node:os\";\nimport { join } from \"node:path\";\n\nconst folder = await mkdtemp(join(tmpdir(), \"ion-js-\"));\ntry {\n  const file = join(folder, \"score.json\");\n  await writeFile(file, JSON.stringify({ score: 9 }), \"utf8\");\n  console.log(JSON.parse(await readFile(file, \"utf8\")).score);\n} finally {\n  await rm(folder, { recursive: true, force: true });\n}",
+      "api": [
+        {
+          "name": "node:fs/promises",
+          "description": "Read and write local files through asynchronous operations."
+        },
+        {
+          "name": "path.join(parts...)",
+          "description": "Join path segments using the host system rules."
+        },
+        {
+          "name": "node:test",
+          "description": "Run tests with the built-in Node.js test runner."
+        }
+      ],
+      "practice": "Write and read an array of scores. Use a separate function to compute its average.",
+      "pitfall": "Code running in a browser does not have access to Node.js filesystem modules."
+    }
+  ]
+}

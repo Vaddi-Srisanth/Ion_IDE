@@ -1,0 +1,18 @@
+{
+  "explanation": "A loop repeats a block while a condition is true. Understand the starting value, what changes on each iteration, and what makes the condition become false.",
+  "example": "int total = 0;\nfor (int n = 1; n <= 3; n++) {\n    total += n;\n}",
+  "exampleExplanation": "n starts at 1, then increases after each loop body. The loop ends when n reaches 4.",
+  "misconceptions": [
+    "A while loop checks the condition before its first iteration. A do-while loop checks afterward.",
+    "Check whether your upper bound is included or excluded. An extra iteration can go past an array boundary."
+  ],
+  "related": [
+    "conditions",
+    "arrays",
+    "scope"
+  ],
+  "reference": {
+    "title": "Local C reference on loop control",
+    "text": "A for loop has initialization, test, and update clauses. A break ends the innermost loop or switch. A continue skips to the next iteration step of the innermost loop."
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "id": "c",
+  "name": "C",
+  "summary": "Learn C syntax, memory, strings, structs, and the standard headers used in everyday programs.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "program",
+      "title": "Program entry, types, and output",
+      "section": "Syntax",
+      "explanation": "A hosted C program enters main. Declare the type of each variable. An included header makes function declarations available, and printf uses its format string to interpret the arguments.",
+      "example": "#include <stdio.h>\n\nint main(void) {\n    int count = 3;\n    double price = 2.75;\n    printf(\"%d items cost %.2f\\n\", count, count * price);\n    return 0;\n}",
+      "api": [
+        {
+          "name": "printf()",
+          "description": "Format output. Use %d for int and %f for double."
+        },
+        {
+          "name": "puts()",
+          "description": "Write a string followed by a newline."
+        },
+        {
+          "name": "sizeof",
+          "description": "Determine the size of an object or type in bytes."
+        }
+      ],
+      "practice": "Print the unit price and total on separate lines. Change the quantity and confirm your calculation.",
+      "pitfall": "Using the wrong printf conversion for an argument can produce undefined behavior."
+    },
+    {
+      "id": "flow",
+      "title": "Expressions, decisions, and loops",
+      "section": "Syntax",
+      "explanation": "An if condition treats zero as false and nonzero as true. Use for when you have a counting pattern and while for a repetition driven by a condition. The remainder operator % is useful for checking divisibility.",
+      "example": "#include <stdio.h>\nint main(void) {\n    for (int number = 1; number <= 8; number++) {\n        if (number % 2 == 0) {\n            printf(\"%d\\n\", number);\n        }\n    }\n    return 0;\n}",
+      "api": [
+        {
+          "name": "== / !=",
+          "description": "Compare two values for equality or inequality."
+        },
+        {
+          "name": "&& / ||",
+          "description": "Combine conditions with short-circuit evaluation."
+        },
+        {
+          "name": "break / continue",
+          "description": "Exit a loop or skip to its next iteration."
+        }
+      ],
+      "practice": "Calculate the sum of multiples of 3 between 1 and 20.",
+      "pitfall": "A single = assigns a value. Use == to test equality."
+    },
+    {
+      "id": "functions",
+      "title": "Functions, arrays, and lengths",
+      "section": "Core",
+      "explanation": "Functions take arguments by value. An array argument normally converts to a pointer to its first element. Pass the number of elements separately so the function knows where to stop.",
+      "example": "#include <stdio.h>\n\nint sum(const int values[], size_t length) {\n    int total = 0;\n    for (size_t i = 0; i < length; i++) {\n        total += values[i];\n    }\n    return total;\n}\n\nint main(void) {\n    int values[] = {2, 4, 6};\n    printf(\"%d\\n\", sum(values, sizeof values / sizeof values[0]));\n    return 0;\n}",
+      "api": [
+        {
+          "name": "size_t",
+          "description": "An unsigned integer type used for object sizes and array counts."
+        },
+        {
+          "name": "const int values[]",
+          "description": "Access elements through a read-only view in this function."
+        },
+        {
+          "name": "return",
+          "description": "Send the result to the caller."
+        }
+      ],
+      "practice": "Implement a function that counts the even numbers in an array. Pass its length explicitly.",
+      "pitfall": "The sizeof array / sizeof array[0] idiom works where the object is still an array. Inside this function values is a pointer."
+    },
+    {
+      "id": "pointers",
+      "title": "Pointers, structs, and lifetime",
+      "section": "Core",
+      "explanation": "A pointer stores the address of an object. Use & to get an address and * to access what a pointer refers to. A struct groups fields of related data. For a struct pointer, -> accesses a field.",
+      "example": "#include <stdio.h>\n\nstruct Counter {\n    int value;\n};\n\nvoid increment(struct Counter *counter) {\n    counter->value += 1;\n}\n\nint main(void) {\n    struct Counter tally = {0};\n    increment(&tally);\n    printf(\"%d\\n\", tally.value);\n    return 0;\n}",
+      "api": [
+        {
+          "name": "struct",
+          "description": "Define a type containing named fields."
+        },
+        {
+          "name": "&value",
+          "description": "Get the address of an existing object."
+        },
+        {
+          "name": "NULL",
+          "description": "A macro for a null pointer constant. Check optional pointers before dereferencing them."
+        }
+      ],
+      "practice": "Add a step field and update increment to use it.",
+      "pitfall": "Never return a pointer to a local automatic variable. Its lifetime ends when the function returns."
+    },
+    {
+      "id": "strings",
+      "title": "Strings and numeric conversion",
+      "section": "Standard library",
+      "explanation": "A C string is a sequence of characters followed by a zero byte. Keep track of capacity and choose bounded operations. strtol lets you detect an invalid number or trailing characters.",
+      "example": "#include <errno.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    const char text[] = \"42\";\n    char *end;\n    errno = 0;\n    long value = strtol(text, &end, 10);\n    if (end == text || *end != '\\0' || errno == ERANGE) {\n        return 1;\n    }\n    printf(\"%zu characters, value %ld\\n\", strlen(text), value);\n    return 0;\n}",
+      "api": [
+        {
+          "name": "strlen()",
+          "description": "Count characters before the terminating zero byte."
+        },
+        {
+          "name": "strcmp()",
+          "description": "Compare two strings. Zero means equal."
+        },
+        {
+          "name": "snprintf()",
+          "description": "Write formatted output into a bounded buffer. Check its return value for truncation."
+        },
+        {
+          "name": "strtol()",
+          "description": "Parse an integer and report where parsing stopped."
+        }
+      ],
+      "practice": "Try the conversion with \"42x\", an empty string, and a value larger than long can hold.",
+      "pitfall": "Arrays storing strings need space for the terminating zero byte."
+    },
+    {
+      "id": "allocation",
+      "title": "Dynamic memory and ownership",
+      "section": "Standard library",
+      "explanation": "Use dynamic allocation when storage must outlive a block or its size depends on input. Check whether allocation succeeded. Decide which part of the program owns the pointer and free it exactly once.",
+      "example": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    size_t length = 4;\n    int *scores = calloc(length, sizeof *scores);\n    if (scores == NULL) return 1;\n    scores[0] = 8;\n    printf(\"%d\\n\", scores[0]);\n    free(scores);\n    return 0;\n}",
+      "api": [
+        {
+          "name": "malloc()",
+          "description": "Allocate bytes with uninitialized contents."
+        },
+        {
+          "name": "calloc()",
+          "description": "Allocate an array and initialize its bytes to zero."
+        },
+        {
+          "name": "realloc()",
+          "description": "Resize an allocation. On failure the original allocation remains valid."
+        },
+        {
+          "name": "free()",
+          "description": "Release a previously allocated block."
+        }
+      ],
+      "practice": "Allocate space for five scores. Assign each score in a loop and sum them before freeing the array.",
+      "pitfall": "If realloc fails, assigning the result directly to the original pointer can lose the only reference to the existing block."
+    },
+    {
+      "id": "files",
+      "title": "File I/O and cleanup",
+      "section": "Standard library",
+      "explanation": "A FILE pointer represents a stream. Check each operation that can fail and close the stream on every exit path. Read text into a bounded buffer with fgets.",
+      "example": "#include <stdio.h>\n\nint main(void) {\n    FILE *stream = tmpfile();\n    if (stream == NULL) return 1;\n    if (fputs(\"first line\\n\", stream) == EOF) {\n        fclose(stream);\n        return 1;\n    }\n    rewind(stream);\n    char line[32];\n    if (fgets(line, sizeof line, stream)) printf(\"%s\", line);\n    int failed = ferror(stream);\n    return fclose(stream) == EOF || failed;\n}",
+      "api": [
+        {
+          "name": "fopen() / fclose()",
+          "description": "Open a stream in a chosen mode and close it after use."
+        },
+        {
+          "name": "fgets()",
+          "description": "Read at most capacity minus one characters and terminate the buffer."
+        },
+        {
+          "name": "feof() / ferror()",
+          "description": "Distinguish end of input from a stream error."
+        },
+        {
+          "name": "perror()",
+          "description": "Print a message associated with the current errno."
+        }
+      ],
+      "practice": "Write two lines to the temporary stream and count the lines read back.",
+      "pitfall": "A failed fgets can mean end of input or an error. Test after attempting the read."
+    }
+  ]
+}

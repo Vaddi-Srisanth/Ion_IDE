@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "id": "java",
+  "name": "Java",
+  "summary": "Learn Java program structure, classes, collections, exceptions, streams, and file APIs.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "entry",
+      "title": "Program entry and types",
+      "section": "Syntax",
+      "explanation": "A simple Java app starts in public static void main(String[] args). Declare the type of each variable. Primitive types such as int hold values. Reference variables such as String refer to objects. Save the public class below as Main.java.",
+      "example": "public class Main {\n    public static void main(String[] args) {\n        int quantity = 3;\n        double price = 2.75;\n        String item = \"Notebook\";\n        System.out.printf(\"%s total: %.2f%n\", item, quantity * price);\n    }\n}",
+      "api": [
+        {
+          "name": "System.out.println()",
+          "description": "Write a value followed by a line break."
+        },
+        {
+          "name": "Integer.parseInt(text)",
+          "description": "Convert decimal text to an int, or throw NumberFormatException."
+        },
+        {
+          "name": "String.length()",
+          "description": "Count UTF-16 code units in a string."
+        }
+      ],
+      "practice": "Add a second item and print the combined total.",
+      "pitfall": "When comparing String contents, use equals. The == operator tests reference identity for objects."
+    },
+    {
+      "id": "flow",
+      "title": "Control flow and arrays",
+      "section": "Syntax",
+      "explanation": "Use if and else to choose branches. Use for-each to traverse every element or an index-based for loop when positions matter. Arrays have a fixed length and start at index zero.",
+      "example": "public class Main {\n    public static void main(String[] args) {\n        int[] readings = {5, 8, 12};\n        int high = 0;\n        for (int reading : readings) {\n            if (reading >= 8) {\n                high++;\n            }\n        }\n        System.out.println(high);\n    }\n}",
+      "api": [
+        {
+          "name": "array.length",
+          "description": "Read the fixed length of an array."
+        },
+        {
+          "name": "Arrays.sort(array)",
+          "description": "Sort an array in place using java.util.Arrays."
+        },
+        {
+          "name": "break / continue",
+          "description": "Exit a loop or skip the remainder of its current iteration."
+        }
+      ],
+      "practice": "Find the largest element in a nonempty array. Test with all-negative input.",
+      "pitfall": "The last valid array index is length minus one."
+    },
+    {
+      "id": "classes",
+      "title": "Methods, constructors, and interfaces",
+      "section": "Core",
+      "explanation": "Methods give an operation a name, parameters, and a return type. A constructor initializes a new object. An interface gives callers a shared contract while classes provide the implementation.",
+      "example": "interface Described {\n    String label();\n}\n\npublic class Main implements Described {\n    private final String name;\n\n    Main(String name) {\n        this.name = name;\n    }\n\n    @Override\n    public String label() {\n        return \"Item: \" + name;\n    }\n\n    public static void main(String[] args) {\n        Described entry = new Main(\"Lamp\");\n        System.out.println(entry.label());\n    }\n}",
+      "api": [
+        {
+          "name": "new Class(...)",
+          "description": "Create an object and run its constructor."
+        },
+        {
+          "name": "this",
+          "description": "Refer to the current instance."
+        },
+        {
+          "name": "@Override",
+          "description": "Ask the compiler to confirm a method implements or overrides an existing declaration."
+        }
+      ],
+      "practice": "Add another class implementing Described. Store both implementations in a Described array and print each label.",
+      "pitfall": "A static method has no this reference. Pass an instance when it needs instance state."
+    },
+    {
+      "id": "collections",
+      "title": "Lists, sets, and maps",
+      "section": "Standard library",
+      "explanation": "List preserves sequence, Set keeps unique values, and Map looks up values by key. Declare the interface type where possible. Generics specify which object types a collection can hold.",
+      "example": "import java.util.HashMap;\nimport java.util.List;\nimport java.util.Map;\n\npublic class Main {\n    public static void main(String[] args) {\n        var names = List.of(\"Ion\", \"Ada\", \"Ion\");\n        Map<String, Integer> counts = new HashMap<>();\n        for (String name : names) {\n            counts.merge(name, 1, Integer::sum);\n        }\n        System.out.println(counts.getOrDefault(\"Ion\", 0));\n    }\n}",
+      "api": [
+        {
+          "name": "ArrayList.add(value)",
+          "description": "Append an item to a growable list."
+        },
+        {
+          "name": "HashSet.contains(value)",
+          "description": "Test set membership."
+        },
+        {
+          "name": "Map.getOrDefault(key, fallback)",
+          "description": "Read a map entry or use the fallback when the key is absent."
+        },
+        {
+          "name": "Map.merge(key, value, function)",
+          "description": "Add a new value or combine it with an existing one."
+        }
+      ],
+      "practice": "Count the frequency of three words and print the count for a missing word.",
+      "pitfall": "List.of creates an unmodifiable list. Use an ArrayList when you need to add or remove entries."
+    },
+    {
+      "id": "exceptions",
+      "title": "Exceptions and resource lifetimes",
+      "section": "Core",
+      "explanation": "Catch the specific failures you can handle. A checked exception such as IOException must be caught or declared. Try-with-resources closes an AutoCloseable object even if the block exits early.",
+      "example": "import java.io.BufferedReader;\nimport java.io.IOException;\nimport java.io.StringReader;\n\npublic class Main {\n    public static void main(String[] args) {\n        try (var input = new BufferedReader(new StringReader(\"42\\n\"))) {\n            System.out.println(Integer.parseInt(input.readLine()));\n        } catch (IOException | NumberFormatException error) {\n            System.err.println(error.getMessage());\n        }\n    }\n}",
+      "api": [
+        {
+          "name": "try (resource) { ... }",
+          "description": "Tie resource cleanup to the block scope."
+        },
+        {
+          "name": "throw",
+          "description": "Raise an exception at the point of failure."
+        },
+        {
+          "name": "throws IOException",
+          "description": "Tell the caller a checked exception can propagate."
+        }
+      ],
+      "practice": "Change the line to a word and confirm that your numeric conversion fails gracefully.",
+      "pitfall": "Avoid empty catch blocks. They hide information the caller or developer needs."
+    },
+    {
+      "id": "streams",
+      "title": "Streams, lambdas, and Optional",
+      "section": "Standard library",
+      "explanation": "A stream pipeline can filter and transform a collection before consuming it. Operations such as filter and map are lazy. Terminal operations such as count or toList start traversal.",
+      "example": "import java.util.List;\n\npublic class Main {\n    public static void main(String[] args) {\n        var labels = List.of(\"ion\", \"app\", \"java\");\n        var lengths = labels.stream()\n            .filter(label -> label.length() >= 3)\n            .map(String::length)\n            .toList();\n        System.out.println(lengths);\n    }\n}",
+      "api": [
+        {
+          "name": "Stream.filter(predicate)",
+          "description": "Keep values satisfying a test."
+        },
+        {
+          "name": "Stream.map(function)",
+          "description": "Transform each value."
+        },
+        {
+          "name": "Stream.findFirst()",
+          "description": "Return an Optional with the first element, when present."
+        },
+        {
+          "name": "Optional.orElse(fallback)",
+          "description": "Return the wrapped value or a default."
+        }
+      ],
+      "practice": "Find the first label of length four and display a fallback if it is missing. Use Java 16 or newer for Stream.toList.",
+      "pitfall": "A stream cannot be reused after its terminal operation. Create another stream from the source."
+    },
+    {
+      "id": "files-time",
+      "title": "Paths, files, and dates",
+      "section": "Standard library",
+      "explanation": "Path represents a filesystem path. Files provides operations on paths. java.time types represent calendar dates and time values without exposing mutable date fields.",
+      "example": "import java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.time.LocalDate;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        Path file = Files.createTempFile(\"ion-study-\", \".txt\");\n        try {\n            LocalDate day = LocalDate.of(2026, 11, 9);\n            Files.writeString(file, day.plusDays(7).toString());\n            System.out.println(LocalDate.parse(Files.readString(file)));\n        } finally {\n            Files.deleteIfExists(file);\n        }\n    }\n}",
+      "api": [
+        {
+          "name": "Path.of(parts...)",
+          "description": "Construct a Path from one or more strings."
+        },
+        {
+          "name": "Files.readString() / Files.writeString()",
+          "description": "Read or write a small UTF-8 text file."
+        },
+        {
+          "name": "LocalDate.parse(text)",
+          "description": "Parse an ISO-8601 calendar date."
+        }
+      ],
+      "practice": "Write a date one month later, then read the date back. Use Java 11 or newer for the file methods.",
+      "pitfall": "LocalDate has no timezone or time of day. Use an Instant or a suitable zoned type when you need a moment on the timeline."
+    }
+  ]
+}

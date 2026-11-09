@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "id": "cpp",
+  "name": "C++",
+  "summary": "Learn modern C++ values, containers, algorithms, references, and resource ownership.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "program",
+      "title": "Program entry, values, and streams",
+      "section": "Syntax",
+      "explanation": "A C++ program begins at main. Standard library names are in the std namespace. Use auto when the initializer makes its type clear and const when a variable should remain fixed.",
+      "example": "#include <iostream>\n#include <string>\n\nint main() {\n    const std::string label{\"Ion\"};\n    const auto count = 3;\n    std::cout << label << \": \" << count << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::cout << value",
+          "description": "Send a formatted value to standard output."
+        },
+        {
+          "name": "std::string",
+          "description": "Own an adjustable sequence of characters."
+        },
+        {
+          "name": "auto",
+          "description": "Deduce the declared type from an initializer."
+        }
+      ],
+      "practice": "Print a title, unit price, and quantity using explicitly typed values and an inferred total.",
+      "pitfall": "Use the matching header for each standard facility you use. Transitive includes are not guaranteed."
+    },
+    {
+      "id": "flow",
+      "title": "Conditions, loops, and functions",
+      "section": "Syntax",
+      "explanation": "Use if and else for decisions. A range-for visits values in a range. A function names a reusable operation and specifies a return type.",
+      "example": "#include <array>\n#include <iostream>\n\nbool is_even(int value) {\n    return value % 2 == 0;\n}\n\nint main() {\n    for (int value : std::array{1, 2, 3, 4}) {\n        if (is_even(value)) std::cout << value << '\\n';\n    }\n}",
+      "api": [
+        {
+          "name": "std::array<T, N>",
+          "description": "Store a fixed number of elements with value semantics."
+        },
+        {
+          "name": "for (auto value : range)",
+          "description": "Visit each element by copying its value."
+        },
+        {
+          "name": "break / continue",
+          "description": "Exit the loop or skip the rest of the current iteration."
+        }
+      ],
+      "practice": "Write a function that totals values above a threshold. Use C++17 or newer for std::array deduction in this example.",
+      "pitfall": "Integer division discards the fractional part. Convert an operand when you need a fractional result."
+    },
+    {
+      "id": "containers",
+      "title": "Vectors, maps, and checked access",
+      "section": "Standard library",
+      "explanation": "Use vector for contiguous resizable data and unordered_map for key-to-value lookup without sorted iteration. Use const references when reading large values without copying them.",
+      "example": "#include <iostream>\n#include <string>\n#include <unordered_map>\n#include <vector>\n\nint main() {\n    const std::vector<std::string> words{\"go\", \"stay\", \"go\"};\n    std::unordered_map<std::string, int> counts;\n    for (const auto& word : words) {\n        ++counts[word];\n    }\n    std::cout << counts.at(\"go\") << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::vector::push_back()",
+          "description": "Append an element to a growable array."
+        },
+        {
+          "name": "std::vector::at(index)",
+          "description": "Check an index and throw std::out_of_range when it is invalid."
+        },
+        {
+          "name": "std::unordered_map::find(key)",
+          "description": "Return an iterator to an entry, or end() when absent."
+        }
+      ],
+      "practice": "Count characters in a short word, then print the count of a character without inserting a new key.",
+      "pitfall": "Growing a vector may invalidate its iterators, pointers, and references."
+    },
+    {
+      "id": "references",
+      "title": "References, classes, and invariants",
+      "section": "Core",
+      "explanation": "A reference is another name for an object. Use a const reference for read-only access. A class can keep its fields private and enforce valid state through its public methods.",
+      "example": "#include <iostream>\n\nclass Counter {\npublic:\n    void increment() { ++value; }\n    int get() const { return value; }\nprivate:\n    int value{0};\n};\n\nvoid show(const Counter& counter) {\n    std::cout << counter.get() << '\\n';\n}\n\nint main() {\n    Counter counter;\n    counter.increment();\n    show(counter);\n}",
+      "api": [
+        {
+          "name": "const T&",
+          "description": "Pass an object by reference without permitting mutation through the reference."
+        },
+        {
+          "name": "method() const",
+          "description": "Mark a method as read-only for ordinary object fields."
+        },
+        {
+          "name": "private",
+          "description": "Restrict access to implementation details."
+        }
+      ],
+      "practice": "Add a decrement method that rejects a negative result.",
+      "pitfall": "A reference must not outlive the object it refers to."
+    },
+    {
+      "id": "algorithms",
+      "title": "Algorithms, iterators, and lambdas",
+      "section": "Standard library",
+      "explanation": "Algorithms operate over iterator ranges. The end iterator marks the position after the last element. Use a lambda to supply a short comparison or test.",
+      "example": "#include <algorithm>\n#include <iostream>\n#include <vector>\n\nint main() {\n    std::vector<int> scores{3, 9, 5, 7};\n    std::sort(scores.begin(), scores.end());\n    int threshold = 6;\n    auto high = std::count_if(scores.begin(), scores.end(),\n                              [threshold](int score) { return score >= threshold; });\n    std::cout << scores.front() << \", \" << high << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::sort(first, last)",
+          "description": "Sort a range in place."
+        },
+        {
+          "name": "std::find(first, last, value)",
+          "description": "Find the first matching value or return last."
+        },
+        {
+          "name": "std::count_if(first, last, predicate)",
+          "description": "Count values that pass a test."
+        }
+      ],
+      "practice": "Sort scores in descending order and count the values that fall within an inclusive range.",
+      "pitfall": "A sorting comparator must report false for equal inputs. Using >= instead of > violates its ordering requirement."
+    },
+    {
+      "id": "ownership",
+      "title": "RAII and ownership with unique_ptr",
+      "section": "Core",
+      "explanation": "Tie cleanup to the lifetime of an object. Standard containers own their storage and clean it up when they go out of scope. Use unique_ptr when dynamic storage needs one explicit owner.",
+      "example": "#include <iostream>\n#include <memory>\n#include <utility>\n\nint main() {\n    auto owner = std::make_unique<int>(42);\n    auto receiver = std::move(owner);\n    if (receiver) std::cout << *receiver << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::make_unique<T>(args...)",
+          "description": "Create a dynamically allocated object with an exclusive owner."
+        },
+        {
+          "name": "std::unique_ptr<T>",
+          "description": "Release the owned object automatically."
+        },
+        {
+          "name": "std::move(value)",
+          "description": "Allow another operation to move from a value. The receiving operation determines what happens."
+        }
+      ],
+      "practice": "Write a function returning a unique_ptr to a populated vector and print its first element.",
+      "pitfall": "Prefer an ordinary value or a standard container when dynamic ownership adds no benefit."
+    },
+    {
+      "id": "streams",
+      "title": "Stream input, strings, and optional values",
+      "section": "Standard library",
+      "explanation": "Use stream extraction to parse typed values and getline to read a whole line. Use optional when a function can meaningfully return no value.",
+      "example": "#include <iostream>\n#include <optional>\n#include <sstream>\n#include <string>\n\nstd::optional<int> parse_count(const std::string& text) {\n    std::istringstream input{text};\n    int count;\n    if (!(input >> count) || count < 0) return std::nullopt;\n    input >> std::ws;\n    if (!input.eof()) return std::nullopt;\n    return count;\n}\n\nint main() {\n    std::cout << parse_count(\" 42 \").value_or(-1) << '\\n';\n}",
+      "api": [
+        {
+          "name": "std::getline(stream, text)",
+          "description": "Read characters through the next newline or end of stream."
+        },
+        {
+          "name": "std::ifstream",
+          "description": "Open a file stream for input and close it automatically."
+        },
+        {
+          "name": "std::optional<T>::value_or(fallback)",
+          "description": "Read a value if present or return a fallback."
+        }
+      ],
+      "practice": "Try the parser with an empty string, \"42x\", and a negative number.",
+      "pitfall": "Check a stream operation before using an output variable. Extraction can fail."
+    }
+  ]
+}

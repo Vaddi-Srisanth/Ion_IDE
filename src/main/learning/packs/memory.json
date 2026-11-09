@@ -1,0 +1,18 @@
+{
+  "explanation": "A segmentation or bus error indicates a memory access fault reported by the operating system. The signal identifies the kind of failure but cannot identify a source line or prove a particular pointer mistake. Check the inputs and operations that read or write memory.",
+  "example": "int scores[3] = {2, 4, 6};\nint total = 0;\nfor (int i = 0; i < 3; i++) {\n    total += scores[i];\n}",
+  "exampleExplanation": "An array with three elements has indices 0, 1, and 2. The loop ends before attempting to access index 3.",
+  "misconceptions": [
+    "The last message printed can precede the faulty instruction by several steps.",
+    "A program can read invalid memory without crashing. A run that exits normally is not proof of memory safety."
+  ],
+  "related": [
+    "pointers",
+    "scope",
+    "arrays"
+  ],
+  "reference": {
+    "title": "Local C reference on bounds and object lifetime",
+    "text": "Access requires a live object and a valid index or pointer. Start with array bounds, pointer initialization, ownership of allocated memory, and addresses taken from variables that have gone out of lifetime. A signal alone cannot distinguish these from other access or alignment faults."
+  }
+}

@@ -1,0 +1,36 @@
+.run-console .run-console-title { gap: 8px; }
+.run-console-title-text {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--accent);
+}
+.run-console-title-text h2 { flex: none; }
+.run-console-file {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font: 11px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-console .pane-tools { flex: none; }
+.run-console .run-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.run-console-placeholder { flex: 1; margin: 8px 14px; color: var(--muted); font: 12px var(--mono); }
+.run-console .run-terminal { display: flex; min-width: 0; min-height: 0; flex: 1; padding: 5px 8px; overflow: hidden; }
+.run-terminal-host { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.run-terminal-host > .xterm { height: 100%; }
+.run-console-footer {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border-top: 1px solid var(--subtle-border);
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+.run-console-footer > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-console-duration { flex: none; }

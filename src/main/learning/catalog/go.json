@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "id": "go",
+  "name": "Go",
+  "summary": "Learn Go syntax, slices, interfaces, errors, JSON, and concurrency with the standard library.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "entry",
+      "title": "Packages, variables, and functions",
+      "section": "Syntax",
+      "explanation": "An executable belongs to package main and starts at func main(). Inside a function, := declares a variable and infers its type. Use a named return type after the parameter list.",
+      "example": "package main\n\nimport \"fmt\"\n\nfunc total(count, cents int) int {\n    return count * cents\n}\n\nfunc main() {\n    count := 3\n    fmt.Printf(\"%d cents\\n\", total(count, 275))\n}",
+      "api": [
+        {
+          "name": "fmt.Println()",
+          "description": "Print one or more values and a line break."
+        },
+        {
+          "name": "fmt.Printf()",
+          "description": "Format text with verbs such as %d for integers."
+        },
+        {
+          "name": "go run file.go",
+          "description": "Build and execute a small main program using an installed Go toolchain."
+        }
+      ],
+      "practice": "Add a discount parameter and calculate totals for two quantities.",
+      "pitfall": "Inside a function := must declare at least one new variable in the current block. Use = for plain reassignment."
+    },
+    {
+      "id": "flow",
+      "title": "Branches, loops, slices, and maps",
+      "section": "Core",
+      "explanation": "Go uses for for all looping forms. A slice describes a segment of an underlying array, and a map stores key-value pairs. range provides positions and values for slices, or keys and values for maps.",
+      "example": "package main\n\nimport \"fmt\"\n\nfunc main() {\n    labels := []string{\"ion\", \"lab\", \"ion\"}\n    counts := make(map[string]int)\n    for _, label := range labels {\n        counts[label]++\n    }\n    if count, ok := counts[\"ion\"]; ok {\n        fmt.Println(count)\n    }\n}",
+      "api": [
+        {
+          "name": "append(slice, value)",
+          "description": "Append an item and return the resulting slice."
+        },
+        {
+          "name": "make(map[K]V)",
+          "description": "Create an initialized map."
+        },
+        {
+          "name": "delete(m, key)",
+          "description": "Remove an entry when present."
+        },
+        {
+          "name": "len(value)",
+          "description": "Read the length of a slice, array, string, or map."
+        }
+      ],
+      "practice": "Add a fourth label and count the distinct names. Check whether a missing name is present.",
+      "pitfall": "Assign the slice returned by append. It may refer to a new underlying array."
+    },
+    {
+      "id": "structs",
+      "title": "Structs, methods, and interfaces",
+      "section": "Core",
+      "explanation": "A struct groups typed fields. Define a method with a receiver before its name. A type satisfies an interface when its method set has the required methods, with no declaration linking them.",
+      "example": "package main\n\nimport \"fmt\"\n\ntype Labeled interface {\n    Label() string\n}\n\ntype Topic struct{ Title string }\n\nfunc (topic Topic) Label() string { return \"Topic: \" + topic.Title }\n\nfunc main() {\n    var item Labeled = Topic{Title: \"Slices\"}\n    fmt.Println(item.Label())\n}",
+      "api": [
+        {
+          "name": "type Name struct { ... }",
+          "description": "Define a type with named fields."
+        },
+        {
+          "name": "func (t *T) Method()",
+          "description": "Declare a pointer-receiver method that can mutate T."
+        },
+        {
+          "name": "value.(T)",
+          "description": "Assert a dynamic interface type. The two-result form avoids a panic."
+        }
+      ],
+      "practice": "Add a second type that implements Labeled, and print both labels from a slice.",
+      "pitfall": "A method with a pointer receiver may require *T rather than T to satisfy an interface."
+    },
+    {
+      "id": "errors",
+      "title": "Multiple results, errors, and defer",
+      "section": "Core",
+      "explanation": "A common Go signature returns a value and an error. Check the error before using the value. defer schedules a call to run as the current function returns.",
+      "example": "package main\n\nimport (\n    \"fmt\"\n    \"strconv\"\n)\n\nfunc positive(text string) (int, error) {\n    count, err := strconv.Atoi(text)\n    if err != nil {\n        return 0, fmt.Errorf(\"reading count: %w\", err)\n    }\n    if count <= 0 {\n        return 0, fmt.Errorf(\"count must be positive\")\n    }\n    return count, nil\n}\n\nfunc main() {\n    count, err := positive(\"8\")\n    if err != nil {\n        fmt.Println(err)\n        return\n    }\n    fmt.Println(count)\n}",
+      "api": [
+        {
+          "name": "strconv.Atoi(text)",
+          "description": "Parse decimal text into an int or return an error."
+        },
+        {
+          "name": "fmt.Errorf(\"... %w\", err)",
+          "description": "Wrap an error with additional context."
+        },
+        {
+          "name": "errors.Is(err, target)",
+          "description": "Check a wrapped chain for a matching error."
+        },
+        {
+          "name": "defer resource.Close()",
+          "description": "Schedule resource cleanup after successful acquisition."
+        }
+      ],
+      "practice": "Try an invalid value and add a maximum of 100 to positive.",
+      "pitfall": "Returning a meaningful error gives callers a choice. Panic is generally unsuitable for expected bad input."
+    },
+    {
+      "id": "json-files",
+      "title": "JSON, temporary files, and paths",
+      "section": "Standard library",
+      "explanation": "encoding/json converts Go data to and from JSON. Struct fields need exported names to be encoded. Use filepath to construct paths for the current operating system.",
+      "example": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"os\"\n    \"path/filepath\"\n)\n\ntype Score struct {\n    Points int `json:\"points\"`\n}\n\nfunc save() error {\n    folder, err := os.MkdirTemp(\"\", \"ion-go-\")\n    if err != nil { return err }\n    defer os.RemoveAll(folder)\n    file := filepath.Join(folder, \"score.json\")\n    data, err := json.Marshal(Score{Points: 9})\n    if err != nil { return err }\n    if err := os.WriteFile(file, data, 0600); err != nil { return err }\n    saved, err := os.ReadFile(file)\n    if err != nil { return err }\n    var result Score\n    if err := json.Unmarshal(saved, &result); err != nil { return err }\n    fmt.Println(result.Points)\n    return nil\n}\n\nfunc main() {\n    if err := save(); err != nil {\n        fmt.Fprintln(os.Stderr, err)\n        os.Exit(1)\n    }\n}",
+      "api": [
+        {
+          "name": "json.Marshal(value)",
+          "description": "Encode a Go value to JSON bytes."
+        },
+        {
+          "name": "json.Unmarshal(bytes, &value)",
+          "description": "Decode JSON into the value addressed by a pointer."
+        },
+        {
+          "name": "os.ReadFile() / os.WriteFile()",
+          "description": "Read or write the complete contents of a small file."
+        }
+      ],
+      "practice": "Add a second JSON field and print both values after reading the file.",
+      "pitfall": "A missing field can leave a zero value. Check required fields explicitly when reading external data."
+    },
+    {
+      "id": "concurrency",
+      "title": "Goroutines, channels, and coordination",
+      "section": "Standard library",
+      "explanation": "Prefix a call with go to run it in a goroutine. Channels pass values between goroutines. Send and receive on an unbuffered channel meet at a synchronization point.",
+      "example": "package main\n\nimport \"fmt\"\n\nfunc square(value int, results chan<- int) {\n    results <- value * value\n}\n\nfunc main() {\n    results := make(chan int)\n    go square(7, results)\n    fmt.Println(<-results)\n}",
+      "api": [
+        {
+          "name": "make(chan T, capacity)",
+          "description": "Create a channel, optionally with room for pending values."
+        },
+        {
+          "name": "select { ... }",
+          "description": "Wait for one of several channel operations."
+        },
+        {
+          "name": "sync.WaitGroup",
+          "description": "Track tasks that must finish before a caller continues."
+        },
+        {
+          "name": "context.Context",
+          "description": "Pass cancellation and deadlines between cooperating operations."
+        }
+      ],
+      "practice": "Launch two workers and receive both results. Notice that completion order can change.",
+      "pitfall": "A send can block forever if nobody receives. Design a clear shutdown path for each goroutine."
+    }
+  ]
+}

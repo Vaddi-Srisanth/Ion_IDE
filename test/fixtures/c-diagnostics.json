@@ -1,0 +1,323 @@
+[
+  {
+    "id": "semicolon-expression",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int total = 0; total++\nreturn total; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c:1:40: error: expected ';' after expression\n    1 | int main(void) { int total = 0; total++\n      |                                        ^\n      |                                        ;\n1 error generated."
+  },
+  {
+    "id": "semicolon-declaration",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int total = 0\nreturn total; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c:1:31: error: expected ';' at end of declaration\n    1 | int main(void) { int total = 0\n      |                               ^\n      |                               ;\n1 error generated."
+  },
+  {
+    "id": "semicolon-return",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { return 0 }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c:1:26: error: expected ';' after return statement\n    1 | int main(void) { return 0 }\n      |                          ^\n      |                          ;\n1 error generated."
+  },
+  {
+    "id": "undeclared",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { return count; }\n",
+    "expected": "undeclared-identifier",
+    "output": "/fixture.c:1:25: error: use of undeclared identifier 'count'\n    1 | int main(void) { return count; }\n      |                         ^~~~~\n1 error generated."
+  },
+  {
+    "id": "scope-unavailable",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { { int total = 1; (void)total; } return total; }\n",
+    "expected": "undeclared-identifier",
+    "output": "/fixture.c:1:57: error: use of undeclared identifier 'total'\n    1 | int main(void) { { int total = 1; (void)total; } return total; }\n      |                                                         ^~~~~\n1 error generated."
+  },
+  {
+    "id": "scope-conflict",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int count = 0; int count; return count; }\n",
+    "expected": "scope-conflict",
+    "output": "/fixture.c:1:37: error: redefinition of 'count'\n    1 | int main(void) { int count = 0; int count; return count; }\n      |                                     ^\n/fixture.c:1:22: note: previous definition is here\n    1 | int main(void) { int count = 0; int count; return count; }\n      |                      ^\n1 error generated."
+  },
+  {
+    "id": "incompatible-initializer",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int total = \"hello\"; return total; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c:1:22: error: incompatible pointer to integer conversion initializing 'int' with an expression of type 'char[6]' [-Wint-conversion]\n    1 | int main(void) { int total = \"hello\"; return total; }\n      |                      ^       ~~~~~~~\n1 error generated."
+  },
+  {
+    "id": "incompatible-struct",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "struct A { int x; }; struct B { int x; };\nint main(void) { struct A a = {0}; struct B b = a; return b.x; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c:2:45: error: initializing 'struct B' with an expression of incompatible type 'struct A'\n    2 | int main(void) { struct A a = {0}; struct B b = a; return b.x; }\n      |                                             ^   ~\n1 error generated."
+  },
+  {
+    "id": "too-few-arguments",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(); }\n",
+    "expected": "argument-count",
+    "output": "/fixture.c:2:32: error: too few arguments to function call, single argument 'x' was not specified\n    2 | int main(void) { return square(); }\n      |                         ~~~~~~ ^\n/fixture.c:1:5: note: 'square' declared here\n    1 | int square(int x) { return x*x; }\n      |     ^      ~~~~~\n1 error generated."
+  },
+  {
+    "id": "too-many-arguments",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(1, 2); }\n",
+    "expected": "argument-count",
+    "output": "/fixture.c:2:35: error: too many arguments to function call, expected single argument 'x', have 2 arguments\n    2 | int main(void) { return square(1, 2); }\n      |                         ~~~~~~    ^\n/fixture.c:1:5: note: 'square' declared here\n    1 | int square(int x) { return x*x; }\n      |     ^      ~~~~~\n1 error generated."
+  },
+  {
+    "id": "wrong-argument-type",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(\"one\"); }\n",
+    "expected": "argument-types",
+    "output": "/fixture.c:2:32: error: incompatible pointer to integer conversion passing 'char[4]' to parameter of type 'int' [-Wint-conversion]\n    2 | int main(void) { return square(\"one\"); }\n      |                                ^~~~~\n/fixture.c:1:16: note: passing argument to parameter 'x' here\n    1 | int square(int x) { return x*x; }\n      |                ^\n1 error generated."
+  },
+  {
+    "id": "invalid-dereference",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int value = 0; return *value; }\n",
+    "expected": "invalid-dereference",
+    "output": "/fixture.c:1:40: error: indirection requires pointer operand ('int' invalid)\n    1 | int main(void) { int value = 0; return *value; }\n      |                                        ^~~~~~\n1 error generated."
+  },
+  {
+    "id": "ambiguous-expression",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { return (1 + ); }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:30: error: expected expression\n    1 | int main(void) { return (1 + ); }\n      |                              ^\n1 error generated."
+  },
+  {
+    "id": "unknown-directive",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "#error laboratory example\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:2: error: laboratory example\n    1 | #error laboratory example\n      |  ^\n1 error generated."
+  },
+  {
+    "id": "unknown-include",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "#include \"ion_no_fixture_header.h\"\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:10: fatal error: 'ion_no_fixture_header.h' file not found\n    1 | #include \"ion_no_fixture_header.h\"\n      |          ^~~~~~~~~~~~~~~~~~~~~~~~~\n1 error generated."
+  },
+  {
+    "id": "semicolon-expression",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int total = 0; total++\nreturn total; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:40: error: expected ';' before 'return'\n    1 | int main(void) { int total = 0; total++\n      |                                        ^\n      |                                        ;\n    2 | return total; }\n      | ~~~~~~                                  \n/fixture.c:1:22: warning: variable 'total' set but not used [-Wunused-but-set-variable=]\n    1 | int main(void) { int total = 0; total++\n      |                      ^~~~~"
+  },
+  {
+    "id": "semicolon-declaration",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int total = 0\nreturn total; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:1: error: expected ',' or ';' before 'return'\n    2 | return total; }\n      | ^~~~~~\n/fixture.c:1:22: warning: unused variable 'total' [-Wunused-variable]\n    1 | int main(void) { int total = 0\n      |                      ^~~~~"
+  },
+  {
+    "id": "semicolon-return",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { return 0 }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:26: error: expected ';' before '}' token\n    1 | int main(void) { return 0 }\n      |                          ^~\n      |                          ;"
+  },
+  {
+    "id": "undeclared",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { return count; }\n",
+    "expected": "undeclared-identifier",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:25: error: 'count' undeclared (first use in this function)\n    1 | int main(void) { return count; }\n      |                         ^~~~~\n/fixture.c:1:25: note: each undeclared identifier is reported only once for each function it appears in"
+  },
+  {
+    "id": "scope-unavailable",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { { int total = 1; (void)total; } return total; }\n",
+    "expected": "undeclared-identifier",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:57: error: 'total' undeclared (first use in this function)\n    1 | int main(void) { { int total = 1; (void)total; } return total; }\n      |                                                         ^~~~~\n/fixture.c:1:57: note: each undeclared identifier is reported only once for each function it appears in"
+  },
+  {
+    "id": "scope-conflict",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int count = 0; int count; return count; }\n",
+    "expected": "scope-conflict",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:37: error: redeclaration of 'count' with no linkage\n    1 | int main(void) { int count = 0; int count; return count; }\n      |                                     ^~~~~\n/fixture.c:1:22: note: previous definition of 'count' with type 'int'\n    1 | int main(void) { int count = 0; int count; return count; }\n      |                      ^~~~~"
+  },
+  {
+    "id": "incompatible-initializer",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int total = \"hello\"; return total; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:30: error: initialization of 'int' from 'char *' makes integer from pointer without a cast [-Wint-conversion]\n    1 | int main(void) { int total = \"hello\"; return total; }\n      |                              ^~~~~~~"
+  },
+  {
+    "id": "incompatible-struct",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "struct A { int x; }; struct B { int x; };\nint main(void) { struct A a = {0}; struct B b = a; return b.x; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:49: error: invalid initializer\n    2 | int main(void) { struct A a = {0}; struct B b = a; return b.x; }\n      |                                                 ^",
+    "expectedClassification": "unclassified-compiler"
+  },
+  {
+    "id": "too-few-arguments",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(); }\n",
+    "expected": "argument-count",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:25: error: too few arguments to function 'square'; expected 1, have 0\n    2 | int main(void) { return square(); }\n      |                         ^~~~~~\n/fixture.c:1:5: note: declared here\n    1 | int square(int x) { return x*x; }\n      |     ^~~~~~"
+  },
+  {
+    "id": "too-many-arguments",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(1, 2); }\n",
+    "expected": "argument-count",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:25: error: too many arguments to function 'square'; expected 1, have 2\n    2 | int main(void) { return square(1, 2); }\n      |                         ^~~~~~    ~\n/fixture.c:1:5: note: declared here\n    1 | int square(int x) { return x*x; }\n      |     ^~~~~~"
+  },
+  {
+    "id": "wrong-argument-type",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int square(int x) { return x*x; }\nint main(void) { return square(\"one\"); }\n",
+    "expected": "argument-types",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:32: error: passing argument 1 of 'square' makes integer from pointer without a cast [-Wint-conversion]\n    2 | int main(void) { return square(\"one\"); }\n      |                                ^~~~~\n      |                                |\n      |                                char *\n/fixture.c:1:16: note: expected 'int' but argument is of type 'char *'\n    1 | int square(int x) { return x*x; }\n      |            ~~~~^"
+  },
+  {
+    "id": "invalid-dereference",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int value = 0; return *value; }\n",
+    "expected": "invalid-dereference",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:40: error: invalid type argument of unary '*' (have 'int')\n    1 | int main(void) { int value = 0; return *value; }\n      |                                        ^~~~~~"
+  },
+  {
+    "id": "ambiguous-expression",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { return (1 + ); }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:30: error: expected expression before ')' token\n    1 | int main(void) { return (1 + ); }\n      |                              ^"
+  },
+  {
+    "id": "unknown-directive",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "#error laboratory example\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:2: error: #error laboratory example\n    1 | #error laboratory example\n      |  ^~~~~"
+  },
+  {
+    "id": "unknown-include",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "#include \"ion_no_fixture_header.h\"\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:10: fatal error: ion_no_fixture_header.h: No such file or directory\n    1 | #include \"ion_no_fixture_header.h\"\n      |          ^~~~~~~~~~~~~~~~~~~~~~~~~\ncompilation terminated."
+  },
+  {
+    "id": "pointer-argument",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "void use(double *x) { (void)x; }\nint main(void) { int n = 0; use(&n); }\n",
+    "expected": "argument-types",
+    "output": "/fixture.c:2:33: warning: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Wincompatible-pointer-types]\n    2 | int main(void) { int n = 0; use(&n); }\n      |                                 ^~\n/fixture.c:1:18: note: passing argument to parameter 'x' here\n    1 | void use(double *x) { (void)x; }\n      |                  ^\n1 warning generated."
+  },
+  {
+    "id": "pointer-initializer",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { double value = 0.0; int *p = &value; return *p; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c:1:43: warning: incompatible pointer types initializing 'int *' with an expression of type 'double *' [-Wincompatible-pointer-types]\n    1 | int main(void) { double value = 0.0; int *p = &value; return *p; }\n      |                                           ^   ~~~~~~\n1 warning generated."
+  },
+  {
+    "id": "empty-initializer",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { int x = ; return x; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:26: error: expected expression\n    1 | int main(void) { int x = ; return x; }\n      |                          ^\n1 error generated."
+  },
+  {
+    "id": "directive-looks-like-diagnostic",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "#error expected ';' after expression\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:2: error: expected ';' after expression\n    1 | #error expected ';' after expression\n      |  ^\n1 error generated."
+  },
+  {
+    "id": "semicolon-break",
+    "compiler": "clang",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+    "source": "int main(void) { while (1) { break } return 0; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c:1:35: error: expected ';' after break statement\n    1 | int main(void) { while (1) { break } return 0; }\n      |                                   ^\n      |                                   ;\n1 error generated."
+  },
+  {
+    "id": "pointer-argument",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "void use(double *x) { (void)x; }\nint main(void) { int n = 0; use(&n); }\n",
+    "expected": "argument-types",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:2:33: error: passing argument 1 of 'use' from incompatible pointer type [-Wincompatible-pointer-types]\n    2 | int main(void) { int n = 0; use(&n); }\n      |                                 ^~\n      |                                 |\n      |                                 int *\n/fixture.c:1:18: note: expected 'double *' but argument is of type 'int *'\n    1 | void use(double *x) { (void)x; }\n      |          ~~~~~~~~^"
+  },
+  {
+    "id": "pointer-initializer",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { double value = 0.0; int *p = &value; return *p; }\n",
+    "expected": "incompatible-types",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:47: error: initialization of 'int *' from incompatible pointer type 'double *' [-Wincompatible-pointer-types]\n    1 | int main(void) { double value = 0.0; int *p = &value; return *p; }\n      |                                               ^"
+  },
+  {
+    "id": "empty-initializer",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { int x = ; return x; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:26: error: expected expression before ';' token\n    1 | int main(void) { int x = ; return x; }\n      |                          ^"
+  },
+  {
+    "id": "directive-looks-like-diagnostic",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "#error expected ';' after expression\nint main(void) { return 0; }\n",
+    "expected": "unclassified-compiler",
+    "output": "/fixture.c:1:2: error: #error expected ';' after expression\n    1 | #error expected ';' after expression\n      |  ^~~~~"
+  },
+  {
+    "id": "semicolon-break",
+    "compiler": "gcc",
+    "version": "gcc-16 (Homebrew GCC 16.2.0) 16.2.0",
+    "source": "int main(void) { while (1) { break } return 0; }\n",
+    "expected": "missing-semicolon",
+    "output": "/fixture.c: In function 'main':\n/fixture.c:1:35: error: expected ';' before '}' token\n    1 | int main(void) { while (1) { break } return 0; }\n      |                                   ^~\n      |                                   ;"
+  }
+]

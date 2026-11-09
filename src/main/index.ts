@@ -1,0 +1,1064 @@
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell, type IpcMainInvokeEvent } from 'electron'
+import { createHash } from 'node:crypto'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { defaultSettings, type Entry, type MenuCommand, type OptionalPanel, type RunResult } from '../shared/contracts'
+import { isThemeId } from '../shared/themes'
+import { documentFormat } from '../shared/viewers'
+import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
+import { maxTextCopyBytes } from '../shared/large-text'
+import type { NotebookKernelStatus } from '../shared/notebook-kernel'
+import { runLanguage, type RunUpdate } from '../shared/run-console'
+import { entryName, fileText, isWithin, maxFileBytes, revision, WorkspaceFiles } from './files'
+import { readMarkdownImage, resolveMarkdownLink } from './markdown-assets'
+import { installMenu } from './menu'
+import { PreferenceStore } from './preferences'
+import { quickOpenQuery, searchWorkspace } from './quick-open'
+import { RecoveryStore } from './recovery'
+import { EditorSessionStore } from './editor-session'
+import { CRunner, rejectedRun, validStdin } from './runner'
+import type { InteractiveRunner } from './run-console'
+import { ThemeStore } from './themes'
+import type { ViewerService } from './viewers'
+import type { NotebookKernels } from './notebooks/kernel-service'
+import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
+
+app.setName('Ion IDE')
+if (process.platform === 'win32') app.setAppUserModelId('dev.ionide.desktop')
+const primaryInstance = app.requestSingleInstanceLock()
+if (!primaryInstance) app.quit()
+
+const rendererRoot = resolve(__dirname, '../renderer')
+const rendererURL = 'app://workbench/index.html'
+const csp = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "worker-src 'self' blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'app',
+  privileges: { standard: true, secure: true, supportFetchAPI: true },
+}, {
+  scheme: 'ion-preview',
+  privileges: { standard: true, secure: true, supportFetchAPI: true },
+}])
+
+function devServer(): URL | undefined {
+  if (app.isPackaged || !process.env.ION_DEV_URL) return
+  const url = new URL(process.env.ION_DEV_URL)
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port || url.username
+    || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('ION_DEV_URL must be the root of a 127.0.0.1 HTTP development server.')
+  }
+  return url
+}
+
+const development = devServer()
+const expectedURL = development?.href ?? rendererURL
+const runner = new CRunner()
+let files = new WorkspaceFiles()
+let preferences: PreferenceStore
+let recovery: RecoveryStore
+let editorSession: EditorSessionStore
+let themeStore: ThemeStore
+let initialized = false
+let window: BrowserWindow | null = null
+let openFullScreen = defaultSettings.openFullScreen
+let closeApproved = false
+let closePending = false
+let quitRequested = false
+let lastRendererRestart = -Infinity
+interface ActiveRun {
+  id: string
+  owner: BrowserWindow
+  controller: AbortController
+  job: Promise<RunResult>
+  engine?: InteractiveRunner
+  size?: [number, number]
+}
+let activeRun: ActiveRun | null = null
+let interactiveRunner: InteractiveRunner | undefined
+let webPreview: BrowserWindow | undefined
+let webPreviewOpening = false
+let practiceRun: { controller: AbortController; job?: Promise<unknown> } | null = null
+let resourceProfile = defaultSettings.resourceProfile
+let panel: OptionalPanel | null = null
+let projectPath: string | undefined
+let panelGeneration = 0
+let viewerService: Promise<ViewerService> | undefined
+let notebookKernels: Promise<NotebookKernels> | undefined
+let quickSearch: AbortController | undefined
+let workspaceSearch: { id: string; controller: AbortController } | undefined
+const keyboardPlatform = shortcutPlatform(process.platform)
+let shortcutOverrides: ShortcutOverrides = defaultSettings.shortcuts
+let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
+const trustedSources = new Map<string, string>()
+const earlyFiles: string[] = []
+
+function viewers(target: BrowserWindow): Promise<ViewerService> {
+  return viewerService ??= import('./viewers').then(({ ViewerService }) => {
+    if (target !== window) throw new Error('The document window has closed.')
+    return new ViewerService(files)
+  })
+}
+
+function kernelPath(value: unknown): string {
+  if (typeof value !== 'string' || value.length > 4096 || value.includes('\0') || !isAbsolute(value)
+    || value !== resolve(value) || !isNotebookName(value)) throw new Error('Open a local .ipynb notebook first.')
+  return value
+}
+
+function kernels(target: BrowserWindow): Promise<NotebookKernels> {
+  return notebookKernels ??= import('./notebooks/kernel-service').then(({ NotebookKernels }) => {
+    if (target !== window) throw new Error('The notebook window has closed.')
+    return new NotebookKernels((event) => {
+      if (target === window && !target.isDestroyed()) target.webContents.send('ion:notebook-kernel-output', event)
+    })
+  })
+}
+
+let projectHandlers: ReturnType<typeof import('./projects/ipc').createProjectHandlers> | undefined
+const projects = () => import('./projects/ipc').then(({ createProjectHandlers }) => projectHandlers ??= createProjectHandlers({
+  profile: () => app.getPath('userData'),
+  files: () => files,
+  runner,
+  isCurrent: (target) => target === window,
+  isBusy: () => activeRun !== null || practiceRun !== null,
+  isFull: () => resourceProfile === 'full',
+}))
+
+async function activeProjects(target: BrowserWindow) {
+  const handlers = await projects()
+  if (target !== window) throw new Error('The project window has closed.')
+  return handlers
+}
+
+let learningService: InstanceType<typeof import('./learning').LearningService> | undefined
+const learning = () => import('./learning').then(({ LearningService }) => learningService ??= new LearningService(
+  join(app.getPath('userData'), 'learning.json'), join(__dirname, 'learning-packs'),
+))
+
+let packStore: InstanceType<typeof import('./learning/catalog-store').LearningPackStore> | undefined
+let learningSelectionGeneration = 0
+const learningPacks = () => import('./learning/catalog-store').then(({ LearningPackStore }) => packStore ??= new LearningPackStore(
+  app.getPath('userData'), join(__dirname, 'learning-catalog'),
+))
+
+async function observesCLearning(generation: number, selection: number): Promise<boolean> {
+  if (panel !== 'learn' || generation !== panelGeneration || selection !== learningSelectionGeneration) return false
+  const selected = await learningPacks().then((store) => store.isSelected('c')).catch(() => false)
+  return selected && generation === panelGeneration && selection === learningSelectionGeneration
+}
+
+let practiceStore: InstanceType<typeof import('./practice').PracticeStore> | undefined
+const practice = () => import('./practice').then(({ PracticeStore }) => practiceStore ??= new PracticeStore(
+  join(app.getPath('userData'), 'practice'),
+))
+
+
+
+async function withLearning<T>(operation: (service: NonNullable<typeof learningService>) => T | Promise<T>) {
+  const service = await learning()
+  try {
+    return await operation(service)
+  } finally {
+    if (panel !== 'learn') void service.release().catch(() => undefined)
+  }
+}
+
+function releasePanel() {
+  if (panel === 'learn') void learningService?.release().catch(() => undefined)
+  if (panel === 'projects') projectHandlers?.close()
+  if (panel === 'practice') {
+    practiceRun?.controller.abort()
+    practiceStore?.release()
+  }
+}
+
+async function setOptionalPanel(target: BrowserWindow, mode: unknown, root: unknown) {
+  if (mode !== null && mode !== 'learn' && mode !== 'projects' && mode !== 'practice') {
+    throw new Error('Unknown workspace panel.')
+  }
+  if (root !== undefined && (mode !== 'projects' || typeof root !== 'string')) {
+    throw new Error('Invalid project folder.')
+  }
+  if (panel !== mode || projectPath !== root) releasePanel()
+  const generation = ++panelGeneration
+  panel = mode
+  projectPath = root
+  if (mode === 'projects' && root) {
+    const handlers = await activeProjects(target)
+    if (generation === panelGeneration) await handlers.setActive(target, root)
+  }
+}
+
+function applyProfile(profile: typeof resourceProfile) {
+  if (resourceProfile === profile) return
+  resourceProfile = profile
+  projectHandlers?.profileChanged()
+}
+
+async function onlineProjects(target: BrowserWindow) {
+  if (resourceProfile !== 'full' || panel !== 'projects') {
+    throw new Error('Open Projects in Full Mode to use the online planner.')
+  }
+  const handlers = await activeProjects(target)
+  if (resourceProfile !== 'full' || panel !== 'projects') {
+    throw new Error('The online planner has been deactivated.')
+  }
+  return handlers
+}
+
+function startupFailure(error: unknown): void {
+  console.error('Unable to start Ion IDE.', error)
+  const detail = error instanceof Error ? error.message : String(error)
+  dialog.showErrorBox('Unable to start Ion IDE', detail)
+  app.exit(1)
+}
+
+async function registerSession(): Promise<void> {
+  const appSession = session.defaultSession
+  // Presentation uses the gesture-gated HTML fullscreen API. Restrict it to
+  // the same top-level workbench that owns the document preview.
+  const fullscreenOrigin = development?.origin ?? 'app://workbench'
+  appSession.setPermissionRequestHandler((contents, permission, approve, details) => {
+    approve(permission === 'fullscreen' && contents === window?.webContents
+      && details.isMainFrame && details.requestingUrl === expectedURL)
+  })
+  appSession.setPermissionCheckHandler((contents, permission, origin, details) =>
+    permission === 'fullscreen' && contents === window?.webContents && details.isMainFrame
+      && (details.requestingUrl === expectedURL || (details.requestingUrl === undefined && origin === fullscreenOrigin)))
+  appSession.webRequest.onBeforeRequest((details, callback) => {
+    const target = new URL(details.url)
+    const network = ['http:', 'https:', 'ws:', 'wss:'].includes(target.protocol)
+    const devAsset = development && target.host === development.host
+      && (target.protocol === 'http:' || target.protocol === 'ws:')
+    callback({ cancel: network && !devAsset })
+  })
+
+  if (development) return
+  const root = await realpath(rendererRoot)
+  protocol.handle('app', async (request) => {
+    try {
+      const url = new URL(request.url)
+      if (url.host !== 'workbench' || url.username || url.password || request.method !== 'GET') {
+        return new Response(null, { status: 403 })
+      }
+      const pathname = decodeURIComponent(url.pathname)
+      const path = resolve(root, '.' + pathname)
+      if (path === root || !isWithin(root, path) || await realpath(path) !== path) {
+        return new Response(null, { status: 403 })
+      }
+      const response = await net.fetch(pathToFileURL(path).href)
+      const headers = new Headers(response.headers)
+      headers.set('Content-Security-Policy', csp)
+      headers.set('X-Content-Type-Options', 'nosniff')
+      return new Response(response.body, { status: response.status, headers })
+    } catch {
+      return new Response(null, { status: 404 })
+    }
+  })
+}
+
+function sendCommand(command: MenuCommand): void {
+  const target = window ?? createWindow()
+  const send = () => {
+    if (!target.isDestroyed()) target.webContents.send('ion:command', command)
+  }
+  if (target.webContents.isLoadingMainFrame()) target.webContents.once('did-finish-load', send)
+  else send()
+}
+
+function applyShortcuts(overrides: ShortcutOverrides) {
+  if (shortcutOverrides === overrides) return
+  if (JSON.stringify(shortcutOverrides) !== JSON.stringify(overrides)) {
+    shortcutBindings = resolveShortcuts(overrides, keyboardPlatform)
+    installMenu(sendCommand, overrides)
+  }
+  shortcutOverrides = overrides
+}
+
+function createWindow(): BrowserWindow {
+  closeApproved = false
+  closePending = false
+  let restartAfterCrash = false
+  const target = new BrowserWindow({
+    width: 1260,
+    height: 790,
+    minWidth: 760,
+    minHeight: 520,
+    backgroundColor: '#101117',
+    show: false,
+    ...(openFullScreen ? { fullscreen: true } : {}),
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
+    webPreferences: {
+      preload: resolve(__dirname, '../preload/index.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      spellcheck: false,
+      webviewTag: false,
+    },
+  })
+  window = target
+  target.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  target.webContents.on('will-frame-navigate', (event) => event.preventDefault())
+  target.webContents.on('will-navigate', (event) => event.preventDefault())
+  target.webContents.on('will-attach-webview', (event) => event.preventDefault())
+  target.webContents.on('before-input-event', (event, input) => {
+    if (input.isComposing) return
+    const command = shortcutBindings.get(inputShortcut(input, keyboardPlatform))
+    if (!command) return
+    event.preventDefault()
+    if (input.type === 'keyDown' && !input.isAutoRepeat) sendCommand(command)
+  })
+  target.once('ready-to-show', () => target.show())
+  target.webContents.on('render-process-gone', (_event, { reason }) => {
+    if (target !== window || target.isDestroyed() || reason === 'clean-exit') return
+    // Release this renderer's capabilities and resources through the normal
+    // close path. Limit automatic replacement if a crash immediately recurs.
+    if (!quitRequested && performance.now() - lastRendererRestart >= 30_000) {
+      lastRendererRestart = performance.now()
+      restartAfterCrash = true
+    }
+    target.destroy()
+  })
+  target.on('close', (event) => {
+    if (closeApproved || target.webContents.isCrashed() || target.webContents.isLoadingMainFrame()) return
+    event.preventDefault()
+    if (closePending) return
+    closePending = true
+    target.webContents.send('ion:close-request')
+  })
+  target.on('closed', () => {
+    quickSearch?.abort()
+    quickSearch = undefined
+    workspaceSearch?.controller.abort()
+    workspaceSearch = undefined
+    if (webPreview && !webPreview.isDestroyed()) webPreview.destroy()
+    webPreview = undefined
+    const interactive = activeRun?.owner === target ? activeRun : null
+    interactive?.controller.abort()
+    window = null
+    files = new WorkspaceFiles()
+    trustedSources.clear()
+    releasePanel()
+    if (panel !== 'projects') projectHandlers?.close()
+    if (panel !== 'practice') practiceRun?.controller.abort()
+    panel = null
+    projectPath = undefined
+    panelGeneration++
+    const previewCleanup = viewerService?.then((service) => service.dispose(), () => undefined)
+    viewerService = undefined
+    const kernelCleanup = notebookKernels?.then((service) => service.dispose(), () => undefined)
+    notebookKernels = undefined
+    const cleanup = Promise.all([runner.drain(), previewCleanup, kernelCleanup, interactive?.job, practiceRun?.job?.catch(() => undefined)])
+    if (restartAfterCrash) {
+      void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
+    } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
+      void cleanup.then(() => { if (!window) app.quit() })
+    }
+  })
+  void target.loadURL(expectedURL).catch((error: unknown) => {
+    if (!target.isDestroyed()) startupFailure(error)
+  })
+  return target
+}
+
+function owner(event: IpcMainInvokeEvent): BrowserWindow {
+  const frame = event.senderFrame
+  if (!window || event.sender !== window.webContents || !frame || frame !== event.sender.mainFrame || frame.url !== expectedURL) {
+    throw new Error('Invalid desktop request origin.')
+  }
+  return window
+}
+
+function cancelledRun(): RunResult {
+  return { ...rejectedRun('Run stopped.'), status: 'cancelled' }
+}
+
+async function approveRunSource(
+  target: BrowserWindow, scope: WorkspaceFiles, path: string, token: string, build?: 'maven' | 'gradle', signal?: AbortSignal,
+): Promise<string | undefined> {
+  if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
+  if (build || trustedSources.get(path) !== token) {
+    const tool = build === 'maven' ? 'Maven' : 'Gradle'
+    const choice = await dialog.showMessageBox(target, {
+      signal,
+      type: 'warning', buttons: ['Cancel', build ? `Run ${tool} Build` : 'Run Program'], defaultId: 0, cancelId: 0,
+      message: build ? `Run this project’s ${tool} build?` : 'Trust ' + basename(path) + ' for this window?',
+      detail: (build
+        ? `${tool} will use its local cache. Project build scripts, plugins, and the program can run code with your user account’s permissions. Review this project before continuing.`
+        : 'Only run code you trust. Programs run with your user account’s permissions and can access files and the network. Time and output limits apply. Programs run outside a security sandbox.')
+        + '\n\n' + path,
+    })
+    if (choice.response !== 1 || signal?.aborted || target.isDestroyed() || target !== window) return 'Run was not approved.'
+    if (revision((await scope.inspect(path, 'file')).stats) !== token) {
+      return 'The source changed while awaiting approval. Review it and run again.'
+    }
+  }
+  if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
+  trustedSources.delete(path)
+  trustedSources.set(path, token)
+  if (trustedSources.size > 64) {
+    const oldest = trustedSources.keys().next().value
+    if (oldest) trustedSources.delete(oldest)
+  }
+}
+
+function startInteractive(target: BrowserWindow, id: unknown, value: unknown, learn: boolean, expectedRevision: unknown): Promise<RunResult> {
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return Promise.resolve(rejectedRun('Invalid run request.'))
+  if (expectedRevision !== undefined && (typeof expectedRevision !== 'string' || !expectedRevision.length || expectedRevision.length > 256)) {
+    return Promise.resolve(rejectedRun('Invalid source revision.'))
+  }
+  if (runner.busy || practiceRun || activeRun) {
+    return Promise.resolve(rejectedRun('A program or test is already running.'))
+  }
+  const controller = new AbortController()
+  const record: ActiveRun = {
+    id, owner: target, controller, job: Promise.resolve(cancelledRun()),
+  }
+  activeRun = record
+  record.job = runInteractive(record, value, learn, expectedRevision).finally(() => {
+    if (activeRun === record) activeRun = null
+  })
+  return record.job
+}
+
+async function runInteractive(record: ActiveRun, value: unknown, learn: boolean, expectedRevision?: string): Promise<RunResult> {
+  const { owner: target, id, controller: { signal } } = record
+  const scope = files
+  const workspaceRoot = scope.rootPath
+  let scratch: string | undefined
+  let sourceHash: string | undefined
+  let runtimeExcerpt = ''
+  const emit = (update: RunUpdate) => {
+    if (sourceHash && update.kind === 'data' && update.stream === 'terminal' && runtimeExcerpt.length < 2200) {
+      runtimeExcerpt += update.text.slice(0, 2200 - runtimeExcerpt.length)
+    }
+    if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id, update })
+  }
+  try {
+    const { path, stats } = await scope.inspect(value, 'file')
+    if (!runLanguage(path)) return rejectedRun('Open a saved C, C++, Java, Python, or JavaScript file to run.')
+    if (stats.size > BigInt(maxFileBytes)) return rejectedRun('The source exceeds the 2 MiB file limit.')
+    const token = revision(stats)
+    if (expectedRevision !== undefined && expectedRevision !== token) {
+      return { ...rejectedRun('The source changed on disk. Reload it before running.'), sourceChanged: true }
+    }
+    const stillCurrent = async () => {
+      const current = await scope.inspect(path, 'file').catch(() => undefined)
+      return target === window && !signal.aborted && scope.rootPath === workspaceRoot
+        && current !== undefined && revision(current.stats) === token
+    }
+    emit({ kind: 'phase', phase: 'preparing' })
+    signal.throwIfAborted()
+    const module = await import('./run-console')
+    scratch = await mkdtemp(join(await realpath(tmpdir()), 'ion-live-run-'))
+    const root = workspaceRoot && isWithin(workspaceRoot, path) ? workspaceRoot : null
+    let plan: Awaited<ReturnType<typeof module.prepareRun>>
+    try {
+      plan = await module.prepareRun({ path, root, scratch, signal })
+    } catch (error) {
+      if (error instanceof module.MissingToolchainError) return { ...rejectedRun(error.message), status: 'missing-toolchain' }
+      throw error
+    }
+    if (!await stillCurrent()) return signal.aborted ? cancelledRun() : rejectedRun('The source or workspace changed before the run.')
+    const denied = await approveRunSource(target, scope, path, token, plan.build, signal)
+    if (signal.aborted) return cancelledRun()
+    if (denied) return rejectedRun(denied)
+    if (!await stillCurrent()) return rejectedRun('The source or workspace changed before the run.')
+    const generation = panelGeneration
+    const selection = learningSelectionGeneration
+    if (learn && plan.language === 'c' && await observesCLearning(generation, selection)) {
+      const source = await scope.read(path).catch(() => undefined)
+      if (source?.revision === token) sourceHash = createHash('sha256').update(source.text).digest('hex')
+    }
+    const helper = app.isPackaged ? join(process.resourcesPath, 'ion-pty') : resolve(__dirname, '../native/ion-pty')
+    const engine = interactiveRunner ??= new module.InteractiveRunner(helper)
+    record.engine = engine
+    const job = engine.run(plan, emit, signal, stillCurrent)
+    if (record.size) engine.resize(...record.size)
+    const result = await job
+    if (sourceHash && await observesCLearning(generation, selection) && await stillCurrent()) {
+      try {
+        const service = await learning()
+        if (generation === panelGeneration && selection === learningSelectionGeneration) {
+          result.learning = await service.observe({ path, sourceHash, result: { ...result, programOutput: runtimeExcerpt } })
+        }
+      } catch { /* Compiler output remains available if learning storage fails. */ }
+    }
+    return { ...result, compileOutput: '' }
+  } catch (error) {
+    return signal.aborted ? cancelledRun() : rejectedRun(error instanceof Error ? error.message : 'Unable to start the run.')
+  } finally {
+    if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
+  }
+}
+
+async function runPracticeSamples(
+  target: BrowserWindow, value: string, inputs: readonly string[], expectedRevision: string, signal: AbortSignal,
+): Promise<RunResult[]> {
+  if (signal.aborted) return [cancelledRun()]
+  try {
+    const scope = files
+    const { path, stats } = await scope.inspect(value, 'file')
+    const language = runLanguage(path)
+    if (!language) return [rejectedRun('Open a saved C, C++, Java, Python, or JavaScript file to run samples.')]
+    if (stats.size > BigInt(maxFileBytes)) return [rejectedRun('The source exceeds the 2 MiB file limit.')]
+    if (target !== window) return [rejectedRun('The window closed before the run could start.')]
+    const sourceRevision = revision(stats)
+    if (sourceRevision !== expectedRevision) return [rejectedRun('The source changed during the sample run.')]
+    const denied = await approveRunSource(target, scope, path, sourceRevision, undefined, signal)
+    if (signal.aborted) return [cancelledRun()]
+    if (denied) return [rejectedRun(denied)]
+    const source = await scope.read(path)
+    if (source.revision !== sourceRevision) return [rejectedRun('The source changed before the sample run.')]
+    const stillCurrent = async () => {
+      const current = await scope.inspect(path, 'file').catch(() => undefined)
+      return target === window && !target.isDestroyed() && current !== undefined && revision(current.stats) === sourceRevision
+    }
+    if (language === 'c') return await runner.runSamples(path, inputs, stillCurrent, signal, source.text)
+    const { runPracticeBatch } = await import('./run-console')
+    return await runPracticeBatch(path, source.text, inputs, stillCurrent, signal)
+  } catch (error) {
+    return [signal.aborted ? cancelledRun() : rejectedRun(error instanceof Error ? error.message : 'Unable to start the run.')]
+  }
+}
+
+function registerIpc(): void {
+  const handle = <T>(channel: string, operation: (target: BrowserWindow, ...args: unknown[]) => T) => {
+    ipcMain.handle('ion:' + channel, (event, ...args: unknown[]) => operation(owner(event), ...args))
+  }
+
+  async function remember<T extends Entry>(entry: T): Promise<T> {
+    await preferences.remember(entry).catch(() => console.warn('Unable to save the Ion IDE recent-items list.'))
+    return entry
+  }
+
+  function revokeTrust(path: string): void {
+    for (const trusted of trustedSources.keys()) {
+      if (isWithin(path, trusted)) trustedSources.delete(trusted)
+    }
+  }
+
+  handle('set-optional-panel', setOptionalPanel)
+  handle('editor-session-available', () => editorSession.available())
+  handle('editor-session-save', (_target, snapshot) => editorSession.save(snapshot, files))
+  handle('editor-session-resume', (target) => {
+    const scope = files
+    return editorSession.resume(scope, recovery, () => target === window && scope === files)
+  })
+  handle('recovery-list', () => recovery.list())
+  handle('recovery-read', (_target, id) => recovery.read(id))
+  handle('recovery-write', (_target, draft) => recovery.write(draft))
+  handle('recovery-remove', (_target, ids) => recovery.remove(ids))
+  handle('get-preferences', async () => {
+    const result = await preferences.get()
+    applyProfile(result.settings.resourceProfile)
+    applyShortcuts(result.settings.shortcuts)
+    return result
+  })
+  handle('update-settings', async (_target, patch) => {
+    const result = await preferences.updateSettings(patch)
+    openFullScreen = result.openFullScreen
+    applyProfile(result.resourceProfile)
+    applyShortcuts(result.shortcuts)
+    return result
+  })
+  let updates: Promise<import('./updates').GitHubUpdates> | undefined
+  const getUpdates = () => updates ??= import('./updates').then(({ GitHubUpdates }) =>
+    new GitHubUpdates(app.getVersion(), process.platform, process.arch))
+  handle('updates-status', async () => (await getUpdates()).status())
+  handle('updates-check', async () => (await getUpdates()).check())
+  handle('updates-download', async (target) => {
+    const service = await getUpdates()
+    if (target !== window) throw new Error('The Ion window closed before downloading.')
+    const cancel = () => service.cancel()
+    target.once('closed', cancel)
+    try {
+      const { name, path } = await service.download(app.getPath('downloads'))
+      if (target === window) shell.showItemInFolder(path)
+      return { name }
+    } finally {
+      target.removeListener('closed', cancel)
+    }
+  })
+  handle('updates-cancel', async () => (await updates)?.cancel())
+  let profileExportPending = false
+  handle('export-local-profile', async (target) => {
+    if (profileExportPending) throw new Error('A local profile export is already in progress.')
+    profileExportPending = true
+    try {
+      const selection = await dialog.showOpenDialog(target, {
+        title: 'Export Local Profile',
+        buttonLabel: 'Export Here',
+        properties: ['openDirectory', 'createDirectory'],
+      })
+      if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+      const { exportLocalProfile } = await import('./profile-export')
+      if (target !== window) return null
+      return await exportLocalProfile(app.getPath('userData'), selection.filePaths[0], preferences)
+    } finally {
+      profileExportPending = false
+    }
+  })
+  handle('themes-list', () => themeStore.list())
+  handle('themes-load', (_target, id) => {
+    if (!isThemeId(id)) throw new Error('Unknown theme.')
+    return themeStore.load(id)
+  })
+  handle('themes-import', async (target) => {
+    const selection = await dialog.showOpenDialog(target, {
+      title: 'Import Theme', properties: ['openFile'], filters: [{ name: 'Ion Theme', extensions: ['json'] }],
+    })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    return themeStore.importFile(selection.filePaths[0])
+  })
+  handle('themes-export', async (target, id) => {
+    if (!isThemeId(id)) throw new Error('Unknown theme.')
+    const selection = await dialog.showSaveDialog(target, {
+      title: 'Export Theme', defaultPath: 'Ion Theme.json', filters: [{ name: 'Ion Theme', extensions: ['json'] }],
+    })
+    if (target !== window || selection.canceled || !selection.filePath) return false
+    await themeStore.exportFile(id, selection.filePath)
+    return true
+  })
+  handle('themes-create', (_target, theme) => themeStore.create(theme))
+  handle('open-folder', async (target) => {
+    const selection = await dialog.showOpenDialog(target, { title: 'Open Folder', properties: ['openDirectory'] })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    workspaceSearch?.controller.abort()
+    return remember(await files.grant(selection.filePaths[0], 'folder'))
+  })
+  handle('open-file', async (target) => {
+    const selection = await dialog.showOpenDialog(target, { title: 'Open File', properties: ['openFile'] })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    return remember(await files.grant(selection.filePaths[0], 'file'))
+  })
+  handle('open-recent', async (target, path) => {
+    const previous = (await preferences.get()).recents.find((item) => item.path === path)
+    if (target !== window || !previous) throw new Error('This item is no longer in Recent.')
+    if (previous.kind === 'folder') workspaceSearch?.controller.abort()
+    return remember(await files.grant(previous.path, previous.kind, true))
+  })
+  handle('quick-open-search', async (_target, value) => {
+    const query = quickOpenQuery(value)
+    quickSearch?.abort()
+    const scope = files
+    const root = scope.rootPath
+    if (!root || !query) return { entries: [], truncated: false }
+    const controller = new AbortController()
+    quickSearch = controller
+    try {
+      return await searchWorkspace(scope, root, query, controller.signal)
+    } finally {
+      if (quickSearch === controller) quickSearch = undefined
+    }
+  })
+  handle('quick-open-file', async (target, value) => {
+    const scope = files
+    const root = scope.rootPath
+    if (!root) throw new Error('Open a workspace folder before using Quick Open.')
+    const { path } = await scope.inspect(value, 'file')
+    if (target !== window || scope.rootPath !== root || !isWithin(root, path)) {
+      throw new Error('This file is outside the current workspace.')
+    }
+    return remember({ kind: 'file' as const, name: basename(path), path })
+  })
+  handle('workspace-search', async (target, id, value) => {
+    if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid search request.')
+    const scope = files
+    const root = scope.rootPath
+    if (!root) throw new Error('Open a workspace folder before searching files.')
+    workspaceSearch?.controller.abort()
+    const controller = new AbortController()
+    workspaceSearch = { id, controller }
+    try {
+      const { workspaceSearchQuery, searchWorkspaceText } = await import('./workspace-search')
+      const query = workspaceSearchQuery(value)
+      if (!query) return { files: [] }
+      const executable = 'ion-rg' + (process.platform === 'win32' ? '.exe' : '')
+      const tool = app.isPackaged ? join(process.resourcesPath, executable) : resolve(__dirname, '../native', executable)
+      const result = await searchWorkspaceText(tool, scope, root, query, controller.signal)
+      if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The workspace changed during search.')
+      return result
+    } finally {
+      if (workspaceSearch?.controller === controller) workspaceSearch = undefined
+    }
+  })
+  handle('workspace-search-cancel', (_target, id) => {
+    if (workspaceSearch && workspaceSearch.id === id) workspaceSearch.controller.abort()
+  })
+  handle('list-directory', (_target, path) => files.list(path))
+  handle('read-file', (_target, path, mode) => files.read(path, mode))
+  handle('read-text-page', (_target, path, page, revision) => files.readTextPage(path, page, revision))
+  handle('markdown-read-image', async (target, sourcePath, href) => {
+    const scope = files
+    const root = scope.rootPath
+    const image = await readMarkdownImage(scope, sourcePath, href)
+    if (target !== window || scope !== files || scope.rootPath !== root) {
+      throw new Error('The workspace changed while opening the Markdown image.')
+    }
+    return image
+  })
+  handle('markdown-open-link', async (target, sourcePath, href) => {
+    const scope = files
+    const root = scope.rootPath
+    const link = await resolveMarkdownLink(scope, sourcePath, href)
+    const assertCurrent = () => {
+      if (target !== window || scope !== files || scope.rootPath !== root) {
+        throw new Error('The workspace changed while opening the Markdown link.')
+      }
+    }
+    assertCurrent()
+    if (link.kind === 'external') {
+      await shell.openExternal(link.href)
+      return null
+    }
+    const entry = await remember(link.entry)
+    assertCurrent()
+    return entry
+  })
+  handle('notebook-kernel-discover', async (target, value) => {
+    await files.inspect(kernelPath(value), 'file')
+    return (await kernels(target)).discover()
+  })
+  handle('notebook-kernel-choose', async (target, value) => {
+    await files.inspect(kernelPath(value), 'file')
+    const selection = await dialog.showOpenDialog(target, { title: 'Choose a Python Interpreter', properties: ['openFile', 'showHiddenFiles'] })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    return (await kernels(target)).addInterpreter(selection.filePaths[0])
+  })
+  handle('notebook-kernel-status', async (_target, value): Promise<NotebookKernelStatus> => {
+    const path = kernelPath(value)
+    return (await notebookKernels)?.status(path) ?? { state: 'stopped' }
+  })
+  handle('notebook-kernel-run', async (target, value, request) => {
+    const { path } = await files.inspect(kernelPath(value), 'file')
+    return (await kernels(target)).run(path, request, async (environment) => {
+      if (target !== window || target.isDestroyed()) return false
+      const choice = await dialog.showMessageBox(target, {
+        type: 'warning', buttons: ['Cancel', 'Trust and Run'], cancelId: 0, defaultId: 0,
+        message: `Run Python from ${basename(path)}?`,
+        detail: `The selected notebook code will run using ${environment.label} at ${environment.path}. The local kernel can access files and other resources available to your user account. Run code you trust.`,
+      })
+      if (choice.response !== 1 || target !== window || target.isDestroyed()) return false
+      await files.inspect(path, 'file')
+      return target === window
+    })
+  })
+  handle('notebook-kernel-restart', async (_target, value): Promise<NotebookKernelStatus> => {
+    const path = kernelPath(value)
+    return (await notebookKernels)?.restart(path) ?? { state: 'stopped' }
+  })
+  handle('notebook-kernel-interrupt', async (_target, value) => {
+    const path = kernelPath(value)
+    return (await notebookKernels)?.interrupt(path)
+  })
+  handle('notebook-kernel-stop', async (_target, value) => {
+    const path = kernelPath(value)
+    return (await notebookKernels)?.stop(path)
+  })
+  handle('notebook-kernel-release', async (_target, value, keep) => {
+    const path = kernelPath(value)
+    if (typeof keep !== 'boolean') throw new Error('Invalid kernel lifetime setting.')
+    return (await notebookKernels)?.release(path, keep)
+  })
+  handle('viewer-open', async (target, path, request) => (await viewers(target)).open(path, request))
+  handle('viewer-close', async (_target, id) => (await viewerService)?.close(id))
+  handle('viewer-cancel', async (_target, request) => (await viewerService)?.cancel(request))
+  handle('viewer-external', async (target, value) => {
+    const { path } = await files.inspect(value, 'file')
+    if (!documentFormat(path) || target !== window) throw new Error('Open a supported local document first.')
+    const error = await shell.openPath(path)
+    if (error) throw new Error('No default application could open this document.')
+  })
+  handle('viewer-pdf-read', async (target, id, offset, length) => (await viewers(target)).readPdf(id, offset, length))
+  handle('viewer-table-page', async (target, id, sheet, row, column, rows, columns) =>
+    (await viewers(target)).tablePage(id, sheet, row, column, rows, columns))
+  handle('viewer-table-search', async (target, id, sheet, query, after) => (await viewers(target)).tableSearch(id, sheet, query, after))
+  handle('viewer-word-page', async (target, id, page) => (await viewers(target)).wordPage(id, page))
+  handle('viewer-word-image', async (target, id, image) => (await viewers(target)).wordImage(id, image))
+  handle('save-file', async (target, path, text, token, baseHash) => {
+    if (typeof path === 'string' && documentFormat(path)) throw new Error('This document is read-only in Ion.')
+    const { baseRevision, ...saved } = await files.save(path, text, token, baseHash)
+    if (target === window && typeof path === 'string' && baseRevision === token && trustedSources.get(path) === token) {
+      trustedSources.set(path, saved.revision)
+    }
+    if (target === window && typeof path === 'string') projectHandlers?.sourceSaved(path, saved.revision, text)
+    return saved
+  })
+  handle('save-file-as', async (target, name, value, mode) => {
+    const defaultPath = entryName(name)
+    if (mode !== undefined && (mode !== 'notebook' || !isNotebookName(defaultPath))) throw new Error('Choose an .ipynb name for the notebook.')
+    const text = fileText(value, isNotebookName(defaultPath) ? maxNotebookBytes : maxTextCopyBytes)
+    const selection = await dialog.showSaveDialog(target, { title: 'Save File', defaultPath })
+    if (target !== window || selection.canceled || !selection.filePath) return null
+    if (mode === 'notebook' && !isNotebookName(selection.filePath)) throw new Error('Choose an .ipynb name for the notebook.')
+    if (documentFormat(selection.filePath)) throw new Error('Ion cannot save source text over a read-only document format.')
+    const saved = await files.saveAs(selection.filePath, text, async (path) => {
+      // The native picker may have selected an unused path that another app
+      // has since created. Confirm replacement of the revision just inspected.
+      const choice = await dialog.showMessageBox(target, {
+        type: 'warning', buttons: ['Cancel', 'Replace File'], cancelId: 0, defaultId: 0,
+        message: 'Replace ' + basename(path) + '?',
+        detail: 'The destination already contains a file. Replacing it saves the current editor text at this location.\n\n' + path,
+      })
+      return choice.response === 1 && target === window && !target.isDestroyed()
+    })
+    if (!saved) return null
+    if (target === window) {
+      trustedSources.delete(saved.path)
+      projectHandlers?.sourceSaved(saved.path)
+    }
+    return remember(saved)
+  })
+  handle('create-entry', (_target, parent, name, kind, initialText) => files.create(parent, name, kind, initialText))
+  handle('rename-entry', async (target, path, name) => {
+    const entry = await files.rename(path, name)
+    if (target === window) {
+      revokeTrust(path as string)
+      projectHandlers?.sourceSaved(path as string)
+    }
+    await preferences.moveRecents(path as string, entry.path).catch(() => console.warn('Unable to update Ion IDE recents.'))
+    return entry
+  })
+  handle('trash-entry', async (target, path) => {
+    const moved = await files.trash(path, async (selected) => {
+      const choice = await dialog.showMessageBox(target, {
+        type: 'warning', buttons: ['Cancel', 'Move to Trash'], defaultId: 0, cancelId: 0,
+        message: 'Move ' + basename(selected) + ' to Trash?',
+        detail: 'This removes the selected item from its current location.',
+      })
+      return choice.response === 1 && target === window
+    }, (selected) => shell.trashItem(selected))
+    if (moved) {
+      if (target === window) {
+        revokeTrust(path as string)
+        projectHandlers?.sourceSaved(path as string)
+      }
+      await preferences.moveRecents(path as string).catch(() => console.warn('Unable to update Ion IDE recents.'))
+    }
+    return moved
+  })
+  handle('live-run-start', (target, id, path, learn, expectedRevision) =>
+    startInteractive(target, id, path, learn === true, expectedRevision))
+  handle('live-run-input', (target, id, input) => {
+    if (activeRun && activeRun.owner === target && activeRun.id === id && !activeRun.controller.signal.aborted) {
+      const text = validStdin(input)
+      if (Buffer.byteLength(text) > 16 * 1024) throw new Error('Send at most 16 KiB per terminal input chunk.')
+      activeRun.engine?.input(text)
+    }
+  })
+  handle('live-run-resize', (target, id, cols, rows) => {
+    if (!activeRun || activeRun.owner !== target || activeRun.id !== id || typeof cols !== 'number' || typeof rows !== 'number'
+      || !Number.isInteger(cols) || !Number.isInteger(rows) || cols < 2 || cols > 512 || rows < 2 || rows > 512) return
+    activeRun.size = [cols, rows]
+    activeRun.engine?.resize(cols, rows)
+  })
+  handle('live-run-cancel', (target, id) => {
+    if (activeRun && activeRun.owner === target && activeRun.id === id) activeRun.controller.abort()
+  })
+  handle('web-preview', async (target, value) => {
+    if (webPreviewOpening) return
+    webPreviewOpening = true
+    try {
+      const scope = files
+      const { path } = await scope.inspect(value, 'file')
+      const root = scope.rootPath && isWithin(scope.rootPath, path) ? scope.rootPath : dirname(path)
+      const { openWebPreview } = await import('./web-preview')
+      if (target !== window) throw new Error('The workbench closed before preview could open.')
+      if (webPreview && !webPreview.isDestroyed()) webPreview.destroy()
+      webPreview = await openWebPreview(target, root, path)
+      if (target !== window && !webPreview.isDestroyed()) webPreview.destroy()
+    } finally {
+      webPreviewOpening = false
+    }
+  })
+  handle('learning-topics', () => withLearning((service) => service.getTopics()))
+  handle('learning-concept', (_target, id) => withLearning((service) => service.getConcept(id)))
+  handle('learning-history', () => withLearning((service) => service.getHistory()))
+  handle('learning-clear', () => withLearning((service) => service.clearHistory()))
+  handle('learning-topic', (_target, id, action) => withLearning((service) => service.recordTopic(id, action)))
+
+  handle('learning-packs-library', async () => (await learningPacks()).getLibrary())
+  handle('learning-packs-install', async (_target, id) => (await learningPacks()).install(id))
+  handle('learning-packs-remove', async (_target, id) => {
+    const library = await (await learningPacks()).remove(id)
+    if (id === 'c') learningSelectionGeneration++
+    return library
+  })
+  handle('learning-packs-select', async (_target, id) => {
+    const library = await (await learningPacks()).select(id)
+    learningSelectionGeneration++
+    return library
+  })
+  handle('learning-packs-topics', async (_target, id) => (await learningPacks()).getTopics(id))
+  handle('learning-packs-lesson', async (_target, id, topic) => (await learningPacks()).getLesson(id, topic))
+  let packImportPending = false
+  handle('learning-packs-import', async (target) => {
+    if (packImportPending) throw new Error('A learning pack import is already open.')
+    packImportPending = true
+    try {
+      const selection = await dialog.showOpenDialog(target, {
+        title: 'Import Learning Pack', properties: ['openFile'], filters: [{ name: 'Ion Learning Pack', extensions: ['json'] }],
+      })
+      if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+      const store = await learningPacks()
+      if (target !== window) return null
+      return await store.importFile(selection.filePaths[0])
+    } finally {
+      packImportPending = false
+    }
+  })
+
+  handle('projects-open', async (target, root) => (await activeProjects(target)).open(target, root))
+  handle('projects-save', async (target, root, spec, token) => (await activeProjects(target)).save(target, root, spec, token))
+  handle('projects-approve', async (target, root, id, token) => (await activeProjects(target)).approve(target, root, id, token))
+  handle('projects-run', async (target, root, id, token) => (await activeProjects(target)).run(target, root, id, token))
+  handle('projects-automatic', async (target, root, id, token, enabled) =>
+    (await activeProjects(target)).setAutomatic(target, root, id, token, enabled))
+  handle('projects-provider', async (target) => (await onlineProjects(target)).provider(target))
+  handle('projects-configure', async (target, value) => (await onlineProjects(target)).configure(target, value))
+  handle('projects-propose', async (target, goal) => (await onlineProjects(target)).propose(target, goal))
+
+  handle('practice-browse', async (_target, filters) => (await practice()).browse(filters))
+  handle('practice-challenge', async (_target, id) => (await practice()).getChallenge(id))
+  handle('practice-start', async (target, challengeId, language) => {
+    const library = await practice()
+    const started = await library.start(challengeId, language)
+    const path = await library.openAttempt(started.problem.id, started.attempt.id)
+    if (target !== window) throw new Error('The practice window has closed.')
+    return { ...started, entry: await files.grant(path, 'file', true) }
+  })
+  handle('practice-list', async () => (await practice()).list())
+  handle('practice-get', async (_target, id) => (await practice()).get(id))
+  handle('practice-save', async (_target, draft) => (await practice()).save(draft))
+  handle('practice-create-attempt', async (_target, id, label) => (await practice()).createAttempt(id, label))
+  handle('practice-open-attempt', async (target, id, attempt) => {
+    const path = await (await practice()).openAttempt(id, attempt)
+    if (target !== window) throw new Error('The practice window has closed.')
+    return files.grant(path, 'file', true)
+  })
+  handle('practice-run-samples', async (target, id, attempt) => {
+    if (practiceRun || runner.busy || activeRun) throw new Error('A program or test is already running.')
+    const controller = new AbortController()
+    const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
+      if (controller.signal.aborted || target !== window) return [cancelledRun()]
+      const entry = await files.grant(path, 'file', true)
+      return runPracticeSamples(target, entry.path, inputs, sourceRevision, controller.signal)
+    }))
+    practiceRun = { controller, job }
+    try {
+      return await job
+    } finally {
+      practiceRun = null
+    }
+  })
+  handle('stop-run', () => {
+    projectHandlers?.stopAutomatic()
+    practiceRun?.controller.abort()
+    activeRun?.controller.abort()
+    runner.stop()
+  })
+  handle('confirm-window-close', (target, allow) => {
+    if (!closePending || typeof allow !== 'boolean') return
+    closePending = false
+    if (!allow) {
+      quitRequested = false
+      return
+    }
+    closeApproved = true
+    target.close()
+  })
+}
+
+async function openFromSystem(path: string): Promise<void> {
+  try {
+    const entry = await files.grant(path, 'file')
+    await preferences.remember(entry).catch(() => console.warn('Unable to save the Ion IDE recent-items list.'))
+    const target = window ?? createWindow()
+    const send = () => {
+      if (!target.isDestroyed()) target.webContents.send('ion:open-entry', entry)
+    }
+    if (target.webContents.isLoadingMainFrame()) target.webContents.once('did-finish-load', send)
+    else send()
+  } catch {
+    if (window) {
+      void dialog.showMessageBox(window, {
+        type: 'error', message: 'Unable to open ' + basename(path), detail: 'Choose a regular local file.',
+      })
+    }
+  }
+}
+
+function queueSystemFile(path: string) {
+  if (!isAbsolute(path)) return
+  if (initialized) void openFromSystem(path)
+  else if (earlyFiles.length < 20) earlyFiles.push(path)
+}
+
+function openWindowsArguments(argv: string[]) {
+  if (process.platform !== 'win32' || !app.isPackaged) return
+  // Windows sends Explorer file opens as arguments, including on a second launch.
+  for (const path of argv.slice(1, 21)) queueSystemFile(path)
+}
+
+app.on('open-file', (event, path) => {
+  event.preventDefault()
+  queueSystemFile(path)
+})
+
+app.on('before-quit', (event) => {
+  if (!window || closeApproved) return
+  event.preventDefault()
+  quitRequested = true
+  window.close()
+})
+
+app.on('second-instance', (_event, argv) => {
+  openWindowsArguments(argv)
+  if (!initialized) return
+  const target = window ?? createWindow()
+  if (target.isMinimized()) target.restore()
+  target.show()
+  target.focus()
+})
+
+app.on('activate', () => {
+  if (!window && initialized) createWindow()
+})
+
+// The window's close handler drains owned processes and applies the selected profile.
+app.on('window-all-closed', () => {})
+
+void app.whenReady().then(async () => {
+  if (!primaryInstance) return
+  preferences = new PreferenceStore(join(app.getPath('userData'), 'preferences.json'))
+  recovery = new RecoveryStore(join(app.getPath('userData'), 'recovery'))
+  editorSession = new EditorSessionStore(join(app.getPath('userData'), 'editor-session.json'))
+  themeStore = new ThemeStore(app.getPath('userData'), join(__dirname, 'themes'))
+  const [startupPreferences] = await Promise.all([
+    preferences.get().catch(() => undefined),
+    registerSession(),
+  ])
+  openFullScreen = startupPreferences?.settings.openFullScreen ?? defaultSettings.openFullScreen
+  registerIpc()
+  installMenu(sendCommand, shortcutOverrides)
+  initialized = true
+  if (!window) createWindow()
+  for (const path of earlyFiles.splice(0)) void openFromSystem(path)
+  openWindowsArguments(process.argv)
+}).catch(startupFailure)

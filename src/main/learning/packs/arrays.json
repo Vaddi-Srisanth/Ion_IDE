@@ -1,0 +1,18 @@
+{
+  "explanation": "An array stores a fixed number of elements of one type. Indices start at zero. If the array has N elements, N itself is outside the valid range.",
+  "example": "int scores[3] = {2, 4, 6};\nint last = scores[2];",
+  "exampleExplanation": "The last valid index is 2, so last is initialized to 6.",
+  "misconceptions": [
+    "C does not automatically stop an out-of-bounds access.",
+    "An array expression often converts to a pointer to its first element. A pointer parameter does not carry the array length."
+  ],
+  "related": [
+    "loops",
+    "pointers",
+    "memory"
+  ],
+  "reference": {
+    "title": "Local C reference on elements and bounds",
+    "text": "Index expressions must refer to an element within the array when dereferenced. Pass the length separately when a function receives a pointer to the first element. Check the length before using indices derived from external input."
+  }
+}

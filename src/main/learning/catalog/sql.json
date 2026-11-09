@@ -1,0 +1,163 @@
+{
+  "schema": 1,
+  "id": "sql",
+  "name": "SQL (SQLite)",
+  "summary": "Learn SQL queries, joins, grouping, transactions, and indexes with local SQLite.",
+  "version": 1,
+  "lessons": [
+    {
+      "id": "tables",
+      "title": "Tables, constraints, and inserts",
+      "section": "Syntax",
+      "explanation": "A table gives columns names and type affinities. Define keys and constraints to protect invariants. Examples in this pack can run separately in a new in-memory SQLite database.",
+      "example": "CREATE TABLE topic (\n    id INTEGER PRIMARY KEY,\n    title TEXT NOT NULL UNIQUE,\n    minutes INTEGER NOT NULL CHECK (minutes >= 0)\n);\nINSERT INTO topic (title, minutes) VALUES ('Arrays', 25), ('Loops', 15);\nSELECT title, minutes FROM topic ORDER BY id;",
+      "api": [
+        {
+          "name": "CREATE TABLE",
+          "description": "Declare a table and its columns."
+        },
+        {
+          "name": "PRIMARY KEY",
+          "description": "Identify a row uniquely."
+        },
+        {
+          "name": "INSERT INTO ... VALUES",
+          "description": "Add one or more rows."
+        },
+        {
+          "name": "CHECK (...)",
+          "description": "Reject values that violate a column or row condition."
+        }
+      ],
+      "practice": "Add a third topic. Try inserting negative minutes and a duplicate title.",
+      "pitfall": "Column affinity is different from strict type enforcement in an ordinary SQLite table."
+    },
+    {
+      "id": "select",
+      "title": "Filtering, sorting, and missing values",
+      "section": "Syntax",
+      "explanation": "SELECT chooses output expressions. WHERE filters rows, and ORDER BY specifies output order. NULL represents an absent value and has its own predicates.",
+      "example": "WITH scores(name, points) AS (\n    VALUES ('Ari', 8), ('Bea', NULL), ('Casey', 9), ('Dev', 4)\n)\nSELECT name, COALESCE(points, 0) AS shown_points\nFROM scores\nWHERE points >= 8 OR points IS NULL\nORDER BY shown_points DESC, name\nLIMIT 3;",
+      "api": [
+        {
+          "name": "WHERE condition",
+          "description": "Keep rows for which the condition is true."
+        },
+        {
+          "name": "IS NULL / IS NOT NULL",
+          "description": "Test for an absent or present value."
+        },
+        {
+          "name": "COALESCE(a, b)",
+          "description": "Return the first non-NULL value."
+        },
+        {
+          "name": "ORDER BY ... LIMIT ...",
+          "description": "Sort results and cap the number returned."
+        }
+      ],
+      "practice": "Show only rows with a real score. Sort them by points, then name.",
+      "pitfall": "Use IS NULL for missing values. The expression points = NULL does not evaluate to true."
+    },
+    {
+      "id": "join",
+      "title": "Relationships and joins",
+      "section": "Core",
+      "explanation": "Join tables by matching related keys. An inner join includes only matching pairs. A left join also keeps rows from its left input that have no match and fills the right columns with NULL.",
+      "example": "WITH\n  topic(id, title) AS (VALUES (1, 'Arrays'), (2, 'Loops')),\n  attempt(topic_id, score) AS (VALUES (1, 8), (1, 10))\nSELECT topic.title, attempt.score\nFROM topic\nLEFT JOIN attempt ON attempt.topic_id = topic.id\nORDER BY topic.id, attempt.score;",
+      "api": [
+        {
+          "name": "JOIN ... ON ...",
+          "description": "Combine matching rows from two inputs."
+        },
+        {
+          "name": "LEFT JOIN ... ON ...",
+          "description": "Keep unmatched left rows as well as matches."
+        },
+        {
+          "name": "REFERENCES parent(id)",
+          "description": "Declare a foreign-key relationship. Enable PRAGMA foreign_keys = ON on each SQLite connection."
+        }
+      ],
+      "practice": "Add an attempt for Loops and observe how the unmatched row changes.",
+      "pitfall": "A WHERE filter on a right-table field can remove the NULL rows that a left join preserved."
+    },
+    {
+      "id": "aggregate",
+      "title": "Grouping, aggregates, and HAVING",
+      "section": "Core",
+      "explanation": "An aggregate combines a group of rows into a result. WHERE filters individual rows before grouping. HAVING filters the groups produced by GROUP BY.",
+      "example": "WITH attempt(topic, points) AS (\n    VALUES ('Arrays', 8), ('Arrays', 10), ('Loops', 6), ('Loops', NULL)\n)\nSELECT topic, COUNT(points) AS graded, AVG(points) AS average\nFROM attempt\nGROUP BY topic\nHAVING AVG(points) >= 8\nORDER BY average DESC;",
+      "api": [
+        {
+          "name": "COUNT(*)",
+          "description": "Count every row in the group."
+        },
+        {
+          "name": "COUNT(column)",
+          "description": "Count non-NULL values in that column."
+        },
+        {
+          "name": "SUM() / AVG()",
+          "description": "Calculate a sum or average over non-NULL inputs."
+        },
+        {
+          "name": "HAVING condition",
+          "description": "Filter grouped results."
+        }
+      ],
+      "practice": "Display total attempts and graded attempts side by side, including the group with a missing score.",
+      "pitfall": "Averages are computed from non-NULL values. Treating a missing value as zero changes the result."
+    },
+    {
+      "id": "write",
+      "title": "Updates, transactions, and parameters",
+      "section": "Core",
+      "explanation": "Use transactions to group writes so they commit together. ROLLBACK discards changes from the current transaction. Application code should bind input values through parameters.",
+      "example": "CREATE TABLE progress (id INTEGER PRIMARY KEY, points INTEGER NOT NULL);\nINSERT INTO progress VALUES (1, 10), (2, 5);\nBEGIN;\n  UPDATE progress SET points = points - 2 WHERE id = 1;\n  UPDATE progress SET points = points + 2 WHERE id = 2;\nCOMMIT;\nSELECT id, points FROM progress ORDER BY id;",
+      "api": [
+        {
+          "name": "UPDATE ... SET ... WHERE ...",
+          "description": "Change fields in selected rows."
+        },
+        {
+          "name": "DELETE FROM ... WHERE ...",
+          "description": "Remove selected rows."
+        },
+        {
+          "name": "BEGIN / COMMIT / ROLLBACK",
+          "description": "Start, save, or abandon a transaction."
+        },
+        {
+          "name": "WHERE id = ?",
+          "description": "Use a parameter placeholder and bind it through your SQLite client."
+        }
+      ],
+      "practice": "Replace COMMIT with ROLLBACK. Compare the final scores.",
+      "pitfall": "An UPDATE or DELETE without WHERE targets every row. Preview the predicate with SELECT first."
+    },
+    {
+      "id": "indexes",
+      "title": "Indexes and query plans",
+      "section": "SQLite tools",
+      "explanation": "An index helps SQLite find rows without scanning the full table for some query shapes. Indexes occupy space and make writes more expensive. Examine the plan for the query you actually run.",
+      "example": "CREATE TABLE note (id INTEGER PRIMARY KEY, category TEXT, title TEXT);\nCREATE INDEX note_category ON note(category);\nINSERT INTO note (category, title)\n    VALUES ('java', 'Collections'), ('sql', 'Joins');\nEXPLAIN QUERY PLAN SELECT title FROM note WHERE category = 'sql';\nSELECT title FROM note WHERE category = 'sql';",
+      "api": [
+        {
+          "name": "CREATE INDEX name ON table(column)",
+          "description": "Maintain a lookup structure for a column."
+        },
+        {
+          "name": "EXPLAIN QUERY PLAN SELECT ...",
+          "description": "Inspect SQLite’s high-level execution strategy."
+        },
+        {
+          "name": "ANALYZE",
+          "description": "Collect statistics the query planner can use."
+        }
+      ],
+      "practice": "Try a query on title alone. Compare its plan before and after adding a title index.",
+      "pitfall": "An index need not be used. The optimizer chooses a plan based on available indexes and the query."
+    }
+  ]
+}
