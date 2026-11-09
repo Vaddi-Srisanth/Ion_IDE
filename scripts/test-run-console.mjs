@@ -93,9 +93,9 @@ async function stopRunning(page, pidMarker, rerun = false) {
   // Read the new run's PID from its own streamed events before checking xterm.
   const observed = await page.waitForFunction(({ previous, pidMarker }) => {
     const events = globalThis.ionRunTestEvents
-    const running = events.findLast(({ id, update }) => id !== previous && update.kind === 'phase' && update.phase === 'running')
-    if (!running) return false
-    const text = events.filter(({ id, update }) => id === running.id && update.kind === 'data' && update.stream === 'terminal')
+    const current = events.findLast(({ update }) => update.kind === 'phase' && update.phase === 'preparing')
+    if (!current || current.id === previous) return false
+    const text = events.filter(({ id, update }) => id === current.id && update.kind === 'data' && update.stream === 'terminal')
       .map(({ update }) => update.text).join('')
     return Number(new RegExp(pidMarker + '(\\d+)').exec(text)?.[1]) || false
   }, { previous, pidMarker }, { timeout })

@@ -13,6 +13,12 @@ async function openUpdates(page) {
   return { dialog, checkbox }
 }
 
+async function closeUpdates(session) {
+  const dialog = session.page.getByRole('dialog', { name: 'Preferences' })
+  if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Done', exact: true }).click()
+  await close(session)
+}
+
 await withScratch('update-preferences', async (scratch) => {
   const healthy = join(scratch, 'healthy')
   const unsupported = join(scratch, 'unsupported')
@@ -33,7 +39,7 @@ await withScratch('update-preferences', async (scratch) => {
     assert.deepEqual(good.requests, [])
     console.log('PASS the real update preference acknowledges both saved values without contacting GitHub')
   } finally {
-    await close(good)
+    await closeUpdates(good)
   }
   const broken = await launch(target, unsupported)
   try {
@@ -45,6 +51,6 @@ await withScratch('update-preferences', async (scratch) => {
     assert.equal(await readFile(prefs(unsupported), 'utf8'), existing)
     console.log('PASS an unreadable preference format keeps the previous choice and exposes the save error')
   } finally {
-    await close(broken)
+    await closeUpdates(broken)
   }
 })
