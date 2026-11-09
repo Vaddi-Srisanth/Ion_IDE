@@ -31,7 +31,8 @@ try {
     const filename = `Ion-IDE-${manifest.version}-mac-${arch}.dmg`
     const image = join(scratch, filename)
     const diskutil = '/usr/sbin/diskutil'
-    if (spawnSync(diskutil, ['image', 'create', 'from', '--help'], { stdio: 'ignore' }).status === 0) {
+    const help = spawnSync(diskutil, ['image', 'create', 'from', '--help'], { encoding: 'utf8' })
+    if (help.status === 0 && /--volumeName\b/.test(`${help.stdout}\n${help.stderr}`)) {
       command(diskutil, ['image', 'create', 'from', '--format', 'UDZO', '--volumeName', 'Ion IDE', volume, image])
     } else {
       command('/usr/bin/hdiutil', ['create', '-format', 'UDZO', '-fs', 'APFS',
