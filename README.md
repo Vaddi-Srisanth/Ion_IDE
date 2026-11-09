@@ -208,12 +208,12 @@ These are observations from the final 0.9.4 public preview on an Apple M3 with 2
 
 | Workload | 0.9.3 | 0.9.4 |
 | --- | ---: | ---: |
-| Fresh / warm time to Welcome, medians | 413 / 392 ms | 435 / 360 ms |
-| Welcome idle CPU, share of one logical core | 0.44% | 0.42% |
-| Welcome idle memory, summed RSS / attributed footprint | 419 / 122 MiB | 420 / 122 MiB |
-| One C file, summed RSS / attributed footprint | 505 / 343 MiB | 507 / 337 MiB |
-| Ten tabs, summed RSS / attributed footprint | 520 / 365 MiB | 522 / 365 MiB |
-| Medium project, summed RSS / attributed footprint | 548 / 385 MiB | 550 / 386 MiB |
+| Fresh / warm time to Welcome, medians | 413 / 392 ms | 375 / 367 ms |
+| Welcome idle CPU, share of one logical core | 0.44% | 0.29% |
+| Welcome idle memory, summed RSS / attributed footprint | 419 / 122 MiB | 419 / 123 MiB |
+| One C file, summed RSS / attributed footprint | 505 / 343 MiB | 506 / 338 MiB |
+| Ten tabs, summed RSS / attributed footprint | 520 / 365 MiB | 521 / 359 MiB |
+| Medium project, summed RSS / attributed footprint | 548 / 385 MiB | 549 / 371 MiB |
 
 Summed RSS covers the full application process tree and can count shared mappings more than once. Attributed footprint uses macOS’s per-process memory accounting. Timing measures the visible Welcome marker. The numbers describe this hardware and workload. [Reproduction commands, additional workloads, and thresholds](PERFORMANCE.md)
 

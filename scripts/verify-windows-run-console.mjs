@@ -20,25 +20,68 @@ prompt.once('line', (line) => {
 `
 
 function approveNativeRun(pid) {
-  // Exercise the real Windows trust dialog. Only invoke a button in this test's app process.
-  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+  // Electron uses a Windows task dialog. Find the real enabled button in this app's process,
+  // then activate its actual control ID without depending on an accessibility pattern.
+  const script = `
     $ErrorActionPreference = 'Stop'
-    Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
-    $root = [Windows.Automation.AutomationElement]::RootElement
-    $owner = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, [int]${pid})
-    $name = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Run Program')
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class IonTaskDialog {
+  private delegate bool WindowCallback(IntPtr window, IntPtr parameter);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
+  [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr parent, WindowCallback callback, IntPtr parameter);
+  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+  [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr window);
+  [DllImport("user32.dll")] private static extern int GetDlgCtrlID(IntPtr window);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  private static extern int GetClassName(IntPtr window, StringBuilder text, int capacity);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr length,
+    StringBuilder text, uint flags, uint timeout, out UIntPtr result);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  private static extern bool PostMessage(IntPtr window, uint message, IntPtr controlId, IntPtr parameter);
+
+  private const uint GetText = 0x000d;
+  private const uint AbortIfHung = 0x0002;
+  private const uint ClickTaskDialogButton = 0x0400 + 102;
+
+  public static bool Click(uint process, string label) {
+    bool posted = false;
+    EnumWindows((window, unused) => {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner != process || !IsWindowVisible(window)) return true;
+      EnumChildWindows(window, (child, ignored) => {
+        if (!IsWindowVisible(child) || !IsWindowEnabled(child)) return true;
+        var type = new StringBuilder(32);
+        GetClassName(child, type, type.Capacity);
+        if (!String.Equals(type.ToString(), "Button", StringComparison.OrdinalIgnoreCase)) return true;
+        var text = new StringBuilder(256);
+        UIntPtr length;
+        if (SendMessageTimeout(child, GetText, (UIntPtr)(uint)text.Capacity, text, AbortIfHung, 250, out length) == IntPtr.Zero
+            || text.ToString() != label) return true;
+        int controlId = GetDlgCtrlID(child);
+        posted = controlId > 0 && PostMessage(window, ClickTaskDialogButton, (IntPtr)controlId, IntPtr.Zero);
+        return !posted;
+      }, IntPtr.Zero);
+      return !posted;
+    }, IntPtr.Zero);
+    return posted;
+  }
+}
+'@
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
-      foreach ($window in $root.FindAll([Windows.Automation.TreeScope]::Children, $owner)) {
-        $button = $window.FindFirst([Windows.Automation.TreeScope]::Descendants, $name)
-        if ($button -and $button.Current.IsEnabled) {
-          $button.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
-          exit 0
-        }
-      }
+      if ([IonTaskDialog]::Click(${pid}, 'Run Program')) { exit 0 }
       Start-Sleep -Milliseconds 150
     }
     throw 'The app did not show a Run Program trust button.'
-  `], { windowsHide: true, timeout: 15_000 })
+  `
+  const encoded = Buffer.from(script, 'utf16le').toString('base64')
+  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true, timeout: 15_000 })
 }
 
 async function consoleDiagnostics(page) {

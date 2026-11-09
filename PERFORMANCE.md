@@ -6,26 +6,26 @@ The final preview was compared with the earlier 0.9.4 editor build on the same A
 
 | Measure | Earlier 0.9.4 | Final 0.9.4 |
 | --- | ---: | ---: |
-| Fresh / warm Welcome, median ms | 425.74 / 379.70 | 435.29 / 360.42 |
-| Welcome idle CPU, % of one logical core | 0.34 | 0.42 |
-| Welcome idle summed RSS / footprint, MiB | 422.73 / 122.49 | 419.64 / 122.04 |
-| One C file summed RSS / footprint, MiB | 507.55 / 332.97 | 506.70 / 337.13 |
-| Ten tabs summed RSS / footprint, MiB | 523.14 / 361.80 | 522.44 / 364.82 |
-| Medium project summed RSS / footprint, MiB | 551.20 / 386.22 | 549.58 / 385.85 |
-| Large source open summed RSS / footprint, MiB | 526.20 / 360.82 | 527.84 / 342.15 |
-| Learn first open / close, median ms | 60.83 / 23.52 | 62.22 / 35.77 |
-| Projects first open / close, median ms | 64.82 / 36.90 | 64.19 / 36.20 |
-| Practice first open, median ms | 63.64 | 59.50 |
-| Return to Welcome summed RSS / footprint, MiB | 612.25 / 410.60 | 616.08 / 411.11 |
-| Typing to second animation callback, median ms | 31.65 | 31.75 |
-| Rotating tab switch, median ms | 49.95 | 49.97 |
-| Short C Run / Stop, median ms | 199.66 / 47.38 | 205.75 / 40.85 |
-| Mixed coding rounds peak summed RSS, MiB | 605.44 | 606.22 |
-| Mixed coding rounds summed RSS change after warm-up, MiB | −2.25 | −1.31 |
+| Fresh / warm Welcome, median ms | 425.74 / 379.70 | 375.21 / 366.50 |
+| Welcome idle CPU, % of one logical core | 0.34 | 0.29 |
+| Welcome idle summed RSS / footprint, MiB | 422.73 / 122.49 | 418.59 / 123.00 |
+| One C file summed RSS / footprint, MiB | 507.55 / 332.97 | 505.75 / 337.66 |
+| Ten tabs summed RSS / footprint, MiB | 523.14 / 361.80 | 520.81 / 358.79 |
+| Medium project summed RSS / footprint, MiB | 551.20 / 386.22 | 549.39 / 370.96 |
+| Large source open summed RSS / footprint, MiB | 526.20 / 360.82 | 520.80 / 357.08 |
+| Learn first open / close, median ms | 60.83 / 23.52 | 60.90 / 34.65 |
+| Projects first open / close, median ms | 64.82 / 36.90 | 64.07 / 33.59 |
+| Practice first open, median ms | 63.64 | 54.82 |
+| Return to Welcome summed RSS / footprint, MiB | 612.25 / 410.60 | 607.23 / 400.36 |
+| Typing to second animation callback, median ms | 31.65 | 31.50 |
+| Rotating tab switch, median ms | 49.95 | 50.00 |
+| Short C Run / Stop, median ms | 199.66 / 47.38 | 199.01 / 48.82 |
+| Mixed coding rounds peak summed RSS, MiB | 605.44 | 603.61 |
+| Mixed coding rounds summed RSS change after warm-up, MiB | −2.25 | −2.34 |
 
 All 27 short comparison checks stayed within their tolerances. The full release gate, OS-cache-cold launch, longer session behavior, and performance on Windows or lower-memory hardware are separate checks. The 12-round sample does not establish leak-free operation. The RSS and macOS footprint figures are different measures of the same process family; RSS can count shared mappings more than once.
 
-A follow-up compared the macOS terminal helper before and after the fast-output fix. Six short C runs per build measured a median of 232.25 ms before and 216.62 ms after. The baseline ran first, with a slower first sample; this small test checks for a large timing penalty and does not establish a speedup. All six interactive runs after the change returned their expected output, and no waiting CPU usage was measurable in the sample.
+An intermediate check compared a macOS terminal-helper change with the previous build. Six short C runs per build measured a median of 232.25 ms before and 216.62 ms after. The baseline ran first, with a slower first sample; this small test checks for a large timing penalty and does not establish a speedup. All six interactive runs after that change returned their expected output, and no waiting CPU usage was measurable in the sample. The final build's timings are in the table above.
 
 ```sh
 npm run bench:resources -- --target dist --label preview \
