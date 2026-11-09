@@ -112,6 +112,9 @@ try {
   if (signing) {
     console.log('Signing and verifying the application executable…')
     await signWindowsBinary(executable, signing)
+    if (resources.includes('ion-pty.exe')) {
+      await signWindowsBinary(join(payload, 'resources', 'ion-pty.exe'), signing)
+    }
   }
 
   console.log('Creating the per-user Windows installer…')

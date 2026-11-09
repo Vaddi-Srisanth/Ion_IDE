@@ -72,8 +72,8 @@ Section "Ion IDE"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
   WriteRegStr HKCU "${OPEN_WITH_KEY}" "FriendlyAppName" "Ion IDE"
-  WriteRegStr HKCU "${OPEN_WITH_KEY}\DefaultIcon" "" '$"$INSTDIR\App\Ion IDE.exe$",0'
-  WriteRegStr HKCU "${OPEN_WITH_KEY}\shell\open\command" "" '$"$INSTDIR\App\Ion IDE.exe$" $"%1$"'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\DefaultIcon" "" '$\"$INSTDIR\App\Ion IDE.exe$\",0'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\shell\open\command" "" '$\"$INSTDIR\App\Ion IDE.exe$\" $\"%1$\"'
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".c" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".h" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cc" ""
@@ -82,6 +82,7 @@ Section "Ion IDE"
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".hpp" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".java" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".py" ""
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".python" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".js" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cjs" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".mjs" ""

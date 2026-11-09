@@ -38,8 +38,15 @@ test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interact
     assert.equal(path.basename(process.cwd()), 'workspace λ with spaces');
     assert.deepEqual(process.argv.slice(2), ['with space', 'ends with \\', '"quotes"', 'λ 文', '']);
     const input = require('node:readline').createInterface({ input: process.stdin, terminal: false });
-    input.once('line', (line) => {
-      const [width, height] = process.stdout.getWindowSize();
+    input.once('line', async (line) => {
+      const sleep = require('node:timers/promises').setTimeout;
+      const deadline = performance.now() + 3000;
+      let [width, height] = process.stdout.getWindowSize();
+      // Windows applies the resize on a separate ConPTY control channel.
+      while ((width !== 100 || height !== 35) && performance.now() < deadline) {
+        await sleep(15);
+        [width, height] = process.stdout.getWindowSize();
+      }
       process.stdout.write('ION_INPUT:' + line + ':SIZE:' + width + 'x' + height + '\n');
       process.stderr.write('ION_STDERR\n');
       input.close();
@@ -66,7 +73,7 @@ test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interact
   })
   const result = await session.result
   const output = stripVTControlCharacters(transcript)
-  assert.equal(result.state, 'exited', result.detail ?? output)
+  assert.equal(result.state, 'exited', result.detail ?? 'ConPTY transcript: ' + JSON.stringify(transcript))
   assert.equal(result.exitCode, 7, output)
   assert.equal(result.outputComplete, true, output)
   assert.match(output, /ION_INPUT:Hello λ:SIZE:100x35/)
@@ -103,7 +110,7 @@ test('Windows ConPTY forwards control input to the program', { skip, timeout: 25
     })
     const result = await session.result
     const transcript = stripVTControlCharacters(output)
-    assert.equal(result.state, 'exited', result.detail ?? transcript)
+    assert.equal(result.state, 'exited', result.detail ?? 'ConPTY transcript: ' + JSON.stringify(output))
     assert.equal(result.exitCode, 0, transcript)
     assert.match(transcript, raw ? /ION_RAW:03/ : /ION_INTERRUPT/)
   }
@@ -191,13 +198,16 @@ test('Windows terminal launches in the workspace and explicit close cleans up a 
 test('Windows Run Console falls back to line input if the installed helper is absent', { skip, timeout: 15_000 }, async (t) => {
   const cwd = await mkdtemp(join(tmpdir(), 'ion-pty-fallback-'))
   t.after(() => rm(cwd, { force: true, recursive: true }))
-  const runner = new InteractiveRunner(join(cwd, 'missing-ion-pty.exe'))
+  const runner = new InteractiveRunner(join(cwd, 'missing-ion-pty.exe'), { compileMs: 5000, programMs: 5000, outputBytes: 4096 })
   let transcript = ''
   const result = await runner.run({
     cwd, label: 'JavaScript', language: 'javascript', toolchain: process.execPath,
     run: { executable: process.execPath, args: ['-e', "process.stdin.once('data', data => process.stdout.write('ION_FALLBACK:' + data));"] },
   }, (event) => {
-    if (event.kind === 'phase' && event.phase === 'running') runner.input('value\r')
+    if (event.kind === 'phase' && event.phase === 'running') {
+      runner.input('value\r')
+      runner.input('\x04')
+    }
     if (event.kind === 'data') transcript += event.text
   }, new AbortController().signal)
   assert.equal(result.status, 'success', result.message)
