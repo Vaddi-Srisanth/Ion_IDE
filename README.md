@@ -25,13 +25,15 @@ If you find a problem, include your Ion version, operating system, processor arc
 
 ## What Ion can do
 
+The Windows Terminal, offline Maven and Gradle launchers, and Open With registration below are changes in the 0.9.5 source candidate. The public downloads above are version 0.9.4. [Windows readiness report](WINDOWS_RELEASE_READINESS.md)
+
 | Workflow | Features |
 | --- | --- |
 | **Edit code** | Monaco syntax highlighting, multiple tabs, Find and Replace, Go to Line, configurable fonts and indentation, line numbers, word wrap, and starter templates for C, C++, Java, Python, JavaScript, TypeScript, HTML, CSS, Go, Rust, Shell, and SQL. |
 | **Manage files and navigate** | Open files or folders, create and rename items, move items to Trash or Recycle Bin, revisit recent work, use Command Palette and Quick Open, or search saved workspace text with ripgrep and jump to a result. |
 | **Protect edits** | Configurable autosave, detection of external edits, Save As conflict protection, local crash recovery, and reopening the last session with its tabs, selections, and scroll positions. Large UTF-8 files get a paged read-only viewer. |
 | **Run code** | Use local C, C++, Java, Python, and JavaScript toolchains. The Run Console shows compile errors, live output, duration, and exit status, with interactive input, Stop, Rerun, and Clear. Java supports companion sources, packages, and local JAR dependencies. Offline Maven and Gradle are documented in the Java section. |
-| **Use a local shell** | On macOS and Linux, the integrated Terminal opens your configured shell with separate sessions, scrollback, search, copy and paste, ANSI output, and job control. |
+| **Use a local shell** | The integrated Terminal opens your configured shell on macOS and Linux, or a system PowerShell session on supported Windows installations. It has separate sessions, scrollback, search, copy and paste, and ANSI output. |
 | **Preview web and Markdown** | Preview local HTML, CSS, and JavaScript together. Switch Markdown between Source, Preview, and live resizable Split View. Preview includes tables, lists, tasks, links, workspace images, and highlighted code fences. |
 | **Work with notebooks** | Open, edit, reorder, and save `.ipynb` cells. Read Markdown, metadata, saved text, images, and static tables, or inspect the JSON source. Use a local Jupyter kernel to run one cell, cells above it, or all cells. |
 | **Read documents beside code** | View PDF, DOCX, XLSX, and CSV in read-only tabs with format-specific navigation and search. Use a resizable split beside source, or open the original in the default app. macOS also supports static PPTX slides through an optional LibreOffice installation. |
@@ -81,7 +83,7 @@ Replacing an occupied Save As destination requires explicit confirmation. Ion ch
 
 Choose **Resume Session** on Welcome to reopen the previous workspace, ordered tabs, active tab, and source selections and scroll positions. **Keep Drafts and Quit** saves checkpoints before closing. After a crash, Resume Session puts matching recovered edits back in their tab positions. **Recover edits** also opens checkpoints independently. Recovered drafts are detached, so you can compare them with the disk version and choose where to save. The last completed checkpoint survives a process crash. Edits made just before a crash may be newer than the last write. Ion stores up to 64 recovery drafts in your profile’s `recovery` folder, up to 16 MiB each. Save or discard a draft to clear its recovery copy.
 
-Press **Run** or **F5** with a C, C++, Java, Python, or JavaScript file open. Ion chooses a local toolchain, saves pending edits by default, compiles when needed, and focuses the **Run Console**. Type directly into that console when the program asks for input. Compiler messages and program output appear there along with exit status and duration. The console offers scrollback, **Stop**, **Rerun**, and **Clear**. Preferences controls save-before-run and whether the console keeps previous runs. macOS uses a pseudo-terminal. Windows sends interactive input one line at a time. [Windows console details](docs/windows/FEATURE_PARITY.md)
+Press **Run** or **F5** with a C, C++, Java, Python, or JavaScript file open. Ion chooses a local toolchain, saves pending edits by default, compiles when needed, and focuses the **Run Console**. Type directly into that console when the program asks for input. Compiler messages and program output appear there along with exit status and duration. The console offers scrollback, **Stop**, **Rerun**, and **Clear**. Preferences controls save-before-run and whether the console keeps previous runs. Ion uses a pseudo-terminal. On Windows, if the native helper or ConPTY API is unavailable, the Run Console labels its line-input fallback. [Windows console details](docs/windows/FEATURE_PARITY.md)
 
 Ion requests trust for each new source file in a window. Window trust follows edits saved through Ion. With **Save before Run** enabled, Ion asks you to reload an open file if its saved revision changed externally. With the setting off, Run uses the current saved file and external changes require renewed consent. Select the C pack in Learn to enable explanations for recognized C diagnostics. All languages keep their raw diagnostics in the console.
 
@@ -89,10 +91,10 @@ Ion requests trust for each new source file in a window. Window trust follows ed
 | --- | --- |
 | C and C++ | Clang or GCC compiles the active source or the explicit source list in a workspace build file. |
 | Java | An installed JDK compiles the active source and resolves companion sources, packages, and local `lib/*.jar` dependencies. Ion finds the entry point in freshly compiled class metadata. |
-| Maven and Gradle Java | On macOS, open the project folder. Ion uses the detected build and its main source set and runtime classpath. It asks before each build and uses locally available tools and caches. On Windows, run Maven or Gradle from a separate terminal. |
+| Maven and Gradle Java | Open the project folder and run a Java source. Ion asks before each build and uses installed tools and cached dependencies. On Windows, install Maven 3.9.x or Gradle 8.10 through 9.x. [Windows Java setup](docs/windows/DEPENDENCIES.md) |
 | Python and JavaScript | Local Python 3 and Node.js run the active script. |
 
-Maven uses its cached compiler plugin and, for projects with dependencies, its cached dependency-classpath plugin. Gradle can use an installed CLI or the matching already-extracted Gradle wrapper distribution and cached dependencies. Maven and Gradle write their usual project build output. Projects with custom launch tasks, unusual source sets, or additional JVM flags may need their own build workflow. [Maven CLI options](https://maven.apache.org/ref/3-LATEST/maven-embedder/cli.html) · [Gradle offline mode](https://docs.gradle.org/current/userguide/dependency_caching.html#sec:offline-mode)
+Maven uses its cached compiler plugin and, for projects with dependencies, its cached dependency-classpath plugin. Gradle uses an installed distribution and cached dependencies. On macOS it can also use a matching, already-extracted wrapper distribution. Maven and Gradle write their usual project build output. Projects with custom launch tasks, unusual source sets, or additional JVM flags may need their own build workflow. [Maven CLI options](https://maven.apache.org/ref/3-LATEST/maven-embedder/cli.html) · [Gradle offline mode](https://docs.gradle.org/current/userguide/dependency_caching.html#sec:offline-mode)
 
 Use **Preview** on an HTML, CSS, or JavaScript file to open a separate offline web preview. Relative styles, scripts, and supported assets load from the opened workspace. CSS and JavaScript use the nearest `index.html` or `index.htm` inside that workspace. Press ⌘R on macOS or Ctrl+R on Windows in the preview window to reload it from disk.
 
@@ -115,11 +117,11 @@ The build file supports up to 32 source files, 64 tracked headers, and 8 include
 
 ### Integrated Terminal
 
-On macOS and Linux, use **View → Toggle Terminal** or open the bottom panel and select **Terminal**. Ion starts your account's configured shell in the open folder, or in your home directory when there is no workspace. The shell reads its usual user startup configuration. Run Git, installed compilers, and interactive tools as you would from your system terminal. Your shell manages its command history.
+Use **View → Toggle Terminal** or select **Terminal** in the bottom panel. Ion opens the workspace directory or your home directory. On macOS and Linux it starts your account's configured shell and reads its startup configuration. On Windows it starts system PowerShell with profiles disabled, or cmd with AutoRun disabled when PowerShell is unavailable. Run Git, installed compilers, and interactive tools as you would from your system terminal. Your shell manages its command history.
 
 Use **New Terminal** and the session selector to keep up to six shells open. Each session keeps 2,000 lines of scrollback. Drag the bottom divider to resize. Use **Find** or **Clear** on the toolbar, and use **⌘C** and **⌘V** to copy and paste on macOS. **Ctrl+C** interrupts the foreground job. Hiding the panel or switching to **Run Console** keeps Terminal sessions alive. **Close Terminal** ends the selected shell and its jobs. Closing the Ion window ends all of its sessions. A program that deliberately daemonizes into its own OS session can outlive the terminal.
 
-**Run** and **F5** still open the separate Run Console for one-click code execution. On Windows, the Run Console continues to provide its existing line-based input. The general-purpose shell requires a macOS or Linux PTY.
+**Run** and **F5** still open the separate Run Console for one-click code execution. On Windows, the integrated shell needs ConPTY. If it is unavailable, use a separate terminal for shell commands.
 
 ### Keyboard navigation
 
@@ -134,7 +136,7 @@ Use **New Terminal** and the session selector to keep up to six shells open. Eac
 | Save / Close Tab | ⌘S / ⌘W | Ctrl+S / Ctrl+W |
 | Previous / Next Tab | ⌘⇧[ / ⌘⇧] | Ctrl+Shift+[ / Ctrl+Shift+] |
 | Toggle Explorer / Toggle Bottom Panel | ⌘B / ⌘J | Ctrl+B / Ctrl+J |
-| Toggle / Focus Terminal | ⌘⇧J / ⌘⌥J | General shell available on macOS and Linux |
+| Toggle / Focus Terminal | ⌘⇧J / ⌘⌥J | Ctrl+Shift+J / Ctrl+Alt+J |
 | Run / Stop | F5 or ⌘↩ / ⇧F5 | F5 or Ctrl+Enter / Shift+F5 |
 
 Change Ion command bindings in **Preferences → Keyboard Shortcuts**. `Mod` means Command on macOS and Ctrl on Windows. Leave a binding blank to remove it or choose **Restore Default**. Ion rejects collisions and keeps system editing shortcuts available. In the palette, use **Toggle Document Split** and **Focus Document Split Divider** to place a document beside source code and resize the split with arrow keys. The workbench has one source editor. Quick Open searches on demand, visits up to 5,000 entries across 12 directory levels, skips hidden and common generated directories, and returns up to 40 matches.

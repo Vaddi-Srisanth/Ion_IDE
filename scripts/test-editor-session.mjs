@@ -10,20 +10,26 @@ const { values } = parseArgs({ options: { target: { type: 'string', default: 'di
 const target = await artifact(values.target)
 const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 
-async function quit(session, keep = false) {
-  if (!keep) return close(session)
+async function quitWithDrafts(session, action) {
   const quitting = close(session)
   try {
     const prompt = session.page.getByRole('dialog', { name: 'Unsaved changes' })
-    await prompt.getByRole('button', { name: 'Keep Drafts and Quit', exact: true }).click()
+    await prompt.getByRole('button', { name: action, exact: true }).click()
     await quitting
+  } catch (error) {
+    throw new Error('The editor session could not quit using ' + action + '.', { cause: error })
   } finally {
     await quitting.catch(() => undefined)
   }
 }
 
-async function closeIfRunning(session, process) {
-  if (process.exitCode === null && process.signalCode === null) await close(session)
+async function terminateIfRunning(process) {
+  if (process.exitCode !== null || process.signalCode !== null) return
+  // Successful paths already verify their intended exit. A failed assertion
+  // can leave dirty files open, so cleanup must never wait for an unanswered prompt.
+  const exited = once(process, 'exit')
+  process.kill('SIGKILL')
+  await exited
 }
 
 async function goToLine(session, line) {
@@ -84,9 +90,9 @@ await withScratch('editor-session', async (scratch) => {
     for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight')
     await page.getByText('Ln 140, Col 4', { exact: true }).waitFor()
     assert.deepEqual(first.errors, [])
-    await quit(first, true)
+    await quitWithDrafts(first, 'Keep Drafts and Quit')
   } finally {
-    await closeIfRunning(first, firstProcess)
+    await terminateIfRunning(firstProcess)
   }
 
   assert.equal(await readFile(named, 'utf8'), 'initial named version')
@@ -97,7 +103,11 @@ await withScratch('editor-session', async (scratch) => {
   const kept = JSON.parse(await readFile(snapshotPath, 'utf8'))
   assert.equal(kept.rootPath, project.directory)
   assert.equal(kept.tabs[kept.activeIndex].path, anchor)
-  assert.ok(kept.tabs[kept.activeIndex].view.scrollTop > 0)
+  const keptView = kept.tabs[kept.activeIndex].view
+  assert.ok(keptView.scrollTop > 0)
+  assert.deepEqual(keptView.selections, [{
+    selectionStartLineNumber: 140, selectionStartColumn: 1, positionLineNumber: 140, positionColumn: 4,
+  }])
   assert.ok(kept.tabs.find(({ path }) => path === named).draftId)
 
   const second = await launch(target, profile)
@@ -109,8 +119,13 @@ await withScratch('editor-session', async (scratch) => {
     await page.getByTestId('workspace').waitFor()
     assert.deepEqual(await page.getByTestId('tab').locator('.tab-name').allTextContents(), ['anchor.txt', 'notes.ipynb', 'named.txt'])
     assert.equal(await atPath(page, 'tab', anchor).locator('.tab-name').getAttribute('aria-current'), 'true')
-    await page.getByText('Ln 140, Col 4', { exact: true }).waitFor()
-    await editorShows(page, 'alpha-140')
+    await (await editorShows(page, 'alpha-140')).dispose()
+    const status = page.locator('.document-status')
+    const cursor = status.getByText('Ln 140, Col 4', { exact: true })
+    await cursor.waitFor().catch(async (error) => {
+      const actual = await status.textContent({ timeout: 500 }).catch(() => null)
+      throw new Error('Resumed cursor did not reach line 140, column 4. Document status was ' + JSON.stringify(actual), { cause: error })
+    })
     await page.keyboard.insertText('XYZ')
     await editorShows(page, 'XYZha-140')
     assert.equal(await readFile(anchor, 'utf8'), savedLines)
@@ -129,11 +144,10 @@ await withScratch('editor-session', async (scratch) => {
     }, 'The live session and recovery drafts must be checkpointed before a crash.')
     assert.deepEqual(second.errors, [])
     assert.deepEqual(second.requests, [])
-    const exited = once(secondProcess, 'exit')
-    secondProcess.kill('SIGKILL')
-    await exited
+    await terminateIfRunning(secondProcess)
+    assert.equal(secondProcess.signalCode, 'SIGKILL')
   } finally {
-    await closeIfRunning(second, secondProcess)
+    await terminateIfRunning(secondProcess)
   }
 
   const third = await launch(target, profile)
@@ -151,11 +165,9 @@ await withScratch('editor-session', async (scratch) => {
     await tabs.first().getByRole('button', { name: 'anchor.txt', exact: true }).click()
     await editorShows(page, 'XYZha-140')
     assert.equal(await readFile(anchor, 'utf8'), savedLines)
-    const quitting = close(third)
-    await page.getByRole('dialog', { name: 'Unsaved changes' }).getByRole('button', { name: 'Discard', exact: true }).click()
-    await quitting
+    await quitWithDrafts(third, 'Discard')
     console.log('PASS clean relaunch and abrupt exit restore ordered tabs, active tab, cursor, selection, scroll, workspace, and detached unsaved drafts.')
   } finally {
-    await closeIfRunning(third, thirdProcess)
+    await terminateIfRunning(thirdProcess)
   }
 })

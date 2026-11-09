@@ -38,8 +38,15 @@ test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interact
     assert.equal(path.basename(process.cwd()), 'workspace λ with spaces');
     assert.deepEqual(process.argv.slice(2), ['with space', 'ends with \\', '"quotes"', 'λ 文', '']);
     const input = require('node:readline').createInterface({ input: process.stdin, terminal: false });
-    input.once('line', (line) => {
-      const [width, height] = process.stdout.getWindowSize();
+    input.once('line', async (line) => {
+      const sleep = require('node:timers/promises').setTimeout;
+      const deadline = performance.now() + 3000;
+      let [width, height] = process.stdout.getWindowSize();
+      // Windows applies the resize on a separate ConPTY control channel.
+      while ((width !== 100 || height !== 35) && performance.now() < deadline) {
+        await sleep(15);
+        [width, height] = process.stdout.getWindowSize();
+      }
       process.stdout.write('ION_INPUT:' + line + ':SIZE:' + width + 'x' + height + '\n');
       process.stderr.write('ION_STDERR\n');
       input.close();

@@ -72,8 +72,8 @@ Section "Ion IDE"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
   WriteRegStr HKCU "${OPEN_WITH_KEY}" "FriendlyAppName" "Ion IDE"
-  WriteRegStr HKCU "${OPEN_WITH_KEY}\DefaultIcon" "" '$"$INSTDIR\App\Ion IDE.exe$",0'
-  WriteRegStr HKCU "${OPEN_WITH_KEY}\shell\open\command" "" '$"$INSTDIR\App\Ion IDE.exe$" $"%1$"'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\DefaultIcon" "" '$\"$INSTDIR\App\Ion IDE.exe$\",0'
+  WriteRegStr HKCU "${OPEN_WITH_KEY}\shell\open\command" "" '$\"$INSTDIR\App\Ion IDE.exe$\" $\"%1$\"'
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".c" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".h" ""
   WriteRegStr HKCU "${OPEN_WITH_KEY}\SupportedTypes" ".cc" ""
