@@ -38,13 +38,13 @@ async function measure(session) {
 }
 
 const children = (snapshot) => snapshot.members.filter(({ kind }) => kind === 'child')
-async function noChildren(session) {
-  await eventually(async () => children(await windowsProcessTree(session)).length === 0,
+async function noChildren(session, idleChildren) {
+  await eventually(async () => children(await windowsProcessTree(session)).every(({ pid }) => idleChildren.has(pid)),
     'Expected zero native child processes.', 18_000)
 }
 
 await withScratch('windows-bench', async (scratch) => {
-  const project = await createProject(join(scratch, 'workspace ü'), { medium: true })
+  const project = await createProject(join(scratch, 'benchmark workspace'), { medium: true })
   const pdf = join(project.directory, 'local study.pdf')
   const waiting = join(project.directory, 'waiting.js')
   await writeFile(pdf, pdfFixture(2))
@@ -61,7 +61,13 @@ await withScratch('windows-bench', async (scratch) => {
       await page.context().setOffline(true)
       await stubDialogs(app, { folder: project.directory, allowRun: true })
       sample.welcome = await measure(session)
-      assert.equal(children(sample.welcome.last).length, 0)
+      const idleChildren = new Set()
+      for (const child of children(sample.welcome.last)) {
+        // Windows may attach a host console to the desktop test launch. It is
+        // part of the measured tree, but is distinct from a launched program.
+        assert.match(child.name, /^(?:conhost|openconsole)\.exe$/i, JSON.stringify(sample.welcome.last.members))
+        idleChildren.add(child.pid)
+      }
       await openFolder(page, project)
       sample.firstSourceMs = await openFromExplorer(page, project.program, 'ION-DESKTOP-RUN-OK')
       sample.oneFile = await measure(session)
@@ -75,7 +81,7 @@ await withScratch('windows-bench', async (scratch) => {
       await page.locator('[data-rendered=true] [data-testid=pdf-page-canvas]').first().waitFor()
       sample.pdf = await measure(session)
       await atPath(page, 'close-tab', pdf).click()
-      await noChildren(session)
+      await noChildren(session, idleChildren)
 
       await atPath(page, 'tab', project.program).locator('.tab-name').click()
       sample.runMs = await runProgram(page)
@@ -85,7 +91,7 @@ await withScratch('windows-bench', async (scratch) => {
       sample.running = await measure(session)
       await page.getByTestId('run-console-stop').click()
       await page.locator('[data-testid="output"][data-status="cancelled"]').waitFor()
-      await noChildren(session)
+      await noChildren(session, idleChildren)
 
       if (values.terminal) {
         await page.getByTestId('bottom-terminal-tab').click()
@@ -98,7 +104,7 @@ await withScratch('windows-bench', async (scratch) => {
         sample.terminal = await measure(session)
         assert.ok(children(sample.terminal.last).some(({ name }) => /ion-pty/i.test(name)), 'Real Windows PTY helper is running.')
         await page.getByTestId('terminal-close').click()
-        await noChildren(session)
+        await noChildren(session, idleChildren)
         sample.terminalClosed = await measure(session)
       }
 
@@ -109,7 +115,7 @@ await withScratch('windows-bench', async (scratch) => {
           for (const note of project.files.slice(0, 3)) await atPath(page, 'tab', note).locator('.tab-name').click()
           await atPath(page, 'tab', project.program).locator('.tab-name').click()
           await runProgram(page)
-          await noChildren(session)
+          await noChildren(session, idleChildren)
           sample.soak.push(await windowsProcessTree(session))
           await sleep(800)
         }

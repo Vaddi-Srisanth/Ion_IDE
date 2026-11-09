@@ -85,9 +85,10 @@ export async function launch(target, profile) {
     page.setDefaultTimeout(8_000)
     await page.getByTestId('welcome').waitFor()
     const startupMs = performance.now() - began
-    assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), profile, 'app uses disposable profile')
+    const identity = await app.evaluate(({ app }) => ({ profile: app.getPath('userData'), pid: process.pid }))
+    assert.equal(identity.profile, profile, 'app uses disposable profile')
     assert.equal(page.url(), 'app://workbench/index.html', 'production renderer loaded from the local app protocol')
-    return { app, page, profile, startupMs, requests, errors, pid: app.process().pid }
+    return { app, page, profile, startupMs, requests, errors, pid: identity.pid }
   } catch (error) {
     await close({ app }).catch(() => {})
     throw error

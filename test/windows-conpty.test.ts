@@ -88,8 +88,8 @@ test('Windows ConPTY forwards control input to the program', { skip, timeout: 25
     let output = ''
     let sent = false
     const code = raw
-      ? "process.stdin.setRawMode(true).once('data', data => { console.log('ION_RAW:' + data.toString('hex')); process.exit(0); });"
-      : "process.once('SIGINT', () => { console.log('ION_INTERRUPT'); process.exit(0); });"
+      ? "process.stdin.setRawMode(true).once('data', data => process.stdout.write('ION_RAW:' + data.toString('hex') + '\\n', () => process.exit(0)));"
+      : "process.once('SIGINT', () => process.stdout.write('ION_INTERRUPT\\n', () => process.exit(0)));"
     const session = startPty({
       ...options, budget: { remaining: 64 * 1024 },
       args: ['-e', code + " console.log('ION_READY'); setInterval(() => {}, 5000);"],
@@ -107,6 +107,35 @@ test('Windows ConPTY forwards control input to the program', { skip, timeout: 25
     assert.equal(result.exitCode, 0, transcript)
     assert.match(transcript, raw ? /ION_RAW:03/ : /ION_INTERRUPT/)
   }
+})
+
+test('Windows ConPTY bounds busy program output and execution time', { skip, timeout: 25_000 }, async (t) => {
+  await access(helper)
+  const directory = await mkdtemp(join(tmpdir(), 'ion-pty-limits-'))
+  t.after(() => rm(directory, { force: true, recursive: true }))
+  const options = {
+    helper, executable: process.execPath, cwd: directory,
+    environment: windowsEnvironment(windowsToolPaths(), directory),
+    columns: 80, rows: 24, signal: new AbortController().signal,
+    ready() {},
+  }
+
+  let bytes = 0
+  const capped = await startPty({
+    ...options, budget: { remaining: 2048 }, timeoutMs: 8_000,
+    args: ['-e', "let i = 0; setInterval(() => console.log(i++, 'abcd '.repeat(100)), 10);"],
+    onOutput(text) { bytes += Buffer.byteLength(text) },
+  }).result
+  assert.equal(capped.state, 'output-limit')
+  assert.equal(capped.outputComplete, false)
+  assert.equal(bytes, 2048)
+
+  const timed = await startPty({
+    ...options, budget: { remaining: 2048 }, timeoutMs: 1_000,
+    args: ['-e', 'setInterval(() => {}, 5000);'],
+    onOutput() {},
+  }).result
+  assert.equal(timed.state, 'timeout')
 })
 
 test('Windows terminal launches in the workspace and explicit close cleans up a detached child', { skip, timeout: 30_000 }, async (t) => {

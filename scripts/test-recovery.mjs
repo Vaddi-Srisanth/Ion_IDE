@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parseArgs } from 'node:util'
+import { promisify } from 'node:util'
 import { artifact, atPath, close, editorShows, eventually, launch, openFromExplorer, stubDialogs, waitForFile,
   withScratch } from './desktop-harness.mjs'
 
@@ -78,7 +80,11 @@ await withScratch('recovery', async (scratch) => {
   const profile = join(scratch, 'profile')
   const original = join(folder, 'original notes.txt')
   const saved = join(folder, 'recovered copy.txt')
-  const program = join(folder, 'wait for input.c')
+  const windows = process.platform === 'win32'
+  const program = join(folder, windows ? 'wait for input.js' : 'wait for input.c')
+  const programSource = windows
+    ? "console.log('ION-RECOVERY-PID:' + process.pid); process.stdin.resume();\n"
+    : '#include <stdio.h>\n#include <unistd.h>\nint main(void) { printf("ION-RECOVERY-PID:%d\\n", (int)getpid()); fflush(stdout); return getchar() == EOF; }\n'
   const originalText = 'Original saved file.\n'
   const externalText = 'External revision after the crash.\n'
   const namedDraft = 'ION-NAMED-RECOVERY-DRAFT-λ'
@@ -88,7 +94,7 @@ await withScratch('recovery', async (scratch) => {
   await Promise.all([mkdir(folder), mkdir(profile)])
   await Promise.all([
     writeFile(original, originalText),
-    writeFile(program, '#include <stdio.h>\n#ifdef _WIN32\n#include <process.h>\n#define getpid _getpid\n#else\n#include <unistd.h>\n#endif\nint main(void) { printf("ION-RECOVERY-PID:%d\\n", (int)getpid()); fflush(stdout); return getchar() == EOF; }\n'),
+    writeFile(program, programSource),
   ])
 
   const first = await launch(target, profile)
@@ -110,7 +116,7 @@ await withScratch('recovery', async (scratch) => {
     await waitForSnapshots(profile, namedDraft, untitledDraft)
     assert.equal(await readFile(original, 'utf8'), originalText)
 
-    await openFromExplorer(page, program, '#include')
+    await openFromExplorer(page, program, windows ? 'process.stdin.resume()' : '#include')
     await page.getByTestId('run').click()
     const pid = await page.waitForFunction(() => {
       const rows = document.querySelector('[data-testid="run-console-terminal"] .xterm-rows')
@@ -166,11 +172,12 @@ await withScratch('recovery', async (scratch) => {
     const proc = interrupted.app.process()
     if (proc.exitCode === null && proc.signalCode === null) {
       const exited = once(proc, 'exit')
-      assert.equal(proc.kill('SIGKILL'), true, 'The operating system accepted the forced termination.')
+      if (windows) await promisify(execFile)('taskkill.exe', ['/pid', String(interrupted.pid), '/f'], { windowsHide: true, timeout: 6000 })
+      else assert.equal(proc.kill('SIGKILL'), true, 'The operating system accepted the forced termination.')
       await exited
     }
   }
-  if (process.platform === 'win32') assert.notEqual(interrupted.app.process().exitCode, 0)
+  if (windows) await assertProcessExited(interrupted.pid)
   else assert.equal(interrupted.app.process().signalCode, 'SIGKILL')
 
   const relaunched = await launch(target, profile)

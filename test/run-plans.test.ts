@@ -217,6 +217,10 @@ class Helper {
           // CI may populate Maven's cache for this generated, pinned fixture. The
           // build below still executes with --offline, using a disposable cache.
           command = { ...command, args: [...command.args, '-Dmaven.repo.local=' + join(directory, 'Maven cache')] }
+          await assert.rejects(invoke(command, root), (error: unknown) => {
+            const failure = error as { code?: unknown; stdout?: unknown; stderr?: unknown }
+            return failure.code === 1 && /offline mode/i.test(String(failure.stdout) + String(failure.stderr))
+          }, 'An empty Maven cache must fail explicitly in offline mode.')
           await invoke({ ...command, args: command.args.filter((argument) => argument !== '--offline') }, root)
         }
         await invoke(command, root)

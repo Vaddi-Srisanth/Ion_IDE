@@ -83,6 +83,8 @@ jobs:
           npm run test:integrity
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:recovery
+      - name: Verify offline viewers and workspaces
+        run: node scripts/test-windows-native.mjs
       - name: Locate NSIS
         shell: pwsh
         run: |

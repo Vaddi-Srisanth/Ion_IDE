@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
-import { artifact, atPath, close, createProject, launch, openFolder, openFromExplorer, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, openFromExplorer, stubDialogs, withScratch } from './desktop-harness.mjs'
 import { encodeNotebook, smallNotebook } from './notebook-fixtures.mjs'
 import { pdfFixture } from './viewer-fixtures.mjs'
 
@@ -40,6 +41,43 @@ async function workspace(page, mode) {
   await page.locator(`[data-testid="workspace"][data-mode="${mode}"]`).waitFor()
 }
 
+async function verifyFileDrop(page, path, marker) {
+  const dropped = atPath(page, 'tab', path)
+  const before = await page.evaluate(async ({ path, name, url }) => {
+    const read = async () => {
+      try { await window.ion.readFile(path); return true } catch { return false }
+    }
+    const priorGrant = await read()
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['forged content'], name, { type: 'text/plain' }))
+    transfer.setData('text/uri-list', url)
+    const event = new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true })
+    document.querySelector('[data-testid="explorer"]').dispatchEvent(event)
+    return { priorGrant, syntheticTrusted: event.isTrusted, syntheticGrant: await read() }
+  }, { path, name: basename(path), url: pathToFileURL(path).href })
+  assert.deepEqual(before, { priorGrant: false, syntheticTrusted: false, syntheticGrant: false })
+  assert.equal(await dropped.count(), 0, 'A page-created drag event cannot open external files.')
+
+  const bounds = await page.getByTestId('explorer').boundingBox()
+  assert.ok(bounds?.width && bounds?.height, 'File Explorer is visible.')
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    for (const type of ['dragEnter', 'dragOver', 'drop']) {
+      await cdp.send('Input.dispatchDragEvent', {
+        type, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2,
+        data: { items: [], files: [path], dragOperationsMask: 1 },
+      })
+    }
+    await dropped.waitFor()
+    await (await editorShows(page, marker)).dispose()
+  } finally {
+    await cdp.detach()
+  }
+  await atPath(page, 'close-tab', path).click()
+  await dropped.waitFor({ state: 'detached' })
+  console.log('PASS a trusted Chromium file drop opens a Unicode path outside the workspace, while page-created drag data cannot grant access.')
+}
+
 await withScratch('windows-native', async (scratch) => {
   const project = await createProject(join(scratch, 'Café & study workspace'), { fileCount: 0 })
   const profile = join(scratch, 'profile')
@@ -64,6 +102,14 @@ await withScratch('windows-native', async (scratch) => {
     await openFolder(page, project)
     await openFromExplorer(page, project.program, '#include')
 
+    if (process.platform === 'win32') {
+      step = 'external file drop'
+      const external = join(scratch, 'Café outside the workspace.txt')
+      const marker = 'ION-WINDOWS-EXTERNAL-DROP'
+      await writeFile(external, marker)
+      await verifyFileDrop(page, external, marker)
+    }
+
     step = 'PDF search and rendering'
     await openDocument(page, file('pdf'))
     const pdf = page.getByTestId('pdf-viewer')
@@ -72,6 +118,11 @@ await withScratch('windows-native', async (scratch) => {
     await pdf.getByTestId('pdf-search').press('Enter')
     await pdf.getByTestId('pdf-search-results').filter({ hasText: 'Page 2' }).waitFor()
     await pdf.locator('[data-page="2"] [data-rendered="true"] canvas').waitFor()
+    await page.getByTestId('viewer-split').click()
+    await page.getByTestId('document-split').waitFor()
+    await (await editorShows(page, '#include')).dispose()
+    await atPath(page, 'close-tab', file('pdf')).click()
+    await eventually(() => !page.workers().length, 'Closing the PDF did not release its renderer worker.')
 
     step = 'DOCX and tabular previews'
     await openDocument(page, file('docx'))
@@ -104,9 +155,16 @@ await withScratch('windows-native', async (scratch) => {
     await slides.or(unavailable).waitFor({ timeout: 55_000 })
     if (await unavailable.isVisible()) {
       const message = await unavailable.textContent()
-      assert.match(message, /LibreOffice/i)
-      if (process.platform === 'win32') assert.doesNotMatch(message, /for macOS/i)
-      await page.getByRole('button', { name: 'Open in Default Application' }).waitFor()
+      assert.match(message, process.platform === 'win32' ? /PowerPoint conversion.*Open in Default Application/i : /LibreOffice/i)
+      await app.evaluate(({ shell }) => {
+        shell.openPath = async (path) => {
+          globalThis.ionNativeExternalDocument = path
+          return ''
+        }
+      })
+      await page.getByRole('button', { name: 'Open in Default Application' }).click()
+      await eventually(async () => await app.evaluate(() => globalThis.ionNativeExternalDocument) === file('pptx'),
+        'PowerPoint fallback did not pass the original presentation to the OS.')
       console.log('PASS PowerPoint explicitly offers an external viewer when offline conversion is unavailable.')
     } else {
       await slides.locator('.pdf-slide-stage [data-rendered="true"] canvas').waitFor()
@@ -121,6 +179,7 @@ await withScratch('windows-native', async (scratch) => {
     const learn = page.getByTestId('learning-pane')
     await learn.getByTestId('learning-open-marketplace').click()
     const marketplace = page.getByTestId('marketplace-pane')
+    await marketplace.getByTestId('marketplace-search').fill('javascript')
     await marketplace.locator('[data-testid="marketplace-install"][data-pack="javascript"]').click()
     await marketplace.locator('[data-testid="marketplace-use"][data-pack="javascript"]').click()
     await learn.getByRole('combobox', { name: 'Language' }).locator('option:checked').filter({ hasText: 'JavaScript' }).waitFor({ state: 'attached' })

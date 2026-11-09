@@ -222,7 +222,10 @@ async function jarPaths(directories: string[]) {
 function classpath(entries: string[]) {
   if (entries.some((entry) => entry.includes(delimiter))) throw new Error('A Java classpath entry contains the classpath separator.')
   const result = [...new Set(entries)].join(delimiter)
-  if (Buffer.byteLength(result) > maxClassPathBytes) throw new Error('The Java runtime classpath is too large.')
+  // Windows CreateProcess has a 32,767 UTF-16 code unit limit for the whole command line.
+  if (Buffer.byteLength(result) > maxClassPathBytes || (windows && result.length > 24_000)) {
+    throw new Error('The Java runtime classpath is too large for Ion Run. Use the project’s own build tool for this configuration.')
+  }
   return result
 }
 

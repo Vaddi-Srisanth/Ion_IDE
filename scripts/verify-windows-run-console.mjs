@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
-import { access, mkdir, writeFile } from 'node:fs/promises'
-import { delimiter, join } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { artifact, close, editorShows, eventually, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
 
-const windowsInputFilename = 'verify-input.cjs'
+const windowsInputFilename = 'verify-input λ.cjs'
+const pythonInputFilename = 'prompt λ.py'
 const windowsInputSource = `
 const prompt = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
 console.log('ION-WINDOWS-INPUT');
@@ -75,7 +76,7 @@ const toolchainFixtures = {
   'native.c': '#include <stdio.h>\nint main(void) { puts("ION-C-OUTPUT"); return 0; }\n',
   'native.cpp': '#include <iostream>\nint main() { std::cout << "ION-CPP-OUTPUT" << std::endl; }\n',
   'invalid.c': '#error ION-C-DIAGNOSTIC\n',
-  'prompt.py': 'print("ION-PYTHON-TTY" if __import__("sys").stdin.isatty() else "ION-PYTHON-PIPE")\nprint("ION-PYTHON-ANSWER:" + input())\n',
+  [pythonInputFilename]: 'print("ION-PYTHON-TTY" if __import__("sys").stdin.isatty() else "ION-PYTHON-PIPE")\nprint("ION-PYTHON-ANSWER:" + input())\n',
 }
 const javaFixtures = {
   'Main.java': 'package sample; public class Main { public static void main(String[] args) { System.out.println(Message.read()); } }',
@@ -109,7 +110,7 @@ async function verifyToolchains(page) {
     await status('success')
     console.log('PASS Java compiles a package with multiple source files and runs its main class.')
 
-    await choose('prompt.py')
+    await choose(pythonInputFilename)
     await run()
     await terminalShows(page, 'ION-PYTHON-TTY')
     await page.getByTestId('run-console-input').focus()
@@ -139,9 +140,12 @@ async function verifyTerminal(page, workspaceName) {
   await type("Write-Output ('ION-' + 'WORKSPACE:' + (Split-Path -Leaf $PWD.Path))")
   await terminalShows(page, 'ION-WORKSPACE:' + workspaceName, 'terminal-pane')
   await type("Write-Output ('ION-' + 'SHELL-PID:' + $PID)")
-  await terminalShows(page, 'ION-SHELL-PID:', 'terminal-pane')
-  const transcript = (await pane.locator('.xterm-rows > div').allTextContents()).join('')
-  const pid = Number(/ION-SHELL-PID:(\d+)/.exec(transcript)?.[1])
+  const pidHandle = await page.waitForFunction(() => {
+    const rows = document.querySelectorAll('[data-testid="terminal-pane"] .xterm-rows > div')
+    return Number([...rows].map((row) => /^ION-SHELL-PID:(\d+)$/.exec(row.textContent?.trim())?.[1]).find(Boolean))
+  })
+  let pid
+  try { pid = await pidHandle.jsonValue() } finally { await pidHandle.dispose() }
   assert.ok(Number.isSafeInteger(pid) && pid > 0, 'PowerShell did not report its process ID.')
   assert.doesNotThrow(() => process.kill(pid, 0))
 
@@ -170,11 +174,8 @@ async function verifyTerminal(page, workspaceName) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   assert.equal(process.platform, 'win32', 'Run this test on Windows.')
-  if (process.env.GITHUB_ACTIONS && await access('C:\\mingw64\\bin\\g++.exe').then(() => true, () => false)) {
-    process.env.PATH = ['C:\\mingw64\\bin', process.env.PATH].filter(Boolean).join(delimiter)
-  }
   await withScratch('windows-console', async (scratch) => {
-    const workspaceName = 'Console test workspace λ'
+    const workspaceName = 'Console test workspace'
     const project = join(scratch, workspaceName)
     const java = join(project, 'sample')
     const profile = join(scratch, 'profile')

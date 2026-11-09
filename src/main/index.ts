@@ -703,6 +703,15 @@ function registerIpc(): void {
     if (target !== window || selection.canceled || !selection.filePaths[0]) return null
     return remember(await files.grant(selection.filePaths[0], 'file'))
   })
+  // Only the isolated preload can send this request, after a trusted OS file drop.
+  handle('open-dropped-files', async (target, paths) => {
+    if (process.platform !== 'win32' || !Array.isArray(paths) || paths.length > 16
+      || !paths.every((path) => typeof path === 'string' && isAbsolute(path) && path.length <= 4096)) return
+    for (const path of new Set<string>(paths)) {
+      if (target !== window || target.isDestroyed()) break
+      await openFromSystem(path)
+    }
+  })
   handle('open-recent', async (target, path) => {
     const previous = (await preferences.get()).recents.find((item) => item.path === path)
     if (target !== window || !previous) throw new Error('This item is no longer in Recent.')

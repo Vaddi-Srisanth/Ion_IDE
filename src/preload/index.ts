@@ -1,5 +1,18 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { Entry, IonBridge, MenuCommand } from '../shared/contracts'
+
+if (process.platform === 'win32') {
+  document.addEventListener('dragover', (event) => {
+    if (event.isTrusted && event.dataTransfer?.types.includes('Files')) event.preventDefault()
+  }, true)
+  document.addEventListener('drop', (event) => {
+    if (!event.isTrusted || !event.dataTransfer?.types.includes('Files')) return
+    event.preventDefault()
+    const paths = Array.from(event.dataTransfer.files).slice(0, 16)
+      .map((file) => webUtils.getPathForFile(file)).filter(Boolean)
+    if (paths.length) void ipcRenderer.invoke('ion:open-dropped-files', paths).catch(() => {})
+  }, true)
+}
 
 function subscribe<T>(channel: string, callback: (value: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, value: T) => callback(value)

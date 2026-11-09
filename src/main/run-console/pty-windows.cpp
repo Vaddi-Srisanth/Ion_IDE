@@ -220,8 +220,6 @@ int wmain(int argc, wchar_t** argv) {
     return setupError;
   }
   if (FAILED(created)) fail(static_cast<DWORD>(created));
-  consoleInput.reset();
-  consoleOutput.reset();
 
   Handle stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
   if (!stop) fail(GetLastError());
@@ -254,6 +252,8 @@ int wmain(int argc, wchar_t** argv) {
   const DWORD launchError = launched ? ERROR_SUCCESS : GetLastError();
   DeleteProcThreadAttributeList(startup.lpAttributeList);
   if (!launched) fail(launchError);
+  consoleInput.reset();
+  consoleOutput.reset();
   Handle child(process.hProcess), childThread(process.hThread);
 
   if (!AssignProcessToJobObject(job.get(), child.get())) {
