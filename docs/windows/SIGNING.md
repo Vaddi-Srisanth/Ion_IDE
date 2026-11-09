@@ -31,14 +31,15 @@ Use a dedicated Windows x64 signing account or protected release runner. Provisi
    npm run package:win
    ```
 
-   The SHA-1 thumbprint selects an exact certificate in the store. Both signing and timestamp requests use SHA-256. The packager applies Electron's security settings, signs and verifies `Ion IDE.exe`, embeds that executable in the NSIS package, then signs and verifies the setup executable. Each file must pass SignTool's Authenticode policy and timestamp checks. PowerShell independently checks the embedded signer thumbprint and timestamp certificate and compares the publisher's simple name with the binary's CompanyName. NSIS uses the same publisher for the uninstall entry. SignTool warnings fail the signed build. [Microsoft SignTool reference](https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool) · [Microsoft timestamp guidance](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures)
+   The SHA-1 thumbprint selects an exact certificate in the store. Both signing and timestamp requests use SHA-256. The packager applies Electron's security settings, signs and verifies `Ion IDE.exe` and `ion-pty.exe`, embeds them in the NSIS package, then signs and verifies setup. Each file must pass SignTool's Authenticode policy and timestamp checks. PowerShell independently checks the embedded signer thumbprint and timestamp certificate and checks the publisher’s simple name. It also checks CompanyName in the app and setup metadata. NSIS uses the same publisher for the uninstall entry. SignTool warnings fail the signed build. [Microsoft SignTool reference](https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool) · [Microsoft timestamp guidance](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures)
 
 4. Run the [native Windows installer test](BUILD.md) with the signed candidate. In a separate clean test install, check the exact distributed setup and installed executable from PowerShell with the SDK path, publisher, and thumbprint configured. Verification needs no private key.
 
    ```powershell
    $setup = Resolve-Path (Join-Path $env:ION_WIN_OUTPUT_DIR 'Ion-IDE-<version>-windows-x64-setup.exe')
    $app = Join-Path $env:LOCALAPPDATA 'Programs\Ion IDE\App\Ion IDE.exe'
-   node scripts/verify-windows-signatures.mjs $setup.Path $app
+   $pty = Join-Path (Split-Path $app) 'resources\ion-pty.exe'
+   node scripts/verify-windows-signatures.mjs $setup.Path $app $pty
    Get-FileHash -Algorithm SHA256 $setup.Path
    ```
 

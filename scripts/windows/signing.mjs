@@ -62,13 +62,19 @@ export async function verifyWindowsSignature(binary, options) {
       throw 'The embedded signature, expected signer, or timestamp could not be verified.'
     }
     $name = $signature.SignerCertificate.GetNameInfo('SimpleName', $false)
-    $company = (Get-Item -LiteralPath $env:ION_SIGNATURE_FILE).VersionInfo.CompanyName
-    if ($name -cne $env:ION_SIGNATURE_PUBLISHER -or $company -cne $env:ION_SIGNATURE_PUBLISHER) {
-      throw 'The certificate publisher or executable CompanyName does not match the expected publisher.'
+    if ($name -cne $env:ION_SIGNATURE_PUBLISHER) {
+      throw 'The certificate publisher does not match the expected publisher.'
+    }
+    if ($env:ION_SIGNATURE_COMPANY_REQUIRED -eq '1') {
+      $company = (Get-Item -LiteralPath $env:ION_SIGNATURE_FILE).VersionInfo.CompanyName
+      if ($company -cne $env:ION_SIGNATURE_PUBLISHER) {
+        throw 'The executable CompanyName does not match the expected publisher.'
+      }
     }
   `], {
     ...commandOptions, env: {
       ...process.env, ION_SIGNATURE_FILE: binary, ION_SIGNATURE_THUMBPRINT: thumbprint, ION_SIGNATURE_PUBLISHER: publisher,
+      ION_SIGNATURE_COMPANY_REQUIRED: win32.basename(binary).toLowerCase() === 'ion-pty.exe' ? '0' : '1',
     },
   })
 }
