@@ -24,6 +24,12 @@ jobs:
       - run: node scripts/release-evidence.mjs checkout
       - run: npm ci
       - run: npm audit --audit-level=high
+      - name: Configure zsh for the terminal integration fixture
+        run: |
+          if [ "$(node -p "require('node:os').userInfo().shell")" != /bin/zsh ]; then
+            sudo -n chsh -s /bin/zsh "$(id -un)"
+          fi
+          test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
       - run: npm run test:regression
       - run: node scripts/test-update-preferences.mjs
       - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
@@ -85,6 +91,20 @@ jobs:
           npm run test:recovery
       - name: Verify offline viewers and workspaces
         run: node scripts/test-windows-native.mjs
+  windows-installer:
+    name: Windows x64 installer and upgrade
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
       - name: Locate NSIS
         shell: pwsh
         run: |
