@@ -25,6 +25,8 @@ The final preview was compared with the earlier 0.9.4 editor build on the same A
 
 All 27 short comparison checks stayed within their tolerances. The full release gate, OS-cache-cold launch, longer session behavior, and performance on Windows or lower-memory hardware are separate checks. The 12-round sample does not establish leak-free operation. The RSS and macOS footprint figures are different measures of the same process family; RSS can count shared mappings more than once.
 
+A follow-up compared the macOS terminal helper before and after the fast-output fix. Six short C runs per build measured a median of 232.25 ms before and 216.62 ms after. The baseline ran first, with a slower first sample; this small test checks for a large timing penalty and does not establish a speedup. All six interactive runs after the change returned their expected output, and no waiting CPU usage was measurable in the sample.
+
 ```sh
 npm run bench:resources -- --target dist --label preview \
   --idle-seconds 6 --settle-ms 850 --launches 3 --cycles 2 --executions 10 --extended-rounds 12

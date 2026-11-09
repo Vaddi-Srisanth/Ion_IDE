@@ -2,7 +2,8 @@
 
 ## 0.9.4 release preparation
 
-- Added a Windows x64 installer target and Windows-specific toolchain discovery, line input, and process cleanup. Native Windows validation is pending. [Platform comparison](docs/windows/FEATURE_PARITY.md)
+- Added a Windows x64 installer target and Windows-specific toolchain discovery, line input, and process cleanup. [Platform comparison](docs/windows/FEATURE_PARITY.md) · [Native CI](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/workflows/desktop-build.yml)
+- Hardened the macOS terminal helper against losing unread output when a short program exits.
 - Added an Updates panel for checking GitHub Releases, verifying installer downloads, and revealing the downloaded file. Checking at launch is opt-in.
 - Updated the bundled DOMPurify sanitizer to 3.4.17 and included the Monaco and DOMPurify notices in production builds.
 - Updated Welcome to describe the local runner accurately. Added installer, development, testing, and security reporting instructions. [Release notes](docs/releases/0.9.4.md)
