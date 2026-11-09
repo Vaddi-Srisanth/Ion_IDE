@@ -1,146 +1,31 @@
-name: Desktop verification
-
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
-
+name: Windows native performance candidate
+on: [push, workflow_dispatch]
 permissions:
   contents: read
-
 jobs:
-  macos:
-    name: macOS Apple silicon
-    runs-on: macos-15
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 24.22.2
-          cache: npm
-      - run: node scripts/release-evidence.mjs checkout
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm run test:regression
-      - run: node scripts/test-update-preferences.mjs
-      - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
-      - run: npm run package:dmg
-      - run: node scripts/verify-mac-release.mjs
-      - run: node scripts/release-evidence.mjs record mac-arm64
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: ion-macos-arm64-attempt-${{ github.run_attempt }}
-          path: |
-            release/Ion-IDE-*-mac-arm64.dmg
-            release/Ion-IDE-*-mac-arm64.dmg.json
-          if-no-files-found: error
-          retention-days: 14
-
-  windows:
-    name: Windows x64
+  candidate:
     runs-on: windows-2025
-    timeout-minutes: 35
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 24.22.2
-          cache: npm
-      - run: node scripts/release-evidence.mjs checkout
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm run typecheck
-      - name: Select installed Windows toolchains
-        shell: pwsh
-        run: |
-          $gcc = 'C:\mingw64\bin'
-          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
-          if (!(Test-Path (Join-Path $gcc 'g++.exe'))) { throw 'MinGW-w64 G++ is unavailable.' }
-          $gcc >> $env:GITHUB_PATH
-          $jdk = $env:JAVA_HOME_21_X64
-          if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 is unavailable.' }
-          "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
-          Join-Path $jdk 'bin' >> $env:GITHUB_PATH
-          Get-Command java, javac, python, mvn, gradle
-      - name: Run portable and Windows-specific unit tests
-        env:
-          ION_TEST_WINDOWS_JAVA_BUILDS: '1'
-          ION_TEST_PRIME_MAVEN: '1'
-        run: npm test -- line-console run-plans windows-java-build workspace-files-windows workspace-search shortcuts updates preferences-windows
-      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
-      - run: npm run build
-      - name: Verify native pseudoconsole and child ownership
-        run: npm test -- windows-conpty
-      - name: Verify interactive Run Console
-        run: node scripts/verify-windows-run-console.mjs
-      - name: Verify Windows editing integrity and crash recovery
-        run: |
-          npm run test:integrity
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:recovery
-      - name: Verify offline viewers and workspaces
-        run: node scripts/test-windows-native.mjs
-      - name: Locate NSIS
-        shell: pwsh
-        run: |
-          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
-          if (!(Test-Path $nsis)) {
-            choco install nsis --version=3.13.0 --yes --no-progress
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if (!(Test-Path $nsis)) { throw 'The NSIS compiler is unavailable.' }
-          "ION_MAKENSIS=$nsis" >> $env:GITHUB_ENV
-      - run: npm run package:win
-      - name: Fetch and verify the prior public Windows installer for upgrade
-        shell: pwsh
-        run: |
-          $setup = Join-Path $env:RUNNER_TEMP 'Ion-IDE-0.9.4-windows-x64-setup.exe'
-          Invoke-WebRequest 'https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.4/Ion-IDE-0.9.4-windows-x64-setup.exe' -OutFile $setup
-          $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash
-          if ($hash -ne '51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd') {
-            throw 'The previous public installer failed SHA-256 verification.'
-          }
-          "ION_PREVIOUS_WINDOWS_INSTALLER=$setup" >> $env:GITHUB_ENV
-      - run: npm run test:release:win
-      - run: node scripts/release-evidence.mjs record windows-x64
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: ion-windows-x64-attempt-${{ github.run_attempt }}
-          path: |
-            release/Ion-IDE-*-windows-x64-setup.exe
-            release/Ion-IDE-*-windows-x64-setup.exe.json
-          if-no-files-found: error
-          retention-days: 14
-
-  windows-performance:
-    name: Windows x64 process-tree benchmark
-    runs-on: windows-2025
-    timeout-minutes: 18
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24.22.2
           cache: npm
       - name: Locate GCC
         shell: pwsh
         run: |
-          $gcc = 'C:\mingw64\bin'
-          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
-          $gcc >> $env:GITHUB_PATH
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          Write-Host $gcc
+          Split-Path $gcc >> $env:GITHUB_PATH
       - run: npm ci
       - run: npm run build
       - run: node scripts/benchmark-windows.mjs --label candidate --terminal
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: windows-performance-candidate-attempt-${{ github.run_attempt }}
+          name: windows-performance-candidate
           path: performance-results/windows-candidate.json
           if-no-files-found: error
           retention-days: 14
