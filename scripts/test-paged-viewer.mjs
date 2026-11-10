@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { pdfFixture } from './viewer-fixtures.mjs'
-import { artifact, atPath, close, createProject, launch, openFolder, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { artifact, atPath, close, createProject, desktopWindowsVisible, launch, openFolder, stubDialogs, withScratch } from './desktop-harness.mjs'
 
 const { values: options } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' }, 'require-powerpoint': { type: 'boolean' },
@@ -157,47 +157,52 @@ await withScratch('paged-viewer', async (scratch) => {
       assert.ok(Number.parseInt(await slideZoom.textContent(), 10) > Number.parseInt(fitZoom, 10))
       await slides.getByRole('button', { name: 'Fit to window' }).click()
       assert.equal(await slideZoom.textContent(), fitZoom)
-      const presenting = page.locator('[data-testid="powerpoint-viewer"][data-fullscreen="true"]')
-      const observeTransition = (event) => app.evaluate(({ BrowserWindow }, name) => {
-        const win = BrowserWindow.getAllWindows()[0]
-        globalThis.ionTestNativeTransition = new Promise((resolve) => {
-          const complete = () => {
-            clearTimeout(deadline)
-            resolve(true)
-          }
-          const deadline = setTimeout(() => {
-            win.off(name, complete)
-            resolve(false)
-          }, 5000)
-          win.once(name, complete)
+      if (desktopWindowsVisible()) {
+        const presenting = page.locator('[data-testid="powerpoint-viewer"][data-fullscreen="true"]')
+        const observeTransition = (event) => app.evaluate(({ BrowserWindow }, name) => {
+          const win = BrowserWindow.getAllWindows()[0]
+          globalThis.ionTestNativeTransition = new Promise((resolve) => {
+            const complete = () => {
+              clearTimeout(deadline)
+              resolve(true)
+            }
+            const deadline = setTimeout(() => {
+              win.off(name, complete)
+              resolve(false)
+            }, 5000)
+            win.once(name, complete)
+          })
+        }, event)
+        const awaitTransition = async () => assert.equal(await app.evaluate(() => globalThis.ionTestNativeTransition), true)
+        await observeTransition('enter-full-screen')
+        await slides.getByRole('button', { name: 'Present' }).click()
+        await presenting.waitFor()
+        await awaitTransition()
+        await page.keyboard.press('ArrowRight')
+        assert.equal(await slides.getByTestId('pdf-page-number').inputValue(), '2')
+        await capture(page, 'powerpoint-presentation')
+        await observeTransition('leave-full-screen')
+        await presenting.getByRole('button', { name: 'Exit presentation' }).click()
+        await presenting.waitFor({ state: 'detached' })
+        await awaitTransition()
+        await observeTransition('enter-full-screen')
+        await slides.getByRole('button', { name: 'Present' }).click()
+        await presenting.waitFor()
+        await awaitTransition()
+        await observeTransition('leave-full-screen')
+        await app.evaluate(({ BrowserWindow }) => {
+          const win = BrowserWindow.getAllWindows()[0]
+          win.focus()
+          win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+          win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
         })
-      }, event)
-      const awaitTransition = async () => assert.equal(await app.evaluate(() => globalThis.ionTestNativeTransition), true)
-      await observeTransition('enter-full-screen')
-      await slides.getByRole('button', { name: 'Present' }).click()
-      await presenting.waitFor()
-      await awaitTransition()
-      await page.keyboard.press('ArrowRight')
-      assert.equal(await slides.getByTestId('pdf-page-number').inputValue(), '2')
-      await capture(page, 'powerpoint-presentation')
-      await observeTransition('leave-full-screen')
-      await presenting.getByRole('button', { name: 'Exit presentation' }).click()
-      await presenting.waitFor({ state: 'detached' })
-      await awaitTransition()
-      await observeTransition('enter-full-screen')
-      await slides.getByRole('button', { name: 'Present' }).click()
-      await presenting.waitFor()
-      await awaitTransition()
-      await observeTransition('leave-full-screen')
-      await app.evaluate(({ BrowserWindow }) => {
-        const win = BrowserWindow.getAllWindows()[0]
-        win.focus()
-        win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
-        win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
-      })
-      await presenting.waitFor({ state: 'detached' })
-      await awaitTransition()
-      console.log('PASS PowerPoint diagram and chart pixels, thumbnails, presentation mode and keyboard controls')
+        await presenting.waitFor({ state: 'detached' })
+        await awaitTransition()
+        console.log('PASS PowerPoint diagram and chart pixels, thumbnails, presentation mode and keyboard controls')
+      } else {
+        console.log('PASS PowerPoint diagram and chart pixels, thumbnails, zoom and slide navigation')
+        console.log('SKIP native presentation full screen (requires visible windows via ION_SHOW_TEST_WINDOWS=1)')
+      }
     }
     await closeDocument(page, pptxPath)
     await expectWorkers(page, 0)

@@ -7,6 +7,9 @@ npm run typecheck
 npm test
 npm run build
 npm run test:desktop
+npm run test:onboarding
+npm run test:java-tools
+npm run test:format
 npm run test:recovery
 npm run test:integrity
 npm run test:keyboard
@@ -24,6 +27,14 @@ node scripts/verify-mac-release.mjs
 Run the production benchmarks in [PERFORMANCE.md](PERFORMANCE.md). Use disposable profiles and synthetic fixtures. Report the total IDE process tree and identify compiler and program subprocess costs separately. With LibreOffice available, run `node scripts/test-paged-viewer.mjs --require-powerpoint` to verify slide rendering as well as the default engine-availability path.
 
 Run all default checks with `npm run test:regression`. An upgrade test uses `npm run test:workspaces -- --prepare-target <previous-dist> --target dist` with the previous release's production bundles. It creates and closes the old profile before the candidate reads it.
+
+Local desktop checks use hidden Electron windows and disposable profiles. Checks that require a visible native window, including actual fullscreen transitions and packaged installer verification, require an explicit `ION_SHOW_TEST_WINDOWS=1` in a test session. CI can run visible checks on its dedicated runner.
+
+The macOS Java desktop check uses an installed JDK and a temporary workspace. It covers Basic and Smart completion, snippets and undo, live javac markers and hover, Problems navigation, semantic queries, workspace file grants, and worker shutdown. Run it against the production build with `npm run test:java-tools`.
+
+The formatting desktop check uses disposable workspaces and whichever local formatters are installed. Run with clang-format, Ruff, Black, and Prettier on PATH to cover all default language adapters. It exercises single Undo, encoding, project settings, remapping, read-only tabs, stale results, external changes, timeout, and process cleanup. The missing-tool path is also supported.
+
+Onboarding uses fresh and existing disposable profiles. The desktop test covers timed playback, escape and skip, four workspace routes, first-run reduced motion, replay while editing, unavailable playback, and real C input/output. On macOS it also sends early and in-progress file-open events through Electron. The macOS installer check exercises replay from the mounted build. Check cold opening through Windows Explorer against an installed candidate on Windows.
 
 ## Student study
 

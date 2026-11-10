@@ -5,10 +5,11 @@ import { lstat, mkdir, readFile, readdir, readlink, rm, writeFile } from 'node:f
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { chromium } from 'playwright-core'
-import { atPath, editorShows, eventually, withScratch } from './desktop-harness.mjs'
+import { atPath, editorShows, eventually, requireVisibleDesktop, withScratch } from './desktop-harness.mjs'
 import { macDocumentInfo } from './macos-document-types.mjs'
 import { pdfFixture } from './viewer-fixtures.mjs'
 
+requireVisibleDesktop()
 const release = JSON.parse(await readFile('package.json', 'utf8'))
 const image = resolve(process.argv[2] ?? `release/Ion-IDE-${release.version}-mac-${process.arch}.dmg`)
 const command = (binary, args) => execFileSync(binary, args, { encoding: 'utf8' }).trim()
@@ -134,6 +135,7 @@ await withScratch('release-check', async (scratch) => {
     command('/usr/bin/codesign', ['--verify', '--strict', join(copy, 'Contents/Resources/ion-rg')])
     const page = await start(binary)
     await page.locator('.app-shell[data-theme-id="dark"]').waitFor()
+    assert.equal(await page.getByTestId('onboarding').count(), 0, 'The existing profile opens directly to Welcome.')
     assert.equal(await page.evaluate(async () => (await window.ion.themes.list()).length), 5)
     await page.getByTestId('command-palette').click()
     const commands = page.getByTestId('command-palette-input')
@@ -142,6 +144,16 @@ await withScratch('release-check', async (scratch) => {
     await page.getByRole('dialog', { name: 'Preferences' }).waitFor()
     await page.getByText(`Ion ${release.version}`, { exact: true }).waitFor()
     assert.equal(await page.getByRole('checkbox', { name: /Check for updates on launch/ }).isChecked(), false)
+    const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
+    await page.getByTestId('onboarding-replay').click()
+    if (reducedMotion) await page.getByRole('button', { name: 'Back to Ion' }).click()
+    else {
+      await page.getByTestId('onboarding-intro').waitFor()
+      await page.getByTestId('onboarding-skip-intro').click()
+    }
+    await page.getByTestId('onboarding').waitFor({ state: 'detached' })
+    console.log('PASS packaged offline introduction replays and dismisses.')
+    await page.getByTestId('settings').click()
     await page.getByTestId('theme-light').click()
     await page.locator('.app-shell[data-theme-id="light"]').waitFor()
     await page.getByRole('button', { name: 'Done', exact: true }).click()

@@ -27,6 +27,7 @@ const shapes = {
   columns: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/></>,
   search: <><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5"/></>,
   replace: <><path d="M3 8h13m-3-3 3 3-3 3m8 5H8m3-3-3 3 3 3"/><path d="M3 16h1m16-8h1"/></>,
+  format: <path d="M4 5h16M9 10h11M9 15h11M4 20h16M4 10v5"/>,
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   book: <><path d="M12 6c-2.4-2.4-5.3-2.6-9-2v14c3.7-.6 6.6-.4 9 2 2.4-2.4 5.3-2.6 9-2V4c-3.7-.6-6.6-.4-9 2v14Z"/><path d="M6 8h2m-2 4h2m8-4h2m-2 4h2"/></>,
   marketplace: <><path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 2.2 4.5 2.2 4.5 0 0 2.2 4.5 2.2 4.5 0 0 2.2 4.5 2.2 4.5 0 0 2.2 4.5 2.2 4.5 0M9 20v-5h6v5"/></>,

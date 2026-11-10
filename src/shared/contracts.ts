@@ -12,6 +12,8 @@ import type { UpdatesBridge } from './updates'
 import type { MenuCommand, ShortcutOverrides } from './shortcuts'
 import type { WorkspaceSearchResult } from './workspace-search'
 import type { EditorSessionBridge } from './editor-session'
+import type { LanguageToolsBridge } from './language-tools'
+import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
 
 export type EntryKind = 'file' | 'folder'
@@ -61,6 +63,10 @@ export interface Settings {
   tabSize: number
   wordWrap: boolean
   lineNumbers: boolean
+  smartLanguages: string[]
+  automaticSuggestions: boolean
+  javaFormatter: JavaFormatter
+  pythonFormatter: PythonFormatter
   autoSave: boolean
   autoSaveDelay: number
   saveBeforeRun: boolean
@@ -85,6 +91,10 @@ export const defaultSettings: Readonly<Settings> = {
   tabSize: 4,
   wordWrap: false,
   lineNumbers: true,
+  smartLanguages: [],
+  automaticSuggestions: true,
+  javaFormatter: 'auto',
+  pythonFormatter: 'auto',
   autoSave: true,
   autoSaveDelay: 900,
   saveBeforeRun: true,
@@ -141,6 +151,9 @@ export interface RunResult {
 }
 
 export interface IonBridge {
+  readonly firstLaunch: boolean
+  languageTools: LanguageToolsBridge
+  formatting: FormatBridge
   editorSession: EditorSessionBridge
   recovery: {
     list(): Promise<RecoveryDraft[]>

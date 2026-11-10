@@ -9,6 +9,7 @@ import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import electron from 'electron'
+import { requireVisibleDesktop } from './desktop-harness.mjs'
 
 const { values } = parseArgs({ options: {
   renderer: { type: 'string', default: 'dist/renderer' },
@@ -21,6 +22,7 @@ if (process.platform !== 'darwin' || !Number.isInteger(trialCount) || trialCount
   || !Number.isInteger(idleMs) || idleMs < 1000 || idleMs > 120000) {
   throw new Error('Run on macOS with 1–10 trials and 1,000–120,000 idle milliseconds.')
 }
+requireVisibleDesktop()
 
 const renderer = await realpath(values.renderer)
 const originalHtml = await readFile(join(renderer, 'index.html'), 'utf8')

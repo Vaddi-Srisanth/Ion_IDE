@@ -269,6 +269,8 @@ svg { flex: none; }
 .monaco-host { position: absolute; inset: 0; }
 .editor-loading { display: flex; flex: 1; justify-content: center; align-items: center; flex-direction: column; color: var(--muted); gap: 9px; padding: 20px; text-align: center; }
 .editor-surface > .editor-loading { position: absolute; inset: 0; background: var(--background); }
+.java-tool-status { position: absolute; right: 18px; bottom: 14px; max-width: calc(100% - 36px); padding: 6px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }
+.editor-surface[data-smart-java] .monaco-hover .hover-row.status-bar { display: none; }
 .conflict-banner { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--warning-bg); color: var(--amber); border-bottom: 1px solid var(--border); }
 .conflict-banner > span { flex: 1; }
 .conflict-banner .button { min-height: 24px; }
@@ -284,11 +286,14 @@ svg { flex: none; }
 .local-status, .welcome-status, .status-autosave, .status-notice { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .local-status { color: var(--accent); flex: none; }
 .status-notice { min-width: 0; flex: 1; }
-.workspace ~ .status-bar .status-notice { padding-right: 328px; }
+.workspace ~ .status-bar .status-notice { padding-right: 398px; }
 .status-notice > span { min-width: 0; text-overflow: ellipsis; overflow: hidden; }
 .status-notice.error { color: var(--danger); }
 .document-status { height: var(--status-height); display: flex; align-items: center; gap: 12px; position: absolute; right: 9px; bottom: 0; pointer-events: none; z-index: 1; color: var(--muted); font: 10px var(--mono); }
 .status-autosave > svg { color: var(--accent); }
+.status-format { pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; padding: 3px 5px; border: 0; border-radius: 3px; color: var(--muted); background: transparent; }
+.status-format:hover:not(:disabled), .status-format:focus-visible { background: var(--surface-2); color: var(--ink); }
+.status-format:disabled { opacity: .55; cursor: default; }
 .welcome-status { flex: none; margin-left: auto; }
 .welcome-status > span { opacity: .6; }
 

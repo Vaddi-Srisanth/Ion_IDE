@@ -7,9 +7,10 @@ import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
-import { editorShows, eventually, withScratch } from './desktop-harness.mjs'
+import { editorShows, eventually, requireVisibleDesktop, withScratch } from './desktop-harness.mjs'
 
 assert.equal(process.platform, 'win32', 'Use a disposable Windows machine for this installed-app test.')
+requireVisibleDesktop()
 assert.ok(process.env.LOCALAPPDATA && process.env.APPDATA)
 const run = promisify(execFile)
 const release = JSON.parse(await readFile('package.json', 'utf8'))

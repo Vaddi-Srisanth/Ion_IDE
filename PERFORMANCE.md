@@ -2,6 +2,129 @@
 
 Paths under `performance-results/` refer to local benchmark outputs and logs. Reproduction commands are listed with the relevant workloads.
 
+## First launch and onboarding
+
+Ion 0.9.5 was measured against its preserved pre-onboarding production build at `ad82e08`. The benchmark ran on Apple M3, 24 GiB RAM, macOS 27.2 (26B123), Electron 45.2.3, and battery power. The builds share the same Electron runtime. Tests use disposable profiles and retain OS caches. The renderer is offline.
+
+The animation uses one 720×450 canvas and targets at most 30 paints per second. The canvas, frame loop, and listeners belong to the visible scene. Ordinary launches skip the scene and do not request its JavaScript or stylesheet. A static reduced-motion setup also skips both files. No dependencies, video decoder, workers, or additional windows were added.
+
+The final playback comparison interleaved three baseline and three candidate trials. The baseline displays an idle Welcome while the candidate plays the intro. The ordinary editor comparison used three launches per build in a separate sequential workload. RAM is shown as summed process-tree RSS and macOS-attributed footprint. CPU is a percentage of one logical core.
+
+| Workload or measurement | Before | After |
+| --- | ---: | ---: |
+| First process launch with existing preferences, median | 381.4 ms | 374.9 ms |
+| Relaunch after the first-run workload, median | 416.3 ms | 383.0 ms |
+| Existing-profile Learn panel open, median | 57.5 ms | 45.5 ms |
+| Ordinary Welcome RSS / footprint | 425.3 / 195.9 MiB | 423.1 / 195.4 MiB |
+| Ordinary Welcome CPU, 3 s window | 0.79% | 0.20% |
+| One C file RSS / footprint | 510.6 / 345.3 MiB | 511.5 / 342.1 MiB |
+| Ten tabs RSS / footprint | 525.4 / 368.2 MiB | 525.0 / 361.1 MiB |
+| Medium project RSS / footprint | 554.6 / 402.1 MiB | 553.8 / 393.6 MiB |
+| First file open / typing to second frame | 179.9 / 32.0 ms | 178.3 / 31.8 ms |
+| Run to visible C output | 198.7 ms | 199.1 ms |
+| First-launch idle vs. playback RSS / footprint | 433.8 / 141.2 MiB | 449.6 / 224.2 MiB |
+| First-launch idle vs. playback CPU | 0.92% | 14.19% |
+| First-launch idle vs. playback renderer heap | 3.21 MiB | 3.90 MiB |
+| First-launch idle vs. playback GPU helper footprint | 53.1 MiB | 130.5 MiB |
+| Process-tree members during first launch | 4 | 4 |
+| Production payload before Electron packaging | 13,998,104 B | 14,011,407 B |
+
+In the final set, the intro appeared after 422 ms and setup was ready after 8.46 s when playback completed. The median and 95th-percentile animation callback intervals were 16.7 and 17.1 ms. Callbacks measure renderer scheduling. The canvas draws at a lower capped rate. An earlier set measured 19.06% CPU during playback. Hardware GPU utilization, presented frame rate, and energy draw were unavailable. The GPU helper footprint is process memory, which can include surfaces and allocator caches.
+
+The first dismissal sampled 458.0 MiB RSS and 163.8 MiB footprint after a 1.2-second settle and returned CPU to 0.39%. In a separate same-process check, footprint fell from 265.8 MiB during replay to 139.4 MiB after 18 seconds and was 140.1 MiB after five further replay-and-skip cycles. RSS was 442.5 MiB before the first replay, 464.2 MiB after it, and 467.8 MiB after the final settle. GPU helper footprint was 53.9, 41.9, and 43.6 MiB at those points. The canvas backing store was zeroed and no intro frame callbacks or loading timers remained after any skip. Each measured app tree exited on quit. Chromium retained some resident memory after replay in the same process.
+
+The sequential editor pair had a slower first Welcome median of 347.1 → 473.5 ms and first Learn open of 59.4 → 106.0 ms. The interleaved repeats did not reproduce those increases. One candidate warm launch took 757.9 ms. Startup varies between runs, and the results do not establish a general speedup. The ordinary editor benchmark retained the existing provisional RSS targets, which both builds exceeded at Welcome and with one C file open.
+
+The two lazy cinematic files total 5,329 bytes. The full production payload grew by 13,303 bytes. In separate local package builds, the Apple Silicon app grew from 277,542,292 to 277,556,131 logical bytes. The compressed disk image was 125,089,280 bytes before and 125,088,256 bytes after. The candidate passed the mounted offline smoke check, including replay. Raw comparisons are in `performance-results/master-onboarding/onboarding-final.json` and the `resources-onboarding-ordinary-*.json` reports. Windows desktop runtime, 8 GiB hardware, and multi-hour replay and editor behavior remain unmeasured for this milestone.
+
+To reproduce, preserve `dist` from the baseline commit and build the candidate. Run the playback and ordinary-editor workloads separately.
+
+```sh
+npm run bench:onboarding -- --baseline /path/to/baseline-dist --target dist --trials 3 --cleanup
+npm run bench:resources -- --target /path/to/baseline-dist --label onboarding-baseline \
+  --idle-seconds 3 --settle-ms 650 --launches 3 --cycles 2 --executions 3
+npm run bench:resources -- --target dist --label onboarding-candidate \
+  --idle-seconds 3 --settle-ms 650 --launches 3 --cycles 2 --executions 3
+```
+
+## Format Document
+
+Measured with hidden production Electron 45.2.3 on an Apple M3, 24 GiB RAM, arm64 macOS 27.2 (26B123), and battery power. The renderer was offline. The baseline was preserved before application changes. Five trials per build each started a fresh process with a seeded disposable profile, then quit and relaunched with that same profile. OS caches were retained. Each editor idle sample used one C file and two seconds of CPU observation after settling. Typing used 35 key-to-second-frame measurements and tab switching used 100 switches between two resident models.
+
+| Idle or ordinary operation | Baseline | Format enabled in build, unused |
+| --- | ---: | ---: |
+| Fresh process to Welcome, median | 310.33 ms | 317.60 ms |
+| Same-profile relaunch to Welcome, median | 300.52 ms | 297.46 ms |
+| Welcome summed RSS / attributed footprint | 420.09 / 249.38 MiB | 420.28 / 249.58 MiB |
+| Open the first C file | 184.64 ms | 186.18 ms |
+| One C file summed RSS / attributed footprint | 500.36 / 213.99 MiB | 500.39 / 213.97 MiB |
+| One C file idle CPU, percent of one logical core | 1.05% | 0.88% |
+| Keydown to second renderer animation callback | 27.50 ms | 28.10 ms |
+| Switch between two resident tabs | 16.57 ms | 16.69 ms |
+
+The launch and CPU ranges overlap. Ordinary typing and tab timing are close, and the samples show no material idle memory increase. Ion loads the format adapter and starts external processes only on request. There are no new package dependencies. Visible compositor frame pacing, attributed GPU utilization, installer size, and Windows and Linux runtime performance were outside this hidden source-build benchmark.
+
+### Formatting load and repeated edits
+
+The active workload used Apple clang-format 21.0.0 with synthetic C sources. The files were opened cumulatively in three tabs. Latency is click to formatted text in the editor, median of five operations per size. Each group included a rapid 20-click burst and verified one result. Peak RSS and footprint are separate maxima among sampled snapshots. Short-lived process peaks can fall between samples. CPU includes Undo, browser work, and CPU charged for reaped formatter processes. One fully busy logical core is 100%.
+
+| Input lines | Format median | Sampled peak RSS / footprint | After 900 ms RSS / footprint | Active CPU |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 16.31 ms | 543.41 / 354.55 MiB | 543.41 / 309.74 MiB | 79.66% |
+| 1,000 | 48.14 ms | 580.38 / 386.07 MiB | 575.83 / 343.82 MiB | 86.68% |
+| 5,000 | 125.59 ms | 683.86 / 478.47 MiB | 634.75 / 400.24 MiB | 132.17% |
+
+The first build's 100-round format/Undo burst rose from 631.80 to 757.86 MiB RSS in 20.05 seconds. A diagnostic repeat used identical three-tab operations and measured RSS, attributed footprint, and renderer heap after 20 seconds of natural idle. The tuned build repacks Monaco's backing text storage only after repeated successful formatting has accumulated substantially more storage than the active text. This keeps the same model, BOM, EOL, existing snapshots, and Undo/Redo history. Ion also reuses a verified Apple tool location after the first lookup.
+
+| Diagnostic comparison, 100 rounds | Initial formatter build | Tuned formatter build |
+| --- | ---: | ---: |
+| Elapsed time | 20.01 s | 18.28 s |
+| Burst checkpoint peak RSS / footprint | 769.31 / 523.69 MiB | 748.73 / 506.77 MiB |
+| RSS / footprint after the 20-second idle | 596.86 / 222.01 MiB | 585.34 / 211.41 MiB |
+| Live renderer JS heap after the idle | 29.92 MiB | 19.97 MiB |
+| Live renderer JS heap after diagnostic GC | 29.73 MiB | 19.79 MiB |
+
+All checkpoints were free of formatter children. The burst temporarily increases process residency, and both builds released much of that pressure naturally. The tuned build had a smaller settled renderer heap in this workload. In a final build check with 300 format/Undo rounds over 54.52 seconds, checkpoint peaks were 789.13 MiB RSS and 531.15 MiB footprint. The 20-second idle sample settled to 654.64 MiB RSS and 228.93 MiB footprint, compared with 637.11 MiB RSS and 400.52 MiB footprint at the start of the burst. The idle renderer heap was 23.95 MiB. These runs leave hours-long behavior unmeasured.
+
+The desktop suite checks full Unicode and CRLF content after repeated 5,000-line Format, Undo, and Redo, as well as cancellations, timeouts, and disk conflicts with a deliberately delayed test tool.
+
+Raw reports live under `performance-results/format-code/` as `baseline.json`, `candidate.json`, `initial-diagnostic.json`, `tuned.json`, and `extended.json`. Each records build hashes, process members, timings, and host details. To reproduce, preserve the pre-feature production `dist` and run the measurements serially.
+
+```sh
+npm run bench:format -- --target /path/to/baseline-dist --out performance-results/format-code/baseline.json
+npm run bench:format -- --exercise --diagnose --out performance-results/format-code/tuned.json
+npm run bench:format -- --trials 0 --exercise --rounds 300 --diagnose \
+  --out performance-results/format-code/extended.json
+```
+
+## Smart Java
+
+Measured on Apple M3, 24 GiB RAM, macOS 27.2 (26B123), Electron 45.2.3, and OpenJDK 26.0.2.1. The pre-feature production build includes onboarding. Each column is the median of three interleaved trials with fresh disposable profiles seeded with preferences, unchanged OS caches, and hidden Electron windows. The renderer was offline. One small Java file exercised live diagnostics and member completion. RSS sums the entire process tree and can count shared pages more than once. Footprint sums the macOS per-process ledger charges.
+
+| Median | Before Java tooling | Basic Java | Smart Java, default JVM | Smart Java, tuned JVM |
+| --- | ---: | ---: | ---: | ---: |
+| Fresh profile process launch to Welcome | 325.9 ms | 360.1 ms | 336.1 ms | 331.3 ms |
+| Open Java file | 182.6 ms | 197.0 ms | 197.3 ms | 184.8 ms |
+| Typing to second animation callback | 28.5 ms | 28.2 ms | 28.0 ms | 27.5 ms |
+| Welcome RSS / footprint | 432.7 / 251.1 MiB | 432.8 / 251.5 MiB | 433.3 / 251.3 MiB | 432.1 / 251.2 MiB |
+| Java file open RSS / footprint | 509.9 / 216.2 MiB | 516.4 / 223.4 MiB | 623.7 / 289.3 MiB | 607.1 / 278.6 MiB |
+| Java file open CPU, two-second idle window | 0.67% | 0.72% | 0.69% | 1.12% |
+| After closing Java tab RSS | 524.6 MiB | 529.9 MiB | 534.9 MiB | 532.0 MiB |
+| JDK-only RSS / footprint | — | — | 109.5 / 78.1 MiB | 92.0 / 62.5 MiB |
+| First live diagnostic, including debounce and JDK startup | — | — | 1,065.0 ms | 958.2 ms |
+| Warm member completion, JDK round trip | — | — | 20.8 ms | 16.5 ms |
+
+Basic mode added 6.5 MiB RSS in this editor workload. The shared Monaco completion and navigation widgets add about 450 kB of uncompressed JavaScript to the lazy editor entry chunk. The Java provider and JDK worker load on demand. No JDK process appeared at Welcome or in Basic mode. The Smart Java builds differed only in the JVM’s tiered compilation flag. Limiting the JVM to its first compilation tier saved 17.5 MiB in the JDK process for this workload. The JDK exited on tab close in every Smart Java trial. Electron retained some RSS after closing the editor in all four modes.
+
+These short trials measure one small file and use hidden rendering. Startup and CPU varied between samples. Longer sessions, large Java workspaces, Windows, and lower-memory hardware remain unmeasured. The benchmark preserves full per-process samples and build hashes in `performance-results/java-intelligence/java-tools-final.json`.
+
+To reproduce, preserve the pre-feature production `dist`, then build the candidate. For the JVM comparison, make a separate copy of the candidate and remove the `-XX:TieredStopAtLevel=1` argument from its built `main/java/service.cjs`. Pass that copy as `--untuned`.
+
+```sh
+npm run bench:java-tools -- --baseline /path/to/baseline-dist --target dist \
+  --untuned /path/to/default-jit-dist --trials 3
+```
+
 ## Learning Lens
 
 The baseline is the production worktree build immediately before Learning Lens. Both builds used Electron 45.2.3 on the same Apple M3 with 24 GiB RAM and macOS 27.2 (26B123). The benchmark interleaves three fresh-profile launches of each build. It installs and selects the C pack locally, opens one C file, verifies four real compiler failures per launch, opens the same explanation, types twelve characters, and closes Learn. The renderer runs offline and the script checks for outbound requests. Each memory sample follows a 500 ms settle and a 1.5-second CPU window. The OS file cache is left intact.
@@ -110,10 +233,29 @@ The 100-pack editor-only median was 1.12 MiB higher in RSS and 1.69 MiB higher i
 
 ```sh
 npm run build
-npm run bench:marketplace
+npm run bench:marketplace -- --sizes 0,10,25,50,100
 ```
 
 Raw macOS benchmark (`performance-results/learning-marketplace-2026-11-09T17-30-03.667Z.json`)
+
+### Baseline for shared courses
+
+The same host and three-trial protocol were used with the production build after Smart Java. Electron windows stayed hidden and the plain-text workload used only Electron's four processes. Each installed pack contained 15 synthetic lessons. The benchmark verified that the Marketplace bundle stayed unloaded until requested and that the renderer stayed offline.
+
+| Installed packs | Editor idle RSS / footprint (MiB) | Marketplace open RSS / footprint (MiB) | After close RSS / footprint (MiB) | Open median (ms) | Search median (ms) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 5 | 502.39 / 236.63 | 508.67 / 354.05 | 506.80 / 255.63 | 46.84 | 5.34 |
+| 25 | 502.73 / 331.36 | 507.77 / 349.51 | 506.33 / 236.33 | 48.58 | 8.08 |
+| 50 | 504.17 / 245.44 | 508.52 / 358.33 | 506.83 / 254.99 | 43.29 | 4.58 |
+| 100 | 502.06 / 323.79 | 507.89 / 343.65 | 505.97 / 234.91 | 49.59 | 4.45 |
+
+The idle RSS medians spanned 2.11 MiB across the four sizes. Footprint varied substantially between runs. Use this baseline for the before-and-after check when shared course navigation and storage land.
+
+```sh
+npm run bench:marketplace -- --sizes 5,25,50,100
+```
+
+Raw macOS benchmark (`performance-results/learning-marketplace-2026-11-10T15-04-21.373Z.json`)
 
 ## 0.9.4 public preview check
 

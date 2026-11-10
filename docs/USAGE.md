@@ -2,6 +2,12 @@
 
 This guide follows the 0.9.5 source preview. See the [README](../README.md#download-and-install) for the currently published installers and their differences.
 
+## First launch
+
+A new local profile opens with the offline Ion introduction. Press **Escape** or click **Skip Intro** to go to setup, or choose **Skip Setup** to go straight to Welcome. With reduced motion enabled, setup uses a static layout. **Get Started** opens the language starter picker. You can also open a folder or choose Free Coding, Learn, Projects, or Practice. Ion checks for the chosen language's installed tools when you press **Run**.
+
+To watch it again, choose **Preferences → Window → Replay Intro**. Replay returns to the current work. Opening a file through Finder or Windows Explorer takes precedence.
+
 ## macOS setup
 
 If you build Ion locally, quit the app and run `npm run install:mac` from the project to update your copy in `~/Applications`. It replaces the app at the same path and keeps the previous binary at `~/Library/Application Support/Ion IDE Rollback/Ion IDE.zip`. Settings and recovery drafts live separately in Application Support.
@@ -35,6 +41,30 @@ For renderer hot reload, run `npm run dev`. Restart it after edits to the main p
 Choose **Open Folder** for a workspace explorer, **Open File** to edit a file directly, or **New File** to start with an untitled tab. Create, rename, and move files or folders to Trash through the explorer. Use the editor's Find and Replace commands for the current file.
 
 **New File** starts a C draft in Free Coding and uses your selected language in Learn when a starter is available. The arrow beside New File opens the starter picker for C, C++, Java, Python, JavaScript, TypeScript, HTML, CSS, Go, Rust, Shell, SQL, or a blank file. Explorer’s **Create file** dialog offers starter code when it recognizes the filename extension. Use **Insert Starter Code** in the editor toolbar or Command Palette to fill an existing empty source file in one undoable step.
+
+### Java suggestions and diagnostics
+
+In a Java tab, type a standard shortcut such as `sout`, `psvm`, `fori`, or `trycatch`. Use the arrow keys to choose a suggestion, then press Enter or Tab to insert it. Under **Preferences → Language tools**, turn off **Automatic suggestions** if you prefer to trigger them with Ctrl+Space.
+
+Enable **Smart Java** in the same section and open a saved `.java` file. With a local JDK 17 or later, Ion can suggest members such as `System.out.println`, look up standard-library types such as `HashMap`, show method signatures, and check your current unsaved edits. Hover over an underline for the original javac message. Open **Problems** in the bottom panel to see live diagnostics and use **Go to source**. The last Run still has its own diagnostics.
+
+Smart Java works offline and uses the installed JDK. It handles files up to 256 KiB and looks up on-disk workspace sources in the workspace root, `src`, `src/main/java`, and `src/test/java`. Go to Definition can follow local sources. Find References currently searches the active buffer. Maven and Gradle dependency resolution and cross-file references remain on the roadmap. Ion can insert a qualified name when you select a suggestion and leaves your import statements alone.
+
+### Format a source file
+
+Click **Format** beside Autosave, or press **Shift+Option+F** on macOS and **Shift+Alt+F** on Windows or Linux. The command also appears as **Format Document** in the command palette and **Preferences → Keyboard Shortcuts**. Ion formats the active buffer, including unsaved edits. Use one Undo to restore the previous text. Save and Autosave follow the existing editor settings. Press Escape to cancel a running formatter.
+
+| Source | Local formatter |
+| --- | --- |
+| C and C++ | LLVM `clang-format`. Ion can find it through Xcode Command Line Tools on macOS. |
+| Java | `clang-format`, with an optional `google-java-format` executable on PATH. Choose a formatter in **Preferences → Formatting**. |
+| Python | Ruff or Black on PATH. Automatic selection prefers Ruff. |
+| JavaScript, TypeScript, HTML, CSS, JSON, Markdown | Prettier 3 on PATH with Node.js. |
+| SQL and other languages | Ion displays a status message when a formatter is unavailable. |
+
+Install the formatter separately and reopen Ion from an environment where it is on PATH. Ion honors local `.clang-format` files and Python formatter settings in the workspace. Prettier uses EditorConfig and built-in parsers with declarative JSON settings from `.prettierrc`, `.prettierrc.json`, or the `prettier` field in `package.json`. Common indentation, quotes, trailing commas, and matching file overrides work with those JSON settings. JavaScript config files and plugins are outside Ion’s formatter integration. A standalone file can use settings from its containing directory. Untitled files use editor or tool defaults.
+
+The command supports UTF-8 source up to 2 MiB and preserves the editor’s LF or CRLF convention and UTF-8 BOM. It stays disabled in read-only previews. Editing or changing tabs while a formatter is running cancels that request. A change on disk surfaces the normal conflict state before Ion applies any formatter output. The status bar shows missing dependencies, parse errors, and timeouts. [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) · [Ruff configuration](https://docs.astral.sh/ruff/configuration/) · [Prettier configuration](https://prettier.io/docs/configuration)
 
 Existing files autosave after a short pause by default. An untitled file needs its first Save. When a file's contents change on disk before Save, Ion pauses autosave for that tab and preserves your edits. Choose **Save As** with a different filename to keep both versions, or **Reload** to discard the editor edits and read the disk version. Metadata-only changes leave normal text autosave running. Use Preferences to change editor font size, tab width, line numbers, wrapping, and autosave delay. Drag the explorer or output divider to resize it, or toggle the panes from the toolbar or View menu. Preferences and recent items stay in `preferences.json` in your local profile.
 

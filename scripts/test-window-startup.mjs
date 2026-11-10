@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { artifact, close, eventually, launch, withScratch } from './desktop-harness.mjs'
+import { artifact, close, desktopWindowsVisible, eventually, launch, withScratch } from './desktop-harness.mjs'
 
-if (process.platform !== 'darwin') {
-  console.log('SKIP native macOS full-screen startup')
+if (process.platform !== 'darwin' || !desktopWindowsVisible()) {
+  console.log('SKIP native macOS full-screen startup (requires visible windows via ION_SHOW_TEST_WINDOWS=1)')
   process.exit(0)
 }
 

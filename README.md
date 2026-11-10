@@ -85,6 +85,7 @@ For supported C compiler errors, Ion connects the source location, the original 
 | Capability | Coverage in v0.9.5 source |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
+| **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
 | **Bundled learning packs** | 162 lessons across 19 packs. Core syntax, common APIs, examples, exercises, and selected mini-projects. Install or import packs offline. |
 | **Diagnostic explanations** | C with GCC or Clang has the Learning Lens workflow. Reviewed subsets for C++, Java, Python, and JavaScript also link to relevant installed lessons. |
 | **Project verification** | Review and approve C tests that compare program input, output, and exit status. Track manual milestones separately from test evidence. Approved tests can run on save in Full Mode. |
@@ -94,7 +95,9 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 
 ### Everyday coding
 
+- **Get started offline.** New profiles can watch the first-launch intro or skip straight to Welcome. Setup offers a language starter and the four workspaces. Reduced motion uses the static setup.
 - **Edit and navigate.** Monaco, starter files, multiple tabs, command palette, Quick Open, saved-file workspace search, configurable shortcuts, and resizable panels.
+- **Format source.** Use the status bar or a shortcut to format the current buffer with an installed local tool. Changes apply as one undoable edit. [Formatting guide](docs/USAGE.md#format-a-source-file)
 - **Protect work.** Autosave, revision-aware saves, external-change prompts, crash recovery, session reopening, and local export for settings, themes, learning history, and project metadata.
 - **Use a shell.** The integrated Terminal opens on demand, with multiple sessions, search, and bounded scrollback. It uses your configured shell on macOS and Command Prompt via ConPTY on Windows. Run Console stays separate.
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.

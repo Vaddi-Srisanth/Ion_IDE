@@ -1,0 +1,58 @@
+.ion-cinematic {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #03070e;
+  pointer-events: none;
+}
+
+.ion-cinematic canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center 48%;
+}
+
+.ion-cinematic-lockup {
+  --ion-logo-size: clamp(58px, 14vh, 104px);
+  position: absolute;
+  top: 48%;
+  inset-inline: 0;
+  transform: translateY(calc(var(--ion-logo-size) / -2));
+  display: grid;
+  justify-items: center;
+  padding-inline: 20px;
+  color: #e2effa;
+  text-align: center;
+}
+
+.ion-cinematic-lockup svg {
+  width: var(--ion-logo-size);
+  height: var(--ion-logo-size);
+  color: #8bf3e7;
+  opacity: var(--ion-glyph-reveal, 0);
+}
+
+.ion-cinematic-name {
+  margin-top: 3px;
+  padding-left: .24em;
+  font-size: clamp(24px, 5vh, 38px);
+  font-weight: 750;
+  letter-spacing: .24em;
+  opacity: var(--ion-name-reveal, 0);
+}
+
+.ion-cinematic-name span {
+  color: #9fb1c6;
+  font: 500 .5em var(--mono);
+  letter-spacing: .12em;
+}
+
+.ion-cinematic-lockup p {
+  margin-top: 12px;
+  color: #adc1d4;
+  font-size: clamp(12px, 2vh, 15px);
+  line-height: 1.45;
+  opacity: var(--ion-tagline-reveal, 0);
+}

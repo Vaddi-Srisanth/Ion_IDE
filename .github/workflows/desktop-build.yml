@@ -98,6 +98,9 @@ jobs:
       - name: Verify offline Learning Lens
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: npm run test:learning-lens
+      - name: Verify offline onboarding
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:onboarding
   windows-installer:
     name: Windows x64 installer and upgrade
     runs-on: windows-2025

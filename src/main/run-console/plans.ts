@@ -45,7 +45,7 @@ function inside(root: string, path: string) {
   return relation !== '..' && !relation.startsWith('..' + sep) && !isAbsolute(relation)
 }
 
-async function commandPaths(root: string): Promise<string[]> {
+export async function commandPaths(root: string): Promise<string[]> {
   if (windows) return workspaceSafeWindowsToolPaths(root)
   const candidates = [...installedPaths, ...(process.env.PATH ?? '').split(delimiter), ...systemPath]
   const directories = [...new Set(candidates)]
@@ -57,7 +57,7 @@ async function commandPaths(root: string): Promise<string[]> {
   return checked.filter((directory) => directory !== null)
 }
 
-async function executable(path: string, root: string): Promise<boolean> {
+export async function executable(path: string, root: string): Promise<boolean> {
   try {
     if (!isAbsolute(path) || inside(root, path) || inside(root, await realpath(path))) return false
     await access(path, constants.X_OK)
@@ -67,7 +67,7 @@ async function executable(path: string, root: string): Promise<boolean> {
   }
 }
 
-async function onPath(name: string, root: string, paths: string[], exclude: string[] = []): Promise<string | null> {
+export async function onPath(name: string, root: string, paths: string[], exclude: string[] = []): Promise<string | null> {
   for (const directory of paths) {
     const candidate = join(directory, nativeExecutable(name))
     if (!exclude.includes(candidate) && await executable(candidate, root)) return candidate
@@ -102,7 +102,7 @@ async function fileExists(path: string) {
   }
 }
 
-function envFor(paths: string[], scratch: string): NodeJS.ProcessEnv {
+export function envFor(paths: string[], scratch: string): NodeJS.ProcessEnv {
   if (windows) return windowsEnvironment(paths, scratch)
   return {
     PATH: paths.join(delimiter),
@@ -152,6 +152,11 @@ async function javaToolchain(root: string, paths: string[], scratch: string, sig
     }
   }
   throw new MissingToolchainError('A local Java JDK is required. Install a JDK containing both javac and java, then reopen Ion.')
+}
+
+export async function javaToolsFor(root: string, scratch: string, signal: AbortSignal) {
+  const paths = await commandPaths(root)
+  return { ...await javaToolchain(root, paths, scratch, signal), environment: envFor(paths, scratch) }
 }
 
 const identifier = '[$_\\p{ID_Start}][$\\p{ID_Continue}]*'

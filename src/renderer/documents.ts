@@ -51,6 +51,7 @@ interface RecordState {
   save?: Promise<boolean>;
   timer?: ReturnType<typeof setTimeout>;
   autoSaveBlocked: boolean;
+  formatHoldsSave?: boolean;
   draft?: DraftState;
 }
 
@@ -137,6 +138,18 @@ export class Documents {
 
   savedRevision(id: string): string | undefined {
     return this.records.get(id)?.revision ?? undefined;
+  }
+
+  async holdAutosaveForFormat(id: string) {
+    const record = this.records.get(id);
+    if (!record) return () => {};
+    record.formatHoldsSave = true;
+    this.cancelTimer(record);
+    await record.save?.catch(() => false);
+    return () => {
+      record.formatHoldsSave = false;
+      if (this.records.get(id) === record) this.schedule(record);
+    };
   }
 
   markConflict(id: string, path: string) {
@@ -481,7 +494,7 @@ export class Documents {
 
   private schedule(record: RecordState) {
     this.cancelTimer(record);
-    if (!this.settings.autoSave || !record.tab.dirty || !record.tab.path || record.autoSaveBlocked || record.save) return;
+    if (!this.settings.autoSave || !record.tab.dirty || !record.tab.path || record.autoSaveBlocked || record.formatHoldsSave || record.save) return;
     record.timer = setTimeout(() => {
       record.timer = undefined;
       void this.save(record.tab.id, 'auto');

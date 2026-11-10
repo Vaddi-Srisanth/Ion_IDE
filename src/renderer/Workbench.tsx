@@ -9,6 +9,7 @@ import { Icon } from './icons';
 import { loadEditor, loadedEditor } from './load-editor';
 import type MonacoSurface from './MonacoSurface';
 import type { EditorActions } from './MonacoSurface';
+import type { LiveToolReport } from './java/editor-tools';
 import { Output } from './Output';
 import { Problems, type ProblemMarker, type ProblemRow } from './Problems';
 import type { RunConsoleStore } from './run-console/store';
@@ -191,6 +192,7 @@ export interface WorkbenchProps {
   problemMarkers?: readonly ProblemMarker[];
   onRevealProblem(index: number): void;
   onExplainProblem(index: number): void;
+  onNavigateSource(path: string, line: number, column: number): void;
   terminalFocus: number;
   terminalController: RefObject<TerminalController | null>;
   onBottomTab(tab: BottomTab): void;
@@ -208,6 +210,8 @@ export interface WorkbenchProps {
   onRefresh(): void;
   onNew(): void;
   onInsertStarter?(): void;
+  formatting: boolean;
+  onFormat(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
   onSettings(patch: Partial<Settings>): void;
@@ -231,13 +235,19 @@ export function Workbench(props: WorkbenchProps) {
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
-    onNew, onInsertStarter, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
-    onFind, onSaveAs, onReload,
+    onNew, onInsertStarter, formatting, onFormat, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
+    onFind, onSaveAs, onReload, onNavigateSource,
   } = props;
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(50);
   const [markdownPercent, setMarkdownPercent] = useState(50);
   const [markdownModes, setMarkdownModes] = useState(readMarkdownModes);
+  const [languageReport, setLanguageReport] = useState<LiveToolReport | null>(null);
+  const smartJava = settings.smartLanguages?.includes('java');
+  const hasJavaSource = smartJava && tabs.some((tab) => tab.path && languageFor(tab.name).id === 'java');
+  useEffect(() => {
+    if (smartJava && !hasJavaSource) void window.ion.languageTools.release(true).catch(() => {});
+  }, [smartJava, hasJavaSource]);
   const markdownScroll = useRef(new Map<string, number>());
   const markdownRestore = useRef<{ id: string; restore?: () => void; focus: boolean } | undefined>(undefined);
   const editorActions = useRef<EditorActions | null>(null);
@@ -344,7 +354,8 @@ export function Workbench(props: WorkbenchProps) {
     '--explorer-width': `${settings.explorerWidth}px`,
     '--output-height': `${settings.outputHeight}px`, ...(hidden && { display: 'none' }),
   } as CSSProperties;
-  const bottomTabs = <BottomTabs active={bottomTab} count={problemRows.length} onSelect={onBottomTab}/>;
+  const live = smartJava && languageReport && activeCode?.path === languageReport.path ? languageReport : null;
+  const bottomTabs = <BottomTabs active={bottomTab} count={problemRows.length + (live?.rows.length ?? 0)} onSelect={onBottomTab}/>;
   return (
     <>
       <main className="workspace" style={panelSizes} data-testid="workspace" aria-label={`${modeName} workspace`} data-mode={mode}>
@@ -437,7 +448,8 @@ export function Workbench(props: WorkbenchProps) {
                   </>
                 )}
                 {(codeTab || (editorStarted && keepEditorWarm)) && <EditorContent documents={documents} tab={largeText ? undefined : activeCode} settings={settings}
-                  activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden} problemMarkers={problemMarkers}
+                  activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden || hidden} problemMarkers={problemMarkers}
+                  workspacePath={root?.path} onLanguageReport={setLanguageReport} onNavigateSource={onNavigateSource}
                   onActions={registerEditorActions} onCursor={onCursor}/>}
                 {largeText?.path && <LargeTextPreview key={`${largeText.id}:${largeText.epoch}`} path={largeText.path}/>}
                 {!active && (
@@ -495,8 +507,12 @@ export function Workbench(props: WorkbenchProps) {
             <div className="output-frame">
               {bottomTab === 'terminal'
                 ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus} onHide={onToggleBottom}/>
-                : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile} stale={problemsStale}
-                  selected={selectedProblem} onReveal={onRevealProblem} onExplain={onExplainProblem} onClose={onToggleBottom}/>
+                : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile}
+                  live={live ? { file: activeCode?.name, rows: live.rows, onReveal(index) {
+                    const location = live.rows[index]?.problem.location;
+                    if (location) editorActions.current?.goToLine(location.line, location.column, activeCode?.id);
+                  } } : undefined} stale={problemsStale} selected={selectedProblem}
+                  onReveal={onRevealProblem} onExplain={onExplainProblem} onClose={onToggleBottom}/>
                 : <Output store={runConsole} tabs={bottomTabs} canRun={canRun} canRerun={canRerun} onRun={onRun} onRerun={onRerun} onStop={onStop}
                   onInput={onRunInput} onResize={onConsoleResize} onClose={onToggleBottom}/>}
             </div>
@@ -510,6 +526,10 @@ export function Workbench(props: WorkbenchProps) {
         {active?.viewer && <span>{active.viewer.toUpperCase()} · Read only</span>}
         {notebook && <span>Jupyter Notebook</span>}
         <span className="status-autosave"><Icon name="bolt" size={12}/> Autosave {settings.autoSave ? active?.conflict ? 'paused' : 'on' : 'off'}</span>
+        <button className="status-format" type="button" data-testid="format-document" title="Format Document"
+          aria-label="Format Document" aria-busy={formatting || undefined}
+          disabled={formatting || !activeCode || Boolean(activeCode.error || activeCode.conflict || activeCode.notebookMode || largeText) || sourceHidden}
+          onClick={onFormat}><Icon name="format" size={12}/><span>Format</span></button>
       </div>
     </>
   );

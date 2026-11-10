@@ -39,6 +39,15 @@ function buffered<T>(channel: string): (callback: (value: T) => void) => () => v
 
 const bridge: IonBridge = {
   platform: process.platform === 'darwin' || process.platform === 'win32' ? process.platform : 'linux',
+  firstLaunch: process.argv.includes('--ion-first-launch'),
+  languageTools: {
+    query: (snapshot) => ipcRenderer.invoke('ion:language-query', snapshot),
+    release: (immediate) => ipcRenderer.invoke('ion:language-release', immediate),
+  },
+  formatting: {
+    run: (request) => ipcRenderer.invoke('ion:format-source', request),
+    cancel: (id) => ipcRenderer.invoke('ion:format-cancel', id),
+  },
   setOptionalPanel: (panel, path) => ipcRenderer.invoke('ion:set-optional-panel', panel, path),
   getPreferences: () => ipcRenderer.invoke('ion:get-preferences'),
   updateSettings: (patch) => ipcRenderer.invoke('ion:update-settings', patch),

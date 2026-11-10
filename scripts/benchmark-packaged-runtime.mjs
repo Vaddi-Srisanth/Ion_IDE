@@ -6,11 +6,12 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 import { chromium } from 'playwright-core'
-import { artifact, atPath, editorShows, resourceSnapshot, sleep, withScratch } from './desktop-harness.mjs'
+import { artifact, atPath, editorShows, requireVisibleDesktop, resourceSnapshot, sleep, withScratch } from './desktop-harness.mjs'
 import { median } from './benchmark-resource-metrics.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string' }, 'startup-only': { type: 'boolean' } } })
 assert.equal(process.platform, 'darwin', 'This benchmark uses macOS process accounting.')
+requireVisibleDesktop()
 const execute = promisify(execFile)
 const release = JSON.parse(await readFile('package.json', 'utf8'))
 const original = await artifact(values.target ?? `release/Ion IDE-${release.version}-darwin-${process.arch}/Ion IDE.app`)

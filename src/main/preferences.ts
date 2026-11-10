@@ -7,6 +7,7 @@ import { defaultSettings, type Entry, type Preferences, type RecentEntry, type S
 import { isThemeId } from '../shared/themes'
 import { parseShortcutOverrides, shortcutPlatform } from '../shared/shortcuts'
 import { isWithin } from './files'
+import { smartLanguageIds } from '../shared/language-tools'
 
 const maxRecents = 20
 const maxPreferencesBytes = 64 * 1024
@@ -53,6 +54,11 @@ const validators: Record<keyof Settings, (value: unknown) => boolean> = {
   tabSize: integerBetween(1, 8),
   wordWrap: isBoolean,
   lineNumbers: isBoolean,
+  smartLanguages: (value) => Array.isArray(value) && value.length <= smartLanguageIds.length
+    && value.every((language) => smartLanguageIds.some((id) => id === language)),
+  automaticSuggestions: isBoolean,
+  javaFormatter: (value) => value === 'auto' || value === 'clang-format' || value === 'google-java-format',
+  pythonFormatter: (value) => value === 'auto' || value === 'ruff' || value === 'black',
   autoSave: isBoolean,
   autoSaveDelay: integerBetween(250, 10_000),
   saveBeforeRun: isBoolean,
@@ -114,6 +120,7 @@ async function readData(path: string): Promise<string> {
 export class PreferenceStore {
   private state: Promise<Preferences> | undefined
   private mutations: Promise<void> = Promise.resolve()
+  private newProfile = false
 
   constructor(private readonly path: string) {}
 
@@ -124,6 +131,17 @@ export class PreferenceStore {
 
   drain(): Promise<void> {
     return this.mutations
+  }
+
+  takeFirstLaunch(): boolean {
+    if (!this.newProfile) return false
+    this.newProfile = false
+    // The presence of an Ion preferences file also identifies legacy profiles.
+    // Serialize the first write with any settings or recents saved by this window.
+    void this.update((previous) => ({ ...previous })).catch(() => {
+      console.warn('Unable to record the first Ion IDE launch.')
+    })
+    return true
   }
 
   async exportSnapshot() {
@@ -142,7 +160,10 @@ export class PreferenceStore {
     try {
       raw = await readData(this.path)
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return defaults()
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        this.newProfile = true
+        return defaults()
+      }
       throw new Error('Preferences could not be read. The existing settings file was left in place.')
     }
     let value: unknown

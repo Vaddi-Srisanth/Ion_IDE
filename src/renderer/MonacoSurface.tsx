@@ -7,6 +7,10 @@ import 'monaco-editor/editor/contrib/folding/browser/folding.js';
 import 'monaco-editor/editor/contrib/comment/browser/comment.js';
 import 'monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching.js';
 import 'monaco-editor/editor/contrib/wordOperations/browser/wordOperations.js';
+import 'monaco-editor/editor/contrib/suggest/browser/suggestController.js';
+import 'monaco-editor/editor/contrib/hover/browser/hoverContribution.js';
+import 'monaco-editor/editor/contrib/parameterHints/browser/parameterHints.js';
+import 'monaco-editor/editor/contrib/gotoSymbol/browser/link/goToDefinitionAtPosition.js';
 import 'monaco-editor/languages/definitions/cpp/register.js';
 import 'monaco-editor/languages/definitions/css/register.js';
 import 'monaco-editor/languages/definitions/go/register.js';
@@ -22,8 +26,11 @@ import 'monaco-editor/languages/definitions/typescript/register.js';
 import 'monaco-editor/languages/definitions/yaml/register.js';
 import type { Settings } from '../shared/contracts';
 import { editorViewSelectionLimit } from '../shared/editor-session';
+import { maxEditableTextBytes } from '../shared/large-text';
+import type { FormatResult } from '../shared/format-code';
 import type { ThemeData } from '../shared/themes';
 import { Documents, type Tab } from './documents';
+import type { LiveToolReport } from './java/editor-tools';
 import { languageFor } from './paths';
 import { applyEditorTheme, clearEditorTheme } from './themes/editor-theme';
 
@@ -49,6 +56,7 @@ export interface EditorActions {
   goToLine(line: number, column?: number, tabId?: string): boolean;
   captureView(): (() => void) | undefined;
   insertStarter(starter: { text: string; line: number; column: number }): boolean;
+  format(tabId: string, controller: AbortController): Promise<FormatResult>;
 }
 
 interface Props {
@@ -58,9 +66,12 @@ interface Props {
   activeTheme: ThemeData | null;
   accentColor?: string;
   sourceHidden?: boolean;
+  workspacePath?: string;
   problemMarkers?: readonly ProblemMarker[];
   onActions(actions: EditorActions | null): void;
   onCursor(line: number, column: number): void;
+  onLanguageReport(report: LiveToolReport | null): void;
+  onNavigateSource(path: string, line: number, column: number): void;
 }
 
 interface CachedModel {
@@ -108,16 +119,26 @@ function revealLocation(instance: editor.IStandaloneCodeEditor, model: editor.IT
   instance.revealPositionInCenterIfOutsideViewport(position);
 }
 
-export default function MonacoSurface({ documents, tab, settings, activeTheme, accentColor, sourceHidden, problemMarkers, onActions, onCursor }: Props) {
+export default function MonacoSurface({
+  documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
+  onActions, onCursor, onLanguageReport, onNavigateSource,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
   const cache = useRef(new Map<string, CachedModel>());
   const displayed = useRef<string | null>(null);
   const initialSettings = useRef(settings);
   const sourceHiddenRef = useRef(sourceHidden);
+  const activeFormat = useRef<AbortController | null>(null);
   sourceHiddenRef.current = sourceHidden;
+  useEffect(() => {
+    if (sourceHidden) activeFormat.current?.abort('view');
+  }, [sourceHidden]);
   const tabSizeRef = useRef(settings.tabSize);
   const [loaded, setLoaded] = useState<string | null>(null);
+  const [languageStatus, setLanguageStatus] = useState<string | null>(null);
+  const navigateSource = useRef(onNavigateSource);
+  navigateSource.current = onNavigateSource;
 
   useLayoutEffect(() => {
     if (activeTheme) applyEditorTheme(activeTheme, accentColor);
@@ -240,9 +261,77 @@ export default function MonacoSurface({ documents, tab, settings, activeTheme, a
         instance.focus();
         return true;
       },
+      async format(tabId, controller) {
+        const { signal } = controller;
+        const model = instance.getModel();
+        const initial = documents.getSnapshot().tabs.find((entry) => entry.id === tabId);
+        const editorUnavailable: FormatResult = { kind: 'error', message: 'Open an editable source file to format it.' };
+        if (!model || displayed.current !== tabId || !initial || initial.viewer || initial.notebookMode || initial.error
+          || initial.conflict || sourceHiddenRef.current || instance.getRawOptions().readOnly) return editorUnavailable;
+        if (model.getValueLength() > maxEditableTextBytes) {
+          return { kind: 'error', message: 'The source exceeds Ion’s 2 MiB editable file limit.' };
+        }
+        const version = model.getVersionId();
+        const stillActive = () => {
+          const snapshot = documents.getSnapshot();
+          const tab = snapshot.tabs.find((entry) => entry.id === tabId);
+          return snapshot.activeId === tabId && !sourceHiddenRef.current && instance.getModel() === model
+            && tab?.epoch === initial.epoch && tab.path === initial.path && tab.name === initial.name && !tab.conflict;
+        };
+        const cancelled = (): FormatResult => ({ kind: 'cancelled',
+          message: signal.reason === 'edit' ? 'Document changed. Formatting skipped.' : 'Formatting cancelled.' });
+        const unsubscribe = documents.subscribe(() => { if (!stillActive()) controller.abort('view'); });
+        const modelChanged = model.onDidChangeContent(() => controller.abort('edit'));
+        const editorChanged = instance.onDidChangeModel(() => controller.abort('view'));
+        const id = crypto.randomUUID();
+        let sent = false;
+        const cancel = () => { if (sent) void window.ion.formatting.cancel(id).catch(() => {}); };
+        signal.addEventListener('abort', cancel, { once: true });
+        activeFormat.current = controller;
+        const release = await documents.holdAutosaveForFormat(tabId);
+        try {
+          if (signal.aborted || !stillActive()) return cancelled();
+          const savedRevision = documents.savedRevision(tabId);
+          const options = model.getOptions();
+          sent = true;
+          const result = await window.ion.formatting.run({
+            id, name: initial.name, path: initial.path, revision: savedRevision, text: model.getValue(),
+            eol: model.getEOL() === '\r\n' ? '\r\n' : '\n', tabSize: options.tabSize, insertSpaces: options.insertSpaces,
+          });
+          if (signal.aborted || !stillActive() || model.getVersionId() !== version
+            || documents.savedRevision(tabId) !== savedRevision) return cancelled();
+          if (result.kind === 'conflict' && initial.path) documents.markConflict(tabId, initial.path);
+          if (result.kind !== 'formatted') return result;
+          modelChanged.dispose();
+          const selections = instance.getSelections() ?? [];
+          const scroll = { scrollTop: instance.getScrollTop(), scrollLeft: instance.getScrollLeft() };
+          instance.pushUndoStop();
+          const applied = instance.executeEdits('ion-format-document', [{ range: model.getFullModelRange(), text: result.text }],
+            () => selections.map((selection) => Selection.fromPositions(
+              model.validatePosition(selection.getSelectionStart()), model.validatePosition(selection.getPosition()),
+            )));
+          instance.pushUndoStop();
+          instance.setScrollPosition(scroll);
+          if (applied && model.getVersionId() === version + 1) {
+            const buffer = (model as editor.ITextModel & {
+              getTextBuffer?(): { ionCompactFormattedText?(text: string): void };
+            }).getTextBuffer?.();
+            buffer?.ionCompactFormattedText?.(result.text);
+          }
+          return applied ? result : editorUnavailable;
+        } finally {
+          release();
+          unsubscribe();
+          modelChanged.dispose();
+          editorChanged.dispose();
+          signal.removeEventListener('abort', cancel);
+          if (activeFormat.current === controller) activeFormat.current = null;
+        }
+      },
     });
 
     return () => {
+      activeFormat.current?.abort('view');
       onActions(null);
       cursorListener.dispose();
       scrollListener.dispose();
@@ -274,6 +363,9 @@ export default function MonacoSurface({ documents, tab, settings, activeTheme, a
   const id = tab?.id ?? null;
   const epoch = tab?.epoch ?? 0;
   const language = languageFor(tab?.name ?? "").id;
+  const java = language === 'java' && !sourceHidden;
+  const smart = java && settings.smartLanguages?.includes('java');
+  const automaticSuggestions = java && settings.automaticSuggestions;
   useEffect(() => {
     const instance = editorRef.current;
     if (!instance) return;
@@ -354,6 +446,37 @@ export default function MonacoSurface({ documents, tab, settings, activeTheme, a
     return () => { cancelled = true; };
   }, [documents, id, language, epoch, onCursor]);
 
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      quickSuggestions: automaticSuggestions ? { other: 'on', comments: 'off', strings: 'off' } : false,
+      suggestOnTriggerCharacters: automaticSuggestions,
+      parameterHints: { enabled: Boolean(smart) },
+      renderValidationDecorations: smart ? 'on' : 'off',
+      lightbulb: { enabled: editor.ShowLightbulbIconMode.Off },
+    });
+  }, [automaticSuggestions, smart]);
+
+  const path = tab?.path;
+  useEffect(() => {
+    const instance = editorRef.current;
+    const model = instance?.getModel();
+    if (!java || !id || loaded !== id || !instance || !model || displayed.current !== id) return;
+    let cancelled = false;
+    let tools: { dispose(): void } | undefined;
+    void import('./java/editor-tools').then(({ attachJavaTools }) => {
+      if (cancelled || instance.getModel() !== model) return;
+      tools = attachJavaTools(instance, model, {
+        smart: Boolean(smart), path: path ?? undefined, onReport: onLanguageReport, onStatus: setLanguageStatus,
+        onNavigate: (...location) => navigateSource.current(...location),
+      });
+    }).catch(() => { if (!cancelled) setLanguageStatus('Java editor tools could not be loaded.'); });
+    return () => {
+      cancelled = true;
+      tools?.dispose();
+      setLanguageStatus(null);
+    };
+  }, [java, id, loaded, epoch, path, workspacePath, smart, onLanguageReport]);
+
   useLayoutEffect(() => {
     const instance = editorRef.current;
     const model = instance?.getModel();
@@ -373,8 +496,10 @@ export default function MonacoSurface({ documents, tab, settings, activeTheme, a
 
   const retry = () => { if (tab) void documents.reload(tab.id); };
   return (
-    <div className={`editor-surface${tab ? "" : " editor-parked"}`} data-testid="editor" aria-hidden={!tab || undefined}>
+    <div className={`editor-surface${tab ? "" : " editor-parked"}`} data-testid="editor"
+      data-smart-java={smart || undefined} aria-hidden={!tab || undefined}>
       <div className="monaco-host" ref={host}/>
+      {java && languageStatus && <div className="java-tool-status" role="status">{languageStatus}</div>}
       {tab && loaded !== tab.id && (
         <div className="editor-loading" role={tab.error ? 'alert' : 'status'}>
           {tab.error

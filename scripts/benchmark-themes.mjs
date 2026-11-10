@@ -7,7 +7,7 @@ import { basename, join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs, promisify } from 'node:util'
 import { chromium } from 'playwright-core'
-import { artifact, editorShows, resourceSnapshot, withScratch } from './desktop-harness.mjs'
+import { artifact, editorShows, requireVisibleDesktop, resourceSnapshot, withScratch } from './desktop-harness.mjs'
 
 const { values: options } = parseArgs({ options: {
   target: { type: 'string' },
@@ -24,6 +24,7 @@ if (options.help) {
   process.exit(0)
 }
 assert.equal(process.platform, 'darwin', 'Theme benchmark uses the packaged macOS app and macOS process accounting.')
+requireVisibleDesktop()
 function positiveInteger(option, limit) {
   const value = Number(options[option])
   assert.ok(Number.isInteger(value) && value >= 1 && value <= limit, `--${option} must be an integer from 1 to ${limit}.`)

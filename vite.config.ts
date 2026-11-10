@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { monacoTokenizationMemory } from './scripts/monaco-tokenization-memory.ts'
 import { monacoViewMemory } from './scripts/monaco-view-memory.ts'
+import { monacoFormatMemory } from './scripts/monaco-format-memory.ts'
 
 function monacoSanitizer(): Plugin {
   const sanitizeModule = '/monaco-editor/esm/vs/base/browser/domSanitize.js'
@@ -18,7 +19,7 @@ function monacoSanitizer(): Plugin {
   }
 }
 
-const monacoPlugins = () => [monacoSanitizer(), monacoViewMemory(), monacoTokenizationMemory()]
+const monacoPlugins = () => [monacoSanitizer(), monacoViewMemory(), monacoTokenizationMemory(), monacoFormatMemory()]
 
 export default defineConfig({
   root: fileURLToPath(new URL('./src/renderer', import.meta.url)),

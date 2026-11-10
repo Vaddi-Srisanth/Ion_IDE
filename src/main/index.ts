@@ -8,7 +8,8 @@ import { defaultSettings, type Entry, type MenuCommand, type OptionalPanel, type
 import { isThemeId } from '../shared/themes'
 import { documentFormat } from '../shared/viewers'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
-import { maxTextCopyBytes } from '../shared/large-text'
+import { maxEditableTextBytes, maxTextCopyBytes } from '../shared/large-text'
+import type { FormatRequest, FormatResult } from '../shared/format-code'
 import type { NotebookKernelStatus } from '../shared/notebook-kernel'
 import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
 import { diagnosticPackIds } from '../shared/learning-packs'
@@ -22,6 +23,8 @@ import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
 import type { InteractiveRunner, NativeProject } from './run-console'
 import type { TerminalService } from './terminal/service'
+import type { JavaService } from './java/service'
+import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
 import type { NotebookKernels } from './notebooks/kernel-service'
@@ -77,6 +80,11 @@ let themeStore: ThemeStore
 let initialized = false
 let window: BrowserWindow | null = null
 let openFullScreen = defaultSettings.openFullScreen
+let smartLanguages = defaultSettings.smartLanguages
+let javaSession: { key: string; controller: AbortController; service: Promise<JavaService> } | undefined
+let javaIdle: ReturnType<typeof setTimeout> | undefined
+let javaDrain = Promise.resolve()
+let formatJob: { id: string; controller: AbortController; done: Promise<FormatResult> } | undefined
 let closeApproved = false
 let closePending = false
 let quitRequested = false
@@ -317,10 +325,122 @@ function applyShortcuts(overrides: ShortcutOverrides) {
   shortcutOverrides = overrides
 }
 
+let systemFileRequested = false
+
+function formatDocument(target: BrowserWindow, value: unknown): Promise<FormatResult> {
+  const request = value as Partial<FormatRequest> | null
+  if (!request || typeof request.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(request.id)
+    || typeof request.name !== 'string' || request.name.length > 255 || basename(request.name) !== request.name
+    || request.name.includes('\0') || typeof request.text !== 'string'
+    || (request.eol !== '\n' && request.eol !== '\r\n') || typeof request.insertSpaces !== 'boolean'
+    || typeof request.tabSize !== 'number' || !Number.isInteger(request.tabSize) || request.tabSize < 1 || request.tabSize > 32
+    || (request.path !== null && (typeof request.path !== 'string' || typeof request.revision !== 'string' || request.revision.length > 256))) {
+    return Promise.resolve({ kind: 'error', message: 'Invalid document formatting request.' })
+  }
+  try { fileText(request.text, maxEditableTextBytes) }
+  catch { return Promise.resolve({ kind: 'error', message: 'Formatting requires valid UTF-8 source up to 2 MiB.' }) }
+  if (formatJob) return Promise.resolve({ kind: 'error', message: 'Formatting is already in progress.' })
+  const snapshot = request as FormatRequest
+  const controller = new AbortController()
+  const { signal } = controller
+  const scope = files
+  const workspace = scope.rootPath
+  const current = () => target === window && scope === files && scope.rootPath === workspace && !signal.aborted
+  const cancelled: FormatResult = { kind: 'cancelled', message: 'Formatting cancelled.' }
+  const conflict: FormatResult = { kind: 'conflict', message: 'File changed on disk. Review the conflict before formatting.' }
+  const done = (async (): Promise<FormatResult> => {
+    let root = workspace
+    if (snapshot.path !== null) {
+      const { path, stats } = await scope.inspect(snapshot.path, 'file')
+      if (revision(stats) !== snapshot.revision) return conflict
+      if (stats.size > BigInt(maxEditableTextBytes)) return { kind: 'error', message: 'This file is read only in Ion.' }
+      if (!root || !isWithin(root, path)) root = null
+      snapshot.path = path
+      snapshot.name = basename(path)
+    }
+    if (!current()) return cancelled
+    if (documentFormat(snapshot.name) || isNotebookName(snapshot.name)) {
+      return { kind: 'error', message: 'Format is available for editable source files.' }
+    }
+    const [{ formatSource }, { settings }] = await Promise.all([import('./format/service'), preferences.get()])
+    const result = await formatSource(snapshot, root, settings, signal)
+    if (!current()) return cancelled
+    if (snapshot.path && (result.kind === 'formatted' || result.kind === 'unchanged')) {
+      const latest = await scope.inspect(snapshot.path, 'file').catch(() => undefined)
+      if (!current()) return cancelled
+      if (!latest || revision(latest.stats) !== snapshot.revision) return conflict
+    }
+    return result
+  })().catch((error: unknown): FormatResult => signal.aborted ? cancelled : ({
+    kind: 'error', message: error instanceof Error ? error.message.slice(0, 300) : 'Could not format the document.',
+  })).finally(() => { if (formatJob?.controller === controller) formatJob = undefined })
+  formatJob = { id: snapshot.id, controller, done }
+  return done
+}
+
+async function stopJavaTools() {
+  clearTimeout(javaIdle)
+  const session = javaSession
+  javaSession = undefined
+  if (session) {
+    session.controller.abort()
+    javaDrain = session.service.then((service) => service.stop(), () => {})
+  }
+  await javaDrain
+}
+
+async function queryLanguage(target: BrowserWindow, value: unknown) {
+  const snapshot = value as Partial<ToolSnapshot> | null
+  if (snapshot?.language !== 'java' || !smartLanguages.includes('java')) return null
+  if (typeof snapshot.path !== 'string' || !snapshot.path.toLowerCase().endsWith('.java')
+    || typeof snapshot.text !== 'string' || Buffer.byteLength(snapshot.text) > toolTextLimit || snapshot.text.includes('\0')
+    || typeof snapshot.version !== 'number' || !Number.isSafeInteger(snapshot.version) || snapshot.version < 1
+    || typeof snapshot.offset !== 'number' || !Number.isSafeInteger(snapshot.offset)
+    || snapshot.offset < 0 || snapshot.offset > snapshot.text.length
+    || !['diagnostics', 'complete', 'signature', 'definition', 'references'].includes(snapshot.operation ?? '')) {
+    throw new Error('Invalid Java analysis request.')
+  }
+  const scope = files
+  const workspace = scope.rootPath
+  const { path } = await scope.inspect(snapshot.path, 'file')
+  const root = workspace && isWithin(workspace, path) ? workspace : null
+  const key = root ?? path
+  if (javaSession?.key !== key) await stopJavaTools()
+  if (target !== window || files !== scope || scope.rootPath !== workspace || !smartLanguages.includes('java')
+    || (javaSession && javaSession.key !== key)) return null
+  clearTimeout(javaIdle)
+  if (!javaSession) {
+    const controller = new AbortController()
+    const service = import('./java/service').then(({ JavaService }) => JavaService.start(root, path, controller.signal))
+    javaSession = { key, controller, service }
+  }
+  const session = javaSession
+  try {
+    const service = await session.service
+    if (javaSession !== session || scope.rootPath !== workspace || target !== window) return null
+    const reply = await service.query({ ...snapshot, path } as ToolSnapshot)
+    if (javaSession !== session || scope.rootPath !== workspace || target !== window) return null
+    if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'references')) {
+      const locations = await Promise.all(reply.rows.map(async ([file, line, column]) => {
+        if (file === path) return [file, line, column]
+        if (!root || !isWithin(root, file)) return null
+        return scope.inspect(file, 'file').then(({ path }) => [path, line, column], () => null)
+      }))
+      reply.rows = locations.filter((location) => location !== null)
+    }
+    return reply
+  } catch (error) {
+    if (session !== javaSession) return null
+    if (await session.service.then((service) => service.closed, () => true) && javaSession === session) await stopJavaTools()
+    throw error
+  }
+}
+
 function createWindow(): BrowserWindow {
   closeApproved = false
   closePending = false
   let restartAfterCrash = false
+  const firstLaunch = preferences.takeFirstLaunch() && !systemFileRequested
   const target = new BrowserWindow({
     width: 1260,
     height: 790,
@@ -332,6 +452,7 @@ function createWindow(): BrowserWindow {
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
       preload: resolve(__dirname, '../preload/index.cjs'),
+      ...(firstLaunch ? { additionalArguments: ['--ion-first-launch'] } : {}),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -386,6 +507,8 @@ function createWindow(): BrowserWindow {
     webPreview = undefined
     const interactive = activeRun?.owner === target ? activeRun : null
     interactive?.controller.abort()
+    const formatting = formatJob
+    formatting?.controller.abort()
     window = null
     files = new WorkspaceFiles()
     trustedSources.clear()
@@ -403,8 +526,8 @@ function createWindow(): BrowserWindow {
     terminalService = undefined
     terminalFocused = false
     ignoreTerminalAccelerators = false
-    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, interactive?.job,
-      practiceRun?.job?.catch(() => undefined)])
+    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopJavaTools(), interactive?.job,
+      practiceRun?.job?.catch(() => undefined), formatting?.done])
     if (restartAfterCrash) {
       void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
     } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
@@ -643,9 +766,22 @@ function registerIpc(): void {
     if (learningLensEnabled !== result.learningLens) learningSelectionGeneration++
     learningLensEnabled = result.learningLens
     openFullScreen = result.openFullScreen
+    smartLanguages = result.smartLanguages
+    if (!smartLanguages.includes('java')) void stopJavaTools()
     applyProfile(result.resourceProfile)
     applyShortcuts(result.shortcuts)
     return result
+  })
+  handle('language-query', queryLanguage)
+  handle('format-source', formatDocument)
+  handle('format-cancel', (_target, id) => {
+    if (typeof id === 'string' && formatJob?.id === id) formatJob.controller.abort()
+  })
+  handle('language-release', (_target, immediate) => {
+    if (typeof immediate !== 'boolean' || !javaSession) return
+    clearTimeout(javaIdle)
+    if (immediate) return stopJavaTools()
+    javaIdle = setTimeout(() => void stopJavaTools(), 15_000)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const getUpdates = () => updates ??= import('./updates').then(({ GitHubUpdates }) =>
@@ -1174,6 +1310,7 @@ async function openFromSystem(path: string): Promise<void> {
 
 function queueSystemFile(path: string) {
   if (!isAbsolute(path)) return
+  systemFileRequested = true
   if (initialized) void openFromSystem(path)
   else if (earlyFiles.length < 20) earlyFiles.push(path)
 }
@@ -1223,11 +1360,12 @@ void app.whenReady().then(async () => {
     registerSession(),
   ])
   openFullScreen = startupPreferences?.settings.openFullScreen ?? defaultSettings.openFullScreen
+  smartLanguages = startupPreferences?.settings.smartLanguages ?? defaultSettings.smartLanguages
   learningLensEnabled = startupPreferences?.settings.learningLens ?? defaultSettings.learningLens
   registerIpc()
   installMenu(sendCommand, shortcutOverrides)
+  openWindowsArguments(process.argv)
   initialized = true
   if (!window) createWindow()
   for (const path of earlyFiles.splice(0)) void openFromSystem(path)
-  openWindowsArguments(process.argv)
 }).catch(startupFailure)

@@ -3,7 +3,7 @@ import { once } from 'node:events'
 import { mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, openFromExplorer,
+import { artifact, atPath, close, createProject, desktopWindowsVisible, editorShows, eventually, launch, openFolder, openFromExplorer,
   stubDialogs, withScratch } from './desktop-harness.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
@@ -12,7 +12,7 @@ const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 
 async function launchSession(profile) {
   const session = await launch(target, profile)
-  if (process.platform !== 'darwin') return session
+  if (process.platform !== 'darwin' || !desktopWindowsVisible()) return session
   // Drive the renderer through Playwright without allowing host keyboard
   // input to modify the disposable files while the fixture runs.
   try {

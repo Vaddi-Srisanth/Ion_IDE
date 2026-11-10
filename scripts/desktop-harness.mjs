@@ -7,12 +7,21 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright-core'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
 export const runnerMarker = 'ION-DESKTOP-RUN-OK'
 export const testId = (name) => `[data-testid="${name}"]`
+const backgroundEntry = fileURLToPath(new URL('./background-desktop.cjs', import.meta.url))
+
+export const desktopWindowsVisible = () =>
+  (process.env.ION_SHOW_TEST_WINDOWS ?? (process.env.CI === 'true' ? '1' : '0')) === '1'
+
+export function requireVisibleDesktop() {
+  assert.ok(desktopWindowsVisible(), 'This check opens native windows. Set ION_SHOW_TEST_WINDOWS=1 when you are ready to run it.')
+}
 
 export async function temporaryDirectory(prefix) {
   return realpath(await mkdtemp(join(tmpdir(), `ion-${prefix}-`)))
@@ -65,14 +74,24 @@ export async function artifact(target) {
   return { path, executablePath: require('electron'), args: [entry] }
 }
 
-export async function launch(target, profile) {
+export async function launch(target, profile, { firstRun = false, args: launchArgs = [], startAt = 'welcome' } = {}) {
   const { executablePath, args } = target
+  if (!firstRun) {
+    await mkdir(profile, { recursive: true })
+    await writeFile(join(profile, 'preferences.json'), '{"version":1,"settings":{},"recents":[]}\n', { flag: 'wx' })
+      .catch((error) => { if (error.code !== 'EEXIST') throw error })
+  }
   const env = { ...process.env }
   delete env.ION_DEV_URL
   delete env.ELECTRON_RUN_AS_NODE
+  const background = !desktopWindowsVisible()
+  if (background) {
+    assert.ok(args.length === 1, 'Background desktop checks need an unpackaged production build.')
+    env.ION_TEST_ENTRY = args[0]
+  }
   const began = performance.now()
   const app = await _electron.launch({
-    executablePath, args: [`--user-data-dir=${profile}`, ...args], env, timeout: 20_000,
+    executablePath, args: [`--user-data-dir=${profile}`, ...launchArgs, ...(background ? [backgroundEntry] : args)], env, timeout: 20_000,
   })
   const requests = []
   const errors = []
@@ -83,8 +102,13 @@ export async function launch(target, profile) {
     const page = await app.firstWindow({ timeout: 12_000 })
     page.on('pageerror', (error) => errors.push(error.message))
     page.setDefaultTimeout(8_000)
-    await page.getByTestId('welcome').waitFor()
+    await page.getByTestId(startAt).waitFor()
     const startupMs = performance.now() - began
+    if (background) {
+      const visible = await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((window) => window.isVisible() || window.isFocused()))
+      assert.equal(visible, false, 'A background test window became visible or took focus.')
+    }
     const identity = await app.evaluate(({ app }) => ({ profile: app.getPath('userData'), pid: process.pid }))
     assert.equal(identity.profile, profile, 'app uses disposable profile')
     assert.equal(page.url(), 'app://workbench/index.html', 'production renderer loaded from the local app protocol')
@@ -101,7 +125,8 @@ export async function close(session) {
   const exited = once(proc, 'exit')
   // Keep the inspector attached while the renderer confirms the window close.
   // Wait for the actual app process, including the asynchronous runner drain.
-  void session.app.evaluate(({ app }) => app.quit()).catch(() => {})
+  let quitError
+  void session.app.evaluate(({ app }) => app.quit()).catch((error) => { quitError = error })
   let timer
   try {
     await Promise.race([
@@ -111,6 +136,13 @@ export async function close(session) {
       }),
     ])
   } catch (error) {
+    const dialogs = session.page && await Promise.race([
+      session.page.locator('dialog[open]').evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')))
+        .catch(() => undefined),
+      sleep(300, undefined, { ref: false }),
+    ])
+    if (dialogs?.length) console.error('Open dialogs at shutdown:', dialogs)
+    if (quitError) console.error('Failed to request desktop shutdown:', quitError.message)
     if (proc.exitCode === null && proc.signalCode === null) {
       proc.kill('SIGKILL')
       await exited

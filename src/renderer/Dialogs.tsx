@@ -35,7 +35,7 @@ export function Modal({ title, className = '', children, onClose, busy = false }
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChange, onUpdateLaunchChange,
-  preferencesReady, onShortcutChange, onExportProfile, onClose }: {
+  preferencesReady, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string): Promise<void>;
@@ -44,6 +44,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
   preferencesReady: boolean;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
+  onReplayIntro(): void;
   onClose(): void;
 }) {
   const themeSupportsAccent = ['dark', 'light', 'system'].includes(settings.theme);
@@ -72,6 +73,10 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
           </div>
           <input id="open-full-screen" type="checkbox" aria-describedby="open-full-screen-hint"
             checked={settings.openFullScreen} onChange={(event) => onChange({ openFullScreen: event.target.checked })}/>
+        </div>
+        <div className="setting">
+          <div><b>Ion introduction</b><p>Replay the first-launch sequence.</p></div>
+          <button className="button" type="button" data-testid="onboarding-replay" onClick={onReplayIntro}>Replay Intro</button>
         </div>
       </div>
       <div className="settings-group">
@@ -120,6 +125,39 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
           onChange={(event) => onChange({ lineNumbers: event.target.checked })}/></label>
         <label className="setting">Word wrap<input type="checkbox" checked={settings.wordWrap}
           onChange={(event) => onChange({ wordWrap: event.target.checked })}/></label>
+      </div>
+
+      <div className="settings-group">
+        <h3>Language tools</h3>
+        <label className="setting">
+          <span><b>Smart Java</b><small>Use a local JDK (17+) for semantic suggestions and live diagnostics in saved Java files.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('java')}
+            onChange={(event) => onChange({ smartLanguages: event.target.checked ? ['java'] : [] })}/>
+        </label>
+        <label className="setting">
+          <span><b>Automatic suggestions</b><small>Show language suggestions as you type. Press Ctrl+Space for manual suggestions.</small></span>
+          <input type="checkbox" checked={settings.automaticSuggestions}
+            onChange={(event) => onChange({ automaticSuggestions: event.target.checked })}/>
+        </label>
+      </div>
+
+      <div className="settings-group">
+        <h3>Formatting</h3>
+        <div className="setting">
+          <label htmlFor="java-formatter">Java formatter</label>
+          <select id="java-formatter" value={settings.javaFormatter ?? 'auto'} onChange={(event) =>
+            onChange({ javaFormatter: event.target.value as Settings['javaFormatter'] })}>
+            <option value="auto">Automatic</option><option value="clang-format">clang-format</option>
+            <option value="google-java-format">Google Java Format</option>
+          </select>
+        </div>
+        <div className="setting">
+          <label htmlFor="python-formatter">Python formatter</label>
+          <select id="python-formatter" value={settings.pythonFormatter ?? 'auto'} onChange={(event) =>
+            onChange({ pythonFormatter: event.target.value as Settings['pythonFormatter'] })}>
+            <option value="auto">Automatic</option><option value="ruff">Ruff</option><option value="black">Black</option>
+          </select>
+        </div>
       </div>
 
       <div className="settings-group">

@@ -69,6 +69,8 @@ async function buildDesktop() {
       'main/notebooks/kernel-service': 'src/main/notebooks/kernel-service.ts',
       'main/run-console/index': 'src/main/run-console/index.ts',
       'main/terminal/service': 'src/main/terminal/service.ts',
+      'main/java/service': 'src/main/java/service.ts',
+      'main/format/service': 'src/main/format/service.ts',
       'main/web-preview': 'src/main/web-preview.ts',
       'main/profile-export': 'src/main/profile-export.ts',
       'main/workspace-search': 'src/main/workspace-search.ts',
@@ -77,17 +79,17 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|terminal\/service|web-preview|profile-export|workspace-search|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
           const singleFile = path.endsWith('/ipc') || path === './web-preview' || path === './profile-export'
             || path === './notebooks/kernel-service' || path === './learning/catalog-store'
-            || path === './workspace-search' || path === './terminal/service'
+            || path === './workspace-search' || path.endsWith('/service')
           return { path: path + (singleFile ? '.cjs' : '/index.cjs'), external: true }
         })
       },
     }],
     bundle: true,
-    loader: { '.py': 'text' },
+    loader: { '.py': 'text', '.java': 'text' },
     external: ['electron'],
     outdir: output,
     outExtension: { '.js': '.cjs' },

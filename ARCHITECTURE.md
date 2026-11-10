@@ -43,12 +43,28 @@ The desktop run service is loaded on the first Run request. Language plans resol
 
 The general-purpose Terminal loads its window-owned service only on the first explicit request. Main resolves the shell and workspace directory, and the same native helper opens a separate PTY for each interactive shell. The renderer acknowledges output as xterm parses it, allowing the helper to apply backpressure without retaining an unbounded transcript. Bounded session buffers keep parsing while the panel is hidden. Closing a session terminates its native job groups and disposes its renderer. Window teardown drains the sessions independently of the code runner.
 
+### Local language adapters
+
+The editor registers Java providers only while a Java model is active. Basic mode uses local keyword and snippet data. Smart Java uses a language-tagged request with an authorized path, buffer revision, and cursor offset. Main lazy-loads a single JDK compiler API worker for the current workspace or standalone file. The worker uses the live buffer, standard library, and scoped local source roots. It disables annotation processing and never generates class files from the user's source. The editor rejects responses for an obsolete revision and keeps live diagnostics separate from Run Console results.
+
+Each request has an eight-second deadline and a 256 KiB buffer limit. The service keeps at most one running request, one pending diagnostic, and one pending interactive request. Closing the last Java tab, disabling Smart Java, or closing the window stops the worker. Switching away gives it a short grace period to support quick tab switches. Language tooling is independent of lesson packs and Run.
+
+### Document formatting
+
+The Format status control and command share the active Monaco model. The renderer snapshots its text and revision only on request and cancels on an edit, tab change, or Escape. Main validates the file grant and saved revision before and after running a language-specific formatter. The formatter adapter loads lazily and uses the existing process runner with structured arguments, stdin, a ten-second deadline, bounded stdout/stderr, and a private temporary directory. External tools resolve outside the workspace. Prettier receives a temporary data-only configuration with built-in parsers.
+
+The renderer checks the model and revision again before applying one undoable edit. Monaco keeps its existing model, encoding metadata, selection, and scroll position. The active tab briefly holds its autosave timer while the request is pending and resumes its existing save policy afterward.
+
 ## Desktop foundation
 
 1. Establish the desktop shell, build, IPC boundaries, and native lifecycle.
 2. Connect the welcome screen, explorer, editor, tabs, save and autosave, and persistent appearance controls.
 3. Connect C toolchain detection, compile and run, cancellation, and output with explicit local execution consent.
 4. Exercise core workflows on macOS, compare production startup and interaction profiles, and package the app.
+
+### First launch
+
+Main checks whether the profile has an Ion preferences file. For a new profile, it records first launch through the existing atomic preference write queue and passes a single boolean through the isolated preload. An incoming system file request takes precedence over onboarding. The renderer reuses its Welcome and workspace commands, and imports the cinematic scene only while onboarding or an explicit replay is visible and motion is allowed. The scene owns one bounded canvas and releases its drawing loop, listeners, and backing buffer when dismissed.
 
 ## Optional workspace services
 

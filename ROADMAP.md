@@ -2,6 +2,19 @@
 
 These milestones describe product scope. The current package uses its own release sequence. See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for implementation and verification status and [PERFORMANCE.md](PERFORMANCE.md) for measured resource use.
 
+## Performance-first development milestones
+
+Verify each milestone against a preserved production build before opening the next one. Keep the existing editor and process ownership. Measure optional features both closed and active, and check that their cleanup preserves files, drafts, and running work.
+
+| Milestone | Existing foundation | Next verified increment |
+| --- | --- | --- |
+| A · First launch | The offline intro and optional setup reuse Welcome, its four workspaces, starter files, and Run Console. macOS functional and playback measurements are recorded. | Verify the installed Windows file-open and reduced-motion paths on Windows, and repeat the resource checks on lower-memory hardware. |
+| B · Java intelligence | Ion provides basic snippets and an opt-in compiler-backed Java adapter for semantic completion, live diagnostics, signatures, and navigation. | Verify Windows runtime behavior and larger Java workspaces. Expand project classpath and reference coverage only after profiling. |
+| C · Learning Lens | C connects diagnostics, source, and lessons. Reviewed Java and Python guides already cover selected errors. | Grow verified C coverage, then extend source-linked Lens to Java. Keep exercise results separate from compiler resolutions. |
+| D · Project development | Tabs, Quick Open, search, document and Markdown splits, and explicit C/C++ and Java builds are available. | Verify a second source view with shared models and independent view state, then add on-demand Git and scoped run configurations. |
+| E · Debugging | An isolated Apple LLDB-DAP probe ran a C fixture. Run Console is independent. | Integrate one debugger with verified stepping, state inspection, explicit execution consent, and adapter cleanup. |
+| F · Usability | Session recovery, optional learning panels, and manual versus test-verified project progress already exist. | Add Quiet Mode, extend view restoration and history navigation, and test a local redacted issue-report export. |
+
 ## Release 0.1 — Essential IDE
 
 - Keep the core workflow offline on macOS. Open Free Coding from Welcome, open individual files and folders, navigate the explorer, and edit, save, rename, or move local entries to Trash. Maintain syntax highlighting, multiple tabs, dirty indicators, autosave, resizable panels, persisted settings, and lightweight themes.
@@ -14,6 +27,18 @@ These milestones describe product scope. The current package uses its own releas
 - Preserve the implemented C concept library, recognized GCC and Clang diagnostics, repetition tracking across distinct source revisions, and local history. Keep raw diagnostics visible when categorization is uncertain.
 - Expand the C diagnostic corpus with representative compiler versions and keep the optional panel and history usable during a real edit, compile, and correction loop. Verify that repeated identical runs leave the repetition count unchanged.
 - Maintain the 19 individually installable offline packs and their syntax guides, API examples, and exercises. Extend the reviewed diagnostic corpus for C, C++, Java, Python, and JavaScript as new toolchain output is verified. Learning Lens currently uses the C single-file workflow.
+
+### Universal Learning System
+
+The Essential Java Editing milestone establishes the first language adapter. The next milestone extends the existing pack format with shared course hierarchy, lesson navigation, and stable lesson IDs scoped to a pack and language. Use Java as the reference and adapt the existing C pack. Keep existing learning history readable during migration. Keep completed lessons, quiz attempts, practice evidence, and compiler resolutions separate. The future optional Mentor will receive the selected language and lesson context only when asked.
+
+| Wave | Course rollout |
+| --- | --- |
+| 1 | Java, C, C++, Python, JavaScript |
+| 2 | TypeScript, HTML, CSS, SQL, Go, Rust, C# |
+| 3 | Kotlin, Swift, PHP, Ruby, Bash, Dart |
+
+Test shared navigation and isolated progress across the first two migrated packs before expanding. Compare memory and startup with 5, 25, 50, and 100 installed packs once the shared course architecture is ready. Track course depth, quiz and practice availability, semantic editing, explanations, and code execution as separate capabilities.
 
 ## Release 0.3 — Project Intelligence
 

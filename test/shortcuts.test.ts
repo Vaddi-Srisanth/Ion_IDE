@@ -12,6 +12,10 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+F'), 'workspace-search')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+J'), 'toggle-terminal')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Alt+J'), 'focus-terminal')
+  for (const platform of ['darwin', 'win32', 'linux'] as const) {
+    assert.equal(resolveShortcuts({}, platform).get('Alt+Shift+F'), 'format-document')
+    assert.deepEqual(parseShortcutOverrides({ 'format-document': 'Mod+Shift+G' }, platform), { 'format-document': 'Mod+Shift+G' })
+  }
   assert.equal(resolveShortcuts({ find: 'Mod+Shift+J' }, 'darwin').get('Mod+Shift+J'), 'find')
   assert.equal(resolveShortcuts({ find: 'Mod+Shift+F' }, 'darwin').get('Mod+Shift+F'), 'find')
   assert.equal(resolveShortcuts({ run: 'F6' }, 'darwin').get('F6'), 'run')
@@ -25,6 +29,7 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
 test('shortcut validation protects native roles, normal typing, and conflicting bindings', () => {
   assert.equal(normalizeShortcut('P', 'darwin'), null)
   assert.equal(normalizeShortcut('Alt+N', 'darwin'), null)
+  assert.equal(normalizeShortcut('Shift+Option+F', 'darwin'), 'Alt+Shift+F')
   assert.equal(normalizeShortcut('Mod+Command+P', 'darwin'), null)
   assert.equal(parseShortcutOverrides({ unknown: 'F6' }, 'darwin'), null)
   assert.equal(parseShortcutOverrides({ run: 'Mod+Q' }, 'darwin'), null)
@@ -40,6 +45,7 @@ test('physical keys recover shifted punctuation and option-modified shortcuts', 
   assert.equal(inputShortcut({ ...input, key: 'F5', code: 'F5', shift: true }, 'darwin'), 'Shift+F5')
   assert.equal(inputShortcut({ ...input, key: '!', code: 'Digit1', meta: true, shift: true }, 'darwin'), 'Mod+Shift+1')
   assert.equal(inputShortcut({ ...input, key: 'ƒ', code: 'KeyF', meta: true, alt: true }, 'darwin'), 'Mod+Alt+F')
+  assert.equal(inputShortcut({ ...input, key: 'Ï', code: 'KeyF', shift: true, alt: true }, 'darwin'), 'Alt+Shift+F')
   assert.equal(inputShortcut({ ...input, key: 'g', code: 'KeyG', control: true }, 'darwin'), 'Ctrl+G')
   assert.equal(inputShortcut({ ...input, control: true }, 'linux'), 'Mod+P')
 })

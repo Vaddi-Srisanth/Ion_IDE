@@ -31,6 +31,7 @@ interface ProcessOptions {
   budget: { remaining: number }
   environment: NodeJS.ProcessEnv
   splitOutput?: boolean
+  collectOutput?: boolean
   onOutput?: (text: string) => void
   interactive?: (write: (text: string | null) => boolean) => void
 }
@@ -103,7 +104,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
 
     function append(text: string, stream?: string[]) {
       if (!text) return
-      if (!options.interactive) chunks.push(text)
+      if (!options.interactive && options.collectOutput !== false) chunks.push(text)
       stream?.push(text)
       options.onOutput?.(text)
     }

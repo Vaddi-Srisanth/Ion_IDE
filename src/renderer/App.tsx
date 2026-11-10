@@ -7,6 +7,7 @@ import type { EditorActions } from './MonacoSurface';
 import { RunConsoleStore } from './run-console/store';
 import { isWithin } from './paths';
 import { Welcome } from './Welcome';
+import { Onboarding } from './onboarding/Onboarding';
 import type { CompilerProblem, LearningDiagnostic, LearningFeedback } from '../shared/learning';
 import type { ProblemMarker, ProblemRow } from './Problems';
 import { diagnosticPackIds, type PackLibrary } from '../shared/learning-packs';
@@ -90,6 +91,8 @@ export function App() {
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   const [recoveryDrafts, setRecoveryDrafts] = useState<RecoveryDraft[]>([]);
   const [screen, setScreen] = useState<'welcome' | 'editor'>('welcome');
+  const [onboarding, setOnboarding] = useState<'first' | 'replay' | null>(bridge.firstLaunch ? 'first' : null);
+  const dismissOnboarding = useCallback(() => setOnboarding(null), []);
   const [mode, setMode] = useState<WorkspaceMode>('free');
   const [auxiliaryVisible, setAuxiliaryVisible] = useState(true);
   const [marketplaceVisible, setMarketplaceVisible] = useState(false);
@@ -157,6 +160,8 @@ export function App() {
   const nativeDialogOpen = useRef(false);
   const running = useRef(false);
   const editor = useRef<EditorActions | null>(null);
+  const formatRequest = useRef<AbortController | null>(null);
+  const [formatting, setFormatting] = useState(false);
   const splitActions = useRef<DocumentSplitActions | null>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
   const commands = useRef<(value: MenuCommand) => void>(() => {});
@@ -505,6 +510,7 @@ export function App() {
     selectWorkspace('learn');
   };
   const openEntry = useCallback((entry: Entry) => {
+    dismissOnboarding();
     if (entry.kind === 'folder') {
       setMarketplaceVisible(false);
       setRoot(entry);
@@ -515,7 +521,7 @@ export function App() {
       documents.open(entry);
     }
     enterWorkspace();
-  }, [documents, enterWorkspace, refreshTree, updateSettings]);
+  }, [dismissOnboarding, documents, enterWorkspace, refreshTree, updateSettings]);
 
   useEffect(() => {
     const unsubOpen = bridge.onOpenEntry((entry) => {
@@ -582,7 +588,7 @@ export function App() {
   };
   const openFile = () => void openNative(() => bridge.openFile());
   const openFolder = () => void openNative(() => bridge.openFolder());
-  async function openSearchMatch(path: string, { line, column }: WorkspaceSearchMatch) {
+  async function openSearchMatch(path: string, { line, column }: Pick<WorkspaceSearchMatch, 'line' | 'column'>) {
     setDialog(null);
     await openNative(() => bridge.quickOpen.open(path), () => {
       splitActions.current?.showSource(path);
@@ -659,6 +665,43 @@ export function App() {
       return await documents.save(id, mode);
     } finally {
       nativeDialogOpen.current = false;
+    }
+  }
+
+  function canFormatDocument() {
+    return screen === 'editor' && active && !active.viewer && !active.error && !active.notebookMode && !active.conflict
+      && splitActions.current?.markdown?.mode !== 'preview';
+  }
+
+  async function formatDocument() {
+    if (formatRequest.current) return;
+    const actions = editor.current;
+    if (!activeId || !actions || !canFormatDocument()) {
+      notify('Open an editable source file to format it.', true);
+      return;
+    }
+    const controller = new AbortController();
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        controller.abort('escape');
+      }
+    };
+    formatRequest.current = controller;
+    setFormatting(true);
+    window.addEventListener('keydown', cancel, true);
+    try {
+      const result = await actions.format(activeId, controller);
+      if (result.kind === 'formatted') notify('Formatted with ' + result.tool + '.');
+      else if (result.kind === 'unchanged') notify(result.tool ? 'Already formatted.' : 'Document is empty.');
+      else notify(result.message, result.kind !== 'cancelled');
+    } catch (error) {
+      notify(errorMessage(error), true);
+    } finally {
+      window.removeEventListener('keydown', cancel, true);
+      formatRequest.current = null;
+      setFormatting(false);
     }
   }
 
@@ -897,6 +940,10 @@ export function App() {
     closeRequest.current = requestWindowClose;
     commands.current = (value) => {
       if (nativeDialogOpen.current) return;
+      if (onboarding) {
+        if (!['open-file', 'open-folder', 'new-file', 'new-starter', 'quick-open', 'stop'].includes(value)) return;
+        dismissOnboarding();
+      }
       if (dialog) {
         if (dialog.kind === 'commands' && value === 'quick-open') setDialog({ kind: 'files' });
         if (dialog.kind === 'commands' && value === 'workspace-search' && root) setDialog({ kind: 'workspace-search' });
@@ -927,6 +974,7 @@ export function App() {
         }
         case 'find': find(); break;
         case 'replace': find(true); break;
+        case 'format-document': void formatDocument(); break;
         case 'go-to-line': {
           const lines = editor.current?.lineCount();
           if (id && active && !active.viewer && screen === 'editor' && lines && splitActions.current?.markdown?.mode !== 'preview') {
@@ -1028,6 +1076,7 @@ export function App() {
     if (screen !== 'editor') return false;
     switch (id) {
       case 'insert-starter': return Boolean(starterTarget);
+      case 'format-document': return Boolean(canFormatDocument()) && !formatting;
       case 'save':
       case 'save-as': return Boolean(active && !active.viewer && !active.error && active.notebookMode !== 'notebook');
       case 'replace':
@@ -1104,12 +1153,14 @@ export function App() {
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
           problemRows={problemRows} problemFile={runReport?.name} problemsStale={Boolean(problemRows.length) && !sourceCurrent}
           selectedProblem={selectedProblem} problemMarkers={problemMarkers} onRevealProblem={revealProblem} onExplainProblem={explainProblem}
+          onNavigateSource={(path, line, column) => { void openSearchMatch(path, { line, column }); }}
           onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
           onSelect={documents.select} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openEntry} onTarget={setTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}
           onRename={(entry) => setDialog({ kind: 'rename', entry })} onTrash={(entry) => void trashEntry(entry)}
           onRefresh={refreshTree} onNew={newFile} onOpenFile={openFile} onOpenFolder={openFolder}
           onInsertStarter={starterTarget ? insertStarter : undefined}
+          formatting={formatting} onFormat={() => { void formatDocument(); }}
           onSettings={updateSettings} onRun={() => void run()} onRerun={() => { if (lastRun) void run(lastRun); }}
           onStop={stop} onRunInput={writeRunInput} onConsoleResize={resizeConsole}
           onEditorActions={setEditor} onSplitActions={setSplitActions} onCursor={updateCursor} onFind={find} onSaveAs={(id) => void saveTab(id, 'as')}
@@ -1118,12 +1169,19 @@ export function App() {
         <span className="local-status"><span className="signal"/>{screen === 'welcome' ? 'Local desktop' : modeNames[mode]}</span>
         <button className="profile-status" type="button" title="Open resource profile settings"
           onClick={() => setDialog({ kind: 'settings' })}>{settings.resourceProfile === 'minimal' ? 'Minimal' : 'Full'}</button>
-        <span className={`status-notice ${notice?.error ? 'error' : ''}`} role={notice?.error ? 'alert' : 'status'} title={notice?.message}>
-          {notice && <><Icon name={notice.error ? 'warning' : 'check'} size={13}/><span>{notice.message}</span></>}
+        <span className={`status-notice ${!formatting && notice?.error ? 'error' : ''}`}
+          role={!formatting && notice?.error ? 'alert' : 'status'} title={formatting ? 'Formatting document… Press Esc to cancel.' : notice?.message}>
+          {formatting ? <><Icon name="clock" size={13}/><span>Formatting document… Press Esc to cancel.</span></>
+            : notice && <><Icon name={notice.error ? 'warning' : 'check'} size={13}/><span>{notice.message}</span></>}
         </span>
         {screen === 'welcome' && <span className="welcome-status"><Icon name="keyboard" size={14}/> {hint('new-file', 'New File')} <span>·</span> {hint('open-file', 'Open File')}</span>}
       </footer>
 
+      {onboarding && <Onboarding replay={onboarding === 'replay'} onClose={dismissOnboarding}
+        onStart={() => { dismissOnboarding(); chooseStarter(); }}
+        onOpenFolder={() => { setMode('free'); openFolder(); }}
+        onWorkspace={(next) => { dismissOnboarding(); selectWorkspace(next); }}
+        error={notice?.error ? notice.message : undefined}/>}
       <Suspense fallback={null}>
         {dialog?.kind === 'commands' && <Commands onClose={() => setDialog(null)}
           items={commandEntries.filter(([id]) => availableCommand(id)).map(([id, { label }]) => ({
@@ -1157,6 +1215,7 @@ export function App() {
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
         onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady}
         onThemeChange={changeTheme} onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
+        onReplayIntro={() => { setDialog(null); setOnboarding('replay'); }}
         onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'recovery' && <ConfirmDialog title="Recover unsaved edits"
         message={`Ion found ${recoveryDrafts.length} unsaved ${recoveryDrafts.length === 1 ? 'draft' : 'drafts'}. Restore them as separate tabs to review and save.`}

@@ -14,6 +14,7 @@ const commands = {
   'previous-tab': { label: 'Previous Tab', key: 'Mod+Shift+[' },
   find: { label: 'Find', key: 'Mod+F' },
   replace: { label: 'Replace', key: 'Mod+Alt+F', other: 'Mod+H' },
+  'format-document': { label: 'Format Document', key: 'Alt+Shift+F' },
   'go-to-line': { label: 'Go to Line…', key: 'Ctrl+G', other: 'Mod+G' },
   'focus-editor': { label: 'Focus Code Editor', key: 'Mod+1' },
   'markdown-preview': { label: 'Toggle Markdown Preview', key: 'Mod+Shift+M' },
@@ -64,7 +65,7 @@ export function normalizeShortcut(value: string, platform: ShortcutPlatform): st
     seen.add(modifier)
   }
   if (!key.startsWith('F') || key === 'F') {
-    if (!seen.has('Mod') && !seen.has('Ctrl')) return null
+    if (!seen.has('Mod') && !seen.has('Ctrl') && !(key === 'F' && seen.has('Alt') && seen.has('Shift'))) return null
   }
   return [...modifiers.filter((modifier) => seen.has(modifier)), key === 'ENTER' ? 'Enter' : key].join('+')
 }
@@ -73,7 +74,7 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
   const entry = definitions[command]
   if (overrides[command] !== undefined) return overrides[command]
   const fallback = platform !== 'darwin' && entry.other ? entry.other : entry.key ?? ''
-  if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search'
+  if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search' || command === 'format-document'
     || command === 'toggle-terminal' || command === 'focus-terminal')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback

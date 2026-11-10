@@ -2,6 +2,9 @@
 
 ## 0.9.5 source candidate
 
+- Added Format Document beside Autosave and in the command palette. It uses installed local formatters, applies the result as one undoable edit, and cancels stale requests. [Formatter setup](docs/USAGE.md#format-a-source-file) · [Performance measurements](PERFORMANCE.md#format-document)
+- Added Java snippets and optional Smart Java suggestions, signatures, navigation, and live diagnostics using an installed JDK. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) · [Performance measurements](PERFORMANCE.md#smart-java)
+- Added a first-launch introduction, static setup for reduced motion, and a Replay Intro action in Preferences. Setup reuses the four existing workspaces and local language starters. [First-launch guide](docs/USAGE.md#first-launch) · [Playback measurements](PERFORMANCE.md#first-launch-and-onboarding)
 - Added Learning Lens for recognized C compiler errors. Open an explanation from Problems, jump to the corresponding source highlight, revisit the explanation after a meaningful retry, and see when a successful compile resolves the error. Ion keeps the original compiler message and lets you turn the Lens off. [Candidate notes](docs/releases/0.9.5.md) · [Performance measurements](PERFORMANCE.md#learning-lens)
 - Expanded the offline Learning Marketplace to 19 packs and 162 lessons. Added practice exercises with sample tests for supported languages and refined reviewed diagnostic explanations for C, C++, Java, Python, and JavaScript. [Learning packs](docs/LEARNING_PACKS.md)
 - Added a general-purpose Terminal alongside the Run Console. Verified zsh on macOS and Command Prompt on hosted Windows x64 before Learning Lens. Shell sessions start on demand and keep running when you hide the panel. [Terminal measurements](PERFORMANCE.md#integrated-terminal-on-macos)

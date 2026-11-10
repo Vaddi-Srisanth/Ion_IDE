@@ -11,12 +11,12 @@ import { artifact, close, createProject, launch, openFolder, openFromExplorer,
 assert.equal(process.platform, 'darwin', 'The benchmark uses macOS process accounting.')
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' }, runs: { type: 'string', default: '3' },
-  sizes: { type: 'string', default: '0,10,25,50,100' },
+  sizes: { type: 'string', default: '5,25,50,100' },
 } })
 const repetitions = Number(values.runs)
 const sizes = values.sizes.split(',').map(Number)
 assert.ok(Number.isInteger(repetitions) && repetitions >= 1 && repetitions <= 10)
-assert.ok(sizes.length && sizes.every((value) => [0, 10, 25, 50, 100].includes(value)))
+assert.ok(sizes.length && sizes.every((value) => [0, 5, 10, 25, 50, 100].includes(value)))
 const target = await artifact(values.target)
 assert.ok(!target.path.endsWith('.app'), 'Use a production build directory.')
 const require = createRequire(import.meta.url)
@@ -93,7 +93,7 @@ const result = await withScratch('marketplace-benchmark', async (scratch) => {
         await sleep(settleMs)
         const opened = await sample(session, probe)
         const searchMs = []
-        const queries = size ? Array.from({ length: searchSamples }, (_, index) => title(index + 1))
+        const queries = size ? Array.from({ length: Math.min(size, searchSamples) }, (_, index) => title(index))
           : ['Python', 'TypeScript', 'JavaScript', 'Rust', 'Python']
         for (const name of queries) {
           const start = performance.now()
