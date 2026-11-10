@@ -104,6 +104,17 @@ svg { flex: none; }
 .run-button:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-bg) 86%, var(--accent)); color: var(--accent); }
 .stop-button, .stop-button:hover:not(:disabled) { color: var(--danger); background: var(--warning-bg); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); }
 .back-to-workspace { min-height: 26px; }
+.button.title-update {
+  min-height: 26px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.button.title-update:hover:not(:disabled) { color: var(--accent); background: var(--surface-3); }
+@media (max-width: 1160px) {
+  .titlebar:has(.title-update) .window-label { position: static; flex: 1 1 0; min-width: 0; }
+  .titlebar:has(.title-update) .title-actions { flex: none; margin-left: 0; }
+}
 .signal { width: 6px; height: 6px; display: inline-block; flex: none; border-radius: 50%; background: var(--accent); }
 
 .welcome { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-width: thin; }

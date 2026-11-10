@@ -22,6 +22,7 @@ import type { WorkspaceSearchMatch } from '../shared/workspace-search';
 import { captureEditorSession, EditorSessionWriter } from './editor-session';
 import type { BottomTab } from '../shared/terminal';
 import type { TerminalController } from './terminal/controller';
+import { useUpdates } from './useUpdates';
 
 type Dialog =
   | { kind: 'settings' }
@@ -84,6 +85,8 @@ export function App() {
   const settingsRef = useRef(settings);
   const preferencesLoaded = useRef(false);
   const [preferencesReady, setPreferencesReady] = useState(false);
+  const updates = useUpdates();
+  const checkUpdates = updates.check;
   const [activeTheme, setActiveTheme] = useState<ThemeData | null>(null);
   const activeThemeId = useRef<string>(null);
   const themeChanging = useRef(false);
@@ -230,11 +233,7 @@ export function App() {
       setSettings(preferences.settings);
       documents.setSettings(preferences.settings);
       setRecents(preferences.recents);
-      if (preferences.settings.checkUpdatesOnLaunch) {
-        void bridge.updates.check().then((status) => {
-          if (!cancelled && status.state === 'available') notify(`Ion ${status.latest} is available in Preferences → Updates.`);
-        }).catch(() => {});
-      }
+      if (preferences.settings.checkUpdatesOnLaunch) void checkUpdates(true);
     }).catch((reason: unknown) => {
       if (!cancelled) notify(errorMessage(reason), true);
     }).finally(() => {
@@ -244,7 +243,7 @@ export function App() {
       cancelled = true;
       clearTimeout(noticeTimer.current);
     };
-  }, [documents, notify]);
+  }, [documents, notify, checkUpdates]);
 
   useEffect(() => {
     const schedule = () => { if (sessionStarted.current) sessionWriter.schedule(); };
@@ -1119,6 +1118,17 @@ export function App() {
         </>}
         <div className="window-label" title={root?.path}>{screen === 'editor' ? root?.name ?? modeNames[mode] : 'Welcome'}</div>
         <div className="title-actions">
+          {updates.status?.state === 'available' && <button className="button title-update" type="button"
+            data-testid="title-update" disabled={Boolean(updates.busy)}
+            title={updates.downloaded ? 'Installer ready in Downloads. Open update details.'
+              : `Download Ion ${updates.status.latest} from GitHub`}
+            onClick={() => {
+              if (updates.downloaded) setDialog({ kind: 'settings' });
+              else void updates.download().then((error) => { if (error) notify(error, true); });
+            }}>
+            <Icon name={updates.downloaded ? 'check' : 'download'} size={14}/>
+            {updates.busy === 'download' ? 'Downloading…' : updates.downloaded ? 'Update downloaded' : 'Update available'}
+          </button>}
           {recoveryDrafts.length > 0 && <button className="button" data-testid="recover-edits"
             onClick={() => setDialog({ kind: 'recovery' })}>Recover edits ({recoveryDrafts.length})</button>}
           {screen === 'editor' ? <>
@@ -1213,7 +1223,7 @@ export function App() {
       </Suspense>
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
-        onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady}
+        onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady} updates={updates}
         onThemeChange={changeTheme} onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
         onReplayIntro={() => { setDialog(null); setOnboarding('replay'); }}
         onClose={() => setDialog(null)}/>}

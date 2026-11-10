@@ -795,7 +795,7 @@ function registerIpc(): void {
     target.once('closed', cancel)
     try {
       const { name, path } = await service.download(app.getPath('downloads'))
-      if (target === window) shell.showItemInFolder(path)
+      if (target === window && target.isFocused()) shell.showItemInFolder(path)
       return { name }
     } finally {
       target.removeListener('closed', cancel)

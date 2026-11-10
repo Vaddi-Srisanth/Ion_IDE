@@ -1,6 +1,6 @@
 # Ion IDE 0.9.5 Windows release readiness
 
-**Windows x64 test preview.** Hold the public 0.9.5 release pending the retail Windows checklist. The public download remains 0.9.4. This candidate uses the shared Electron app and local data stores.
+**Windows x64 test preview.** Version 0.9.5 uses the shared Electron app and local data stores. Hosted Windows verification and retail Windows qualification are separate; the manual checklist below remains open.
 
 ## Windows evidence
 

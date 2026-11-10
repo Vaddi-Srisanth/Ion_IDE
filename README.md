@@ -12,14 +12,14 @@ Ion is a personal project by Vaddi Srisanth for students and developers who want
 
 ## Download and install
 
-**Latest public installers: v0.9.4.** The screenshots and feature guide follow the **v0.9.5 source preview**, which adds Learning Lens, Marketplace 2.0, the integrated Terminal, and new local build support. Build the source to try those changes. [v0.9.4 release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.4) · [v0.9.5 preview notes](docs/releases/0.9.5.md)
+Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The feature guide follows [version 0.9.5](docs/releases/0.9.5.md).
 
 | Platform | Installer | Install |
 | --- | --- | --- |
-| macOS 13 or later, Apple Silicon | [Download macOS ARM64](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.4/Ion-IDE-0.9.4-mac-arm64.dmg) | Open the disk image, drag **Ion IDE** into **Applications**, then launch it there. |
-| Windows x64 preview | [Download Windows x64](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.4/Ion-IDE-0.9.4-windows-x64-setup.exe) | Run setup, then open **Ion IDE** from Start. |
+| macOS 13 or later, Apple Silicon | `Ion-IDE-<version>-mac-arm64.dmg` | Open the disk image, drag **Ion IDE** into **Applications**, then launch it there. |
+| Windows x64 preview | `Ion-IDE-<version>-windows-x64-setup.exe` | Run setup, then open **Ion IDE** from Start. |
 
-The macOS disk image is ad-hoc signed and unnotarized. It failed the default Gatekeeper assessment. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Check the SHA-256 before opening either installer. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Installer checksums](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.4/SHA256SUMS) · [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
+The macOS disk image is ad-hoc signed and unnotarized. Gatekeeper may block it on first open. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Compare the installer’s SHA-256 with `SHA256SUMS` from the same release before opening it. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
 
 Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional online planner and update checks use the network.
 
@@ -103,7 +103,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
 - **Make it yours.** Five built-in themes, system appearance, local JSON theme import and export, and Minimal or Full resource profiles.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
-- **Update when you choose.** Enable optional update checks against GitHub Releases and download a checksum-verified installer to open yourself.
+- **Update when you choose.** Check in Preferences → Updates, or opt in to checks on launch. When a compatible GitHub release is available, the title bar offers a checksum-verified installer download that you can open yourself.
 
 [Usage guide](docs/USAGE.md) · [Resource profiles](RESOURCE_PROFILES.md) · [Local profile export](PORTABLE_PROFILE.md)
 

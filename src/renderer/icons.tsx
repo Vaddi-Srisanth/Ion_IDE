@@ -16,6 +16,7 @@ const shapes = {
   refresh: <><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 8a7.5 7.5 0 0 1 12.3-2.3L20 8M4 16l2.1 2.3A7.5 7.5 0 0 0 18.4 16"/></>,
   chevron: <path d="m9 5 7 7-7 7"/>,
   down: <path d="m5 9 7 7 7-7"/>,
+  download: <path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>,
   arrow: <path d="M4 12h15m-6-6 6 6-6 6"/>,
   diagonal: <path d="M6 18 18 6M8 6h10v10"/>,
   x: <path d="m6 6 12 12M18 6 6 18"/>,

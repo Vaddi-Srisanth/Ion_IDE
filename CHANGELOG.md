@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.9.5 source candidate
+## 0.9.5 preview
 
+- Added a quiet **Update available** button in the title bar. Clicking it downloads and verifies the matching GitHub installer, which you can open from Downloads.
 - Added Format Document beside Autosave and in the command palette. It uses installed local formatters, applies the result as one undoable edit, and cancels stale requests. [Formatter setup](docs/USAGE.md#format-a-source-file) · [Performance measurements](PERFORMANCE.md#format-document)
 - Added Java snippets and optional Smart Java suggestions, signatures, navigation, and live diagnostics using an installed JDK. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) · [Performance measurements](PERFORMANCE.md#smart-java)
 - Added a first-launch introduction, static setup for reduced motion, and a Replay Intro action in Preferences. Setup reuses the four existing workspaces and local language starters. [First-launch guide](docs/USAGE.md#first-launch) · [Playback measurements](PERFORMANCE.md#first-launch-and-onboarding)

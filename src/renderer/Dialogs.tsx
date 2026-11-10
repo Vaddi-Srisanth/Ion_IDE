@@ -5,6 +5,7 @@ import { Icon } from './icons';
 import { ThemeSettings } from './themes/ThemeSettings';
 import { ShortcutSettings } from './ShortcutSettings';
 import { UpdateSettings } from './UpdateSettings';
+import type { UpdateControls } from './useUpdates';
 import type { ShortcutOverrides } from '../shared/shortcuts';
 import { starterLanguages, type StarterLanguage } from '../shared/starter-code';
 
@@ -35,13 +36,14 @@ export function Modal({ title, className = '', children, onClose, busy = false }
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChange, onUpdateLaunchChange,
-  preferencesReady, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
+  preferencesReady, updates, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string): Promise<void>;
   onChange(patch: Partial<Settings>): void;
   onUpdateLaunchChange(enabled: boolean): Promise<void>;
   preferencesReady: boolean;
+  updates: UpdateControls;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
   onReplayIntro(): void;
@@ -64,7 +66,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
   };
   return (
     <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy}>
-      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady}/>
+      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady} updates={updates}/>
       <div className="settings-group">
         <h3>Window</h3>
         <div className="setting">
