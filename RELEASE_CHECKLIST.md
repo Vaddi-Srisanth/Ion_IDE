@@ -31,7 +31,7 @@ The stabilization follow-up has a deterministic reproduction of the 9adcdea Git 
 - [x] Passed final type checking, 183/195 local unit cases with 12 documented skips, four signing/evidence cases and the source-history sensitive-data scan.
 - [x] Completed 60 local startup/shutdown cycles, recovery and active-child cases, plus a fifteen-minute session with 180 editing rounds and 45 C executions.
 - [x] Retained matched five-minute memory recovery and separate Windows candidate measurements, without claiming a RAM reduction or a valid failed-baseline comparison.
-- [ ] Before publication, require the exact-tag run to pass and verify both downloaded installers against matching run/attempt manifests.
+- [x] Exact-tag [run 43089559300, attempt 1](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43089559300) passed all four jobs at 18a5eea. Both downloaded installers matched their manifests and the public GitHub asset digests. [Published 0.9.6](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.6).
 - [ ] Physical 8 GiB hardware, four-hour sessions, retail Windows qualification and trusted platform signing remain separate preview limitations.
 
 ## 0.6.2 verification record
