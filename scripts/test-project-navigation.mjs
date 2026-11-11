@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
@@ -88,8 +88,13 @@ await withScratch('project-navigation', async (scratch) => {
     completed = true
     console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
   } catch (error) {
+    const text = await readFile(project.program, 'utf8')
+    const location = await page.evaluate(async ({ path, text }) => window.ion.languageTools.query({
+      language: 'c', path, text, version: 999, operation: 'definition', offset: text.indexOf('increment(41)') + 3,
+    }), { path: project.program, text }).catch(error => ({ error: String(error) }))
     console.error({ problem: error.message, dialog: await page.getByRole('dialog').first().isVisible()
-      ? await page.getByRole('dialog').first().innerText() : '', errors: session.errors })
+      ? await page.getByRole('dialog').first().innerText() : '', errors: session.errors, location,
+      status: await page.locator('.java-tool-status, .notification, [role="status"]').allTextContents() })
     throw error
   } finally {
     if (!completed) {

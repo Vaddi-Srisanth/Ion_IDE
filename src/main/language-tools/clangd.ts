@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createMessageConnection, type MessageConnection } from 'vscode-jsonrpc/node'
 import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
+import { sourceDriveSpelling } from '../../shared/source-path'
 import { execute } from '../runner'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 
@@ -34,7 +35,7 @@ function positionAt(text: string, offset: number) {
   return { line, character: offset - start }
 }
 
-function locationRows(result: unknown): string[][] {
+function locationRows(result: unknown, source: string): string[][] {
   const entries = Array.isArray(result) ? result.slice(0, 200) : [result]
   const rows: string[][] = []
   for (const entry of entries) {
@@ -43,7 +44,7 @@ function locationRows(result: unknown): string[][] {
     const start = (entry.targetSelectionRange ?? entry.range)?.start
     if (typeof uri !== 'string' || !uri.startsWith('file:') || !Number.isSafeInteger(start?.line)
       || !Number.isSafeInteger(start?.character) || start.line < 0 || start.character < 0) continue
-    try { rows.push([fileURLToPath(uri), String(start.line + 1), String(start.character + 1)]) }
+    try { rows.push([sourceDriveSpelling(fileURLToPath(uri), source, process.platform), String(start.line + 1), String(start.character + 1)]) }
     catch { /* URI cannot identify a local source file. */ }
   }
   return rows
@@ -180,6 +181,6 @@ export class ClangdService {
     const result = snapshot.operation === 'references'
       ? await this.request('textDocument/references', { ...location, context: { includeDeclaration: true } })
       : await this.request('textDocument/definition', location)
-    return { version: snapshot.version, rows: locationRows(result) }
+    return { version: snapshot.version, rows: locationRows(result, snapshot.path) }
   }
 }

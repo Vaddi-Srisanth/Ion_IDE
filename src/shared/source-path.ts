@@ -9,3 +9,11 @@ export function sourcePathFromUri(uri: { scheme: string; authority: string; path
   }
   return (uri.authority ? '//' + uri.authority : '') + uri.path
 }
+
+/** Windows drive letters are aliases. Directory spelling can still identify
+ * distinct case-sensitive NTFS folders and must never be folded here. */
+export function sourceDriveSpelling(path: string, source: string, platform: string): string {
+  if (platform === 'win32' && /^[a-z]:[\\/]/i.test(path) && /^[a-z]:[\\/]/i.test(source)
+    && path[0].toLowerCase() === source[0].toLowerCase()) return source[0] + path.slice(1)
+  return path
+}
