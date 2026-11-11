@@ -10,6 +10,10 @@ import { processTempEnvironment, stopWindowsProcessTree, windowsEnvironment, wor
 const systemPath = '/usr/bin:/bin:/usr/sbin:/sbin'
 const maxInputBytes = 64 * 1024
 export const defaultRunLimits = { compileMs: 15_000, programMs: 5_000, outputBytes: 256 * 1024 }
+const cArguments = (source: string, binary: string) => [
+  '-x', 'c', '-std=c17', '-Wall', '-Wextra', '-fdiagnostics-color=never', source, '-o', binary,
+]
+const cBinaryName = process.platform === 'win32' ? 'program.exe' : 'program'
 
 type ProcessState = 'exited' | 'timeout' | 'output-limit' | 'cancelled' | 'error'
 interface ProcessResult {
@@ -237,6 +241,17 @@ export class CRunner {
     return this.active !== null
   }
 
+  async preview(path: string, signal: AbortSignal, snapshot = false) {
+    const cwd = dirname(path)
+    const executable = this.compiler && process.platform !== 'win32'
+      ? this.compiler : await this.locate(signal, process.platform === 'win32' ? cwd : undefined)
+    const program = join('<Ion temporary directory>', cBinaryName)
+    return {
+      cwd, executable, args: cArguments(snapshot ? '-' : path, program), program,
+      limits: this.limits,
+    }
+  }
+
   async run(path: string, stdin: string, sourceStillCurrent?: () => Promise<boolean>): Promise<RunResult> {
     return (await this.runInputs(path, [stdin], sourceStillCurrent))[0]
   }
@@ -283,7 +298,7 @@ export class CRunner {
     const start = performance.now()
     const budget = { remaining: this.limits.outputBytes }
     const results: RunResult[] = []
-    const filename = process.platform === 'win32' ? 'program.exe' : 'program'
+    const filename = cBinaryName
     const cwd = dirname(path)
     let temporary: string | undefined
     let compileOutput = ''
@@ -330,9 +345,8 @@ export class CRunner {
         compileInput = '#line 1 "' + escapedPath + '"\n' + snapshot.replace(/^\uFEFF/, '')
       }
       const compileStart = performance.now()
-      const compiled = await execute(this.compiler, [
-        '-x', 'c', '-std=c17', '-Wall', '-Wextra', '-fdiagnostics-color=never', snapshot === undefined ? path : '-', '-o', binary,
-      ], { cwd, input: compileInput, signal, timeoutMs: this.limits.compileMs, budget, environment })
+      const compiled = await execute(this.compiler, cArguments(snapshot === undefined ? path : '-', binary),
+        { cwd, input: compileInput, signal, timeoutMs: this.limits.compileMs, budget, environment })
       compileMs = Math.round(performance.now() - compileStart)
       compileOutput = compiled.output
       if (compiled.state !== 'exited' || compiled.exitCode !== 0) {

@@ -4,15 +4,19 @@ import type { ProjectMilestone, ProjectRecord, ProjectTest, TestEvidence } from 
 import { boundedText, exactObject, validateProject } from './spec'
 import { readJson, writeJson } from './storage'
 
-const storageLimit = 320 * 1024
+const storageLimit = 512 * 1024
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 
-export type SavedEvidence = Omit<TestEvidence, 'stale'> & { sourceRevision: string | null }
+export type SavedEvidence = Omit<TestEvidence, 'stale' | 'location'> & {
+  sourceRevision: string | null
+  location?: { line: number; column: number }
+}
 export type SavedProject = Omit<ProjectRecord, 'evidence' | 'automatic'> & { evidence: SavedEvidence[] }
 
 function readEvidence(value: unknown): SavedEvidence {
+  const extras = ['stderr', 'programMs', 'location'].filter((key) => value && typeof value === 'object' && Object.hasOwn(value, key))
   const data = exactObject(value, ['testId', 'outcome', 'kind', 'message', 'captured', 'compilerOutput', 'exitCode',
-    'durationMs', 'checkedAt', 'sourceRevision'], 'Stored evidence')
+    'durationMs', 'checkedAt', 'sourceRevision', ...extras], 'Stored evidence')
   if (data.outcome !== 'test-verified' && data.outcome !== 'test-failed' && data.outcome !== 'unable-to-verify') throw new Error('Invalid test outcome.')
   if (data.kind !== 'behavior' && data.kind !== 'environment' && data.kind !== 'configuration' && data.kind !== 'interrupted') {
     throw new Error('Invalid test evidence kind.')
@@ -24,13 +28,29 @@ function readEvidence(value: unknown): SavedEvidence {
     || (sourceRevision !== null && (typeof sourceRevision !== 'string' || sourceRevision.length > 240))) {
     throw new Error('Invalid test evidence metadata.')
   }
-  return {
+  const evidence: SavedEvidence = {
     testId: boundedText(data.testId, 40, 'Evidence test ID'),
     outcome: data.outcome, kind: data.kind, exitCode, durationMs, checkedAt, sourceRevision,
     message: boundedText(data.message, 1200, 'Evidence message'),
     captured: boundedText(data.captured, 2500, 'Captured output', true),
     compilerOutput: boundedText(data.compilerOutput, 2500, 'Compiler output', true),
   }
+  if (extras.includes('stderr')) evidence.stderr = boundedText(data.stderr, 1250, 'Standard error', true)
+  if (extras.includes('programMs')) {
+    if (typeof data.programMs !== 'number' || !Number.isSafeInteger(data.programMs) || data.programMs < 0) {
+      throw new Error('Invalid test runtime.')
+    }
+    evidence.programMs = data.programMs
+  }
+  if (extras.includes('location')) {
+    const { line, column } = exactObject(data.location, ['line', 'column'], 'Test source location')
+    if (typeof line !== 'number' || !Number.isSafeInteger(line) || line < 1
+      || typeof column !== 'number' || !Number.isSafeInteger(column) || column < 1) {
+      throw new Error('Invalid test source location.')
+    }
+    evidence.location = { line, column }
+  }
+  return evidence
 }
 
 export class ProjectRepository {
@@ -87,9 +107,16 @@ export class ProjectRepository {
   }
 
   async evidence(root: string, item: SavedEvidence, expected: unknown): Promise<SavedProject> {
+    return this.evidenceBatch(root, [item], expected)
+  }
+
+  async evidenceBatch(root: string, items: readonly SavedEvidence[], expected: unknown): Promise<SavedProject> {
     return this.update(root, expected, previous => {
-      if (!previous?.approved.includes(item.testId)) throw new Error('Review and approve the test before running it.')
-      return { ...previous, evidence: [...previous.evidence.filter(value => value.testId !== item.testId), item] }
+      if (!previous || items.some(item => !previous.approved.includes(item.testId))) {
+        throw new Error('Review and approve the test before running it.')
+      }
+      const replacing = new Set(items.map(item => item.testId))
+      return { ...previous, evidence: [...previous.evidence.filter(item => !replacing.has(item.testId)), ...items] }
     })
   }
 

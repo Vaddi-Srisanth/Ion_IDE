@@ -51,6 +51,9 @@ export interface TestEvidence {
   durationMs: number
   checkedAt: number
   stale: boolean
+  stderr?: string
+  programMs?: number
+  location?: { line: number; column: number; path: string }
 }
 
 export interface ProjectRecord {
@@ -74,11 +77,19 @@ export interface ProviderUpdate {
   forgetKey?: boolean
 }
 
+export interface ProjectSuiteResult {
+  record: ProjectRecord
+  cancelled: boolean
+  completed: string[]
+}
+
 export interface ProjectsBridge {
   open(path: string): Promise<ProjectRecord | null>
   save(path: string, spec: ProjectSpec, revision: string | null): Promise<ProjectRecord>
   approve(path: string, testId: string, revision: string): Promise<ProjectRecord>
   run(path: string, testId: string, revision: string): Promise<ProjectRecord>
+  runSuite(path: string, testIds: string[], revision: string): Promise<ProjectSuiteResult>
+  cancelSuite(path: string): Promise<boolean>
   setAutomatic(path: string, testId: string, revision: string, enabled: boolean): Promise<ProjectRecord>
   provider(): Promise<ProviderSettings>
   configure(value: ProviderUpdate): Promise<ProviderSettings>

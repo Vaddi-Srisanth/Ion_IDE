@@ -34,25 +34,25 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
       submenu: [
         { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, { type: 'separator' },
-        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('insert-starter'), command('format-document'),
+        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('go-to-definition'), command('find-references'), command('insert-starter'), command('format-document'),
       ],
     },
     {
       label: 'View',
       submenu: [
         command('command-palette'), command('welcome'), command('focus-editor'),
-        command('next-tab'), command('previous-tab'),
+        command('next-tab'), command('previous-tab'), command('navigate-back'), command('navigate-forward'),
         { type: 'separator' },
-        command('toggle-explorer'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
+        command('toggle-explorer'), command('toggle-source-control'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
         command('toggle-terminal'), command('focus-terminal'),
         command('toggle-document-split'), command('focus-document-split'),
-        command('markdown-preview'), command('markdown-split'),
+        command('markdown-preview'), command('markdown-split'), command('choose-theme'), command('language-support'),
         { type: 'separator' }, { role: 'togglefullscreen' },
       ],
     },
     {
       label: 'Run',
-      submenu: [command('run'), command('stop'), command('preview-web')],
+      submenu: [command('run'), command('run-tests'), command('stop'), command('preview-web')],
     },
     { role: 'windowMenu' },
   )

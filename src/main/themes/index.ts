@@ -54,8 +54,11 @@ function errorCode(error: unknown, code: string): boolean {
 function isCustomSummary(value: unknown): value is ThemeSummary {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const entry = value as Record<string, unknown>
-  return Object.keys(entry).length === 4 && isCustomThemeId(entry.id) && isThemeName(entry.name)
-    && isThemeAppearance(entry.appearance) && entry.source === 'custom'
+  const swatches = entry.swatches
+  const validSwatches = swatches === undefined || (Array.isArray(swatches) && swatches.length === 3
+    && swatches.every((color) => typeof color === 'string' && /^#[0-9a-f]{6}$/.test(color)))
+  return Object.keys(entry).length === (swatches === undefined ? 4 : 5) && validSwatches
+    && isCustomThemeId(entry.id) && isThemeName(entry.name) && isThemeAppearance(entry.appearance) && entry.source === 'custom'
 }
 
 export class ThemeStore {
@@ -79,7 +82,7 @@ export class ThemeStore {
     const definition = source === 'custom'
       ? await this.readDefinition(join(this.directory, id + '.json'))
       : validateTheme(JSON.parse(await readFile(join(this.builtinThemeDir, id + '.json'), 'utf8')))
-    return { id, source, ...definition }
+    return { ...builtinThemes.find((theme) => theme.id === id), id, source, ...definition }
   }
 
   async importFile(filePath: string): Promise<ThemeSummary> {
@@ -127,7 +130,8 @@ export class ThemeStore {
       const themes = await this.readRegistry()
       if (themes.length >= maxCustomThemes) throw new Error('The custom theme limit has been reached.')
       const { name, appearance } = definition
-      const entry = { id: 'custom-' + randomUUID(), name, appearance, source: 'custom' } as const
+      const entry = { id: 'custom-' + randomUUID(), name, appearance, source: 'custom',
+        swatches: [definition.colors.background, definition.colors.accent, definition.syntax.keyword] } as const
       const file = join(this.directory, entry.id + '.json')
       await mkdir(dirname(file), { recursive: true })
       await writeJson(file, definition)

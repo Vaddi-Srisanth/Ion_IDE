@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 const shapes = {
   logo: <><path d="M3.6 16.4 9 5.2h4.2L7.8 16.4H3.6Z"/><path d="m12.3 16.4 5.4-11.2h2.7L15 16.4h-2.7Z"/><path d="M2.8 19h13.6"/></>,
   files: <><path d="M8 4h7l4 4v12H8z"/><path d="M15 4v5h4M5 17H3V7h2"/></>,
+  git: <><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 7.5v9M6 14h5a7 7 0 0 0 7-5.5"/></>,
   file: <><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4M9 12h6m-6 4h6"/></>,
   code: <><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16"/></>,
   plus: <path d="M12 5v14M5 12h14"/>,

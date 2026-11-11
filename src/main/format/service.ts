@@ -3,6 +3,7 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, extname, isAbsolute, join } from 'node:path'
 import type { Settings } from '../../shared/contracts'
 import type { FormatRequest, FormatResult } from '../../shared/format-code'
+import { formatterFamily } from '../../shared/languages'
 import { maxEditableTextBytes } from '../../shared/large-text'
 import { execute } from '../runner'
 import { fileText } from '../files'
@@ -15,7 +16,6 @@ const prettierParsers: Record<string, string> = {
   '.html': 'html', '.htm': 'html', '.css': 'css', '.json': 'json',
   '.md': 'markdown', '.markdown': 'markdown',
 }
-const clangExtensions = new Set(['.c', '.h', '.cpp', '.cxx', '.cc', '.c++', '.hpp', '.hh', '.hxx'])
 const error = (message: string): FormatResult => ({ kind: 'error', message })
 const cancelled: FormatResult = { kind: 'cancelled', message: 'Formatting cancelled.' }
 let appleClangFormat: string | undefined
@@ -82,9 +82,10 @@ async function pythonPlan(root: string, paths: string[], source: string, scratch
 export async function formatSource(request: FormatRequest, root: string | null, settings: Settings, signal: AbortSignal): Promise<FormatResult> {
   if (signal.aborted) return cancelled
   const extension = extname(request.name).toLowerCase()
-  const java = extension === '.java'
-  const python = extension === '.py' || extension === '.python'
-  const clang = clangExtensions.has(extension)
+  const family = formatterFamily(request.name)
+  const java = family === 'java'
+  const python = family === 'python'
+  const clang = family === 'clang'
   const parser = Object.hasOwn(prettierParsers, extension) ? prettierParsers[extension] : undefined
   if (!java && !python && !clang && !parser) return error('No formatter configured for this language.')
   if (!request.text.trim()) return { kind: 'unchanged', tool: '' }

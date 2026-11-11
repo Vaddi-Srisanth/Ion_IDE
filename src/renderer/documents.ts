@@ -92,6 +92,7 @@ export class Documents {
     private settings: Settings,
     private readonly notify: (message: string, error?: boolean) => void,
     private readonly saved: (entry: Entry) => void,
+    private readonly wroteFile?: (path: string) => void,
   ) {}
 
   subscribe = (listener: () => void) => {
@@ -555,6 +556,7 @@ export class Documents {
         record.revision = result.revision;
         record.baseHash = result.contentHash;
         this.patch(record, { dirty: record.version !== version, conflict: false });
+        this.wroteFile?.(path);
       }
       record.autoSaveBlocked = false;
       if (!record.tab.dirty) {
@@ -571,7 +573,8 @@ export class Documents {
       const message = errorMessage(reason);
       if (message.includes('FILE_CHANGED')) {
         this.patch(record, { conflict: true });
-        this.notify(`${name} changed on disk. Use Save As to keep your edits.`, true);
+        const detail = message.replace(/^FILE_CHANGED:?\s*/, '').replace(/^This file changed on disk\.\s*/, '');
+        this.notify(`${name} changed on disk. ${detail || 'Use Save As to keep your edits.'}`, true);
       } else {
         this.notify(`Could not save ${name}. ${message}`, true);
       }

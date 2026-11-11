@@ -9,7 +9,9 @@ export function applyEditorTheme(theme: ThemeData, accentOverride?: string): voi
   // Monaco replaces this slot and refreshes its CSS in place. Theme IDs from the
   // catalog never become permanent entries in Monaco's theme service.
   editor.defineTheme(activeSlot, {
-    base: theme.appearance === 'light' ? 'vs' : 'vs-dark',
+    base: theme.contrast === 'high'
+      ? (theme.appearance === 'light' ? 'hc-light' : 'hc-black')
+      : (theme.appearance === 'light' ? 'vs' : 'vs-dark'),
     inherit: false,
     rules: themeSyntaxKeys.map((token) => ({
       token,

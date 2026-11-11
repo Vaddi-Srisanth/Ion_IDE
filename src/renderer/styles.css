@@ -270,6 +270,8 @@ svg { flex: none; }
 .tab-dirty:not(:hover):not(:focus-visible)::after { position: absolute; content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .editor-breadcrumb { display: flex; align-items: center; gap: 7px; min-width: 0; min-height: 29px; flex: 0 0 29px; padding: 0 11px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--subtle-border); background: var(--background); }
 .editor-breadcrumb strong, .editor-breadcrumb span { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.editor-breadcrumb .icon-button { width: 22px; height: 22px; }
+.editor-breadcrumb .source-back svg { transform: rotate(180deg); }
 .editor-breadcrumb strong { color: var(--text); font-weight: 550; }
 .editor-empty { display: flex; flex: 1; align-items: center; justify-content: center; flex-direction: column; padding: 24px; text-align: center; }
 .empty-logo { width: 60px; height: 60px; display: grid; place-items: center; color: var(--accent); border: 1px solid var(--border); background: var(--accent-bg); border-radius: 14px; margin-bottom: 15px; }
@@ -373,6 +375,15 @@ svg { flex: none; }
   border-inline-start: 1px solid var(--border);
 }
 .auxiliary-frame > * { min-width: 0; }
+.auxiliary-underlay:not([hidden]) { display: contents; }
+.editor-view-row:has(> .source-control-diff-slot) { position: relative; }
+.editor-view-row:has(> .source-control-diff-slot) > :not(.source-control-diff-slot) { visibility: hidden; }
+.source-control-diff-slot { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--background); }
+.tree-git-status { flex: none; margin-inline-end: 4px; color: var(--muted); font: 11px var(--mono); }
+.tree-git-status[data-git-status="M"] { color: var(--amber); }
+.tree-git-status[data-git-status="U"], .tree-git-status[data-git-status="A"] { color: var(--mint); }
+.tree-git-status[data-git-status="D"], .tree-git-status[data-git-status="!"] { color: var(--danger); }
+@media (max-width: 900px) { .title-run-tests span { display: none; } }
 .editor-surface.editor-parked { display: none; }
 @media (max-width: 960px) {
   .workspace:has(.auxiliary-frame) .explorer-frame { flex-basis: min(var(--explorer-width-live, var(--explorer-width)), 25vw); }
@@ -423,3 +434,7 @@ svg { flex: none; }
 .monaco-editor .ion-problem-selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 .monaco-editor .ion-problem-gutter { border-left: 2px solid var(--danger); }
 .monaco-editor .ion-lens-gutter { border-left: 2px solid var(--accent); }
+
+.source-references { display: grid; gap: 4px; max-height: min(360px, 55vh); overflow: auto; padding: 2px; }
+.source-references .button { justify-content: space-between; min-width: 0; white-space: normal; text-align: start; }
+.source-references .button span { color: var(--muted); font: 11px var(--mono); }

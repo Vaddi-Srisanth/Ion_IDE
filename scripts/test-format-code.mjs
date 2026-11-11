@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { delimiter, join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -12,7 +13,11 @@ const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
 const supported = (bin, args = ['--version']) => {
   try { execFileSync(bin, args, { stdio: 'ignore', timeout: 3000 }); return true } catch { return false }
 }
-const prettierAvailable = supported('prettier')
+const prettierAvailable = supported('prettier') || (process.platform === 'win32'
+  && (process.env.PATH ?? '').split(delimiter).filter(Boolean).some((directory) => {
+    const entry = join(directory.replace(/^"(.*)"$/, '$1'), 'node_modules', 'prettier', 'bin', 'prettier.cjs')
+    return existsSync(entry) && supported(process.execPath, [entry, '--version'])
+  }))
 const ruffAvailable = supported('ruff')
 const blackAvailable = supported('black')
 const clangAvailable = supported('clang-format') || process.platform === 'darwin' && supported('/usr/bin/xcrun', ['--find', 'clang-format'])

@@ -1,14 +1,15 @@
 import { dialog, safeStorage, type BrowserWindow } from 'electron'
 import { createHash } from 'node:crypto'
-import { dirname, join } from 'node:path'
-import type { ProjectRecord, ProjectTest } from '../../shared/projects'
+import { join } from 'node:path'
+import type { ProjectRecord, ProjectSuiteResult, ProjectTest } from '../../shared/projects'
 import { isWithin, maxFileBytes, revision, type WorkspaceFiles } from '../files'
-import type { CRunner } from '../runner'
+import { compilerSetupMessage, type CRunner } from '../runner'
 import { isSelfContainedC, maxAutomaticSourceBytes, SavedTestQueue, type SavedTestSource } from './automatic'
 import { judgeTest, unavailableTest } from './evidence'
 import { ProviderVault, requestProject } from './provider'
 import { ProjectRepository, type SavedProject } from './repository'
 import { boundedText } from './spec'
+import { cTestAdapter, cTestEvidence, executeProjectTests, missingTestSource, selectedProjectTests, type TestSource } from './suite'
 
 interface ProjectOptions {
   profile(): string
@@ -27,12 +28,24 @@ interface AutomaticPermission {
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex')
 
-function testSummary(test: ProjectTest): string {
+const behaviorSummary = (test: ProjectTest) => [
+  'Standard input: ' + (test.stdin ? JSON.stringify(test.stdin) : '(empty)'),
+  'Expected standard output (' + test.match + '): ' + JSON.stringify(test.expectedOutput),
+  'Expected exit code: ' + test.exitCode,
+].join('\n')
+
+async function testSummary(runner: CRunner, test: ProjectTest, path: string, signal: AbortSignal, snapshot = false): Promise<string> {
+  const plan = await runner.preview(path, signal, snapshot)
+  signal.throwIfAborted()
+  if (!plan.executable) throw new Error(compilerSetupMessage('C'))
   return [
-    'Compile and run: ' + test.source, 'Working directory: ' + dirname(test.source),
-    'Standard input: ' + (test.stdin ? JSON.stringify(test.stdin) : '(empty)'),
-    'Expected standard output (' + test.match + '): ' + JSON.stringify(test.expectedOutput),
-    'Expected exit code: ' + test.exitCode,
+    'Working directory: ' + JSON.stringify(plan.cwd),
+    'Compiler: ' + JSON.stringify(plan.executable),
+    'Compiler arguments: ' + JSON.stringify(plan.args),
+    'Program: ' + JSON.stringify(plan.program), 'Program arguments: []',
+    'Ion creates a fresh temporary directory for the executable.',
+    'Limits: ' + plan.limits.compileMs + ' ms compile, ' + plan.limits.programMs + ' ms per case, ' + plan.limits.outputBytes + ' output bytes.',
+    behaviorSummary(test),
   ].join('\n')
 }
 
@@ -53,6 +66,7 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
   let opened: { target: BrowserWindow; path: string } | null = null
   let panelRevision = 0
   let running = false
+  let suite: { target: BrowserWindow; root: string; controller: AbortController; done: Promise<ProjectSuiteResult> } | undefined
   let online: AbortController | null = null
   let approval: AbortController | null = null
   const automatic = new Map<string, AutomaticPermission>()
@@ -95,7 +109,7 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
 
   async function runAutomatic(path: string, expected: SavedTestSource, signal: AbortSignal): Promise<void> {
     const panel = opened
-    if (signal.aborted || !panel || !isFull() || running || runner.busy || isBusy()) return
+    if (signal.aborted || !panel || !isFull() || running || suite || runner.busy || isBusy()) return
     const scope = files()
     const savedRevision = expected.revision
     const current = await scope.inspect(path, 'file')
@@ -106,7 +120,7 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       if (permission.source !== path) continue
       const runSignal = AbortSignal.any([signal, permission.controller.signal])
       const active = () => !runSignal.aborted && isFull() && opened === panel && isCurrent(panel.target)
-        && automatic.get(id) === permission && !running && !isBusy()
+        && automatic.get(id) === permission && !running && !suite && !isBusy()
       if (!active() || runner.busy) continue
       const record = await store.read(panel.path)
       const test = record?.spec.tests.find(candidate => candidate.id === id)
@@ -142,34 +156,40 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
     return { record, test }
   }
 
-  async function source(scope: WorkspaceFiles, root: string, test: ProjectTest) {
-    const source = join(root, test.source)
-    if (!isWithin(root, source)) throw new Error('Test source must stay inside its project.')
-    const inspected = await scope.inspect(source, 'file')
+  async function source(scope: WorkspaceFiles, root: string, test: ProjectTest): Promise<TestSource> {
+    const inspected = await scope.inspect(sourcePath(root, test), 'file')
     if (inspected.stats.size > BigInt(maxFileBytes)) throw new Error('Test source exceeds the C runner file limit.')
     return { path: inspected.path, revision: revision(inspected.stats), size: Number(inspected.stats.size) }
   }
 
+  function sourcePath(root: string, test: ProjectTest): string {
+    const path = join(root, test.source)
+    if (!isWithin(root, path)) throw new Error('Test source must stay inside its project.')
+    return path
+  }
+
   async function view(path: string, record: SavedProject): Promise<ProjectRecord> {
     const scope = files()
-    const current = new Map<string, Promise<string | undefined>>()
+    const current = new Map<string, Promise<TestSource | undefined>>()
     const tests = new Map(record.spec.tests.map(test => [test.id, test]))
-    const evidence = await Promise.all(record.evidence.map(async ({ sourceRevision, ...item }) => {
+    const evidence = await Promise.all(record.evidence.map(async ({ sourceRevision, location, ...item }) => {
       const test = tests.get(item.testId)
       if (!test) return { ...item, stale: true }
       let checked = current.get(test.source)
       if (!checked) {
-        checked = source(scope, path, test).then(result => result.revision, () => undefined)
+        checked = source(scope, path, test).catch(() => undefined)
         current.set(test.source, checked)
       }
       const latest = await checked
-      return { ...item, stale: sourceRevision === null ? latest !== undefined : latest !== sourceRevision }
+      const stale = sourceRevision === null ? latest !== undefined : latest?.revision !== sourceRevision
+      return { ...item, stale, ...(!stale && latest && location ? { location: { ...location, path: latest.path } } : {}) }
     }))
     const automaticTests = isFull() && opened?.path === path ? [...automatic.keys()] : []
     return { ...record, evidence, automatic: automaticTests }
   }
 
   return {
+    get busy() { return running || suite !== undefined },
     async setActive(target: BrowserWindow, root: unknown) {
       if (root === null) {
         close()
@@ -196,10 +216,13 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
     async approve(target: BrowserWindow, root: unknown, testId: unknown, token: unknown) {
       const path = await selected(target, root)
       const { record, test } = await testFor(path, testId, token)
+      const controller = new AbortController()
+      const summary = await testSummary(runner, test, sourcePath(path, test), controller.signal)
+      await selected(target, root)
       const answer = await dialog.showMessageBox(target, {
         type: 'question', buttons: ['Cancel', 'Approve Test'], cancelId: 0, defaultId: 0,
         message: 'Approve this local behavior test?',
-        detail: testSummary(test) + '\n\nThis approves the test definition. Running it still needs your consent. Changing the test clears approval.',
+        detail: summary + '\n\nOnly run code you trust. Approved tests run when you choose them. Changing the test definition clears approval.',
       })
       if (!isCurrent(target) || answer.response !== 1) return view(path, record)
       await selected(target, root)
@@ -231,10 +254,12 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       const controller = new AbortController()
       approval = controller
       try {
+        const summary = await testSummary(runner, test, selectedSource.path, controller.signal, true)
+        if (controller.signal.aborted || opened !== panel || !isCurrent(target)) return view(path, record)
         const answer = await dialog.showMessageBox(target, {
           type: 'warning', buttons: ['Cancel', 'Enable Automatic Test'], cancelId: 0, defaultId: 0, signal: controller.signal,
           message: 'Run this approved test automatically on Ion saves?',
-          detail: testSummary(test) + '\n\nIon will compile and run future saves of this C file without asking again while Projects is open in Full mode. Programs run with your OS permissions. Enable only if you trust the source and your future edits. External edits and unsupported C sources do not trigger a run.',
+          detail: summary + '\n\nIon will compile and run future saves of this C file without asking again while Projects is open in Full mode. Programs run with your OS permissions. Enable only if you trust the source and your future edits. External edits and unsupported C sources do not trigger a run.',
         })
         if (controller.signal.aborted || answer.response !== 1 || opened !== panel || !isFull() || !isCurrent(target)) {
           return view(path, record)
@@ -252,24 +277,25 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       }
     },
     async run(target: BrowserWindow, root: unknown, testId: unknown, token: unknown) {
-      if (running || runner.busy || isBusy()) throw new Error('A program or test is already compiling or running.')
+      if (running || suite || runner.busy || isBusy()) throw new Error('A program or test is already compiling or running.')
       running = true
       try {
         const path = await selected(target, root)
         const { record, test } = await testFor(path, testId, token)
         if (!record.approved.includes(test.id)) throw new Error('Review and approve the test before running it.')
         const scope = files()
-        let saved: { path: string; revision: string }
+        let saved: TestSource
         try {
           saved = await source(scope, path, test)
         } catch {
-          const evidence = unavailableTest(test, 'The source is missing, inaccessible, too large, or outside the project. Check the test configuration.')
+          const evidence = unavailableTest(test, missingTestSource)
           return view(path, await store.evidence(path, evidence, token))
         }
         const answer = await dialog.showMessageBox(target, {
           type: 'warning', buttons: ['Cancel', 'Run Test'], cancelId: 0, defaultId: 0,
           message: 'Run the approved test against your saved code?',
-          detail: testSummary(test) + '\n\nOnly run code you trust. The program runs with your OS permissions. Time and output limits apply.',
+          detail: 'Compile and run ' + JSON.stringify(saved.path) + '\n' + behaviorSummary(test)
+            + '\n\nOnly run code you trust. The program runs with your OS permissions. Time and output limits apply.',
         })
         if (!isCurrent(target) || answer.response !== 1) return view(path, record)
         await selected(target, root)
@@ -282,10 +308,55 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
         }
         if (!await sourceStillCurrent()) throw new Error('The source changed. Review it and run the test again.')
         const result = await runner.run(saved.path, test.stdin, sourceStillCurrent)
-        return view(path, await store.evidence(path, judgeTest(test, result, saved.revision), token))
+        return view(path, await store.evidence(path, cTestEvidence(test, result, saved), token))
       } finally {
         running = false
       }
+    },
+    async runSuite(target: BrowserWindow, root: unknown, ids: unknown, token: unknown): Promise<ProjectSuiteResult> {
+      const scope = files()
+      if (typeof root !== 'string' || scope.rootPath !== root || !isCurrent(target)) {
+        throw new Error('Open the project workspace before running its saved tests.')
+      }
+      if (running || suite || runner.busy || isBusy()) throw new Error('A program or test is already compiling or running.')
+      const controller = new AbortController()
+      const signal = controller.signal
+      const active = () => files() === scope && scope.rootPath === root && isCurrent(target)
+      const done = (async (): Promise<ProjectSuiteResult> => {
+        const path = await selected(target, root)
+        const record = await store.read(path)
+        if (!record || record.revision !== token) throw new Error('The saved project changed. Reload it and try again.')
+        const tests = selectedProjectTests(record, ids)
+        const evidence = await executeProjectTests(cTestAdapter(runner), tests, test => source(scope, path, test),
+          async (test, saved) => {
+            if (signal.aborted || !active() || isBusy()) return false
+            const [checked, latest] = await Promise.all([
+              source(scope, path, test).catch(() => undefined), store.read(path),
+            ])
+            return !signal.aborted && active() && !isBusy() && checked?.revision === saved.revision && latest?.revision === token
+          }, signal)
+        if (!active()) return { record: await view(path, record), cancelled: true, completed: [] }
+        const updated = evidence.length ? await store.evidenceBatch(path, evidence, token) : record
+        if (evidence.length) announce(path)
+        return { record: await view(path, updated), cancelled: signal.aborted, completed: evidence.map(item => item.testId) }
+      })()
+      const job = { target, root, controller, done }
+      suite = job
+      try {
+        return await done
+      } finally {
+        if (suite === job) suite = undefined
+      }
+    },
+    cancelSuite(target: BrowserWindow, root: unknown) {
+      if (!suite || suite.target !== target || suite.root !== root) return false
+      suite.controller.abort()
+      return true
+    },
+    async stopSuite() {
+      const job = suite
+      job?.controller.abort()
+      await job?.done.catch(() => undefined)
     },
     async provider(_target: BrowserWindow) {
       return providerVault.get()

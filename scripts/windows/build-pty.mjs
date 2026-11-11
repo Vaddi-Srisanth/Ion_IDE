@@ -77,3 +77,25 @@ export async function buildWindowsPty(destination, arch) {
     await rm(scratch, { recursive: true, force: true })
   }
 }
+
+export async function buildWindowsFileMutations(destination, arch) {
+  if (arch !== 'x64') throw new Error('The Windows file transaction helper currently targets x64.')
+  if (process.platform !== 'win32') {
+    const prebuilt = process.env.ION_WINDOWS_FILE_OPS_EXE
+    if (!prebuilt) throw new Error('A cross-build requires the verified Windows x64 file transaction helper.')
+    await requireX64Executable(prebuilt)
+    await copyFile(prebuilt, destination)
+    return
+  }
+  const env = await compilerEnvironment()
+  const scratch = await mkdtemp(join(tmpdir(), 'ion-file-ops-build-'))
+  try {
+    await run('cl.exe', ['/nologo', '/std:c++17', '/O2', '/W4', '/EHsc', '/MT', '/DUNICODE', '/D_UNICODE',
+      resolve('src/main/native-file-mutations-windows.cpp'), '/Fe:' + resolve(destination),
+      '/link', '/SUBSYSTEM:WINDOWS', '/ENTRY:wmainCRTStartup'], { ...quiet, cwd: scratch, env })
+    await requireX64Executable(destination)
+  } catch (error) {
+    if (error?.stdout) console.error(error.stdout.trim())
+    throw error
+  } finally { await rm(scratch, { recursive: true, force: true }) }
+}

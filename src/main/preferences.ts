@@ -44,11 +44,18 @@ function isBoolean(value: unknown): boolean {
   return typeof value === 'boolean'
 }
 
+function themeIds(value: unknown, limit: number): boolean {
+  return Array.isArray(value) && value.length <= limit
+    && value.every((id) => id === 'system' || isThemeId(id)) && new Set(value).size === value.length
+}
+
 const validators: Record<keyof Settings, (value: unknown) => boolean> = {
   resourceProfile: (value) => value === 'minimal' || value === 'full',
   openFullScreen: isBoolean,
   checkUpdatesOnLaunch: isBoolean,
   theme: (value) => value === 'system' || isThemeId(value),
+  themeFavorites: (value) => themeIds(value, 100),
+  recentThemes: (value) => themeIds(value, 8),
   accent: (value) => value === 'cyan' || value === 'violet' || value === 'lime' || value === 'amber',
   fontSize: integerBetween(10, 32),
   tabSize: integerBetween(1, 8),

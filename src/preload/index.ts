@@ -42,7 +42,7 @@ const bridge: IonBridge = {
   firstLaunch: process.argv.includes('--ion-first-launch'),
   languageTools: {
     query: (snapshot) => ipcRenderer.invoke('ion:language-query', snapshot),
-    release: (immediate) => ipcRenderer.invoke('ion:language-release', immediate),
+    release: (immediate, language) => ipcRenderer.invoke('ion:language-release', immediate, language),
   },
   formatting: {
     run: (request) => ipcRenderer.invoke('ion:format-source', request),
@@ -135,6 +135,14 @@ const bridge: IonBridge = {
     search: (id, query) => ipcRenderer.invoke('ion:workspace-search', id, query),
     cancel: (id) => ipcRenderer.invoke('ion:workspace-search-cancel', id),
   },
+  sourceControl: {
+    status: (root) => ipcRenderer.invoke('ion:source-control-status', root),
+    trust: (root) => ipcRenderer.invoke('ion:source-control-trust', root),
+    diff: (root, request) => ipcRenderer.invoke('ion:source-control-diff', root, request),
+    change: (root, request) => ipcRenderer.invoke('ion:source-control-change', root, request),
+    commit: (root, request) => ipcRenderer.invoke('ion:source-control-commit', root, request),
+    close: (root) => ipcRenderer.invoke('ion:source-control-close', root),
+  },
   listDirectory: (path) => ipcRenderer.invoke('ion:list-directory', path),
   readFile: (path, mode) => ipcRenderer.invoke('ion:read-file', path, mode),
   readTextPage: (path, page, revision) => ipcRenderer.invoke('ion:read-text-page', path, page, revision),
@@ -169,6 +177,8 @@ const bridge: IonBridge = {
     approve: (path, testId, revision) => ipcRenderer.invoke('ion:projects-approve', path, testId, revision),
     setAutomatic: (path, testId, revision, enabled) => ipcRenderer.invoke('ion:projects-automatic', path, testId, revision, enabled),
     run: (path, testId, revision) => ipcRenderer.invoke('ion:projects-run', path, testId, revision),
+    runSuite: (path, testIds, revision) => ipcRenderer.invoke('ion:projects-run-suite', path, testIds, revision),
+    cancelSuite: (path) => ipcRenderer.invoke('ion:projects-cancel-suite', path),
     provider: () => ipcRenderer.invoke('ion:projects-provider'),
     configure: (value) => ipcRenderer.invoke('ion:projects-configure', value),
     propose: (goal) => ipcRenderer.invoke('ion:projects-propose', goal),

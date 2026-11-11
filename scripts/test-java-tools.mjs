@@ -4,10 +4,12 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder,
   openFromExplorer, resourceSnapshot, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { windowsProcessTree } from './windows/process-tree.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+const snapshot = process.platform === 'win32' ? windowsProcessTree : resourceSnapshot
 const source = 'class Main {\n    void run() {\n        List<String> values;\n    }\n}\n'
 const clean = 'class Main {\n    void run() {\n        java.util.List<String> values;\n    }\n}\n'
 const sourceEditor = (page) => page.getByTestId('editor').locator('.monaco-editor').first()
@@ -45,9 +47,10 @@ await withScratch('java-tools', async (scratch) => {
   const project = await createProject(join(scratch, 'workspace'), { fileCount: 0 })
   const path = join(project.directory, 'Main.java')
   const helper = join(project.directory, 'Helper.java')
-  const outside = join(scratch, 'Outside.java')
+  const outsideFolder = join(scratch, 'outside')
+  const outside = join(outsideFolder, 'Outside.java')
   const profile = join(scratch, 'profile')
-  await mkdir(profile)
+  await Promise.all([mkdir(profile), mkdir(outsideFolder)])
   await Promise.all([
     writeFile(path, source), writeFile(helper, 'class Helper { static int value() { return 4; } }\n'),
     writeFile(outside, 'class Outside {}\n'),
@@ -55,14 +58,17 @@ await withScratch('java-tools', async (scratch) => {
       version: 1, settings: { autoSave: false, openFullScreen: false, showOutput: true, automaticSuggestions: false },
     })),
   ])
-  await symlink(outside, join(project.directory, 'Outside.java'))
+  const escapedFile = process.platform === 'win32'
+    ? join(project.directory, 'outside', 'Outside.java') : join(project.directory, 'Outside.java')
+  if (process.platform === 'win32') await symlink(outsideFolder, join(project.directory, 'outside'), 'junction')
+  else await symlink(outside, escapedFile)
   const session = await launch(target, profile)
   const { app, page } = session
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   const query = (text, operation, offset = 0, version = 1, file = path) => page.evaluate(
     (payload) => window.ion.languageTools.query(payload), { language: 'java', path: file, operation, offset, text, version })
-  const javaProcesses = async () => (await resourceSnapshot(session, { details: true })).members.filter((item) => item.name === 'java')
+  const javaProcesses = async () => (await snapshot(session, { details: true })).members.filter(({ name }) => /^java(?:\.exe)?$/i.test(name ?? ''))
   let step = 'verify manual snippets with Smart Java disabled'
   try {
     await page.context().setOffline(true)
@@ -135,6 +141,7 @@ await withScratch('java-tools', async (scratch) => {
     const projectNavigation = 'class Main { int total() { return Helper.value(); } }'
     assert.equal((await query(projectNavigation, 'definition', projectNavigation.indexOf('value') + 2)).rows[0]?.[0], helper)
     await assert.rejects(query('class Outside {}', 'diagnostics', 0, 1, outside))
+    await assert.rejects(query('class Outside {}', 'diagnostics', 0, 1, escapedFile))
     assert.ok((await query('class Main { Outside value; }', 'diagnostics')).rows.some(([, , , message]) =>
       message.includes('cannot find symbol') && message.includes('Outside')), 'javac must not resolve sources outside the granted workspace')
     const parallel = await Promise.all([query(clean, 'diagnostics', 0, 31), query(member, 'complete', member.indexOf('.;') + 1, 32)])

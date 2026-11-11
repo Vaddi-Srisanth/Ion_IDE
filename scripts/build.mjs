@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { buildWindowsPty } from './windows/build-pty.mjs'
+import { buildFileMutations } from './build-file-mutations.mjs'
 import { build as bundle } from 'esbuild'
 import electron from 'electron'
 import { build, createServer } from 'vite'
@@ -103,6 +104,7 @@ async function buildDesktop() {
   const { version } = JSON.parse(await readFile('package.json', 'utf8'))
   await Promise.all([
     buildPty(),
+    buildFileMutations(resolve(output, 'native', targetPlatform === 'win32' ? 'ion-file-ops.exe' : 'ion-file-ops'), targetPlatform, targetArch),
     buildSearchTool(),
     cp('src/main/learning/packs', resolve(output, 'main/learning-packs'), { recursive: true }),
     compileLearningCatalog(resolve('src/main/learning/catalog'), resolve(output, 'main/learning-catalog'), version),
@@ -129,6 +131,8 @@ async function copyRendererNotices(directory) {
   await Promise.all([
     cp('node_modules/monaco-editor/ThirdPartyNotices.txt', join(licenses, 'monaco-editor-ThirdPartyNotices.txt')),
     cp('node_modules/dompurify/LICENSE', join(licenses, 'dompurify-LICENSE.txt')),
+    cp('node_modules/vscode-jsonrpc/License.txt', join(licenses, 'vscode-jsonrpc-LICENSE.txt')),
+    cp('node_modules/vscode-jsonrpc/thirdpartynotices.txt', join(licenses, 'vscode-jsonrpc-ThirdPartyNotices.txt')),
   ])
 }
 

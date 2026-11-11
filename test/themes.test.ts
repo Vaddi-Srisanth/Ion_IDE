@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { ThemeStore } from '../src/main/themes'
-import { validateTheme, type ThemeData, type ThemeDefinition } from '../src/shared/themes'
+import { builtinThemes, validateTheme, type ThemeData, type ThemeDefinition } from '../src/shared/themes'
 
 const palettes = resolve('src/main/themes/palettes')
 
@@ -18,16 +18,17 @@ function portable({ version, name, appearance, colors, syntax }: ThemeData): The
   return { version, name, appearance, colors, syntax }
 }
 
-test('lists a metadata-only catalog of five contrast-validated built-ins', async (t) => {
+test('lists a metadata-only catalog of contrast-validated built-ins and two high contrast palettes', async (t) => {
   const { profile, store } = await setup(t)
   const metadata = await store.list()
-  assert.equal(metadata.length, 5)
-  assert.equal(metadata.filter((entry) => entry.appearance === 'light').length, 2)
-  assert.equal(metadata.filter((entry) => entry.appearance === 'dark').length, 3)
+  assert.equal(metadata.length, 16)
+  assert.deepEqual(metadata.filter((entry) => entry.contrast === 'high').map(({ appearance }) => appearance), ['dark', 'light'])
   assert.deepEqual(await new ThemeStore(profile, join(profile, 'missing-palettes')).list(), metadata)
   for (const entry of metadata) {
     const theme = await store.load(entry.id)
-    assert.deepEqual({ id: theme.id, name: theme.name, appearance: theme.appearance, source: theme.source }, entry)
+    const { id, name, appearance, source, swatches, contrast } = theme
+    assert.deepEqual({ id, name, appearance, source, swatches, ...(contrast && { contrast }) }, entry)
+    assert.deepEqual(swatches, [theme.colors.background, theme.colors.accent, theme.syntax.keyword])
     assert.deepEqual(validateTheme(portable(theme)), portable(theme))
   }
 })
@@ -41,7 +42,7 @@ test('persists parallel custom installs and round-trips a portable local export'
   const [first, second] = await Promise.all([store.create(night), store.create(day)])
   assert.notEqual(first.id, second.id)
   const restarted = new ThemeStore(profile, palettes)
-  assert.deepEqual((await restarted.list()).slice(5), [first, second])
+  assert.deepEqual((await restarted.list()).slice(builtinThemes.length), [first, second])
   assert.deepEqual(portable(await restarted.load(first.id)), night)
   const path = join(profile, 'shared-theme.json')
   await restarted.exportFile(second.id, path)
@@ -52,7 +53,7 @@ test('persists parallel custom installs and round-trips a portable local export'
 
   // Missing inactive palette contents do not affect listing or another theme's load.
   await rm(join(profile, 'themes', first.id + '.json'))
-  assert.equal((await restarted.list()).length, 8)
+  assert.equal((await restarted.list()).length, builtinThemes.length + 3)
   assert.deepEqual(portable(await restarted.load(second.id)), day)
   await assert.rejects(restarted.load(first.id), /could not be found/)
 })
@@ -80,5 +81,5 @@ test('rejects injection, unknown fields, invalid encodings and inaccessible pale
     await symlink(path, link)
     await assert.rejects(store.importFile(link), /regular file/)
   }
-  assert.equal((await store.list()).length, 5)
+  assert.equal((await store.list()).length, builtinThemes.length)
 })

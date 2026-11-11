@@ -3,6 +3,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'esbuild'
+import { buildFileMutations } from './build-file-mutations.mjs'
 
 const directory = await mkdtemp(join(tmpdir(), 'ion-tests-'))
 try {
@@ -11,6 +12,10 @@ try {
     && (!requested.size || requested.has(name)))
   if ([...requested].some((name) => !files.includes(name))) throw new Error('Unknown unit test filename.')
   if (!files.length) throw new Error('No unit tests found')
+  const native = join(directory, process.platform === 'win32' ? 'ion-file-ops.exe' : 'ion-file-ops')
+  if (files.some((name) => /^(backend|editor-session|file-mutation-races|workspace-files-windows)\.test\.ts$/.test(name))) {
+    await buildFileMutations(native)
+  }
   await build({
     entryPoints: files.map((file) => join('test', file)),
     bundle: true,
@@ -22,7 +27,9 @@ try {
     external: ['electron'],
   })
   const result = spawnSync(process.execPath, ['--enable-source-maps', '--test',
-    ...files.map((file) => join(directory, file.replace(/\.ts$/, '.cjs')))], { stdio: 'inherit' })
+    ...files.map((file) => join(directory, file.replace(/\.ts$/, '.cjs')))], {
+    stdio: 'inherit', env: { ...process.env, ION_FILE_MUTATIONS_TEST_HELPER: native },
+  })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
 } finally {

@@ -1,9 +1,8 @@
-import { editor, languages, MarkerSeverity, Range, Uri, type IDisposable, type Position } from 'monaco-editor/editor/editor.api.js';
-import { toolTextLimit, type ToolOperation } from '../../shared/language-tools';
+import { editor, languages, MarkerSeverity, Range, type IDisposable } from 'monaco-editor/editor/editor.api.js';
+import { createToolQuery, sourceNavigationProviders } from '../language-editor-tools';
 import type { ProblemRow } from '../Problems';
 
 const owner = 'ion-java-live';
-const encoder = new TextEncoder();
 const keywords = 'abstract assert boolean break byte case catch char class continue default do double else enum extends final finally float for if implements import instanceof int interface long new package private protected public record return sealed short static super switch synchronized this throw throws try var void volatile while yield'.split(' ');
 const snippetRows = [
   ['sout', 'Print a line', 'System.out.println(${1});'],
@@ -34,7 +33,6 @@ interface Options {
   path?: string;
   onReport(report: LiveToolReport | null): void;
   onStatus(status: string | null): void;
-  onNavigate(path: string, line: number, column: number): void;
 }
 
 export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: editor.ITextModel, options: Options): IDisposable {
@@ -46,32 +44,9 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
   const smartFile = smart ? path : undefined;
   const current = () => active && !model.isDisposed() && instance.getModel() === model;
 
-  async function query(operation: ToolOperation, position?: Position, cancelled = () => false) {
-    if (!smartFile || !current() || cancelled()) return;
-    if (model.getValueLength() > toolTextLimit) {
-      options.onStatus('Smart Java is limited to files up to 256 KiB.');
-      return;
-    }
-    const version = model.getVersionId();
-    try {
-      const text = model.getValue();
-      if (encoder.encode(text).length > toolTextLimit) {
-        options.onStatus('Smart Java is limited to files up to 256 KiB.');
-        return;
-      }
-      const result = await window.ion.languageTools.query({
-        language: 'java', path: smartFile, operation, version, text,
-        offset: position ? model.getOffsetAt(position) : 0,
-      });
-      if (!current() || cancelled() || model.getVersionId() !== version || result?.version !== version) return;
-      options.onStatus(null);
-      return result.rows;
-    } catch (error) {
-      if (current() && !cancelled() && model.getVersionId() === version) {
-        options.onStatus(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': Error: /, '') : 'Java analysis unavailable.');
-      }
-    }
-  }
+  const query = createToolQuery(model, current, {
+    language: 'java', label: 'Smart Java', path: smartFile, onStatus: options.onStatus,
+  });
 
   function diagnostics() {
     clearTimeout(diagnosticTimer);
@@ -141,23 +116,9 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
     },
   }));
 
-  const locations = async (operation: 'definition' | 'references', position: Position, cancelled: () => boolean) =>
-    (await query(operation, position, cancelled) ?? []).flatMap(([file, line, column]) => {
-      const row = Number(line);
-      const col = Number(column);
-      if (!file || !Number.isSafeInteger(row) || row < 1 || !Number.isSafeInteger(col) || col < 1) return [];
-      return [{ uri: file === path ? model.uri : Uri.file(file), range: new Range(row, col, row, col + 1) }];
-    });
-
   if (smartFile) {
     handles.push(model.onDidChangeContent(diagnostics));
-    handles.push(languages.registerDefinitionProvider('java', {
-      provideDefinition: (item, position, token) => item === model ? locations('definition', position, () => token.isCancellationRequested) : [],
-    }));
-    handles.push(languages.registerReferenceProvider('java', {
-      provideReferences: (item, position, _context, token) =>
-        item === model ? locations('references', position, () => token.isCancellationRequested) : [],
-    }));
+    handles.push(...sourceNavigationProviders(model, smartFile, query));
     handles.push(languages.registerSignatureHelpProvider('java', {
       signatureHelpTriggerCharacters: ['(', ','],
       async provideSignatureHelp(item, position, token) {
@@ -167,14 +128,6 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
         return { value: { activeSignature: 0, activeParameter: Number(rows[0][0]) || 0,
           signatures: rows.map(([, label, ...parameters]) => ({ label, parameters: parameters.map((label) => ({ label })) })) },
           dispose() {} };
-      },
-    }));
-    handles.push(editor.registerEditorOpener({
-      openCodeEditor(source, resource, location) {
-        if (source !== instance || !current() || resource.scheme !== 'file' || resource.toString() === model.uri.toString()) return false;
-        options.onNavigate(resource.fsPath, location ? ('lineNumber' in location ? location.lineNumber : location.startLineNumber) : 1,
-          location ? ('column' in location ? location.column : location.startColumn) : 1);
-        return true;
       },
     }));
     diagnostics();
@@ -189,7 +142,7 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
       if (!model.isDisposed()) editor.setModelMarkers(model, owner, []);
       options.onReport(null);
       options.onStatus(null);
-      if (smartFile) void window.ion.languageTools.release(false).catch(() => {});
+      if (smartFile) void window.ion.languageTools.release(false, 'java').catch(() => {});
     },
   };
 }

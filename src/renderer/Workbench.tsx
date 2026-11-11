@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Compone
 import type { Entry, EntryKind, MenuCommand, Settings, WorkspaceMode } from '../shared/contracts';
 import { displayShortcut } from '../shared/shortcuts';
 import type { ThemeData } from '../shared/themes';
+import type { SourceControlEntry } from '../shared/source-control';
 import type { BottomTab } from '../shared/terminal';
 import { errorMessage, type Documents, type Tab } from './documents';
 import { Explorer } from './Explorer';
@@ -16,7 +17,8 @@ import type { RunConsoleStore } from './run-console/store';
 import type { TerminalController } from './terminal/controller';
 import type { TerminalPaneProps } from './terminal/TerminalPane';
 import './terminal/panel.css';
-import { languageFor } from './paths';
+import { isWithin, languageFor } from './paths';
+import { fileLanguage } from '../shared/languages';
 import { DocumentPane } from './viewers/DocumentPane';
 import { NotebookPane } from './NotebookPane';
 import { MarkdownPreviewPane } from './MarkdownPreviewPane';
@@ -172,9 +174,13 @@ export interface WorkbenchProps {
   mode: WorkspaceMode;
   auxiliary?: ReactNode;
   marketplace?: ReactNode;
+  sourceControl?: ReactNode;
+  sourceControlEntries?: readonly SourceControlEntry[];
+  sourceControlDiff?: ReactNode;
   onToggleAuxiliary(): void;
   onToggleExplorer(): void;
   onToggleMarketplace(): void;
+  onToggleSourceControl(): void;
   active: Tab | undefined;
   tabs: Tab[];
   root: Entry | null;
@@ -193,6 +199,8 @@ export interface WorkbenchProps {
   onRevealProblem(index: number): void;
   onExplainProblem(index: number): void;
   onNavigateSource(path: string, line: number, column: number): void;
+  navigation: { back: boolean; forward: boolean };
+  onHistory(direction: 'back' | 'forward'): void;
   terminalFocus: number;
   terminalController: RefObject<TerminalController | null>;
   onBottomTab(tab: BottomTab): void;
@@ -230,24 +238,24 @@ export interface WorkbenchProps {
 
 export function Workbench(props: WorkbenchProps) {
   const {
-    documents, hidden, mode, auxiliary, marketplace, onToggleAuxiliary, onToggleExplorer, onToggleMarketplace,
+    documents, hidden, mode, auxiliary, marketplace, sourceControl, sourceControlEntries, sourceControlDiff,
+    onToggleAuxiliary, onToggleExplorer, onToggleMarketplace, onToggleSourceControl,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
     onNew, onInsertStarter, formatting, onFormat, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
-    onFind, onSaveAs, onReload, onNavigateSource,
+    onFind, onSaveAs, onReload, onNavigateSource, navigation, onHistory,
   } = props;
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(50);
   const [markdownPercent, setMarkdownPercent] = useState(50);
   const [markdownModes, setMarkdownModes] = useState(readMarkdownModes);
   const [languageReport, setLanguageReport] = useState<LiveToolReport | null>(null);
-  const smartJava = settings.smartLanguages?.includes('java');
-  const hasJavaSource = smartJava && tabs.some((tab) => tab.path && languageFor(tab.name).id === 'java');
+  const hasSmartSource = tabs.some((tab) => tab.path && settings.smartLanguages.includes(fileLanguage(tab.name).id));
   useEffect(() => {
-    if (smartJava && !hasJavaSource) void window.ion.languageTools.release(true).catch(() => {});
-  }, [smartJava, hasJavaSource]);
+    if (!hasSmartSource) void window.ion.languageTools.release(true).catch(() => {});
+  }, [hasSmartSource]);
   const markdownScroll = useRef(new Map<string, number>());
   const markdownRestore = useRef<{ id: string; restore?: () => void; focus: boolean } | undefined>(undefined);
   const editorActions = useRef<EditorActions | null>(null);
@@ -354,7 +362,7 @@ export function Workbench(props: WorkbenchProps) {
     '--explorer-width': `${settings.explorerWidth}px`,
     '--output-height': `${settings.outputHeight}px`, ...(hidden && { display: 'none' }),
   } as CSSProperties;
-  const live = smartJava && languageReport && activeCode?.path === languageReport.path ? languageReport : null;
+  const live = settings.smartLanguages.includes('java') && languageReport && activeCode?.path === languageReport.path ? languageReport : null;
   const bottomTabs = <BottomTabs active={bottomTab} count={problemRows.length + (live?.rows.length ?? 0)} onSelect={onBottomTab}/>;
   return (
     <>
@@ -364,6 +372,10 @@ export function Workbench(props: WorkbenchProps) {
             aria-pressed={settings.showExplorer && !marketplace} onClick={onToggleExplorer}>
             <Icon name="files" size={20}/>
           </button>
+          <button className="activity-button" type="button" title={hint('toggle-source-control', 'Source Control')}
+            aria-label="Source Control" aria-pressed={Boolean(sourceControl)} data-testid="toggle-source-control" onClick={onToggleSourceControl}>
+            <Icon name="git" size={20}/>
+          </button>
           <button className="activity-button" title={hint('find', 'Find in File')} aria-label="Find in File"
             disabled={!active || active.viewer === 'pptx' || Boolean(notebook) || sourceHidden} onClick={() => onFind()}><Icon name="search" size={19}/></button>
           <button className="activity-button" title={hint('toggle-output', 'Toggle Console')} aria-label="Toggle Console"
@@ -371,7 +383,7 @@ export function Workbench(props: WorkbenchProps) {
             <Icon name="terminal" size={20}/>
           </button>
           {mode !== 'free' && <button className="activity-button" title={hint('toggle-auxiliary', `Toggle ${modeName} panel`)}
-            aria-label={`Toggle ${modeName} panel`} aria-pressed={Boolean(auxiliary)} onClick={onToggleAuxiliary}>
+            aria-label={`Toggle ${modeName} panel`} aria-pressed={Boolean(auxiliary) && !sourceControl} onClick={onToggleAuxiliary}>
             <Icon name={mode === 'learn' ? 'book' : mode === 'projects' ? 'map' : 'flask'} size={19}/>
           </button>}
           <button className="activity-button" type="button" title={hint('toggle-marketplace', 'Marketplace')}
@@ -384,6 +396,7 @@ export function Workbench(props: WorkbenchProps) {
           <div className="explorer-frame">
             {settings.showExplorer && <Explorer hidden={Boolean(marketplace)}
               root={root} activePath={active?.path ?? null} target={target} tabs={tabs} revision={treeRevision}
+              sourceControlEntries={sourceControlEntries}
               onOpen={onOpenEntry} onTarget={onTarget} onCreate={onCreate} onRename={onRename} onTrash={onTrash}
               onRefresh={onRefresh} onOpenFolder={onOpenFolder}/>}
             {marketplace}
@@ -391,9 +404,12 @@ export function Workbench(props: WorkbenchProps) {
           <Splitter label={marketplace ? 'Resize Marketplace' : 'Resize Explorer'} value={settings.explorerWidth}
             setting="explorerWidth" min={150} max={620} onResize={onSettings}/>
         </>}
-        {auxiliary && <>
-          <div className="auxiliary-frame">{auxiliary}</div>
-          <Splitter label={`Resize ${modeName} panel`} value={settings.auxiliaryWidth} setting="auxiliaryWidth"
+        {(auxiliary || sourceControl) && <>
+          <div className="auxiliary-frame">
+            {auxiliary && <div className="auxiliary-underlay" hidden={Boolean(sourceControl)}>{auxiliary}</div>}
+            {sourceControl}
+          </div>
+          <Splitter label={sourceControl ? 'Resize Source Control' : `Resize ${modeName} panel`} value={settings.auxiliaryWidth} setting="auxiliaryWidth"
             min={220} max={620} onResize={onSettings}/>
         </>}
         <div className="editor-column">
@@ -430,12 +446,18 @@ export function Workbench(props: WorkbenchProps) {
             <div className="editor-view-row" data-testid={markdownSplit ? 'markdown-split' : documentSplit ? 'document-split' : undefined}
               data-markdown-mode={markdown && markdownMode}
               style={split ? { '--document-split': `${dividerPercent}%` } as CSSProperties : undefined}>
-              <div className="code-pane" hidden={Boolean(active?.viewer || notebook)} inert={sourceHidden || undefined}>
+              <div className="code-pane" hidden={Boolean(active?.viewer || notebook)} inert={sourceHidden || Boolean(sourceControlDiff) || undefined}>
                 {activeCode && (
                   <>
                     <div className="editor-breadcrumb" title={activeCode.path ?? activeCode.name}>
-                      {root && <><Icon name="folder" size={13}/><span>{root.name}</span><Icon name="chevron" size={12}/></>}
-                      <Icon name="file" size={13}/><strong>{activeCode.name}</strong>
+                      <button className="icon-button source-back" aria-label="Go Back" title="Go Back" type="button"
+                        disabled={!navigation.back} onClick={() => onHistory('back')}><Icon name="arrow" size={13}/></button>
+                      <button className="icon-button" aria-label="Go Forward" title="Go Forward" type="button"
+                        disabled={!navigation.forward} onClick={() => onHistory('forward')}><Icon name="arrow" size={13}/></button>
+                      <Icon name={root ? 'folder' : 'file'} size={13}/>
+                      <strong>{root && activeCode.path && isWithin(activeCode.path, root.path)
+                        ? root.name + '/' + activeCode.path.slice(root.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/')
+                        : activeCode.name}</strong>
                       {activeCode.notebookMode === 'json' && <button className="button" onClick={() => documents.setNotebookMode(activeCode.id, 'notebook')}>Open Notebook</button>}
                     </div>
                     {activeCode.conflict && (
@@ -464,7 +486,7 @@ export function Workbench(props: WorkbenchProps) {
                   </div>
                 )}
               </div>
-              {notebookTabs.map((tab) => <div className="code-pane" hidden={tab.id !== notebook?.id} key={tab.id}>
+              {notebookTabs.map((tab) => <div className="code-pane" hidden={tab.id !== notebook?.id} inert={Boolean(sourceControlDiff) || undefined} key={tab.id}>
                 {tab.conflict && <div className="conflict-banner" role="alert">
                   <Icon name="warning" size={16}/><span>This file changed on disk.{tab.dirty && ' Your edits are unsaved.'}</span>
                   <button className="button" disabled={tab.notebookRunning} onClick={() => onSaveAs(tab.id)}>Save As…</button>
@@ -499,6 +521,7 @@ export function Workbench(props: WorkbenchProps) {
                 key={activePreview.id + ':' + activePreview.epoch} path={activePreview.path}
                 name={activePreview.name} format={activePreview.viewer} pinned={activePreview.id === pinned?.id}
                 onPin={toggleSplit}/>}
+              {sourceControlDiff && <div className="source-control-diff-slot">{sourceControlDiff}</div>}
             </div>
           </div>
           {settings.showOutput && !hidden && <>

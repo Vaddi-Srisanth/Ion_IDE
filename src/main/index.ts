@@ -14,6 +14,7 @@ import type { NotebookKernelStatus } from '../shared/notebook-kernel'
 import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
 import { diagnosticPackIds } from '../shared/learning-packs'
 import { entryName, fileText, isWithin, maxFileBytes, revision, WorkspaceFiles } from './files'
+import { fileMutations } from './file-mutations'
 import { readMarkdownImage, resolveMarkdownLink } from './markdown-assets'
 import { installMenu } from './menu'
 import { PreferenceStore } from './preferences'
@@ -23,7 +24,10 @@ import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
 import type { InteractiveRunner, NativeProject } from './run-console'
 import type { TerminalService } from './terminal/service'
-import type { JavaService } from './java/service'
+import type { SourceControlService } from './source-control'
+import type { SourceControlStatus } from '../shared/source-control'
+import { fileLanguage, languageCapability } from '../shared/languages'
+import type { ToolReply } from '../shared/language-tools'
 import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
@@ -72,7 +76,9 @@ function devServer(): URL | undefined {
 const development = devServer()
 const expectedURL = development?.href ?? rendererURL
 const runner = new CRunner()
-let files = new WorkspaceFiles()
+const safeMutations = fileMutations(nativeTool('ion-file-ops'))
+const workspaceFiles = () => new WorkspaceFiles(safeMutations, () => join(app.getPath('userData'), 'trash-staging'))
+let files = workspaceFiles()
 let preferences: PreferenceStore
 let recovery: RecoveryStore
 let editorSession: EditorSessionStore
@@ -81,9 +87,14 @@ let initialized = false
 let window: BrowserWindow | null = null
 let openFullScreen = defaultSettings.openFullScreen
 let smartLanguages = defaultSettings.smartLanguages
-let javaSession: { key: string; controller: AbortController; service: Promise<JavaService> } | undefined
-let javaIdle: ReturnType<typeof setTimeout> | undefined
-let javaDrain = Promise.resolve()
+interface LanguageService {
+  readonly closed: boolean
+  query(snapshot: ToolSnapshot): Promise<ToolReply | null>
+  stop(): Promise<void>
+}
+let languageSession: { key: string; language: string; controller: AbortController; service: Promise<LanguageService> } | undefined
+let languageIdle: ReturnType<typeof setTimeout> | undefined
+let languageDrain = Promise.resolve()
 let formatJob: { id: string; controller: AbortController; done: Promise<FormatResult> } | undefined
 let closeApproved = false
 let closePending = false
@@ -119,10 +130,12 @@ let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
 const trustedSources = new Map<string, string>()
 const earlyFiles: string[] = []
 
-function ptyHelper(): string {
-  const executable = process.platform === 'win32' ? 'ion-pty.exe' : 'ion-pty'
+function nativeTool(name: string): string {
+  const executable = process.platform === 'win32' ? name + '.exe' : name
   return app.isPackaged ? join(process.resourcesPath, executable) : resolve(__dirname, '../native', executable)
 }
+
+const ptyHelper = () => nativeTool('ion-pty')
 
 function terminals(target: BrowserWindow): Promise<TerminalService> {
   return terminalService ??= import('./terminal/service').then(({ TerminalService }) => {
@@ -176,6 +189,50 @@ async function activeProjects(target: BrowserWindow) {
   const handlers = await projects()
   if (target !== window) throw new Error('The project window has closed.')
   return handlers
+}
+
+let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>> } | undefined
+let sourceControlCleanup = Promise.resolve()
+let trustedGitRoot: string | undefined
+
+function sourceControlRoot(target: BrowserWindow, root: unknown): string {
+  if (target !== window || typeof root !== 'string' || root !== files.rootPath) throw new Error('Open the repository folder first.')
+  return root
+}
+
+function closeSourceControl(): Promise<void> {
+  const session = sourceControl
+  sourceControl = undefined
+  if (session) {
+    const closing = session.service.then(async (service) => {
+      service.close()
+      await Promise.allSettled([...session.operations, service.drain()])
+    }, () => {})
+    sourceControlCleanup = Promise.all([sourceControlCleanup, closing]).then(() => {}, () => {})
+  }
+  return sourceControlCleanup
+}
+
+async function useSourceControl<T>(target: BrowserWindow, root: unknown,
+  operation: (service: SourceControlService, path: string) => Promise<T>): Promise<T> {
+  const path = sourceControlRoot(target, root)
+  if (path !== trustedGitRoot) throw new Error('Review and trust the repository before using Git in Ion.')
+  if (sourceControl && sourceControl.root !== path) void closeSourceControl()
+  const session = sourceControl ??= {
+    root: path, service: import('./source-control').then(({ SourceControlService }) => new SourceControlService()),
+    operations: new Set(),
+  }
+  const [service] = await Promise.all([session.service, sourceControlCleanup])
+  if (target !== window || sourceControl !== session || files.rootPath !== root) throw new Error('The workspace changed.')
+  const pending = operation(service, path)
+  session.operations.add(pending)
+  try {
+    const result = await pending
+    if (target !== window || sourceControl !== session || files.rootPath !== root) throw new Error('The workspace changed.')
+    return result
+  } finally {
+    session.operations.delete(pending)
+  }
 }
 
 let learningService: InstanceType<typeof import('./learning').LearningService> | undefined
@@ -378,48 +435,53 @@ function formatDocument(target: BrowserWindow, value: unknown): Promise<FormatRe
   return done
 }
 
-async function stopJavaTools() {
-  clearTimeout(javaIdle)
-  const session = javaSession
-  javaSession = undefined
+async function stopLanguageTools() {
+  clearTimeout(languageIdle)
+  const session = languageSession
+  languageSession = undefined
   if (session) {
     session.controller.abort()
-    javaDrain = session.service.then((service) => service.stop(), () => {})
+    languageDrain = session.service.then((service) => service.stop(), () => {})
   }
-  await javaDrain
+  await languageDrain
 }
 
 async function queryLanguage(target: BrowserWindow, value: unknown) {
   const snapshot = value as Partial<ToolSnapshot> | null
-  if (snapshot?.language !== 'java' || !smartLanguages.includes('java')) return null
-  if (typeof snapshot.path !== 'string' || !snapshot.path.toLowerCase().endsWith('.java')
+  const language = typeof snapshot?.language === 'string' ? languageCapability(snapshot.language) : undefined
+  const semantic = language?.semantic
+  if (!snapshot || !language || !semantic || !smartLanguages.includes(language.id)) return null
+  if (typeof snapshot.path !== 'string' || fileLanguage(snapshot.path).id !== language.id
     || typeof snapshot.text !== 'string' || Buffer.byteLength(snapshot.text) > toolTextLimit || snapshot.text.includes('\0')
     || typeof snapshot.version !== 'number' || !Number.isSafeInteger(snapshot.version) || snapshot.version < 1
     || typeof snapshot.offset !== 'number' || !Number.isSafeInteger(snapshot.offset)
     || snapshot.offset < 0 || snapshot.offset > snapshot.text.length
-    || !['diagnostics', 'complete', 'signature', 'definition', 'references'].includes(snapshot.operation ?? '')) {
-    throw new Error('Invalid Java analysis request.')
+    || !snapshot.operation || !semantic.operations.includes(snapshot.operation)) {
+    throw new Error('Invalid language analysis request.')
   }
   const scope = files
   const workspace = scope.rootPath
   const { path } = await scope.inspect(snapshot.path, 'file')
   const root = workspace && isWithin(workspace, path) ? workspace : null
-  const key = root ?? path
-  if (javaSession?.key !== key) await stopJavaTools()
-  if (target !== window || files !== scope || scope.rootPath !== workspace || !smartLanguages.includes('java')
-    || (javaSession && javaSession.key !== key)) return null
-  clearTimeout(javaIdle)
-  if (!javaSession) {
+  const key = semantic.adapter + ':' + (root ?? path)
+  if (languageSession?.key !== key) await stopLanguageTools()
+  if (target !== window || files !== scope || scope.rootPath !== workspace || !smartLanguages.includes(language.id)
+    || (languageSession && languageSession.key !== key)) return null
+  clearTimeout(languageIdle)
+  if (!languageSession) {
     const controller = new AbortController()
-    const service = import('./java/service').then(({ JavaService }) => JavaService.start(root, path, controller.signal))
-    javaSession = { key, controller, service }
+    const service = semantic.adapter === 'java'
+      ? import('./java/service').then(({ JavaService }) => JavaService.start(root, path, controller.signal))
+      : import('./language-tools/clangd').then(({ ClangdService }) => ClangdService.start(root, path, controller.signal))
+    languageSession = { key, language: language.id, controller, service }
   }
-  const session = javaSession
+  const session = languageSession
+  session.language = language.id
   try {
     const service = await session.service
-    if (javaSession !== session || scope.rootPath !== workspace || target !== window) return null
+    if (languageSession !== session || scope.rootPath !== workspace || target !== window) return null
     const reply = await service.query({ ...snapshot, path } as ToolSnapshot)
-    if (javaSession !== session || scope.rootPath !== workspace || target !== window) return null
+    if (languageSession !== session || scope.rootPath !== workspace || target !== window) return null
     if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'references')) {
       const locations = await Promise.all(reply.rows.map(async ([file, line, column]) => {
         if (file === path) return [file, line, column]
@@ -430,8 +492,8 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
     }
     return reply
   } catch (error) {
-    if (session !== javaSession) return null
-    if (await session.service.then((service) => service.closed, () => true) && javaSession === session) await stopJavaTools()
+    if (session !== languageSession) return null
+    if (await session.service.then((service) => service.closed, () => true) && languageSession === session) await stopLanguageTools()
     throw error
   }
 }
@@ -509,9 +571,11 @@ function createWindow(): BrowserWindow {
     interactive?.controller.abort()
     const formatting = formatJob
     formatting?.controller.abort()
+    const fileCleanup = files.drain()
     window = null
-    files = new WorkspaceFiles()
+    files = workspaceFiles()
     trustedSources.clear()
+    trustedGitRoot = undefined
     releasePanel()
     if (panel !== 'projects') projectHandlers?.close()
     if (panel !== 'practice') practiceRun?.controller.abort()
@@ -526,7 +590,8 @@ function createWindow(): BrowserWindow {
     terminalService = undefined
     terminalFocused = false
     ignoreTerminalAccelerators = false
-    const cleanup = Promise.all([runner.drain(), preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopJavaTools(), interactive?.job,
+    const cleanup = Promise.all([runner.drain(), fileCleanup, preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
+      closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), formatting?.done])
     if (restartAfterCrash) {
       void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
@@ -594,7 +659,7 @@ function startInteractive(target: BrowserWindow, id: string, value: unknown, lea
   if (expectedRevision !== undefined && (typeof expectedRevision !== 'string' || !expectedRevision.length || expectedRevision.length > 256)) {
     return Promise.resolve(rejectedRun('Invalid source revision.'))
   }
-  if (runner.busy || practiceRun || activeRun) {
+  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
     return Promise.resolve(rejectedRun('A program or test is already running.'))
   }
   const controller = new AbortController()
@@ -738,6 +803,22 @@ function registerIpc(): void {
     return entry
   }
 
+  function workspaceChanged(previous: string | null) {
+    if (previous === files.rootPath) return
+    trustedGitRoot = undefined
+    void closeSourceControl()
+    void projectHandlers?.stopSuite()
+  }
+
+  async function grantFolder(target: BrowserWindow, path: string, requireCanonical = false) {
+    const scope = files
+    const previous = scope.rootPath
+    const entry = await scope.grant(path, 'folder', requireCanonical)
+    if (target !== window || scope !== files) throw new Error('The workspace window has closed.')
+    workspaceChanged(previous)
+    return remember(entry)
+  }
+
   function revokeTrust(path: string): void {
     for (const trusted of trustedSources.keys()) {
       if (isWithin(path, trusted)) trustedSources.delete(trusted)
@@ -747,9 +828,12 @@ function registerIpc(): void {
   handle('set-optional-panel', setOptionalPanel)
   handle('editor-session-available', () => editorSession.available())
   handle('editor-session-save', (_target, snapshot) => editorSession.save(snapshot, files))
-  handle('editor-session-resume', (target) => {
+  handle('editor-session-resume', async (target) => {
     const scope = files
-    return editorSession.resume(scope, recovery, () => target === window && scope === files)
+    const previous = scope.rootPath
+    const resumed = await editorSession.resume(scope, recovery, () => target === window && scope === files)
+    if (scope === files) workspaceChanged(previous)
+    return resumed
   })
   handle('recovery-list', () => recovery.list())
   handle('recovery-read', (_target, id) => recovery.read(id))
@@ -767,7 +851,7 @@ function registerIpc(): void {
     learningLensEnabled = result.learningLens
     openFullScreen = result.openFullScreen
     smartLanguages = result.smartLanguages
-    if (!smartLanguages.includes('java')) void stopJavaTools()
+    if (languageSession && !smartLanguages.includes(languageSession.language)) void stopLanguageTools()
     applyProfile(result.resourceProfile)
     applyShortcuts(result.shortcuts)
     return result
@@ -777,11 +861,12 @@ function registerIpc(): void {
   handle('format-cancel', (_target, id) => {
     if (typeof id === 'string' && formatJob?.id === id) formatJob.controller.abort()
   })
-  handle('language-release', (_target, immediate) => {
-    if (typeof immediate !== 'boolean' || !javaSession) return
-    clearTimeout(javaIdle)
-    if (immediate) return stopJavaTools()
-    javaIdle = setTimeout(() => void stopJavaTools(), 15_000)
+  handle('language-release', (_target, immediate, language) => {
+    if (typeof immediate !== 'boolean' || !languageSession
+      || (language !== undefined && languageSession.language !== language)) return
+    clearTimeout(languageIdle)
+    if (immediate) return stopLanguageTools()
+    languageIdle = setTimeout(() => void stopLanguageTools(), 15_000)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const getUpdates = () => updates ??= import('./updates').then(({ GitHubUpdates }) =>
@@ -846,7 +931,7 @@ function registerIpc(): void {
     const selection = await dialog.showOpenDialog(target, { title: 'Open Folder', properties: ['openDirectory'] })
     if (target !== window || selection.canceled || !selection.filePaths[0]) return null
     workspaceSearch?.controller.abort()
-    return remember(await files.grant(selection.filePaths[0], 'folder'))
+    return grantFolder(target, selection.filePaths[0])
   })
   handle('open-file', async (target) => {
     const selection = await dialog.showOpenDialog(target, { title: 'Open File', properties: ['openFile'] })
@@ -865,8 +950,40 @@ function registerIpc(): void {
   handle('open-recent', async (target, path) => {
     const previous = (await preferences.get()).recents.find((item) => item.path === path)
     if (target !== window || !previous) throw new Error('This item is no longer in Recent.')
-    if (previous.kind === 'folder') workspaceSearch?.controller.abort()
-    return remember(await files.grant(previous.path, previous.kind, true))
+    if (previous.kind === 'folder') {
+      workspaceSearch?.controller.abort()
+      return grantFolder(target, previous.path, true)
+    }
+    return remember(await files.grant(previous.path, 'file', true))
+  })
+  handle('source-control-status', async (target, root): Promise<SourceControlStatus> => {
+    const path = sourceControlRoot(target, root)
+    if (path === trustedGitRoot) return useSourceControl(target, path, (service) => service.status(path))
+    const { gitDirectory } = await import('./source-control/repository')
+    if (!await gitDirectory(path)) return { kind: 'none', message: 'Open the root folder of a Git repository to see its changes.' }
+    sourceControlRoot(target, path)
+    return { kind: 'untrusted', message: 'Review this repository before Ion runs its local Git configuration.' }
+  })
+  handle('source-control-trust', async (target, root) => {
+    const path = sourceControlRoot(target, root)
+    if (path === trustedGitRoot) return true
+    const { gitDirectory } = await import('./source-control/repository')
+    if (!await gitDirectory(path)) return false
+    sourceControlRoot(target, path)
+    const answer = await dialog.showMessageBox(target, {
+      type: 'warning', buttons: ['Cancel', 'Trust Repository'], defaultId: 0, cancelId: 0,
+      message: 'Trust this Git repository for this workspace?',
+      detail: 'Git may use local filters and tools configured for the checkout. Continue only if you trust its contents and configuration. Ion does not run Git before you approve.\n\n' + path,
+    })
+    if (answer.response !== 1) return false
+    trustedGitRoot = sourceControlRoot(target, path)
+    return true
+  })
+  handle('source-control-diff', (target, root, request) => useSourceControl(target, root, (service, path) => service.diff(path, request)))
+  handle('source-control-change', (target, root, request) => useSourceControl(target, root, (service, path) => service.change(path, request)))
+  handle('source-control-commit', (target, root, request) => useSourceControl(target, root, (service, path) => service.commit(path, request)))
+  handle('source-control-close', (_target, root) => {
+    if (sourceControl?.root === root) return closeSourceControl()
   })
   handle('quick-open-search', async (_target, value) => {
     const query = quickOpenQuery(value)
@@ -1232,6 +1349,8 @@ function registerIpc(): void {
   handle('projects-save', async (target, root, spec, token) => (await activeProjects(target)).save(target, root, spec, token))
   handle('projects-approve', async (target, root, id, token) => (await activeProjects(target)).approve(target, root, id, token))
   handle('projects-run', async (target, root, id, token) => (await activeProjects(target)).run(target, root, id, token))
+  handle('projects-run-suite', async (target, root, ids, token) => (await activeProjects(target)).runSuite(target, root, ids, token))
+  handle('projects-cancel-suite', (target, root) => projectHandlers?.cancelSuite(target, root) ?? false)
   handle('projects-automatic', async (target, root, id, token, enabled) =>
     (await activeProjects(target)).setAutomatic(target, root, id, token, enabled))
   handle('projects-provider', async (target) => (await onlineProjects(target)).provider(target))
@@ -1257,7 +1376,7 @@ function registerIpc(): void {
     return files.grant(path, 'file', true)
   })
   handle('practice-run-samples', async (target, id, attempt) => {
-    if (practiceRun || runner.busy || activeRun) throw new Error('A program or test is already running.')
+    if (practiceRun || runner.busy || activeRun || projectHandlers?.busy) throw new Error('A program or test is already running.')
     const controller = new AbortController()
     const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
       if (controller.signal.aborted || target !== window) return [cancelledRun()]
@@ -1273,6 +1392,7 @@ function registerIpc(): void {
   })
   handle('stop-run', () => {
     projectHandlers?.stopAutomatic()
+    void projectHandlers?.stopSuite()
     practiceRun?.controller.abort()
     activeRun?.controller.abort()
     runner.stop()

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import type { Accent, Settings } from '../shared/contracts';
 import type { ThemeData } from '../shared/themes';
 import { Icon } from './icons';
+import { appearanceFor } from './appearance';
 import { ThemeSettings } from './themes/ThemeSettings';
 import { ShortcutSettings } from './ShortcutSettings';
 import { UpdateSettings } from './UpdateSettings';
@@ -9,8 +10,8 @@ import type { UpdateControls } from './useUpdates';
 import type { ShortcutOverrides } from '../shared/shortcuts';
 import { starterLanguages, type StarterLanguage } from '../shared/starter-code';
 
-export function Modal({ title, className = '', children, onClose, busy = false }: {
-  title: string; className?: string; children: ReactNode; onClose(): void; busy?: boolean;
+export function Modal({ title, className = '', children, onClose, busy = false, style }: {
+  title: string; className?: string; children: ReactNode; onClose(): void; busy?: boolean; style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -19,7 +20,7 @@ export function Modal({ title, className = '', children, onClose, busy = false }
     return () => element?.close();
   }, []);
   return (
-    <dialog className={`modal ${className}`} ref={ref} aria-label={title}
+    <dialog className={`modal ${className}`} ref={ref} aria-label={title} style={style}
       onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <div className="modal-content">
@@ -35,11 +36,15 @@ export function Modal({ title, className = '', children, onClose, busy = false }
 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
-export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChange, onUpdateLaunchChange,
+export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThemePreview, onThemeFavorite, startBrowsing, onLanguageSupport, onChange, onUpdateLaunchChange,
   preferencesReady, updates, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
-  onThemeChange(id: string): Promise<void>;
+  onThemeChange(id: string, loaded?: ThemeData): Promise<void>;
+  onThemePreview(theme: ThemeData | null): void;
+  onThemeFavorite(id: string): Promise<void>;
+  startBrowsing?: boolean;
+  onLanguageSupport(): void;
   onChange(patch: Partial<Settings>): void;
   onUpdateLaunchChange(enabled: boolean): Promise<void>;
   preferencesReady: boolean;
@@ -49,6 +54,12 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
   onReplayIntro(): void;
   onClose(): void;
 }) {
+  // The preview changes the workbench while the picker controls keep a stable
+  // palette. Applying a preview updates both.
+  const settingsStyle = useMemo(() => {
+    const appearance = appearanceFor(activeTheme, settings.accent);
+    return { ...appearance.style, colorScheme: appearance.kind };
+  }, [activeTheme, settings.accent]);
   const themeSupportsAccent = ['dark', 'light', 'system'].includes(settings.theme);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ message: string; error?: boolean } | null>(null);
@@ -65,7 +76,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
     }
   };
   return (
-    <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy}>
+    <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy} style={settingsStyle}>
       <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady} updates={updates}/>
       <div className="settings-group">
         <h3>Window</h3>
@@ -81,9 +92,11 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
           <button className="button" type="button" data-testid="onboarding-replay" onClick={onReplayIntro}>Replay Intro</button>
         </div>
       </div>
-      <div className="settings-group">
+      <div className="settings-group appearance-settings">
         <h3>Appearance</h3>
-        <ThemeSettings selection={settings.theme} activeTheme={activeTheme} onSelect={onThemeChange}/>
+        <ThemeSettings selection={settings.theme} activeTheme={activeTheme} onSelect={onThemeChange}
+          onPreview={onThemePreview} onFavorite={onThemeFavorite} favorites={settings.themeFavorites}
+          recent={settings.recentThemes} startBrowsing={startBrowsing}/>
         {themeSupportsAccent && <div className="setting">
           <div><b>Accent</b><p>Color for controls and active panes.</p></div>
           <div className="swatches" aria-label="Accent color">
@@ -131,10 +144,22 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onChan
 
       <div className="settings-group">
         <h3>Language tools</h3>
+        <div className="setting">
+          <span>See which tools each language supports.</span>
+          <button className="button" type="button" onClick={onLanguageSupport}>Language Support…</button>
+        </div>
+        <label className="setting">
+          <span><b>Smart C/C++</b><small>Use local clangd for definitions and references. Results are limited to the current translation unit.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('c') && settings.smartLanguages.includes('cpp')}
+            onChange={(event) => {
+              const others = settings.smartLanguages.filter((id) => id !== 'c' && id !== 'cpp');
+              onChange({ smartLanguages: event.target.checked ? [...others, 'c', 'cpp'] : others });
+            }}/>
+        </label>
         <label className="setting">
           <span><b>Smart Java</b><small>Use a local JDK (17+) for semantic suggestions and live diagnostics in saved Java files.</small></span>
           <input type="checkbox" checked={settings.smartLanguages.includes('java')}
-            onChange={(event) => onChange({ smartLanguages: event.target.checked ? ['java'] : [] })}/>
+            onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'java'] : settings.smartLanguages.filter((id) => id !== 'java') })}/>
         </label>
         <label className="setting">
           <span><b>Automatic suggestions</b><small>Show language suggestions as you type. Press Ctrl+Space for manual suggestions.</small></span>

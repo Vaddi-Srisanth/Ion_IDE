@@ -23,6 +23,10 @@ const profile = join(process.env.APPDATA, 'Ion IDE')
 const prefs = join(profile, 'preferences.json')
 const openWith = 'HKCU\\Software\\Classes\\Applications\\Ion IDE.exe'
 const priorSetup = process.env.ION_PREVIOUS_WINDOWS_INSTALLER
+const publicInstallers = new Map([
+  ['51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd', '0.9.4'],
+  ['4addcd1a00e8cb903807775fd4301472ee4bed0c1d2191671addbb8ce8660a90', '0.9.5'],
+])
 const present = (path) => lstat(path).then(() => true, (error) => {
   if (error.code === 'ENOENT') return false
   throw error
@@ -56,6 +60,7 @@ await withScratch('windows-release', async (scratch) => {
   let child
   let browser
   let profileOwned = false
+  let priorVersion
   try {
     await mkdir(project)
     await mkdir(profile)
@@ -70,9 +75,10 @@ await withScratch('windows-release', async (scratch) => {
 
     if (priorSetup) {
       const priorHash = createHash('sha256').update(await readFile(priorSetup)).digest('hex')
-      assert.equal(priorHash, '51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd')
+      priorVersion = publicInstallers.get(priorHash)
+      assert.ok(priorVersion, 'Previous installer matches a published checksum.')
       await run(resolve(priorSetup), ['/S'], quiet)
-      assert.match(await fileVersion(app), /^0\.9\.4(?:\.0)?$/)
+      assert.ok([priorVersion, priorVersion + '.0'].includes(await fileVersion(app)))
       await writeFile(userFile, 'preserve unowned files')
     }
     await run(setup, ['/S'], quiet)
@@ -86,11 +92,12 @@ await withScratch('windows-release', async (scratch) => {
     if (priorSetup) {
       assert.equal(await readFile(userFile, 'utf8'), 'preserve unowned files')
       assert.equal(JSON.parse(await readFile(prefs, 'utf8')).settings.autoSave, false)
-      console.log(`PASS verified public 0.9.4 installer upgraded to ${release.version}, preserving the profile and unowned files.`)
+      console.log(`PASS verified public ${priorVersion} installer upgraded to ${release.version}, preserving the profile and unowned files.`)
     }
     const search = join(installDir, 'App', 'resources', 'ion-rg.exe')
     assert.match((await run(search, ['--version'], quiet)).stdout, /ripgrep/)
     assert.equal(await present(join(installDir, 'App', 'resources', 'ion-pty.exe')), true, 'Windows installer includes its PTY helper')
+    assert.equal(await present(join(installDir, 'App', 'resources', 'ion-file-ops.exe')), true, 'Windows installer includes its file transaction helper')
 
     child = spawn(app, ['--remote-debugging-port=0'], { stdio: ['ignore', 'ignore', 'pipe'] })
     let diagnostic = ''

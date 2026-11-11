@@ -1,7 +1,9 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type { Entry, EntryKind } from '../shared/contracts';
+import type { SourceControlEntry } from '../shared/source-control';
 import { errorMessage, type Tab } from './documents';
 import { Icon } from './icons';
+import { sourceControlPathKey } from './paths';
 
 interface ExplorerProps {
   hidden?: boolean;
@@ -10,6 +12,7 @@ interface ExplorerProps {
   target: string | null;
   tabs: Tab[];
   revision: number;
+  sourceControlEntries?: readonly SourceControlEntry[];
   onOpen(entry: Entry): void;
   onTarget(path: string): void;
   onCreate(kind: EntryKind): void;
@@ -25,6 +28,7 @@ interface FolderProps {
   activePath: string | null;
   target: string | null;
   revision: number;
+  sourceControl?: ReadonlyMap<string, SourceControlEntry>;
   onOpen(entry: Entry): void;
   onTarget(path: string): void;
   onRename(entry: Entry): void;
@@ -32,7 +36,7 @@ interface FolderProps {
 }
 
 const Folder = memo(function Folder(props: FolderProps) {
-  const { path, depth, activePath, target, revision, onOpen, onTarget, onRename, onTrash } = props;
+  const { path, depth, activePath, target, revision, sourceControl, onOpen, onTarget, onRename, onTrash } = props;
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(() => new Set<string>());
@@ -72,6 +76,8 @@ const Folder = memo(function Folder(props: FolderProps) {
         const isFolder = entry.kind === 'folder';
         const isExpanded = expanded.has(entry.path);
         const selected = isFolder ? target === entry.path : activePath === entry.path;
+        const change = sourceControl?.get(sourceControlPathKey(entry.path));
+        const status = change?.unmerged ? '!' : change?.worktree === '?' ? 'U' : change?.worktree || change?.index;
         return (
           <li key={entry.path}>
             <div className={`tree-row ${selected ? 'selected' : ''}`} style={{ paddingInlineStart: 7 + depth * 13 }}
@@ -85,6 +91,9 @@ const Folder = memo(function Folder(props: FolderProps) {
                   className={isFolder ? 'tree-folder-icon' : /\.c$/i.test(entry.name) ? 'tree-c-icon' : undefined}/>
                 <span>{entry.name}</span>
               </button>
+              {status && <span className="tree-git-status" data-git-status={status} title={change?.unmerged ? 'Unmerged Git changes'
+                : change?.worktree === '?' ? 'Untracked by Git' : [change?.index && `Staged ${change.index}`,
+                  change?.worktree && `Working tree ${change.worktree}`].filter(Boolean).join(' · ')}>{status}</span>}
               <div className="tree-tools">
                 <button className="icon-button" aria-label={`Rename ${entry.name}`} title="Rename" data-testid="rename-entry"
                   onClick={() => onRename(entry)}><Icon name="edit" size={13}/></button>
@@ -100,7 +109,10 @@ const Folder = memo(function Folder(props: FolderProps) {
   );
 });
 
-export function Explorer({ hidden, root, activePath, target, tabs, revision, onOpen, onTarget, onCreate, onRename, onTrash, onRefresh, onOpenFolder }: ExplorerProps) {
+export function Explorer({ hidden, root, activePath, target, tabs, revision, sourceControlEntries,
+  onOpen, onTarget, onCreate, onRename, onTrash, onRefresh, onOpenFolder }: ExplorerProps) {
+  const sourceControl = useMemo(() => sourceControlEntries?.length
+    ? new Map(sourceControlEntries.map((entry) => [sourceControlPathKey(entry.absolutePath), entry])) : undefined, [sourceControlEntries]);
   return (
     <aside className="explorer" hidden={hidden} data-testid="explorer" aria-label="File explorer">
       <div className="pane-title">
@@ -121,6 +133,7 @@ export function Explorer({ hidden, root, activePath, target, tabs, revision, onO
               <Icon name="down" size={13}/><Icon name="open" size={15}/><span>{root.name}</span>
             </button>
             <Folder key={root.path} path={root.path} depth={0} activePath={activePath} target={target} revision={revision}
+              sourceControl={sourceControl}
               onOpen={onOpen} onTarget={onTarget} onRename={onRename} onTrash={onTrash}/>
           </>
         ) : (

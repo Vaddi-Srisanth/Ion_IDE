@@ -8,6 +8,7 @@ import { judgeTest, unavailableTest } from '../src/main/projects/evidence'
 import { ProviderVault, requestProject } from '../src/main/projects/provider'
 import { ProjectRepository } from '../src/main/projects/repository'
 import { validateProject } from '../src/main/projects/spec'
+import { cTestEvidence, executeProjectTests, selectedProjectTests } from '../src/main/projects/suite'
 import { planningCases, scorePlan } from './fixtures/project-plans'
 
 const plan = planningCases[0].reviewed
@@ -76,6 +77,54 @@ test('verification distinguishes behavior failure, environmental issues, and inc
   assert.equal(partial.kind, 'interrupted')
   assert.equal(judgeTest(testArtifact, { ...goodRun, status: 'compile-error' }, revision).kind, 'configuration')
   assert.equal(unavailableTest(testArtifact, 'Missing source.').outcome, 'unable-to-verify')
+})
+
+test('a saved suite selects approved definitions only and commits its results as one revision', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-suite-store-'))
+  try {
+    const store = new ProjectRepository(directory)
+    const first = await store.save('/workspace', plan, null)
+    const second = await store.approve('/workspace', testArtifact, first.revision)
+    assert.throws(() => selectedProjectTests(second, [plan.tests[1].id]), /approve/)
+    assert.throws(() => selectedProjectTests(second, [testArtifact.id, testArtifact.id]), /distinct/)
+    const record = await store.approve('/workspace', plan.tests[1], second.revision)
+    const chosen = selectedProjectTests(record, [plan.tests[1].id, testArtifact.id])
+    const items = chosen.map(artifact => judgeTest(artifact, { ...goodRun, programMs: 2, programStderr: 'fixture warning' }, revision))
+    await assert.rejects(store.evidenceBatch('/workspace', items, second.revision), /changed/)
+    const saved = await store.evidenceBatch('/workspace', items, record.revision)
+    assert.notEqual(saved.revision, record.revision)
+    assert.deepEqual((await store.read('/workspace'))?.evidence, items)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('suite cancellation keeps completed cases and excludes cancelled or later cases', async () => {
+  const controller = new AbortController()
+  const tests = [testArtifact, { ...testArtifact, id: 'test-second' }, { ...testArtifact, id: 'test-third' }]
+  const path = join(tmpdir(), 'sample with space.c')
+  const source = { path, revision, size: 40 }
+  const evidence = await executeProjectTests({
+    maxCases: 8,
+    async run(_source, inputs, current, signal) {
+      assert.equal(inputs.length, 3)
+      assert.equal(await current(), true)
+      controller.abort()
+      assert.equal(signal.aborted, true)
+      return [goodRun, { ...goodRun, status: 'cancelled' }]
+    },
+    evidence: cTestEvidence,
+  }, tests, async () => source, async () => true, controller.signal)
+  assert.deepEqual(evidence.map(item => item.testId), [testArtifact.id])
+})
+
+test('compiler evidence links only a diagnostic for the tested source', () => {
+  const path = join(tmpdir(), 'sample with space.c')
+  const source = { path, revision, size: 40 }
+  const output = `${join(tmpdir(), 'outside.h')}:2:3: error: unrelated\n${path}:7:9: error: expected expression`
+  const result: RunResult = { ...goodRun, status: 'compile-error', compileOutput: output }
+  assert.deepEqual(cTestEvidence(testArtifact, result, source).location, { line: 7, column: 9 })
+  assert.equal(cTestEvidence(testArtifact, { ...result, compileOutput: `${join(tmpdir(), 'outside.h')}:2:3: error: unrelated` }, source).location, undefined)
 })
 
 test('provider enforces key isolation, HTTPS and endpoint-specific encrypted storage', async () => {

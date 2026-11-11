@@ -33,3 +33,20 @@
 .project-test { border-top: 1px solid var(--border); padding-top: 7px; }
 .project-test-content, .project-evidence { display: grid; gap: 6px; margin-top: 7px; min-width: 0; }
 .project-test pre { margin: 4px 0; padding: 6px; max-height: 112px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--background); font: 11px/1.45 var(--mono); }
+.modal.project-tests-dialog { width: min(640px, 90vw); }
+.project-tests-content { display: grid; gap: 10px; min-width: 0; }
+.project-tests-intro { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; overflow-wrap: anywhere; }
+.project-tests-intro strong { color: var(--ink); }
+.project-tests-intro span { color: var(--muted); }
+.project-tests-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.project-tests-toolbar .project-actions { justify-content: flex-end; }
+.project-tests-status:empty { display: none; }
+.project-tests-status { color: var(--muted); }
+.project-tests-results { display: grid; gap: 8px; }
+.project-suite-case summary > span:first-child { margin-right: 8px; }
+.project-suite-case .project-test-content > .button { justify-self: start; }
+.project-test-output { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) {
+  .project-tests-toolbar, .project-test-output { grid-template-columns: minmax(0, 1fr); }
+  .project-tests-toolbar .project-actions { justify-content: flex-start; }
+}

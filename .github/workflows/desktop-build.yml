@@ -24,6 +24,11 @@ jobs:
       - run: node scripts/release-evidence.mjs checkout
       - run: npm ci
       - run: npm audit --audit-level=high
+      - name: Install optional formatter for desktop fixtures
+        run: |
+          tools="$RUNNER_TEMP/ion-test-tools"
+          npm install --global --prefix "$tools" --ignore-scripts --no-audit --no-fund prettier@3.6.2
+          printf '%s\n' "$tools/bin" >> "$GITHUB_PATH"
       - name: Configure zsh for the terminal integration fixture
         run: |
           if [ "$(node -p "require('node:os').userInfo().shell")" != /bin/zsh ]; then
@@ -31,12 +36,18 @@ jobs:
           fi
           test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
       - run: npm run test:regression
+      - name: Verify rendered syntax, capability labels, and clangd navigation
+        run: |
+          xcrun --find clangd
+          node scripts/test-language-capabilities.mjs
+          npm run test:navigation
       - run: node scripts/test-update-preferences.mjs
       - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
       - run: npm run package:dmg
       - run: node scripts/verify-mac-release.mjs
       - run: node scripts/release-evidence.mjs record mac-arm64
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: ion-macos-arm64-attempt-${{ github.run_attempt }}
           path: |
@@ -72,12 +83,22 @@ jobs:
           if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 is unavailable.' }
           "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
           Join-Path $jdk 'bin' >> $env:GITHUB_PATH
-          Get-Command java, javac, python, mvn, gradle
+          $llvm = Join-Path $env:ProgramFiles 'LLVM\bin'
+          if (Test-Path (Join-Path $llvm 'clangd.exe')) { $llvm >> $env:GITHUB_PATH }
+          elseif (!(Get-Command clangd -ErrorAction SilentlyContinue)) { throw 'clangd is unavailable.' }
+          Get-Command java, javac, python, mvn, gradle, git
+      - name: Install optional formatter for desktop fixtures
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'ion-test-tools'
+          npm install --global --prefix $tools --ignore-scripts --no-audit --no-fund prettier@3.6.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tools >> $env:GITHUB_PATH
       - name: Run portable and Windows-specific unit tests
         env:
           ION_TEST_WINDOWS_JAVA_BUILDS: '1'
           ION_TEST_PRIME_MAVEN: '1'
-        run: npm test -- line-console run-plans windows-java-build workspace-files-windows workspace-search shortcuts updates preferences-windows
+        run: npm test -- languages line-console run-plans windows-java-build workspace-files-windows workspace-search shortcuts updates preferences-windows source-control projects file-mutation-races
       - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
       - run: npm run build
         id: native-build
@@ -92,6 +113,27 @@ jobs:
       - name: Verify Windows crash recovery
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: npm run test:recovery
+      - name: Verify Git and saved project test workflows
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:source-control
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:project-suites
+      - name: Verify rendered syntax and capability labels
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-language-capabilities.mjs
+      - name: Verify Smart C/C++ navigation
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:navigation
+      - name: Verify Smart Java editing
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:java-tools
+      - name: Verify offline source formatting
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:format
+      - name: Verify offline themes
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:themes
       - name: Verify offline viewers and workspaces
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/test-windows-native.mjs
@@ -132,16 +174,17 @@ jobs:
       - name: Fetch and verify the prior public Windows installer for upgrade
         shell: pwsh
         run: |
-          $setup = Join-Path $env:RUNNER_TEMP 'Ion-IDE-0.9.4-windows-x64-setup.exe'
-          Invoke-WebRequest 'https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.4/Ion-IDE-0.9.4-windows-x64-setup.exe' -OutFile $setup
+          $setup = Join-Path $env:RUNNER_TEMP 'Ion-IDE-0.9.5-windows-x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.5/Ion-IDE-0.9.5-windows-x64-setup.exe' -OutFile $setup
           $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash
-          if ($hash -ne '51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd') {
+          if ($hash -ne '4addcd1a00e8cb903807775fd4301472ee4bed0c1d2191671addbb8ce8660a90') {
             throw 'The previous public installer failed SHA-256 verification.'
           }
           "ION_PREVIOUS_WINDOWS_INSTALLER=$setup" >> $env:GITHUB_ENV
       - run: npm run test:release:win
       - run: node scripts/release-evidence.mjs record windows-x64
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: ion-windows-x64-attempt-${{ github.run_attempt }}
           path: |
@@ -171,9 +214,27 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node scripts/benchmark-windows.mjs --label candidate --terminal
+      - name: Benchmark Git and saved tests against the public 0.9.5 baseline
+        shell: pwsh
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'ion-performance-baseline'
+          git fetch --no-tags origin 51452e338da5405a8c5d8fb1bb567bfddc7e81c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git worktree add --detach $baseline 51452e338da5405a8c5d8fb1bb567bfddc7e81c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location $baseline
+          try {
+            npm ci
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-performance-candidate-attempt-${{ github.run_attempt }}
-          path: performance-results/windows-candidate.json
+          path: |
+            performance-results/windows-candidate.json
+            performance-results/windows-development-workflows.json
           if-no-files-found: error
           retention-days: 14

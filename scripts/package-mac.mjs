@@ -61,7 +61,7 @@ try {
     await mkdir(stage)
     await writeFile(join(stage, 'package.json'), JSON.stringify(manifest))
     const native = resolve('dist/native')
-    const nativeTools = ['ion-pty', 'ion-rg']
+    const nativeTools = ['ion-pty', 'ion-rg', 'ion-file-ops']
     await cp('dist', join(stage, 'dist'), { recursive: true, filter: (path) => resolve(path) !== native })
     command('/usr/bin/swift', ['scripts/macos-icon.swift', iconset])
     command('/usr/bin/iconutil', ['-c', 'icns', iconset, '-o', icon])

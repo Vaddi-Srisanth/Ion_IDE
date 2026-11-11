@@ -1,17 +1,6 @@
 import type { RunResult } from './contracts'
 
-export type RunLanguage = 'c' | 'cpp' | 'java' | 'python' | 'javascript'
-
-const languages: Record<string, RunLanguage> = {
-  c: 'c', cc: 'cpp', cpp: 'cpp', cxx: 'cpp', 'c++': 'cpp',
-  java: 'java', py: 'python', python: 'python', js: 'javascript', mjs: 'javascript', cjs: 'javascript',
-}
-
-export function runLanguage(name: string): RunLanguage | undefined {
-  const extension = name.slice(name.lastIndexOf('.') + 1)
-  if (name.endsWith('.C')) return 'cpp'
-  return name.includes('.') && Object.hasOwn(languages, extension.toLowerCase()) ? languages[extension.toLowerCase()] : undefined
-}
+export { runnableLanguage as runLanguage, type RunLanguage } from './languages'
 
 export function canPreviewWeb(name: string): boolean {
   return /\.(?:html?|css|js|mjs)$/i.test(name)

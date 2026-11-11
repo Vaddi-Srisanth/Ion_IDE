@@ -23,6 +23,14 @@ import 'monaco-editor/languages/definitions/rust/register.js';
 import 'monaco-editor/languages/definitions/shell/register.js';
 import 'monaco-editor/languages/definitions/sql/register.js';
 import 'monaco-editor/languages/definitions/typescript/register.js';
+import 'monaco-editor/languages/definitions/csharp/register.js';
+import 'monaco-editor/languages/definitions/dart/register.js';
+import 'monaco-editor/languages/definitions/kotlin/register.js';
+import 'monaco-editor/languages/definitions/perl/register.js';
+import 'monaco-editor/languages/definitions/php/register.js';
+import 'monaco-editor/languages/definitions/ruby/register.js';
+import 'monaco-editor/languages/definitions/swift/register.js';
+import 'monaco-editor/languages/definitions/xml/register.js';
 import 'monaco-editor/languages/definitions/yaml/register.js';
 import type { Settings } from '../shared/contracts';
 import { editorViewSelectionLimit } from '../shared/editor-session';
@@ -31,7 +39,8 @@ import type { FormatResult } from '../shared/format-code';
 import type { ThemeData } from '../shared/themes';
 import { Documents, type Tab } from './documents';
 import type { LiveToolReport } from './java/editor-tools';
-import { languageFor } from './paths';
+import { fileLanguage } from '../shared/languages';
+import type { SourceReference } from '../shared/language-tools';
 import { applyEditorTheme, clearEditorTheme } from './themes/editor-theme';
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -53,6 +62,9 @@ export interface EditorActions {
   find(replace?: boolean): void;
   focus(): void;
   lineCount(): number;
+  goToDefinition(): void;
+  findReferences(): Promise<SourceReference[]>;
+  position(tabId: string): { line: number; column: number } | undefined;
   goToLine(line: number, column?: number, tabId?: string): boolean;
   captureView(): (() => void) | undefined;
   insertStarter(starter: { text: string; line: number; column: number }): boolean;
@@ -221,6 +233,18 @@ export default function MonacoSurface({
       },
       drop,
     });
+    const opener = editor.registerEditorOpener({
+      openCodeEditor(source, resource, location) {
+        if (source !== instance || resource.scheme !== 'file') return false;
+        const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        const path = resource.toString() === instance.getModel()?.uri.toString() ? tab?.path : resource.fsPath;
+        if (!path) return false;
+        const line = location ? ('lineNumber' in location ? location.lineNumber : location.startLineNumber) : 1;
+        const column = location ? ('column' in location ? location.column : location.startColumn) : 1;
+        navigateSource.current(path, line, column);
+        return true;
+      },
+    });
     onActions({
       find(replace = false) {
         if (!instance.getModel()) return;
@@ -229,6 +253,26 @@ export default function MonacoSurface({
       },
       focus: () => instance.focus(),
       lineCount: () => instance.getModel()?.getLineCount() ?? 0,
+      goToDefinition() {
+        if (!instance.getModel() || sourceHiddenRef.current) return;
+        instance.focus();
+        void instance.getAction('editor.action.revealDefinition')?.run();
+      },
+      async findReferences() {
+        const model = instance.getModel();
+        const position = instance.getPosition();
+        const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        if (!model || !position || !tab?.path || sourceHiddenRef.current) return [];
+        const { id, label } = fileLanguage(tab.name);
+        const current = () => instance.getModel() === model && !model.isDisposed() && !sourceHiddenRef.current;
+        const { createToolQuery, sourceReferences } = await import('./language-editor-tools');
+        const query = createToolQuery(model, current, { language: id, label, path: tab.path, onStatus: setLanguageStatus });
+        return sourceReferences(await query('references', position) ?? []);
+      },
+      position(tabId) {
+        const position = displayed.current === tabId ? instance.getPosition() : null;
+        if (position) return { line: position.lineNumber, column: position.column };
+      },
       captureView() {
         const model = instance.getModel();
         const view = instance.saveViewState();
@@ -333,6 +377,7 @@ export default function MonacoSurface({
     return () => {
       activeFormat.current?.abort('view');
       onActions(null);
+      opener.dispose();
       cursorListener.dispose();
       scrollListener.dispose();
       displayed.current = null;
@@ -362,9 +407,11 @@ export default function MonacoSurface({
 
   const id = tab?.id ?? null;
   const epoch = tab?.epoch ?? 0;
-  const language = languageFor(tab?.name ?? "").id;
-  const java = language === 'java' && !sourceHidden;
-  const smart = java && settings.smartLanguages?.includes('java');
+  const capability = fileLanguage(tab?.name ?? '');
+  const language = capability.syntax ?? 'plaintext';
+  const java = capability.id === 'java' && !sourceHidden;
+  const semantic = !sourceHidden && settings.smartLanguages.includes(capability.id) ? capability.semantic : undefined;
+  const smart = java && Boolean(semantic);
   const automaticSuggestions = java && settings.automaticSuggestions;
   useEffect(() => {
     const instance = editorRef.current;
@@ -460,22 +507,31 @@ export default function MonacoSurface({
   useEffect(() => {
     const instance = editorRef.current;
     const model = instance?.getModel();
-    if (!java || !id || loaded !== id || !instance || !model || displayed.current !== id) return;
+    if ((!java && !semantic) || !id || loaded !== id || !instance || !model || displayed.current !== id) return;
     let cancelled = false;
     let tools: { dispose(): void } | undefined;
-    void import('./java/editor-tools').then(({ attachJavaTools }) => {
-      if (cancelled || instance.getModel() !== model) return;
-      tools = attachJavaTools(instance, model, {
-        smart: Boolean(smart), path: path ?? undefined, onReport: onLanguageReport, onStatus: setLanguageStatus,
-        onNavigate: (...location) => navigateSource.current(...location),
-      });
-    }).catch(() => { if (!cancelled) setLanguageStatus('Java editor tools could not be loaded.'); });
+    const attach = async () => {
+      if (java) {
+        const { attachJavaTools } = await import('./java/editor-tools');
+        if (cancelled || instance.getModel() !== model) return;
+        tools = attachJavaTools(instance, model, {
+          smart, path: path ?? undefined, onReport: onLanguageReport, onStatus: setLanguageStatus,
+        });
+      } else if (semantic?.adapter === 'clangd' && path) {
+        const { attachSourceNavigation } = await import('./language-editor-tools');
+        if (cancelled || instance.getModel() !== model) return;
+        tools = attachSourceNavigation(instance, model, {
+          language: capability.id, label: 'Smart C/C++', path, onStatus: setLanguageStatus,
+        });
+      }
+    };
+    void attach().catch(() => { if (!cancelled) setLanguageStatus('Language tools could not be loaded.'); });
     return () => {
       cancelled = true;
       tools?.dispose();
       setLanguageStatus(null);
     };
-  }, [java, id, loaded, epoch, path, workspacePath, smart, onLanguageReport]);
+  }, [java, id, loaded, epoch, path, workspacePath, semantic, smart, capability.id, onLanguageReport]);
 
   useLayoutEffect(() => {
     const instance = editorRef.current;

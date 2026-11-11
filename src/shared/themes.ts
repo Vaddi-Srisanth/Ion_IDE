@@ -20,6 +20,8 @@ export interface ThemeSummary {
   name: string
   appearance: ThemeAppearance
   source: 'builtin' | 'custom'
+  contrast?: 'high'
+  swatches?: readonly [string, string, string]
 }
 
 export interface ThemeDefinition {
@@ -32,13 +34,24 @@ export interface ThemeDefinition {
 
 export type ThemeData = ThemeSummary & ThemeDefinition
 
-export const builtinThemes = [
-  { id: 'dark', name: 'Ion Dark', appearance: 'dark', source: 'builtin' },
-  { id: 'light', name: 'Ion Light', appearance: 'light', source: 'builtin' },
-  { id: 'midnight', name: 'Midnight Violet', appearance: 'dark', source: 'builtin' },
-  { id: 'graphite', name: 'Graphite Ember', appearance: 'dark', source: 'builtin' },
-  { id: 'paper', name: 'Paper Studio', appearance: 'light', source: 'builtin' },
-] as const satisfies readonly ThemeSummary[]
+export const builtinThemes: readonly ThemeSummary[] = [
+  { id: 'dark', name: 'Ion Dark', appearance: 'dark', source: 'builtin', swatches: ['#10131a', '#7be7db', '#c2a5ff'] },
+  { id: 'light', name: 'Ion Light', appearance: 'light', source: 'builtin', swatches: ['#ffffff', '#005e58', '#6044a7'] },
+  { id: 'midnight', name: 'Ion Midnight', appearance: 'dark', source: 'builtin', swatches: ['#151021', '#cfb1ff', '#cfb1ff'] },
+  { id: 'graphite', name: 'Ion Graphite', appearance: 'dark', source: 'builtin', swatches: ['#1a1817', '#ffc082', '#eab4d7'] },
+  { id: 'obsidian', name: 'Ion Obsidian', appearance: 'dark', source: 'builtin', swatches: ['#101012', '#a9b9ff', '#b5acff'] },
+  { id: 'ocean', name: 'Ion Ocean', appearance: 'dark', source: 'builtin', swatches: ['#071c29', '#72def2', '#98c8ff'] },
+  { id: 'forest', name: 'Ion Forest', appearance: 'dark', source: 'builtin', swatches: ['#111f16', '#a6dc83', '#c2d994'] },
+  { id: 'orchid', name: 'Ion Orchid', appearance: 'dark', source: 'builtin', swatches: ['#211527', '#eea8e2', '#deaafe'] },
+  { id: 'ember', name: 'Ion Ember', appearance: 'dark', source: 'builtin', swatches: ['#231815', '#f5ab86', '#edb295'] },
+  { id: 'aurora', name: 'Ion Aurora', appearance: 'dark', source: 'builtin', swatches: ['#111b27', '#84efd0', '#c5acff'] },
+  { id: 'paper', name: 'Ion Paper', appearance: 'light', source: 'builtin', swatches: ['#fcf9f1', '#23477b', '#633f7c'] },
+  { id: 'snow', name: 'Ion Snow', appearance: 'light', source: 'builtin', swatches: ['#fbfcff', '#2d508a', '#653d90'] },
+  { id: 'sandstone', name: 'Ion Sandstone', appearance: 'light', source: 'builtin', swatches: ['#faf3e7', '#744223', '#653b7e'] },
+  { id: 'daylight', name: 'Ion Daylight', appearance: 'light', source: 'builtin', swatches: ['#f6fbfc', '#20596a', '#553790'] },
+  { id: 'contrast-dark', name: 'Ion High Contrast Dark', appearance: 'dark', source: 'builtin', contrast: 'high', swatches: ['#06070a', '#8ff8ff', '#e1c6ff'] },
+  { id: 'contrast-light', name: 'Ion High Contrast Light', appearance: 'light', source: 'builtin', contrast: 'high', swatches: ['#ffffff', '#103358', '#462166'] },
+]
 
 export function isCustomThemeId(value: unknown): value is string {
   return typeof value === 'string' && /^custom-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value)

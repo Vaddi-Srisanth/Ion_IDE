@@ -13,6 +13,7 @@ import type { MenuCommand, ShortcutOverrides } from './shortcuts'
 import type { WorkspaceSearchResult } from './workspace-search'
 import type { EditorSessionBridge } from './editor-session'
 import type { LanguageToolsBridge } from './language-tools'
+import type { SourceControlBridge } from './source-control'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
 
@@ -58,6 +59,8 @@ export interface Settings {
   openFullScreen: boolean
   checkUpdatesOnLaunch: boolean
   theme: string
+  themeFavorites: string[]
+  recentThemes: string[]
   accent: Accent
   fontSize: number
   tabSize: number
@@ -86,6 +89,8 @@ export const defaultSettings: Readonly<Settings> = {
   openFullScreen: false,
   checkUpdatesOnLaunch: false,
   theme: 'dark',
+  themeFavorites: [],
+  recentThemes: [],
   accent: 'cyan',
   fontSize: 14,
   tabSize: 4,
@@ -180,6 +185,14 @@ export interface IonBridge {
   learningPacks: LearningPacksBridge
   practice: PracticeBridge
   projects: ProjectsBridge
+  sourceControl: {
+    status(root: string): ReturnType<SourceControlBridge['status']>
+    trust(root: string): Promise<boolean>
+    diff(root: string, request: Parameters<SourceControlBridge['diff']>[0]): ReturnType<SourceControlBridge['diff']>
+    change(root: string, request: Parameters<SourceControlBridge['change']>[0]): ReturnType<SourceControlBridge['change']>
+    commit(root: string, request: Parameters<SourceControlBridge['commit']>[0]): ReturnType<SourceControlBridge['commit']>
+    close(root: string): ReturnType<SourceControlBridge['close']>
+  }
   platform: 'darwin' | 'win32' | 'linux'
   setOptionalPanel(panel: OptionalPanel | null, projectPath?: string): Promise<void>
   getPreferences(): Promise<Preferences>

@@ -1,12 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { constants, type BigIntStats } from 'node:fs'
-import { access, copyFile, lstat, link, mkdir, open, opendir, realpath, rename, rm } from 'node:fs/promises'
+import { access, lstat, mkdir, mkdtemp, open, opendir, realpath, rm, rmdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Entry, EntryKind, FileContents, FileRevision } from '../shared/contracts'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { documentFormat } from '../shared/viewers'
 import { largeTextError, maxEditableTextBytes, maxTextCopyBytes, maxTextPreviewBytes, textPageBytes, type TextPage } from '../shared/large-text'
+import { fileMutations, type FileMutations } from './file-mutations'
 
 export const maxFileBytes = maxEditableTextBytes
 const maxDirectoryEntries = 4000
@@ -142,17 +144,19 @@ async function readStableBytes(path: string, limit: number): Promise<{ data: Buf
   }
 }
 
-async function replaceSource(temporary: string, path: string, parent: string, expected: string): Promise<void> {
+async function replaceSource(mutations: FileMutations, temporary: string, path: string, parent: string,
+  directory: BigIntStats, expected: string, backup: string): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
       // A program that blocked the previous attempt may have changed the file before releasing it.
       if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
       const current = await existingStats(path)
       if (!current || revision(current) !== expected) throw new Error(fileChanged)
-      await rename(temporary, path)
+      await mutations.replace(temporary, path, directory, backup)
       return
     } catch (error) {
       const code = errorCode(error)
+      if (code === 'ENOENT') throw new Error(fileChanged)
       if (!windows || (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES')) throw error
       const wait = windowsReplaceDelays[attempt]
       if (wait === undefined) {
@@ -163,39 +167,88 @@ async function replaceSource(temporary: string, path: string, parent: string, ex
   }
 }
 
-async function writeAtomically(path: string, text: string, previous: BigIntStats | null): Promise<string> {
+function sameEntry(first: BigIntStats, second: BigIntStats) {
+  return first.dev === second.dev && first.ino === second.ino
+}
+
+function sameContentsRevision(first: BigIntStats, second: BigIntStats) {
+  return sameEntry(first, second) && first.size === second.size && first.mtimeNs === second.mtimeNs
+}
+
+async function hasHash(path: string, expected: string, size: bigint) {
+  const handle = await open(path, constants.O_RDONLY | noFollow | nonBlock)
+  try {
+    const before = await handle.stat({ bigint: true })
+    if (!before.isFile() || before.size !== size) return false
+    const hash = createHash('sha256')
+    const buffer = Buffer.allocUnsafe(64 * 1024)
+    let remaining = Number(size)
+    while (remaining) {
+      const { bytesRead } = await handle.read(buffer, 0, Math.min(remaining, buffer.length), null)
+      if (!bytesRead) return false
+      remaining -= bytesRead
+      hash.update(buffer.subarray(0, bytesRead))
+    }
+    return revision(before) === revision(await handle.stat({ bigint: true })) && hash.digest('hex') === expected
+  } finally { await handle.close() }
+}
+
+function retainedConflict(path: string) {
+  return new Error(`FILE_CHANGED: A competing save was preserved at ${path}. Your editor copy is still open.`)
+}
+
+async function writeAtomically(mutations: FileMutations, path: string, text: string, previous: BigIntStats | null,
+  baseHash?: string, knownDirectory?: BigIntStats): Promise<string> {
   const parent = dirname(path)
-  if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
+  const directory = knownDirectory ?? await getStats(parent)
   if (previous) await access(path, constants.W_OK)
-  const temporary = join(parent, '.ion-' + randomUUID() + '.tmp')
-  const handle = await open(temporary, 'wx', previous ? Number(previous.mode & 0o777n) : 0o666)
+  const id = randomUUID()
+  const temporary = join(parent, '.ion-' + id + '.tmp')
+  const originalName = Array.from(basename(path)).slice(0, 40).join('').replace(/[\x00-\x1f\x7f]/g, '_')
+  const backup = join(parent, `Ion recovery-${id} ${originalName}.bak`)
+  let created: BigIntStats | undefined
+  const currentDirectory = async () => {
+    const latest = await getStats(parent).catch(() => null)
+    return latest && sameEntry(latest, directory)
+  }
 
   try {
-    try {
-      await handle.writeFile(text, 'utf8')
-      if (previous) await handle.chmod(Number(previous.mode & 0o777n))
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
+    await mutations.prepare(temporary, directory, previous ? 0o1000 | Number(previous.mode & 0o777n) : 0o666, 'file', text)
+    if (!await currentDirectory()) throw new Error(fileChanged)
+    const staged = created = await getStats(temporary)
+    if (!staged.isFile() || staged.size !== BigInt(Buffer.byteLength(text, 'utf8'))) throw new Error(fileChanged)
 
     if (previous) {
-      await replaceSource(temporary, path, parent, revision(previous))
-    } else {
-      if (await realpath(parent) !== parent) throw new Error('The destination folder changed.')
-      // A hard link publishes the completed file only if the destination is still absent.
       try {
-        await link(temporary, path)
+        await replaceSource(mutations, temporary, path, parent, directory, revision(previous), backup)
       } catch (error) {
-        // Volumes such as exFAT cannot create hard links, but an exclusive copy still avoids clobbering.
-        if (!['ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EPERM'].includes(errorCode(error) ?? '')) throw error
-        await copyFile(temporary, path, constants.COPYFILE_EXCL)
+        if (!await currentDirectory()) throw error
+        const retained = await lstat(backup).then(() => true, () => false)
+        if (retained) throw retainedConflict(backup)
+        const leftover = await lstat(temporary, { bigint: true }).catch(() => null)
+        if (leftover && !sameEntry(leftover, created)) throw retainedConflict(temporary)
+        throw error
       }
-      await rm(temporary)
+      if (!await currentDirectory()) throw new Error(fileChanged)
+      const displaced = await lstat(backup, { bigint: true }).catch(() => null)
+      const matches = displaced?.isFile() && sameContentsRevision(displaced, previous)
+        && (!baseHash || await hasHash(backup, baseHash, displaced.size).catch(() => false))
+      if (!matches) throw retainedConflict(backup)
+    } else await mutations.rename(temporary, path, directory)
+
+    const published = await getStats(path).catch(() => null)
+    if (!published?.isFile() || !sameContentsRevision(published, staged)) {
+      if (previous) throw retainedConflict(backup)
+      throw new Error(fileChanged)
     }
-    return revision(await lstat(path, { bigint: true }))
+    if (previous && await currentDirectory()) await rm(backup, { force: true }).catch(() => undefined)
+    return revision(published)
   } finally {
-    await rm(temporary, { force: true }).catch(() => undefined)
+    // After an interrupted exchange this name may hold the displaced source.
+    if (created && await currentDirectory()) {
+      const leftover = await lstat(temporary, { bigint: true }).catch(() => null)
+      if (leftover && sameEntry(leftover, created)) await rm(temporary, { force: true }).catch(() => undefined)
+    }
   }
 }
 
@@ -204,8 +257,14 @@ export class WorkspaceFiles {
   private readonly files = new Set<string>()
   private mutation: Promise<void> = Promise.resolve()
 
+  constructor(private readonly mutations = fileMutations(), private readonly trashRoot = () => tmpdir()) {}
+
   get rootPath(): string | null {
     return this.root
+  }
+
+  drain(): Promise<void> {
+    return this.mutation
   }
 
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -372,7 +431,8 @@ export class WorkspaceFiles {
         }
         stats = current.stats
       }
-      return { revision: await writeAtomically(path, text, stats), contentHash: contentHash(text), baseRevision: revision(stats) }
+      return { revision: await writeAtomically(this.mutations, path, text, stats, baseHash as string | undefined),
+        contentHash: contentHash(text), baseRevision: revision(stats) }
     })
   }
 
@@ -383,10 +443,11 @@ export class WorkspaceFiles {
     const text = fileText(content, isNotebookName(selected) ? maxNotebookBytes : maxTextCopyBytes)
     return this.serialize(async () => {
       const parent = await realpath(dirname(selected))
+      const directory = await getStats(parent)
       const { path, before } = await saveAsTarget(join(parent, entryName(basename(selected))))
       if (before && !before.isFile()) throw new Error('Choose a regular file as the destination.')
       if (before && (!confirmOverwrite || !await confirmOverwrite(path))) return null
-      const updatedRevision = await writeAtomically(path, text, before)
+      const updatedRevision = await writeAtomically(this.mutations, path, text, before, undefined, directory)
       this.files.add(path)
       return { ...toEntry(path, 'file'), revision: updatedRevision, contentHash: contentHash(text) }
     })
@@ -400,11 +461,10 @@ export class WorkspaceFiles {
     }
     const text = initialText === undefined ? undefined : fileText(initialText)
     return this.serialize(async () => {
-      const { path } = await this.inspect(parent, 'folder')
+      const { path, stats } = await this.inspect(parent, 'folder')
       const destination = join(path, name)
-      if (kind === 'folder') await mkdir(destination)
-      else if (text !== undefined) await writeAtomically(destination, text, null)
-      else await (await open(destination, 'wx')).close()
+      if (text !== undefined) await writeAtomically(this.mutations, destination, text, null, undefined, stats)
+      else await this.mutations.prepare(destination, stats, kind === 'folder' ? 0o777 : 0o666, kind)
       return toEntry(destination, kind)
     })
   }
@@ -427,7 +487,8 @@ export class WorkspaceFiles {
       } catch (error) {
         if (errorCode(error) !== 'ENOENT') throw error
       }
-      await rename(path, destination)
+      const directory = await getStats(dirname(path))
+      await this.mutations.rename(path, destination, directory, caseOnly)
       if (caseOnly && await realpath(destination) !== destination) {
         throw new Error('Windows kept the original filename case. Rename to a different name first, then rename it again.')
       }
@@ -450,9 +511,33 @@ export class WorkspaceFiles {
           : 'Move the workspace folder to Trash from Finder after closing it.')
       }
       if (!await confirm(path)) return false
+      const directory = await getStats(dirname(path))
       const current = await this.inspect(path)
       if (revision(current.stats) !== revision(stats)) throw new Error('The selected item changed while confirming.')
-      await moveToTrash(path)
+      // The shell API resolves a pathname. Isolate the selected entry in a
+      // private directory first so a workspace parent cannot redirect it.
+      const staging = this.trashRoot()
+      await mkdir(staging, { recursive: true, mode: 0o700 })
+      const holding = await mkdtemp(join(await realpath(staging), 'ion-trash-'))
+      const held = join(holding, basename(path))
+      try {
+        const heldDirectory = await getStats(holding)
+        await this.mutations.move(path, held, directory, heldDirectory)
+        try {
+          const moved = await getStats(held)
+          if (!sameContentsRevision(moved, current.stats)) throw new Error('The selected item changed before it could be moved to Trash.')
+          await moveToTrash(held)
+        } catch (error) {
+          try {
+            await this.mutations.move(held, path, heldDirectory, directory)
+          } catch {
+            throw new Error(`Could not move this item to Trash. Check the original location and the retained item at ${held}.`, { cause: error })
+          }
+          throw error
+        }
+      } finally {
+        await rmdir(holding).catch(() => undefined)
+      }
       for (const file of this.files) {
         if (isWithin(path, file)) this.files.delete(file)
       }

@@ -1,11 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { defaultSettings, type Entry, type EntryKind, type MenuCommand, type OptionalPanel, type RecentEntry, type RecoveryDraft, type Settings, type WorkspaceMode } from '../shared/contracts';
-import { ConfirmDialog, EntryDialog, PreferencesDialog, StarterDialog } from './Dialogs';
+import { ConfirmDialog, EntryDialog, Modal, PreferencesDialog, StarterDialog } from './Dialogs';
 import { Documents, errorMessage, type InitialDraft, type Tab } from './documents';
 import { Icon } from './icons';
 import type { EditorActions } from './MonacoSurface';
 import { RunConsoleStore } from './run-console/store';
-import { isWithin } from './paths';
+import { isWithin, sourceControlPathKey } from './paths';
 import { Welcome } from './Welcome';
 import { Onboarding } from './onboarding/Onboarding';
 import type { CompilerProblem, LearningDiagnostic, LearningFeedback } from '../shared/learning';
@@ -23,9 +23,15 @@ import { captureEditorSession, EditorSessionWriter } from './editor-session';
 import type { BottomTab } from '../shared/terminal';
 import type { TerminalController } from './terminal/controller';
 import { useUpdates } from './useUpdates';
+import { fileLanguage } from '../shared/languages';
+import type { SourceReference } from '../shared/language-tools';
+import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
 
 type Dialog =
-  | { kind: 'settings' }
+  | { kind: 'settings'; browseThemes?: boolean }
+  | { kind: 'language-support' }
+  | { kind: 'source-references'; locations?: SourceReference[] }
+  | { kind: 'project-tests' }
   | { kind: 'commands' }
   | { kind: 'files' }
   | { kind: 'workspace-search' }
@@ -55,7 +61,26 @@ const bridge = window.ion;
 const Commands = lazy(async () => ({ default: (await import('./CommandPicker')).Commands }));
 const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker')).QuickOpen }));
 const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
+const LanguageSupport = lazy(() => import('./LanguageSupport'));
+const SourceControlPanel = lazy(() => import('./source-control/SourceControlPanel'));
+const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
+const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
 const GoToLine = lazy(async () => ({ default: (await import('./CommandPicker')).GoToLine }));
+
+interface SourceLocation {
+  path?: string;
+  tabId?: string;
+  line: number;
+  column: number;
+}
+
+function pushLocation(stack: SourceLocation[], position: SourceLocation) {
+  const previous = stack.at(-1);
+  if ((position.path ? previous?.path === position.path : previous?.tabId === position.tabId)
+    && previous?.line === position.line && previous.column === position.column) return;
+  stack.push(position);
+  if (stack.length > 64) stack.shift();
+}
 
 interface RunReport {
   tabId: string;
@@ -89,8 +114,10 @@ export function App() {
   const checkUpdates = updates.check;
   const [activeTheme, setActiveTheme] = useState<ThemeData | null>(null);
   const activeThemeId = useRef<string>(null);
+  const [previewTheme, setPreviewTheme] = useState<ThemeData | null>(null);
+  const displayTheme = previewTheme ?? activeTheme;
   const themeChanging = useRef(false);
-  const appearance = useMemo(() => appearanceFor(activeTheme, settings.accent), [activeTheme, settings.accent]);
+  const appearance = useMemo(() => appearanceFor(displayTheme, settings.accent), [displayTheme, settings.accent]);
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   const [recoveryDrafts, setRecoveryDrafts] = useState<RecoveryDraft[]>([]);
   const [screen, setScreen] = useState<'welcome' | 'editor'>('welcome');
@@ -133,12 +160,52 @@ export function App() {
   }, []);
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const [root, setRoot] = useState<Entry | null>(null);
+  const [sourceControlVisible, setSourceControlVisible] = useState(false);
+  const [sourceControlEntries, setSourceControlEntries] = useState<readonly SourceControlEntry[]>([]);
+  const [sourceControlDiff, setSourceControlDiff] = useState<SourceControlDiff>();
+  const [sourceWrites, setSourceWrites] = useState(0);
+  const sourceControlRoot = sourceControlVisible && screen === 'editor' ? root?.path : undefined;
+  const liveSourceControlRoot = useRef(sourceControlRoot);
+  liveSourceControlRoot.current = sourceControlRoot;
+  const sourceControlBridge = useMemo<SourceControlBridge | undefined>(() => {
+    if (!sourceControlRoot) return;
+    return {
+      status: () => bridge.sourceControl.status(sourceControlRoot),
+      trust: () => bridge.sourceControl.trust(sourceControlRoot),
+      diff: (request) => bridge.sourceControl.diff(sourceControlRoot, request),
+      change: (request) => bridge.sourceControl.change(sourceControlRoot, request),
+      commit: (request) => bridge.sourceControl.commit(sourceControlRoot, request),
+      close: () => bridge.sourceControl.close(sourceControlRoot),
+    };
+  }, [sourceControlRoot]);
+  useEffect(() => () => { void sourceControlBridge?.close().catch(() => {}); }, [sourceControlBridge]);
+  const closeSourceControl = useCallback(() => {
+    setSourceControlVisible(false);
+    setSourceControlDiff(undefined);
+    setSourceControlEntries([]);
+  }, []);
+  const toggleSourceControl = () => {
+    if (sourceControlVisible) closeSourceControl();
+    else {
+      setSourceControlVisible(true);
+      setMarketplaceVisible(false);
+    }
+  };
   const [sessionAvailable, setSessionAvailable] = useState(false);
   const [resumingSession, setResumingSession] = useState(false);
   const sessionStarted = useRef(false);
   const sessionRoot = useRef(root);
   sessionRoot.current = root;
   const [target, setTarget] = useState<string | null>(null);
+  const navigation = useRef({ back: [] as SourceLocation[], forward: [] as SourceLocation[], pending: false });
+  const [navigationState, setNavigationState] = useState({ back: false, forward: false });
+  useEffect(() => {
+    const history = navigation.current;
+    if (history.back.length || history.forward.length || history.pending) {
+      navigation.current = { back: [], forward: [], pending: false };
+      setNavigationState({ back: false, forward: false });
+    }
+  }, [root?.path]);
   const panelMode = screen === 'editor' && auxiliaryVisible && mode !== 'free' ? mode : null;
   const needsPackLibrary = screen === 'editor' && (panelMode === 'learn' || marketplaceVisible);
   const panelRoot = panelMode === 'projects' ? root?.path : undefined;
@@ -182,6 +249,9 @@ export function App() {
   const [documents] = useState(() => new Documents(bridge, settings, notify, () => {
     refreshRecents();
     refreshTree();
+  }, (path) => {
+    const repository = liveSourceControlRoot.current;
+    if (repository && isWithin(path, repository)) setSourceWrites((count) => count + 1);
   }));
   const [sessionWriter] = useState(() => new EditorSessionWriter(
     async () => {
@@ -191,6 +261,13 @@ export function App() {
   ));
   const { tabs, activeId } = useSyncExternalStore(documents.subscribe, documents.getSnapshot);
   const active = tabs.find(({ id }) => id === activeId);
+  useEffect(() => setSourceControlDiff(undefined), [activeId]);
+  const selectWorkbenchTab = useCallback((id: string) => { setSourceControlDiff(undefined); documents.select(id); }, [documents]);
+  const hasUnsavedSource = useCallback((path: string) => {
+    const key = sourceControlPathKey(path);
+    return documents.getSnapshot().tabs.some((tab) => tab.path && (tab.dirty || tab.conflict)
+      && sourceControlPathKey(tab.path) === key);
+  }, [documents]);
   const reportTab = runReport && tabs.find(({ id }) => id === runReport.tabId);
   const sourceCurrent = Boolean(runReport && reportTab && reportMatchesTab(documents, runReport, reportTab));
   const feedback = mode === 'learn' && packLibrary?.selected === runReport?.feedback?.language
@@ -379,19 +456,27 @@ export function App() {
     applySettings({ checkUpdatesOnLaunch: saved.checkUpdatesOnLaunch });
   }
 
-  const changeTheme = useCallback(async (selection: string) => {
+  const changeTheme = useCallback(async (selection: string, loaded?: ThemeData) => {
     if (!preferencesReady || themeChanging.current) throw new Error('Please wait for the current theme to finish loading.');
     themeChanging.current = true;
     try {
       const id = themeForPreference(selection);
-      const palette = id === activeThemeId.current ? null : await bridge.themes.load(id);
-      await bridge.updateSettings({ theme: selection });
-      applySettings({ theme: selection });
+      const palette = id === activeThemeId.current ? null : loaded?.id === id ? loaded : await bridge.themes.load(id);
+      const recentThemes = [selection, ...settingsRef.current.recentThemes.filter((item) => item !== selection)].slice(0, 8);
+      const saved = await bridge.updateSettings({ theme: selection, recentThemes });
+      applySettings({ theme: saved.theme, recentThemes: saved.recentThemes });
       if (palette) activateTheme(palette);
     } finally {
       themeChanging.current = false;
     }
   }, [activateTheme, applySettings, preferencesReady]);
+
+  async function changeThemeFavorite(id: string) {
+    const favorites = settingsRef.current.themeFavorites;
+    const themeFavorites = favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id];
+    const saved = await bridge.updateSettings({ themeFavorites });
+    applySettings({ themeFavorites: saved.themeFavorites });
+  }
 
   async function changeShortcuts(overrides: ShortcutOverrides) {
     if (!preferencesReady) throw new Error('Wait for preferences to load before changing shortcuts.');
@@ -489,11 +574,15 @@ export function App() {
     enterWorkspace();
   };
   const showWelcome = () => {
+    closeSourceControl();
     setMarketplaceVisible(false);
     setLensSelection(undefined);
     setScreen('welcome');
   };
-  const toggleMarketplace = () => setMarketplaceVisible((visible) => !visible);
+  const toggleMarketplace = () => {
+    closeSourceControl();
+    setMarketplaceVisible((visible) => !visible);
+  };
   const toggleExplorer = () => {
     if (marketplaceVisible) {
       setMarketplaceVisible(false);
@@ -511,6 +600,7 @@ export function App() {
   const openEntry = useCallback((entry: Entry) => {
     dismissOnboarding();
     if (entry.kind === 'folder') {
+      closeSourceControl();
       setMarketplaceVisible(false);
       setRoot(entry);
       setTarget(entry.path);
@@ -520,7 +610,8 @@ export function App() {
       documents.open(entry);
     }
     enterWorkspace();
-  }, [dismissOnboarding, documents, enterWorkspace, refreshTree, updateSettings]);
+  }, [closeSourceControl, dismissOnboarding, documents, enterWorkspace, refreshTree, updateSettings]);
+  const openWorkbenchEntry = useCallback((entry: Entry) => { setSourceControlDiff(undefined); openEntry(entry); }, [openEntry]);
 
   useEffect(() => {
     const unsubOpen = bridge.onOpenEntry((entry) => {
@@ -587,18 +678,73 @@ export function App() {
   };
   const openFile = () => void openNative(() => bridge.openFile());
   const openFolder = () => void openNative(() => bridge.openFolder());
-  async function openSearchMatch(path: string, { line, column }: Pick<WorkspaceSearchMatch, 'line' | 'column'>) {
-    setDialog(null);
-    await openNative(() => bridge.quickOpen.open(path), () => {
-      splitActions.current?.showSource(path);
-      const id = documents.getSnapshot().tabs.find((tab) => tab.path === path)?.id;
-      if (!id) return;
-      requestAnimationFrame(() => {
-        if (documents.getSnapshot().activeId === id && !editor.current?.goToLine(line, column, id)) {
-          documents.requestPosition(id, line, column);
+  function currentSourceLocation(): SourceLocation | undefined {
+    const { tabs: openTabs, activeId: selected } = documents.getSnapshot();
+    const tab = openTabs.find(({ id }) => id === selected);
+    if (!tab || tab.error || tab.viewer || tab.notebookMode === 'notebook') return;
+    const cursor = editor.current?.position(tab.id);
+    const saved = documents.getEditorView(tab.id)?.selections[0];
+    return { path: tab.path ?? undefined, tabId: tab.id,
+      line: cursor?.line ?? saved?.positionLineNumber ?? 1,
+      column: cursor?.column ?? saved?.positionColumn ?? 1 };
+  }
+
+  async function showSourceLocation(location: SourceLocation): Promise<boolean> {
+    const findTab = () => documents.getSnapshot().tabs.find((tab) =>
+      location.path ? tab.path === location.path : tab.id === location.tabId);
+    let tab = findTab();
+    if (!tab && location.path) {
+      await openNative(() => bridge.quickOpen.open(location.path!));
+      tab = findTab();
+    }
+    if (!tab || tab.error || tab.viewer || tab.notebookMode === 'notebook') return false;
+    if (tab.path) splitActions.current?.showSource(tab.path);
+    const id = tab.id;
+    documents.select(id);
+    if (!editor.current?.goToLine(location.line, location.column, id)) {
+      documents.requestPosition(id, location.line, location.column);
+    }
+    return true;
+  }
+
+  async function navigateSource(location: SourceLocation, direction?: 'back' | 'forward') {
+    const history = navigation.current;
+    if (history.pending) return;
+    history.pending = true;
+    const origin = currentSourceLocation();
+    setSourceControlDiff(undefined);
+    try {
+      const shown = await showSourceLocation(location);
+      if (navigation.current !== history) return;
+      if (!shown) {
+        if (direction) {
+          history[direction].pop();
+          setNavigationState({ back: history.back.length > 0, forward: history.forward.length > 0 });
         }
-      });
-    });
+        return;
+      }
+      if (direction) {
+        history[direction].pop();
+        if (origin) pushLocation(history[direction === 'back' ? 'forward' : 'back'], origin);
+      } else if (origin && ((location.path ? origin.path !== location.path : origin.tabId !== location.tabId)
+        || origin.line !== location.line || origin.column !== location.column)) {
+        pushLocation(history.back, origin);
+        history.forward.length = 0;
+      }
+      setNavigationState({ back: history.back.length > 0, forward: history.forward.length > 0 });
+    } finally {
+      history.pending = false;
+    }
+  }
+
+  function walkHistory(direction: 'back' | 'forward') {
+    const location = navigation.current[direction].at(-1);
+    if (location) void navigateSource(location, direction);
+  }
+
+  function openSearchMatch(path: string, { line, column }: Pick<WorkspaceSearchMatch, 'line' | 'column'>) {
+    setDialog(null);
+    void navigateSource({ path, line, column });
   }
   function revealProblem(index: number) {
     const problem = problemRows[index];
@@ -609,17 +755,7 @@ export function App() {
     const current = () => reportMatchesTab(documents, runReport, documents.getSnapshot().tabs.find(({ id }) => id === tabId));
     if (!current()) return;
     setSelectedProblem(index);
-    splitActions.current?.showSource(path);
-    if (documents.getSnapshot().activeId !== tabId) {
-      documents.requestPosition(tabId, line, column);
-      documents.select(tabId);
-      return;
-    }
-    requestAnimationFrame(() => {
-      if (current() && documents.getSnapshot().activeId === tabId && !editor.current?.goToLine(line, column, tabId)) {
-        documents.requestPosition(tabId, line, column);
-      }
-    });
+    void navigateSource({ tabId, path, line, column });
   }
 
   function explainProblem(index: number) {
@@ -962,7 +1098,10 @@ export function App() {
         case 'open-folder': openFolder(); break;
         case 'save': if (id && screen === 'editor') void saveTab(id); break;
         case 'save-as': if (id && screen === 'editor') void saveTab(id, 'as'); break;
-        case 'close-tab': if (id && screen === 'editor') void closeTab(id); break;
+        case 'close-tab':
+          if (sourceControlDiff) setSourceControlDiff(undefined);
+          else if (id && screen === 'editor') void closeTab(id);
+          break;
         case 'next-tab':
         case 'previous-tab': {
           if (screen !== 'editor' || tabs.length < 2) break;
@@ -973,6 +1112,23 @@ export function App() {
         }
         case 'find': find(); break;
         case 'replace': find(true); break;
+        case 'choose-theme': setDialog({ kind: 'settings', browseThemes: true }); break;
+        case 'language-support': setDialog({ kind: 'language-support' }); break;
+        case 'go-to-definition': editor.current?.goToDefinition(); break;
+        case 'find-references': {
+          if (!availableCommand(value) || !editor.current) break;
+          const pending = { kind: 'source-references' } as const;
+          setDialog(pending);
+          void editor.current.findReferences().then((locations) => {
+            setDialog((current) => current === pending ? { ...pending, locations } : current);
+          }).catch((error: unknown) => {
+            setDialog((current) => current === pending ? null : current);
+            notify(errorMessage(error), true);
+          });
+          break;
+        }
+        case 'navigate-back': walkHistory('back'); break;
+        case 'navigate-forward': walkHistory('forward'); break;
         case 'format-document': void formatDocument(); break;
         case 'go-to-line': {
           const lines = editor.current?.lineCount();
@@ -983,6 +1139,7 @@ export function App() {
         }
         case 'focus-editor': {
           if (screen !== 'editor') break;
+          if (sourceControlDiff) setSourceControlDiff(undefined);
           if (active?.viewer || active?.notebookMode === 'notebook') {
             const code = tabs.find((tab) => !tab.viewer && tab.notebookMode !== 'notebook');
             if (code) documents.select(code.id);
@@ -995,9 +1152,11 @@ export function App() {
         case 'toggle-document-split': splitActions.current?.toggle(); break;
         case 'focus-document-split': splitActions.current?.focusDivider(); break;
         case 'run': void run(); break;
+        case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
+        case 'toggle-source-control': if (screen === 'editor') toggleSourceControl(); break;
         case 'toggle-marketplace': if (screen === 'editor') toggleMarketplace(); break;
         case 'toggle-output': if (screen === 'editor') toggleBottom(); break;
         case 'toggle-terminal':
@@ -1005,7 +1164,10 @@ export function App() {
           else showTerminal();
           break;
         case 'focus-terminal': showTerminal(); break;
-        case 'toggle-auxiliary': if (mode !== 'free' && screen === 'editor') toggleAuxiliary(); break;
+        case 'toggle-auxiliary':
+          if (sourceControlVisible) closeSourceControl();
+          else if (mode !== 'free' && screen === 'editor') toggleAuxiliary();
+          break;
         case 'settings': setDialog({ kind: 'settings' }); break;
       }
     };
@@ -1027,6 +1189,20 @@ export function App() {
     }
     return <marketplaceContent.Component {...learningPacks} library={packLibrary?.catalog.length ? packLibrary : null}
       onClose={() => setMarketplaceVisible(false)} onLearn={learnFromMarketplace}/>;
+  }
+
+  function renderSourceControl() {
+    if (!sourceControlVisible) return undefined;
+    if (!sourceControlBridge) return <aside className="explorer" aria-label="Source Control">
+      <div className="pane-title"><h2>Source Control</h2><button className="icon-button" type="button"
+        aria-label="Close Source Control" onClick={closeSourceControl}><Icon name="x" size={15}/></button></div>
+      <div className="explorer-empty"><Icon name="git" size={24}/><p>Open a Git repository folder to see changes.</p>
+        <button className="button" type="button" onClick={openFolder}>Open Folder</button></div>
+    </aside>;
+    return <Suspense fallback={<p className="tree-message" role="status">Opening Source Control…</p>}>
+      <SourceControlPanel key={sourceControlRoot} bridge={sourceControlBridge} onClose={closeSourceControl}
+        onEntries={setSourceControlEntries} onDiff={setSourceControlDiff} isDirty={hasUnsavedSource} revision={treeRevision + sourceWrites}/>
+    </Suspense>;
   }
 
   function renderAuxiliary() {
@@ -1070,12 +1246,22 @@ export function App() {
   const hint = (id: MenuCommand, label: string) => shortcut(id) ? `${label} (${shortcut(id)})` : label;
   function availableCommand(id: MenuCommand): boolean {
     if (id === 'command-palette') return false;
+    if (id === 'choose-theme' || id === 'language-support') return true;
+    if (id === 'navigate-back') return screen === 'editor' && navigationState.back;
+    if (id === 'navigate-forward') return screen === 'editor' && navigationState.forward;
     if (id === 'workspace-search') return Boolean(root);
     if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal'].includes(id)) return true;
     if (screen !== 'editor') return false;
     switch (id) {
       case 'insert-starter': return Boolean(starterTarget);
       case 'format-document': return Boolean(canFormatDocument()) && !formatting;
+      case 'go-to-definition':
+      case 'find-references': {
+        if (!active?.path || active.error || active.viewer) return false;
+        const language = fileLanguage(active.name);
+        const operation = id === 'go-to-definition' ? 'definition' : 'references';
+        return settings.smartLanguages.includes(language.id) && Boolean(language.semantic?.operations.includes(operation));
+      }
       case 'save':
       case 'save-as': return Boolean(active && !active.viewer && !active.error && active.notebookMode !== 'notebook');
       case 'replace':
@@ -1089,6 +1275,7 @@ export function App() {
       case 'next-tab':
       case 'previous-tab': return tabs.length > 1;
       case 'run': return canRun && !runBusy;
+      case 'run-tests': return Boolean(root) && !runBusy;
       case 'stop': return runBusy;
       case 'preview-web': return Boolean(active && !active.error && canPreviewWeb(active.name));
       case 'toggle-document-split': return splitActions.current?.canToggle ?? false;
@@ -1098,7 +1285,7 @@ export function App() {
     }
   }
   return (
-    <div className="app-shell" style={appearance.style} data-theme={appearance.kind} data-theme-id={activeTheme?.id}
+    <div className="app-shell" style={appearance.style} data-theme={appearance.kind} data-theme-id={displayTheme?.id}
       data-resource-profile={settings.resourceProfile} data-platform={bridge.platform}>
       <header className="titlebar">
         <div className="brand"><Icon name="logo" size={23}/><span>ION</span><i>IDE</i></div>
@@ -1134,6 +1321,9 @@ export function App() {
           {screen === 'editor' ? <>
             {active && canPreviewWeb(active.name) && <button className="button" data-testid="preview-web" disabled={Boolean(active.error)}
               title="Preview local web project" onClick={() => void previewWeb()}>Preview</button>}
+            {root && <button className="button title-run-tests" type="button" data-testid="run-tests" aria-label="Run Tests"
+              title={hint('run-tests', 'Run Tests')} disabled={runBusy} onClick={() => setDialog({ kind: 'project-tests' })}>
+              <Icon name="flask" size={14}/><span>Run Tests</span></button>}
             {runBusy
               ? <button className="button run-button stop-button" data-testid="stop" title={hint('stop', 'Stop')} onClick={stop}><Icon name="stop" size={14}/> Stop</button>
               : <button className="button run-button" data-testid="run" title={canRun ? hint('run', 'Run active file') : 'Open a supported source file to run'}
@@ -1154,18 +1344,25 @@ export function App() {
         onFolder={() => { setMode('free'); openFolder(); }}
         onRecent={(entry) => { setMode('free'); openRecent(entry); }}/>}
       {(screen === 'editor' || notebookRunning) && <Workbench documents={documents} hidden={screen === 'welcome'} mode={mode}
-          auxiliary={renderAuxiliary()} onToggleAuxiliary={toggleAuxiliary}
+          auxiliary={renderAuxiliary()} onToggleAuxiliary={sourceControlVisible ? closeSourceControl : toggleAuxiliary}
+          sourceControl={renderSourceControl()} sourceControlEntries={sourceControlVisible ? sourceControlEntries : undefined}
+          onToggleSourceControl={toggleSourceControl}
+          sourceControlDiff={sourceControlDiff && <Suspense fallback={<p className="tree-message" role="status">Opening diff…</p>}>
+            <SourceControlDiffView diff={sourceControlDiff} onClose={() => setSourceControlDiff(undefined)}
+              dirty={hasUnsavedSource(sourceControlDiff.absolutePath)} theme={displayTheme} accentColor={appearance.accentColor}/>
+          </Suspense>}
           marketplace={renderMarketplace()}
           onToggleExplorer={toggleExplorer} onToggleMarketplace={toggleMarketplace}
           active={active} tabs={tabs} root={root} target={target}
-          treeRevision={treeRevision} settings={settings} activeTheme={activeTheme} accentColor={appearance.accentColor}
+          treeRevision={treeRevision} settings={settings} activeTheme={displayTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
           problemRows={problemRows} problemFile={runReport?.name} problemsStale={Boolean(problemRows.length) && !sourceCurrent}
           selectedProblem={selectedProblem} problemMarkers={problemMarkers} onRevealProblem={revealProblem} onExplainProblem={explainProblem}
-          onNavigateSource={(path, line, column) => { void openSearchMatch(path, { line, column }); }}
+          onNavigateSource={(path, line, column) => { void navigateSource({ path, line, column }); }}
+          navigation={navigationState} onHistory={walkHistory}
           onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
-          onSelect={documents.select} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openEntry} onTarget={setTarget}
+          onSelect={selectWorkbenchTab} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openWorkbenchEntry} onTarget={setTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}
           onRename={(entry) => setDialog({ kind: 'rename', entry })} onTrash={(entry) => void trashEntry(entry)}
           onRefresh={refreshTree} onNew={newFile} onOpenFile={openFile} onOpenFolder={openFolder}
@@ -1212,19 +1409,39 @@ export function App() {
           onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'workspace-search' && root && <WorkspaceSearch key={root.path} root={root.path}
           onOpen={(path, match) => void openSearchMatch(path, match)} onClose={() => setDialog(null)}/>}
+        {dialog?.kind === 'language-support' && <LanguageSupport initial={fileLanguage(active?.name ?? '').id}
+          onClose={() => setDialog(null)}/>}
+        {dialog?.kind === 'project-tests' && root && <ProjectTestsDialog key={root.path} root={root}
+          beforeRun={async () => !documents.getSnapshot().tabs.some(({ path, dirty, conflict }) =>
+            path && isWithin(path, root.path) && (dirty || conflict))}
+          onNavigate={(path, line, column) => { setDialog(null); void navigateSource({ path, line, column }); }}
+          onConfigure={() => { setDialog(null); closeSourceControl(); selectWorkspace('projects'); }}
+          onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'go-to-line' && <GoToLine lines={dialog.lines} onClose={() => setDialog(null)}
           onGo={(line) => {
             const id = dialog.tabId;
             setDialog(null);
             requestAnimationFrame(() => {
-              if (documents.getSnapshot().activeId === id) editor.current?.goToLine(line);
+              if (documents.getSnapshot().activeId === id) void navigateSource({ tabId: id, line, column: 1 });
             });
           }}/>}
       </Suspense>
+      {dialog?.kind === 'source-references' && <Modal title="Find References" className="command-picker" onClose={() => setDialog(null)}>
+        <div className="source-references" data-testid="source-references">
+          {dialog.locations?.length ? dialog.locations.map(({ path, line, column }) => (
+            <button className="button" key={`${path}:${line}:${column}`} type="button" data-testid="source-reference"
+              title={path} onClick={() => { setDialog(null); void navigateSource({ path, line, column }); }}>
+              {root && isWithin(path, root.path) ? path.slice(root.path.length).replace(/^[/\\]+/, '') : path}
+              <span>{line}:{column}</span>
+            </button>)) : <p role="status">{dialog.locations ? 'No references found.' : 'Finding references…'}</p>}
+        </div>
+      </Modal>}
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
         onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady} updates={updates}
-        onThemeChange={changeTheme} onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
+        onThemeChange={changeTheme} onThemePreview={setPreviewTheme} onThemeFavorite={changeThemeFavorite}
+        startBrowsing={dialog.browseThemes} onLanguageSupport={() => setDialog({ kind: 'language-support' })}
+        onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
         onReplayIntro={() => { setDialog(null); setOnboarding('replay'); }}
         onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'recovery' && <ConfirmDialog title="Recover unsaved edits"

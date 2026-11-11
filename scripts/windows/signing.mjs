@@ -74,7 +74,7 @@ export async function verifyWindowsSignature(binary, options) {
   `], {
     ...commandOptions, env: {
       ...process.env, ION_SIGNATURE_FILE: binary, ION_SIGNATURE_THUMBPRINT: thumbprint, ION_SIGNATURE_PUBLISHER: publisher,
-      ION_SIGNATURE_COMPANY_REQUIRED: win32.basename(binary).toLowerCase() === 'ion-pty.exe' ? '0' : '1',
+      ION_SIGNATURE_COMPANY_REQUIRED: ['ion-pty.exe', 'ion-file-ops.exe'].includes(win32.basename(binary).toLowerCase()) ? '0' : '1',
     },
   })
 }

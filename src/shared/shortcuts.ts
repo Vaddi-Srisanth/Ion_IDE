@@ -15,6 +15,12 @@ const commands = {
   find: { label: 'Find', key: 'Mod+F' },
   replace: { label: 'Replace', key: 'Mod+Alt+F', other: 'Mod+H' },
   'format-document': { label: 'Format Document', key: 'Alt+Shift+F' },
+  'go-to-definition': { label: 'Go to Definition' },
+  'find-references': { label: 'Find References', key: 'Shift+F12' },
+  'navigate-back': { label: 'Go Back', key: 'Mod+Alt+[' },
+  'navigate-forward': { label: 'Go Forward', key: 'Mod+Alt+]' },
+  'language-support': { label: 'Language Support…' },
+  'choose-theme': { label: 'Color Theme…' },
   'go-to-line': { label: 'Go to Line…', key: 'Ctrl+G', other: 'Mod+G' },
   'focus-editor': { label: 'Focus Code Editor', key: 'Mod+1' },
   'markdown-preview': { label: 'Toggle Markdown Preview', key: 'Mod+Shift+M' },
@@ -23,12 +29,14 @@ const commands = {
   'focus-document-split': { label: 'Focus Document Split Divider' },
   welcome: { label: 'Welcome', key: 'Mod+Shift+1' },
   'toggle-explorer': { label: 'Toggle Explorer', key: 'Mod+B' },
+  'toggle-source-control': { label: 'Toggle Source Control' },
   'toggle-marketplace': { label: 'Toggle Learning Marketplace' },
   'toggle-output': { label: 'Toggle Bottom Panel', key: 'Mod+J' },
   'toggle-terminal': { label: 'Toggle Terminal', key: 'Mod+Shift+J' },
   'focus-terminal': { label: 'Focus Terminal', key: 'Mod+Alt+J' },
   'toggle-auxiliary': { label: 'Toggle Workspace Panel' },
   run: { label: 'Run Active File', key: 'F5' },
+  'run-tests': { label: 'Run Tests' },
   stop: { label: 'Stop', key: 'Shift+F5' },
   'preview-web': { label: 'Preview Web Project', key: 'Mod+Alt+P' },
   settings: { label: 'Preferences…', key: 'Mod+,' },
@@ -75,7 +83,8 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
   if (overrides[command] !== undefined) return overrides[command]
   const fallback = platform !== 'darwin' && entry.other ? entry.other : entry.key ?? ''
   if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search' || command === 'format-document'
-    || command === 'toggle-terminal' || command === 'focus-terminal')
+    || command === 'toggle-terminal' || command === 'focus-terminal'
+    || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }
