@@ -202,6 +202,28 @@ try {
       report.cases.push('Running approved suite canceled and all captured descendants exited on quit')
     } catch (error) { noteFailure(error) } finally { await close(suiteSession) }
     console.log('PASS live approved suite canceled and drained on quit')
+
+    if (process.platform === 'win32') {
+      const forcedProfile = join(scratch, 'forced-harness-profile')
+      await seed(forcedProfile)
+      const forced = await launch(target, forcedProfile)
+      try {
+        await forced.page.getByTestId('new-file').first().click()
+        await forced.page.getByTestId('editor').locator('.view-line').first().click()
+        await forced.page.keyboard.insertText('ION-FORCED-HARNESS-RECOVERY')
+        await eventually(async () => forced.page.evaluate(async () =>
+          (await window.ion.recovery.list()).length === 1), 'The forced-cleanup fixture must checkpoint before termination.')
+        const pids = (await processTree(forced)).members.map(({ pid }) => pid)
+        await assert.rejects(() => close(forced), /Desktop app did not quit within 8 seconds/)
+        await gone(pids)
+        const recovered = await readdir(join(forcedProfile, 'recovery'))
+        const contents = await Promise.all(recovered.filter(name => /\.(?:json|draft)$/.test(name))
+          .map(name => readFile(join(forcedProfile, 'recovery', name), 'utf8')))
+        assert.ok(contents.some(text => text.includes('ION-FORCED-HARNESS-RECOVERY')))
+        report.cases.push('Failed Windows test teardown terminates the complete disposable Electron tree and retains checkpointed recovery')
+      } catch (error) { noteFailure(error) } finally { await close(forced) }
+      console.log('PASS forced Windows harness cleanup reaped the complete tree and kept recovery data')
+    }
   })
   report.complete = true
 } catch (error) {

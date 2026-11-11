@@ -192,7 +192,17 @@ export async function close(session) {
     if (quitError) console.error('Failed to request desktop shutdown:', quitError.message)
     if (output.length) console.error('Recent desktop console messages:', output)
     if (proc.exitCode === null && proc.signalCode === null) {
-      proc.kill('SIGKILL')
+      if (process.platform === 'win32') {
+        // A failed disposable test may leave a close-confirmation open. Killing
+        // just Electron's main process orphans Chromium children with open
+        // profile databases. Terminate the owned tree before the parent exits.
+        await execute('taskkill.exe', ['/PID', String(proc.pid), '/T', '/F'], {
+          windowsHide: true, timeout: 8000, maxBuffer: 64 * 1024,
+        }).catch(cleanupError => {
+          if (proc.exitCode === null && proc.signalCode === null) throw new AggregateError(
+            [error, cleanupError], 'Desktop shutdown failed and its process tree could not be terminated.')
+        })
+      } else proc.kill('SIGKILL')
       await exited
     }
     throw error
