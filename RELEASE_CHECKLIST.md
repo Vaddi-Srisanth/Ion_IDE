@@ -2,6 +2,10 @@
 
 ## Current release procedure
 
+For a source-only update, run the native CI gates from the intended branch. Confirm the exact commit in the macOS, Windows desktop, Windows installer, and Windows performance jobs. Keep installer and updater publication separate. The Git and saved test workflows require `npm run test:source-control` and `npm run test:project-suites` on both platforms. Review [the capability and skip audit](TEST_COVERAGE_AUDIT.md) and [the parity matrix](docs/windows/FEATURE_PARITY.md) before updating release claims.
+
+The 0.9.6 candidate is held locally. Repository trust blocks Git startup for an unapproved workspace, and a late executable-filter configuration change in an approved workspace remains an open P0 finding. The macOS mutation tests passed. The Windows mutation helper has a cross-compile result and still needs its native filesystem and installer checks. [Engineering issue register](ENGINEERING_AUDIT.md#issue-register)
+
 1. On a target Mac, install Node.js and npm, Xcode Command Line Tools, a JDK, Python 3, and Node.js for the language matrix. Run `npm ci`, then `npm run test:regression`. Retain the console results. With LibreOffice available, run `node scripts/test-paged-viewer.mjs --require-powerpoint`.
 2. Preserve the previous release's production bundles. Run `npm run test:workspaces -- --prepare-target <previous-dist> --target dist` to create a disposable profile with the older build and reopen it with the candidate. Check settings, recents, source files, learning history, practice attempts, and roadmap evidence.
 3. Run the matched extended process-tree benchmarks in [PERFORMANCE.md](PERFORMANCE.md) on the same Mac and power source. Use `npm run check:performance` with the report pair. Investigate a repeatable failure before packaging.

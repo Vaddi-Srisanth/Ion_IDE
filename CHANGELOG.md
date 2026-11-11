@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.6 development source
+
+- Added on-demand Source Control with Explorer badges, staged and working-tree diffs, stage, unstage, and local commits using installed Git.
+- Added **Run Tests** for saved, approved C cases and suites. Reuses the local runner for exit status, output comparisons, reliable compiler locations, reruns, and Stop.
+- Added shared language capabilities, source breadcrumbs and navigation history, and optional clangd definitions and references for C/C++.
+- Added a searchable offline theme collection with 16 built-in palettes, live preview, favorites, recent themes, and automatic appearance.
+- Expanded native regression coverage for Windows and macOS. See the [coverage audit](TEST_COVERAGE_AUDIT.md), [platform matrix](docs/windows/FEATURE_PARITY.md), and [performance report](PERFORMANCE.md#git-and-saved-run-tests).
+- Hardened late file changes with exclusive native rename, retained save replacement, and scoped Trash staging. Commit captures the reviewed Git tree and checks its branch ref before updating it. [Engineering audit](ENGINEERING_AUDIT.md) · [Bottleneck report](BOTTLENECK_REPORT.md)
+
 ## 0.9.5 preview
 
 - Added a quiet **Update available** button in the title bar. Clicking it downloads and verifies the matching GitHub installer, which you can open from Downloads.

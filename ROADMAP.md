@@ -2,6 +2,10 @@
 
 These milestones describe product scope. The current package uses its own release sequence. See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for implementation and verification status and [PERFORMANCE.md](PERFORMANCE.md) for measured resource use.
 
+## Current engineering checkpoint
+
+The comprehensive audit and renderer profiling are recorded in [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md) and [BOTTLENECK_REPORT.md](BOTTLENECK_REPORT.md). The local 0.9.6 candidate includes the verified macOS file-race protection and reviewed-tree Git commit fix. Publication is held by EA-04, the executable-filter configuration race in a trusted repository. Resolve that launch boundary before a source push. Then run the native Windows mutation, desktop, installer and performance gates, investigate EA-15 and EA-16, and complete the longer hardware workloads. Focus Mode, debugger integration, learning progression and accessibility verification remain independent increments.
+
 ## Performance-first development milestones
 
 Verify each milestone against a preserved production build before opening the next one. Keep the existing editor and process ownership. Measure optional features both closed and active, and check that their cleanup preserves files, drafts, and running work.
@@ -11,7 +15,7 @@ Verify each milestone against a preserved production build before opening the ne
 | A · First launch | The offline intro and optional setup reuse Welcome, its four workspaces, starter files, and Run Console. macOS functional and playback measurements are recorded. | Verify the installed Windows file-open and reduced-motion paths on Windows, and repeat the resource checks on lower-memory hardware. |
 | B · Java intelligence | Ion provides basic snippets and an opt-in compiler-backed Java adapter for semantic completion, live diagnostics, signatures, and navigation. | Verify Windows runtime behavior and larger Java workspaces. Expand project classpath and reference coverage only after profiling. |
 | C · Learning Lens | C connects diagnostics, source, and lessons. Reviewed Java and Python guides already cover selected errors. | Grow verified C coverage, then extend source-linked Lens to Java. Keep exercise results separate from compiler resolutions. |
-| D · Project development | Tabs, Quick Open, search, document and Markdown splits, and explicit C/C++ and Java builds are available. | Verify a second source view with shared models and independent view state, then add on-demand Git and scoped run configurations. |
+| D · Project development | Tabs, Quick Open, search, document and Markdown splits, explicit builds, breadcrumbs, Back/Forward, and Java and C/C++ semantic jumps are available. | On-demand Git and saved C suites are implemented. Track native verification in the platform matrix. A second editable source pane and additional test adapters remain future work. |
 | E · Debugging | An isolated Apple LLDB-DAP probe ran a C fixture. Run Console is independent. | Integrate one debugger with verified stepping, state inspection, explicit execution consent, and adapter cleanup. |
 | F · Usability | Session recovery, optional learning panels, and manual versus test-verified project progress already exist. | Add Quiet Mode, extend view restoration and history navigation, and test a local redacted issue-report export. |
 
@@ -34,8 +38,8 @@ The Essential Java Editing milestone establishes the first language adapter. The
 
 | Wave | Course rollout |
 | --- | --- |
-| 1 | Java, C, C++, Python, JavaScript |
-| 2 | TypeScript, HTML, CSS, SQL, Go, Rust, C# |
+| 1 | C, C++, Java, Python, JavaScript, TypeScript |
+| 2 | HTML, CSS, SQL, Go, Rust, C# |
 | 3 | Kotlin, Swift, PHP, Ruby, Bash, Dart |
 
 Test shared navigation and isolated progress across the first two migrated packs before expanding. Compare memory and startup with 5, 25, 50, and 100 installed packs once the shared course architecture is ready. Track course depth, quiz and practice availability, semantic editing, explanations, and code execution as separate capabilities.

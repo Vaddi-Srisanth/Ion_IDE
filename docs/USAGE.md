@@ -26,7 +26,7 @@ Ion detects Apple Clang when Command Line Tools or Xcode is selected. It can als
 
 ## Build from source
 
-Use Node.js 22.13 or later and npm. The initial dependency and Electron downloads require network access. On macOS, install Xcode Command Line Tools for C execution and packaging the app icon.
+Use Node.js 22.13 or later and npm. The initial dependency and Electron downloads require network access. On macOS, install Xcode Command Line Tools to build the file and terminal helpers, run C code, and package the app icon.
 
 ```sh
 npm ci
@@ -134,6 +134,23 @@ Change Ion command bindings in **Preferences → Keyboard Shortcuts**. `Mod` mea
 
 Local programs and build scripts run with your user permissions. Only run code and builds you trust. Ion passes arguments directly, uses a temporary output directory for standalone builds, and applies a 15-second compiler timeout, a two-minute project build timeout, a five-minute interactive program timeout, and a 256 KiB combined output limit. Stop terminates the launched process and attempts to clean up its children. Running code can access files and resources available to your account.
 
+## Source Control
+
+Install Git and open a repository root or linked worktree. Select the branch icon in the activity bar or **Toggle Source Control** in the command palette. Choose **Trust Repository** only for a checkout whose local Git configuration you trust. This permission lasts for the current workspace session. The panel shows the current branch and separates staged changes from working-tree changes. Explorer badges appear alongside it. Use **Refresh Git Status** after external Git or file changes.
+
+Select a file to open a read-only comparison, switch between **Inline** and **Side by side**, and use the change arrows. Unsaved buffers stay in the editor. A warning identifies a diff that shows the saved file while the editor contains unsaved changes. Save first to include those changes when staging.
+
+Use **Stage** and **Unstage** on individual files. Enter a message and choose **Commit staged changes** to commit the reviewed tree on the current branch. A change staged during the commit stays in the working index. Set `user.name` and `user.email` with Git if the commit reports a missing identity. Ion disables commit hooks and signing in this panel and refuses repository-local executable Git filters detected during review. Trust also covers later local configuration changes until you leave the workspace. Use your terminal for workflows that depend on custom filters or hooks, detached commits, sequencer operations, and remotes. Open nested repositories separately. Git starts only for an operation, and closing the panel releases its status and diff resources.
+
+## Saved Run Tests
+
+1. Open the workspace folder. In **Projects**, save a project specification with C behavior tests linked to a milestone. Each case specifies a C source path, standard input, expected standard output, and an expected exit code.
+2. Open **Run Tests** in the editor toolbar or command palette. Expand a case and select **Review and Approve**. The native review lists the local compiler and arguments, program invocation, working directory, and expected behavior. Edits to a case require approval again.
+3. Choose a case or the approved suite. Save changed project files first. During a run, **Stop** cancels the remaining work and closes the running child processes.
+4. Expand a result for expected and observed output, exit status, timing, and diagnostics. When a compiler diagnostic identifies the selected source, **Go to line** opens that location. Use **Rerun Failed** to run failed and unable-to-verify cases again.
+
+Ion stores the specification, approvals, and evidence in its local profile. Evidence becomes stale if the source changes. Runs use the existing local C runner, with bounded output and time limits. The generated program runs with your account’s permissions. The separate **Run on Save** option remains available in the Projects panel in Full Mode and requires explicit consent.
+
 ## Read-only document tabs
 
 Open a supported file from the explorer or **Open File**. Choose **Split View** to keep the document beside a source tab. Drag the divider or focus it and use the arrow keys. **Open in Default Application** opens the original file in the associated desktop app. Ion previews files locally and preserves the original bytes.
@@ -209,6 +226,14 @@ Install and select the **C** pack in **Learn**, then run a saved C file. **Probl
 **Explain Again** appears when the same issue returns after a verifiable code change. A complete, successful recompilation records that the diagnostic cleared. **History** shows local encounters and resolutions. For ambiguous diagnostics, Ion shows the compiler's message and says when it lacks a reliable explanation.
 
 Close the Learn panel to pause collection, or turn off **Learning Lens** under **Preferences → Run Console**. Standard Problems and offline lessons remain available.
+
+## File safety and recovery
+
+Ion stages saves in the selected file's directory and checks the authorized parent and original revision before publishing. New names are created exclusively. The macOS helper exchanges the staged and existing files atomically. The Windows helper retains the old entry before publishing with a second no-replace rename. If Ion stops between those Windows moves, the original name can be missing while the adjacent backup still contains the old data.
+
+If a competing save reaches the destination just before publication, Ion keeps the displaced bytes in an `Ion recovery-… .bak` file beside the source, marks the editor as conflicted, and shows the backup path. Open or copy that backup before choosing which version to keep. A crash immediately after a macOS exchange can leave the displaced file under the adjacent `.ion-….tmp` name. Filesystems that reject the safe operation leave the draft open so you can use Save As elsewhere.
+
+The system Trash receives a copy of the selected name from Ion's private same-volume staging directory. If the system operation fails, Ion restores the original name when it is free. If another file occupies the name, Ion reports the path of the retained item. Restore a trashed file by dragging it back from Trash or Recycle Bin. Use Finder or File Explorer for original-location Restore and items on another volume. [Recovery limitations](../ENGINEERING_AUDIT.md#issue-register)
 
 ## Local profile backup
 

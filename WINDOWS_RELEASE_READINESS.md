@@ -2,6 +2,8 @@
 
 **Windows x64 test preview.** Version 0.9.5 uses the shared Electron app and local data stores. Hosted Windows verification and retail Windows qualification are separate; the manual checklist below remains open.
 
+The development branch adds native Source Control, saved C suites, language verification, and matched Windows development-workflow measurements to the hosted gates. The historical evidence below describes published 0.9.5. See the [platform matrix and laptop protocol](docs/windows/FEATURE_PARITY.md) and the [development measurements](PERFORMANCE.md#git-and-saved-run-tests) for the newer source.
+
 ## Windows evidence
 
 The exact final source passed all four native CI jobs. The Windows desktop job passed 27 selected automated cases with two platform skips, four signing and evidence tests, all five ConPTY cases, and the production GUI suites. The macOS job passed 144 automated cases with 12 platform or opt-in skips, its desktop regression, and mounted-installer checks. Dependency audit reported zero vulnerabilities. [Final verification run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/42680933021)

@@ -2,6 +2,113 @@
 
 Paths under `performance-results/` refer to local benchmark outputs and logs. Reproduction commands are listed with the relevant workloads.
 
+## Git and saved Run Tests
+
+These measurements compare the preserved 0.9.5 production build with the 0.9.6 development-workflow build before the filesystem and Git trust hardening. The same Apple M3 with 24 GiB RAM and macOS 27.2.1 ran three paired trials, alternating the builds. Each trial used a disposable Minimal Mode profile, offline renderer, hidden 1260 × 790 window at 2× scale, a 1,000-file Git project, and ten source tabs. Fresh launches leave OS filesystem caches intact. CPU is a fraction of one logical core. The GPU column measures the macOS-attributed memory of Chromium's GPU helper.
+
+| Ordinary editor workload, median | Before attributed / RSS MiB | After attributed / RSS MiB | CPU before → after |
+| --- | ---: | ---: | ---: |
+| Welcome | 146.2 / 421.0 | 147.8 / 421.7 | 0.69% → 0.74% |
+| One C file | 258.6 / 520.1 | 262.3 / 520.0 | 3.73% → 3.77% |
+| Ten tabs | 252.5 / 528.9 | 254.6 / 530.5 | 1.40% → 1.50% |
+| Medium project, Git panel closed | 272.2 / 545.9 | 275.0 / 548.0 | 3.77% → 3.68% |
+
+Fresh startup was **323.9 → 285.7 ms**, warm startup **288.8 → 299.8 ms**, and first source open **185.7 → 191.2 ms**. A keydown-to-second-animation-callback proxy was **18.7 → 18.9 ms**, tab selection to observed source **49.7 → 49.7 ms**, and wheel to changed viewport **35.4 → 36.0 ms**. Startup results vary by trial and launch order. The separate common-workload resource comparison measured Welcome **122.1 → 122.8 MiB attributed** and **416.3 → 417.2 MiB RSS** with its longer settling protocol. Its eight-second idle CPU sample **0.25% → 0.79%** exceeded that harness's 0.5 percentage point allowance. The three paired trials above showed a smaller difference. These series do not establish a sustained idle CPU change.
+
+| Development workflow, 0.9.6 pre-hardening median | Attributed MiB | RSS MiB | GPU helper MiB | CPU |
+| --- | ---: | ---: | ---: | ---: |
+| Git panel loaded | 293.4 | 576.8 | 110.8 | 1.32% |
+| 7,000-line text diff | 346.6 | 609.7 | 125.9 | 8.06% |
+| After six Git panel cycles and closing | 358.8 | 615.7 | 135.7 | 6.98% |
+| Saved suite configured, dialog closed | 318.7 | 611.4 | 95.6 | 0.18% |
+| Saved Run Tests dialog open | 333.9 | 614.4 | 106.4 | 0.48% |
+| Native C test observed executing | 451.1 | 620.6 | 222.8 | 0.55% |
+| After closing the completed suite | 305.8 | 589.2 | 118.9 | 8.02% |
+
+These rows are sequential snapshots after different work. They cannot isolate the panel cost from Chromium settling and allocator reuse. First Git panel load took **838 ms**, manual refresh **75 ms**, and the large diff **1,459 ms** until navigation became available. Four saved cases took **4,038 ms** including a deliberate 3,600 ms program wait. No Git or test process remained after the work completed. Optional renderer assets were unloaded during normal editing before use.
+
+The 90-second mixed stress run completed 46 rounds of typing, saving, tab switching, Git review, and native test execution. Whole-tree RSS rose from **602 to 703 MiB**. Renderer RSS rose from **271 to 367 MiB**, with renderer attributed footprint **145 to 194 MiB**. The GPU helper fell from **239 to 199 MiB attributed**. This run establishes a retained-memory symptom, with the allocator, compositor and object ownership still under investigation. It does not establish a leak or multi-hour stability. [Bottleneck report](BOTTLENECK_REPORT.md)
+
+Reproduce with `ION_SHOW_TEST_WINDOWS=0 npm run bench:development -- --baseline /path/to/prior/dist --trials 3 --soak-seconds 90`. The native Windows workflow uses the public 0.9.5 source as its control and measures working set and private bytes. See [Windows parity and hardware protocol](docs/windows/FEATURE_PARITY.md). The macOS raw files are `performance-results/git-tests/matched-development.json` and the paired `resources-*.json` files in that directory.
+
+### Final hardened production comparison
+
+After the filesystem and Git commit safeguards, three alternating pairs repeated the same protocol on the same Mac. Each used the same 1,000-file fixture, window size, scale, ten tabs, offline disposable profile and 1.4-second CPU sampling interval. The final report completed all six workloads and their process exits.
+
+| Median measurement | Preserved build | Hardened candidate |
+| --- | ---: | ---: |
+| Welcome attributed footprint / summed RSS | 146.9 / 421.4 MiB | 147.7 / 422.5 MiB |
+| One C file attributed footprint / summed RSS | 257.5 / 519.9 MiB | 260.3 / 519.8 MiB |
+| Ten tabs attributed footprint / summed RSS | 249.7 / 528.8 MiB | 254.8 / 530.2 MiB |
+| Medium project, Git closed, footprint / RSS | 269.9 / 547.8 MiB | 274.6 / 548.8 MiB |
+| Welcome CPU, fraction of one logical core | 0.82% | 0.91% |
+| One-file CPU, same short sampling interval | 4.39% | 3.68% |
+| Fresh process to Welcome | 300.4 ms | 276.3 ms |
+| Same-profile warm launch | 287.0 ms | 277.4 ms |
+| First source open | 177.9 ms | 176.9 ms |
+| Keydown to second animation callback | 19.0 ms | 19.4 ms |
+| Tab switch to observed source | 49.7 ms | 49.8 ms |
+
+The changed build has similar summed RSS and slightly higher attributed memory in these workloads. Startup medians vary across the recorded series, and the short CPU windows include Chromium settling. These observations support the measured workload and leave sustained idle and physical display latency to separate tests. In the hardened candidate, Git first open took 964 ms, refresh 65 ms, the 7,000-line diff 1,426 ms, and the four-case suite 4,035 ms including its deliberate wait. No development child remained after suite completion.
+
+The raw report is `performance-results/git-tests/hardened-development-final.json`. It includes the main-bundle SHA-256 hashes and per-process samples. An earlier attempted three-pair run failed at its last candidate shutdown after five completed workloads. The harness applied its eight-second exit limit. A complete one-pair retry and this final three-pair repeat passed. EA-16 retains the intermittent timeout for investigation. The benchmark writes `complete: false` checkpoints and logs any primary workload error before teardown. [Issue register](ENGINEERING_AUDIT.md#issue-register)
+
+### Cost of preventing late save overwrites
+
+The same Mac ran 30 saves per file size and build through the renderer's save IPC, with a disposable profile and renderer network access blocked. The candidate stages the new bytes through a checked directory handle and retains the displaced file until it verifies the old revision. The benchmark includes synchronized publication and the revision response. It excludes editor work and the autosave delay, and verifies the final bytes on disk.
+
+| File size | Before median / p95 | Hardened median / p95 |
+| --- | ---: | ---: |
+| 256 bytes | 3.9 / 4.3 ms | 5.3 / 8.0 ms |
+| 1.5 MiB | 6.0 / 7.0 ms | 8.8 / 9.7 ms |
+
+The helper runs only during file mutations. The median save cost increased by 1.4 ms for the small file and 2.8 ms for the larger file. Native Windows save latency remains unmeasured. [Save logic](src/main/files.ts) · [Native adapter](src/main/file-mutations.ts) · [Save benchmark](scripts/benchmark-file-saves.mjs)
+
+```sh
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-file-saves.mjs \
+  --baseline /path/to/prior/dist --target dist --trials 30
+```
+
+The pre-hardening and hardened Mac comparisons use the preserved working build with the earlier language and theme work already present. Its version string was 0.9.5. The released `v0.9.5` tag is the control for the separate Windows CI workflow.
+
+## Language navigation and theme collection
+
+The comparison used the preserved 0.9.5 production build from before the change and the updated production build on an Apple M3 with 24 GiB of RAM and arm64 macOS 27.2.1 (26B131). Windows measurements are pending. The app ran offline with hidden 1260 × 790 windows at 2× scale and disposable Minimal Mode profiles. The editor workload kept two tabs open. Each run switched 500 times, cycling through the imported themes. Counts exclude the five original and sixteen current built-in themes. There was one run per size and build. The old picker persisted each selection. The new picker previews the color and writes the preference only on Apply. The switch measurement ends two renderer animation callbacks after the selected palette appears.
+
+| Imported themes | Idle attributed footprint, MiB | Idle summed RSS, MiB | GPU process at switch 500, attributed MiB | Preview p50 / p95, ms | Renderer heap after closing and diagnostic GC, MiB |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 5 | 183.7 → 182.7 | 509.3 → 507.6 | 242.6 → 228.6 | 32.0 / 32.6 | 15.97 |
+| 20 | 183.6 → 181.8 | 508.6 → 507.8 | 241.2 → 228.3 | 32.2 / 32.5 | 15.99 |
+| 50 | 183.5 → 183.3 | 508.5 → 507.2 | 241.8 → 229.6 | 32.2 / 32.5 | 15.99 |
+| 100 | 183.2 → 182.4 | 507.9 → 511.4 | 241.2 → 232.1 | 32.2 / 32.5 | 15.99 |
+
+Idle footprint differed by at most 1.8 MiB across the four paired catalog sizes. The 100-import run measured 183.2 → 182.4 MiB. Editor idle CPU sampled at 0.92–1.16% before and 1.06–1.50% after, as a fraction of one logical core. A single input-to-second-frame measurement per run ranged from 42.3–43.1 ms before and 40.4–42.8 ms after. Fresh process startup ranged from 327–521 ms before and 309–341 ms after. Warm launches ranged from 300–354 ms before and 282–315 ms after. OS caches remained intact. The sample count and sequential run order limit startup and CPU conclusions. No editor-only run started a native child.
+
+| With 20 imported themes and 500 switches | Idle attributed footprint, MiB | GPU process at switch 500, attributed MiB | Preview p50 / p95, ms | Renderer heap after closing and diagnostic GC, MiB |
+| --- | ---: | ---: | ---: | ---: |
+| Integrated Terminal | 185.2 → 185.8 | 245.5 → 236.4 | 32.2 / 32.5 | 17.29 |
+| Learning Lens | 215.3 → 215.5 | 327.2 → 262.0 | 32.2 / 32.4 | 17.75 |
+
+The stress runs verified that the original Monaco editor, unsaved edit, and undo history survived. The terminal kept its original xterm element and the two terminal-owned processes exited when the session closed. The Learn run kept a real compiler explanation open. The candidate editor heap after diagnostic collection was within 0.02 MiB across the four catalog sizes. These short workloads do not establish multi-hour memory bounds. GPU figures are the macOS-attributed footprint of the GPU helper process, not GPU hardware utilization or dedicated VRAM.
+
+The first picker design had nested scrolling and recolored its own controls on each preview. A targeted 100-switch layer trace with 20 imports sampled 10 content-drawing layers and 318.6 MiB in the GPU process. A single scrolling surface reduced that to eight layers and 275.8 MiB. Keeping the picker palette stable during the workbench preview reduced the GPU sample to 247.5 MiB. The final 500-switch runs above use both changes. Compositing layers and memory are separate measurements. The trace does not measure physical frame presentation.
+
+The final C navigation fixture measured clangd at 19.50 MiB attributed and 35.06 MiB RSS. The process started on the first definition request, served references, and exited after the last smart source closed. It uses one translation unit at a time and leaves background indexing off. Two Smart Java trials with OpenJDK 26.0.2.1 measured the JVM separately at 62.4–62.8 MiB attributed and 91.9–92.3 MiB RSS. Neither service ran on Welcome or after its last source tab closed. Basic Java editing started no JVM. The unpackaged production payload increased by about 153 KiB, including approximately 12 KiB of extra palette JSON. Installer size was outside this source-build comparison.
+
+The existing Marketplace benchmark also ran twice at zero and 100 installed synthetic learning packs on each build. In the updated build, idle summed RSS averaged 508.7 MiB with zero and 508.1 MiB with 100 packs. Both cases kept four app processes, and the Marketplace renderer code stayed unloaded during ordinary editing. Initial attributed-footprint samples varied from 228 to 332 MiB across these four trials. That variance prevents a precise per-pack footprint estimate.
+
+Raw data and regressions are under `performance-results/language-theme-collection/`. The earlier 0.9.5 baseline can be rebuilt from `51452e3` in a separate checkout. Use the same output protocol for each build.
+
+```sh
+ION_SHOW_TEST_WINDOWS=0 npm run bench:themes -- --target /path/to/baseline/dist --legacy --out baseline.json
+ION_SHOW_TEST_WINDOWS=0 npm run bench:themes -- --out candidate.json
+ION_SHOW_TEST_WINDOWS=0 npm run bench:themes -- --sizes 20 --context terminal --out terminal.json
+ION_SHOW_TEST_WINDOWS=0 npm run bench:themes -- --sizes 20 --context lens --out lens.json
+ION_SHOW_TEST_WINDOWS=0 npm run test:navigation
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-java-tools.mjs --baseline /path/to/baseline/dist --trials 2 --out java.json
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-learning-marketplace.mjs --target /path/to/build/dist --runs 2 --sizes 0,100
+```
+
 ## First launch and onboarding
 
 Ion 0.9.5 was measured against its preserved pre-onboarding production build at `ad82e08`. The benchmark ran on Apple M3, 24 GiB RAM, macOS 27.2 (26B123), Electron 45.2.3, and battery power. The builds share the same Electron runtime. Tests use disposable profiles and retain OS caches. The renderer is offline.
@@ -992,7 +1099,7 @@ Ion 0.4.0 stores the five built-in palettes separately. Together they occupy 5,5
 ```sh
 npm run package:dmg
 npm run test:themes
-npm run bench:themes -- --baseline 'release/Ion IDE-0.3.0-darwin-arm64/Ion IDE.app'
+node scripts/benchmark-themes.mjs --baseline 'release/Ion IDE-0.3.0-darwin-arm64/Ion IDE.app'
 ```
 
 The benchmark runs signed production app bundles on Apple Silicon. Each catalog size starts with a fresh disposable profile and an active Dark palette, then relaunches with the same profile. OS caches are left intact. Startup includes attaching local browser automation and waiting for visible Welcome and the active theme. The old two-theme release has a Welcome marker only. Each warm run opens the same C file and measures the idle app with Preferences closed. Custom definitions are installed through the real validation and persistence path to prepare fixtures ahead of the measured launches.
@@ -1026,7 +1133,7 @@ Raw samples and build hashes are in `performance-results/themes-2026-11-09T05-25
 ### 1,000-switch soak
 
 ```sh
-npm run bench:themes -- --sizes 100 --runs 1 --switches 1000 --checkpoint 100 \
+node scripts/benchmark-themes.mjs --sizes 100 --runs 1 --switches 1000 --checkpoint 100 \
   --baseline 'release/Ion IDE-0.3.0-darwin-arm64/Ion IDE.app'
 ```
 

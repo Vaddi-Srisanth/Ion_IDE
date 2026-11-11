@@ -19,7 +19,7 @@ Large text previews read bounded, revision-checked byte ranges through `Workspac
 
 ### Appearance
 
-Each theme has a separate versioned palette file. Main validates imports and uses a metadata-only registry to enumerate custom themes. The workbench reads the selected palette and applies its semantic CSS variables to all panes. Preferences opens the theme catalog on demand. Monaco updates a single named theme slot, preserving the existing editor and its text models. System appearance uses a media-query change listener only while System is selected.
+Each theme has a separate versioned palette file. Main validates imports and uses a metadata-only registry to enumerate custom themes. The workbench reads the selected palette and applies its semantic CSS variables to all panes. The theme picker opens the catalog on demand and uses three swatch values per theme where metadata is available. A preview loads the selected palette, and closing or canceling the picker discards it. Apply persists the preference and an eight-theme recent list. Favorites are local theme IDs. Monaco updates a single named theme slot, preserving the existing editor and its text models. System appearance uses a media-query change listener only while Automatic is selected.
 
 ### Commands and local data
 
@@ -45,6 +45,10 @@ The general-purpose Terminal loads its window-owned service only on the first ex
 
 ### Local language adapters
 
+A shared capability catalog describes file extensions, Monaco grammars, Run Console coverage, formatters, semantic providers, and offline learning packs. The catalog stores metadata. It does not start a tool or read lesson bodies. Formatters and execution plans retain their own adapters. Debugger and test adapters can use the same language IDs as they are added.
+
+The main process owns a single scoped semantic session. Both Java and clangd use the same validated buffer snapshot, revision check, source-location response, and editor navigation path. clangd starts on a definition or references request from a saved C/C++ tab when enabled. It uses the local toolchain with background indexing and workspace clangd configuration disabled, and does not invoke compiler drivers to extract settings. The adapter opens one translation unit and caps queued requests and results. Back/Forward retains up to 64 locations in each direction for the active workspace.
+
 The editor registers Java providers only while a Java model is active. Basic mode uses local keyword and snippet data. Smart Java uses a language-tagged request with an authorized path, buffer revision, and cursor offset. Main lazy-loads a single JDK compiler API worker for the current workspace or standalone file. The worker uses the live buffer, standard library, and scoped local source roots. It disables annotation processing and never generates class files from the user's source. The editor rejects responses for an obsolete revision and keeps live diagnostics separate from Run Console results.
 
 Each request has an eight-second deadline and a 256 KiB buffer limit. The service keeps at most one running request, one pending diagnostic, and one pending interactive request. Closing the last Java tab, disabling Smart Java, or closing the window stops the worker. Switching away gives it a short grace period to support quick tab switches. Language tooling is independent of lesson packs and Run.
@@ -57,6 +61,8 @@ The renderer checks the model and revision again before applying one undoable ed
 
 ## Desktop foundation
 
+File mutations use the bounded `ion-file-ops` helper, loaded as a short-lived process only for a write, rename or Trash operation. It receives path components and validated directory identities from [WorkspaceFiles](src/main/files.ts). On macOS it opens the parent directory and uses relative operations with exclusive names or atomic exchange. On Windows it pins the directory chain, rejects reparse points, and moves retained and replacement entries without clobbering. Normal saves remove the previous copy only after the parent and displaced revision have been checked. Contested copies remain beside the source. Source staging uses bounded stdin with the same editing limit and is synchronized before publication. Window teardown waits for an in-flight file mutation to settle. [Native bridge](src/main/file-mutations.ts) · [Race tests](test/file-mutation-races.test.ts)
+
 1. Establish the desktop shell, build, IPC boundaries, and native lifecycle.
 2. Connect the welcome screen, explorer, editor, tabs, save and autosave, and persistent appearance controls.
 3. Connect C toolchain detection, compile and run, cancellation, and output with explicit local execution consent.
@@ -67,6 +73,10 @@ The renderer checks the model and revision again before applying one undoable ed
 Main checks whether the profile has an Ion preferences file. For a new profile, it records first launch through the existing atomic preference write queue and passes a single boolean through the isolated preload. An incoming system file request takes precedence over onboarding. The renderer reuses its Welcome and workspace commands, and imports the cinematic scene only while onboarding or an explicit replay is visible and motion is allowed. The scene owns one bounded canvas and releases its drawing loop, listeners, and backing buffer when dismissed.
 
 ## Optional workspace services
+
+Source Control opens a short-lived service for the active repository root. The preload binds every operation to that root, and the main process revalidates it against the workspace grant. Git commands use structured arguments, bounded output, and no permanent child. The renderer keeps status only while the panel is open. The read-only diff creates two bounded Monaco models on demand and disposes both when closed. It leaves the source editor mounted.
+
+Saved Run Tests uses the Projects store and its existing approval records. A language adapter maps validated test cases onto the shared runner. The C adapter groups compatible cases for one compile and records stdout, stderr, exit status, timing, and a compiler location when it identifies the selected source. A suite owns one abort signal and one workspace scope. The source and project revisions are checked before execution, and completed evidence is saved together. The Run Console and Practice observe the same execution guard.
 
 - **Learning** exposes a lazy catalog of declarative language packs. Installing a pack copies validated lesson data into the profile. A separate selection enables the language in Learn. The renderer requests topic metadata and individual lessons. Learning Lens links high-confidence C diagnostics to Problems and the editor while Learn is open and the C pack is selected. The runner passes bounded diagnostics and the checked source revision. The editor drops markers on the first unsaved change. History uses existing local storage and records C resolutions only when the compiler completed successfully.
 - **Projects** validates versioned specifications independently of the provider. Scoped declarative tests are reviewed and approved before using the shared C runner. Only an explicit online planning action reaches the provider. Credentials stay in main-process OS-backed encrypted storage.

@@ -12,7 +12,7 @@ Ion is a personal project by Vaddi Srisanth for students and developers who want
 
 ## Download and install
 
-Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The feature guide follows [version 0.9.5](docs/releases/0.9.5.md).
+Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The latest public installer is [version 0.9.5](docs/releases/0.9.5.md). The 0.9.6 development source adds Source Control, saved Run Tests, the expanded theme picker, and the new navigation.
 
 | Platform | Installer | Install |
 | --- | --- | --- |
@@ -28,13 +28,14 @@ Editing, previews, bundled lessons, local plans, and practice work offline. Inst
 | C or C++ | Apple Clang via `xcode-select --install` on macOS, or a compatible Clang/GCC toolchain. On Windows, use GNU-compatible GCC or Clang. |
 | Java | A JDK with `java` and `javac`. |
 | Python or JavaScript | Python 3 or Node.js, respectively. |
+| Source Control | Git on macOS or Git for Windows. Use a local repository you trust. |
 | Jupyter cells or PowerPoint previews | A Python environment with `jupyter_client` and `ipykernel` for cell execution. On macOS, LibreOffice for static PowerPoint previews. |
 
 [macOS setup](docs/USAGE.md#macos-setup) · [Windows toolchains](docs/windows/DEPENDENCIES.md)
 
 ### Build from source
 
-Install Git, Node.js 22.13 or later, and npm. The initial dependency downloads require internet access.
+Install Git, Node.js 22.13 or later, and npm. On macOS, install Xcode Command Line Tools with `xcode-select --install` to compile the native file and terminal helpers. The initial dependency downloads require internet access.
 
 ```sh
 git clone https://github.com/Vaddi-Srisanth/Ion_IDE.git
@@ -70,7 +71,7 @@ npm start
 4. Click **Run** or press **F5**. Review the local execution prompt.
 5. In **Run Console**, type your name and press **Enter**. Look for the greeting and the exit status.
 6. Remove the semicolon after `fflush(stdout)`, save, and run again. Read the compiler message in Run Console.
-7. Install the C pack from **Marketplace** and select it in **Learn**. Rerun the broken file. In v0.9.4, check **Latest run** for an available explanation. In the source preview, choose **Explain** in **Problems**. Restore the semicolon and run again.
+7. Install the C pack from **Marketplace** and select it in **Learn**. Rerun the broken file. Choose **Explain** in **Problems** for a recognized compiler error. Restore the semicolon and run again.
 
 [Run Console guide](docs/USAGE.md#write-and-run-code) · [Keyboard shortcuts](docs/USAGE.md#keyboard-navigation)
 
@@ -82,13 +83,13 @@ For supported C compiler errors, Ion connects the source location, the original 
 
 ### Run, learn, and verify
 
-| Capability | Coverage in v0.9.5 source |
+| Capability | Coverage in the development build |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
 | **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
 | **Bundled learning packs** | 162 lessons across 19 packs. Core syntax, common APIs, examples, exercises, and selected mini-projects. Install or import packs offline. |
 | **Diagnostic explanations** | C with GCC or Clang has the Learning Lens workflow. Reviewed subsets for C++, Java, Python, and JavaScript also link to relevant installed lessons. |
-| **Project verification** | Review and approve C tests that compare program input, output, and exit status. Track manual milestones separately from test evidence. Approved tests can run on save in Full Mode. |
+| **Run Tests** | Save C behavior tests in Projects, approve their local compiler and program commands, then run a selected case or the approved suite from the toolbar. See expected and actual output, exit codes, timing, compiler locations, and saved evidence. [Run Tests guide](docs/USAGE.md#saved-run-tests) |
 | **Practice** | Pick a topic, language, and difficulty for 27 built-in challenges with sample tests. Save notes, results, and multiple attempts. Run samples in the five languages listed above. |
 
 The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift, C#, Bash, Ruby, Perl, HTML, CSS, SQLite, JSON, XML, and YAML. A pack provides lessons. Executing its examples depends on the installed toolchain and Ion's Run coverage. [Pack catalog and authoring](docs/LEARNING_PACKS.md)
@@ -96,12 +97,13 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 ### Everyday coding
 
 - **Get started offline.** New profiles can watch the first-launch intro or skip straight to Welcome. Setup offers a language starter and the four workspaces. Reduced motion uses the static setup.
-- **Edit and navigate.** Monaco, starter files, multiple tabs, command palette, Quick Open, saved-file workspace search, configurable shortcuts, and resizable panels.
+- **Edit and navigate.** Monaco, starter files, multiple tabs, command palette, Quick Open, saved-file workspace search, configurable shortcuts, relative path breadcrumbs, and Back/Forward for source jumps. Turn on **Smart C/C++** in Preferences to use locally installed clangd for definitions and references. Background indexing stays off, so results cover the current translation unit. **Language Support** in Preferences and the command palette lists capabilities and tool requirements independently of syntax highlighting.
 - **Format source.** Use the status bar or a shortcut to format the current buffer with an installed local tool. Changes apply as one undoable edit. [Formatting guide](docs/USAGE.md#format-a-source-file)
+- **Review and commit locally.** Open a repository root and select **Source Control** for branch and file status, Explorer badges, staged and working-tree diffs, Stage, Unstage, and local commits. Use inline or side-by-side diffs while keeping the source editor open. [Source Control guide](docs/USAGE.md#source-control)
 - **Protect work.** Autosave, revision-aware saves, external-change prompts, crash recovery, session reopening, and local export for settings, themes, learning history, and project metadata.
 - **Use a shell.** The integrated Terminal opens on demand, with multiple sessions, search, and bounded scrollback. It uses your configured shell on macOS and Command Prompt via ConPTY on Windows. Run Console stays separate.
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
-- **Make it yours.** Five built-in themes, system appearance, local JSON theme import and export, and Minimal or Full resource profiles.
+- **Make it yours.** Sixteen built-in palettes include two high-contrast options. Open **Preferences → Appearance → Browse Themes** or **Color Theme** in the command palette. Search, preview, favorite, and apply themes offline. Cancel restores the current selection. Automatic appearance, local JSON import/export, and Minimal and Full Mode remain available.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
 - **Update when you choose.** Check in Preferences → Updates, or opt in to checks on launch. When a compatible GitHub release is available, the title bar offers a checksum-verified installer download that you can open yourself.
 
@@ -109,7 +111,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 
 ## Screenshots
 
-Captured in the v0.9.5 production app using sample workspaces.
+The published 0.9.5 screenshots and development previews use disposable sample workspaces.
 
 ![Learning Lens links an actual C compiler diagnostic to the highlighted line and the relevant offline concept](docs/screenshots/learning-lens.webp)
 
@@ -138,6 +140,15 @@ Captured in the v0.9.5 production app using sample workspaces.
 
 </details>
 
+<details>
+<summary>Source Control and saved Run Tests in the 0.9.6 development build</summary>
+
+![Source Control showing the staged and working-tree groups, Explorer badges, and a side-by-side diff](docs/screenshots/source-control.webp)
+
+![Run Tests showing an executed C suite with matching output, a failing exit code and different output, and a compiler error](docs/screenshots/saved-tests.webp)
+
+</details>
+
 ## Performance
 
 Production-build measurements include the Electron process tree. CPU is a percentage of one logical core during the indicated workload. Startup measures time to Welcome with the OS file cache intact.
@@ -150,16 +161,21 @@ Production-build measurements include the Electron process tree. CPU is a percen
 
 Summed RSS and working set can count shared resident pages more than once. macOS-attributed footprint and Windows private bytes use different accounting. Each row describes its own host and workload. [macOS methodology](PERFORMANCE.md) · [Windows methodology](WINDOWS_RELEASE_READINESS.md#native-windows-performance)
 
+Development workflow benchmarks cover the closed and open Git panel, large diffs, and saved test runs. Native verification, platform differences, and outstanding hardware tests are tracked separately. [Benchmark report](PERFORMANCE.md#git-and-saved-run-tests) · [Platform matrix](docs/windows/FEATURE_PARITY.md) · [Coverage audit](TEST_COVERAGE_AUDIT.md)
+
 ## Limitations
 
 - **Debugging and builds.** Ion has no integrated debugger. One-click multi-file C/C++ builds require an explicit source list for one executable and one language. Use a shell for Make, CMake, MSVC, and custom build pipelines. Java Maven and Gradle integration relies on supported local tools, cached dependencies, and standard project layouts.
 - **Learning and tests.** Diagnostic coverage is curated and depends on the compiler, language, and message. Project verification supports approved C console tests. Practice checks samples locally. Official submissions happen on the original practice site.
+- **Source Control.** Open a repository or linked worktree root and explicitly trust its Git configuration for this workspace session. Diffs cover saved UTF-8 text up to 256 KiB and 12,000 lines per side. Use a terminal for binary files, repository-local filters, hooks, signed commits, conflicts, and remote operations.
 - **Notebooks and documents.** Notebook execution requires a local Python kernel. Preview supports static outputs, with limitations for widgets, rich math, and `input()`. Office previews have layout limits. macOS PowerPoint uses LibreOffice for static slides. Windows opens PowerPoint externally.
 - **Platforms and signing.** Packaged targets are Apple Silicon macOS and Windows x64 preview. Intel Mac and Linux installers are unavailable. On Windows, the source preview uses Command Prompt for its integrated Terminal. Use Windows Terminal for PowerShell. See the installer section for signing and OS coverage.
-- **Recovery.** Crash recovery restores the last saved checkpoint, which can miss recent keystrokes. Undo history does not survive relaunch. Revision checks protect against detected changes, but an independent writer can race a save. Profile export excludes source workspaces, practice attempts, and recovery drafts.
+- **Recovery.** Crash recovery restores the last saved checkpoint, which can miss recent keystrokes. Undo history does not survive relaunch. A competing replacement detected during a save leaves the displaced version in an adjacent recovery file. Windows uses two safe moves and may retain the original under its backup name if the process is interrupted between them. Profile export excludes source workspaces, practice attempts, and recovery drafts. [File safety and recovery](docs/USAGE.md#file-safety-and-recovery)
 - **Execution.** Programs and build scripts run with your account's permissions. Timeouts, output limits, and process cleanup bound the runner. Treat code, shell commands, and project builds as trusted before running them.
 
 [Windows known issues](docs/windows/KNOWN_ISSUES.md) · [Release checklist](RELEASE_CHECKLIST.md) · [Roadmap](ROADMAP.md)
+
+[Engineering audit](ENGINEERING_AUDIT.md) · [Renderer bottleneck report](BOTTLENECK_REPORT.md)
 
 ## Contributing
 
