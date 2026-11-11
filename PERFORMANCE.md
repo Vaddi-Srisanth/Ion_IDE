@@ -4,7 +4,7 @@ Paths under `performance-results/` refer to local benchmark outputs and logs. Re
 
 ## Stabilization from 9adcdea
 
-The preserved checkpoint and stabilized production builds ran on the same Apple M3, 24 GiB RAM, macOS 27.2.1 (26B131), Electron 45.2.3, battery power, hidden 1260 × 790 windows at 2× scale, and disposable Minimal Mode profiles. No thermal warning was recorded. OS caches and unrelated applications were preserved. The main-bundle hashes are `b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300` before and `d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd` after. The main bundle grew from 193,007 to 201,127 bytes. No runtime dependency or persistent process was added.
+The preserved checkpoint and stabilized production builds ran on the same Apple M3, 24 GiB RAM, macOS 27.2.1 (26B131), Electron 45.2.3, battery power, hidden 1260 × 790 windows at 2× scale, and disposable Minimal Mode profiles. No thermal warning was recorded. OS caches and unrelated applications were preserved. The main-bundle hashes are `b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300` before and `d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd` after. The main bundle grew from 193,007 to 201,127 bytes. No runtime dependency or persistent process was added. These before/after captures describe the configuration-isolation build before the later Windows rename, timestamp and navigation corrections. Exact build hashes identify the measured artifacts; final native release gates verify the later source separately.
 
 Three sequential ordinary-workload trials per build used the same 1,000-file repository, ten tabs, 7,000-line diff and four approved C cases. They ran before and after implementation, with time and background-load variation between groups. The separate startup check alternated seven pairs and measured a fresh process and a same-profile relaunch in each pair.
 
@@ -44,9 +44,39 @@ The earlier pilot reached 20/120/300-second points but failed a test assertion o
 
 ### Reliability and packaging evidence
 
-The final unit run passed 181 tests with 12 documented skips. The final native Git suite separately passed 19 cases, including reftable and linked-worktree behavior. Genuine Git LFS passed six integrations. The macOS desktop regression and final Git/saved-suite desktop reruns passed. Baseline shutdown passed 24 cycles, with median 28.18 ms, p95 47.54 ms and maximum 49.92 ms. The stabilized 60-cycle run measured 28.81 ms median, 42.56 ms p95 and 438.69 ms maximum. Captured app/helper processes all exited. Recovery, canceled quits, a running terminal/program descendant and an active approved suite also passed. The historical shutdown workload error remains unavailable. The reproducible harness masking/disposed-process defects and a separate Git cancellation-owner gap were fixed.
+The final macOS unit run passed 183 of 195 cases with 12 documented platform/optional-tool skips and zero failures. The native Git suite now has twenty cases, including reftable, linked-worktree behavior and same-size racy-index detection. Genuine Git LFS passed six integrations. The macOS desktop regression and final Git/saved-suite desktop reruns passed. Baseline shutdown passed 24 cycles, with median 28.18 ms, p95 47.54 ms and maximum 49.92 ms. The stabilized 60-cycle run measured 28.81 ms median, 42.56 ms p95 and 438.69 ms maximum. Captured app/helper processes all exited. Recovery, canceled quits, a running terminal/program descendant and an active approved suite also passed. The historical shutdown workload error remains unavailable. The reproducible harness masking/disposed-process defects and a separate Git cancellation-owner gap were fixed.
 
-The local Apple Silicon DMG built and verified with ad-hoc signing. Its SHA-256 is `c6d61acf78a17d9edf62db6fd7b4c809f5e999acf95541210b3c95cdc16d9898`. The final native Windows and extended-session outcomes are recorded with the delivery gates. Physical 8 GiB hardware, visible display latency and a four-hour workload remain separate measurements. No RAM reduction is claimed from this stabilization work.
+The local Apple Silicon DMG built and verified with ad-hoc signing. Its SHA-256 is `c6d61acf78a17d9edf62db6fd7b4c809f5e999acf95541210b3c95cdc16d9898`. Later Windows checks exposed a ten-second bulk-fixture setup timeout outside the measured app intervals. Its setup-only Windows limit is now thirty seconds; candidate execution, responsiveness and performance thresholds are unchanged. Failed setups remain failed captures. The final native Windows and extended-session outcomes are recorded with the delivery gates. Physical 8 GiB hardware, visible display latency and a four-hour workload remain separate measurements. No RAM reduction is claimed from this stabilization work.
+
+### Completed extended macOS run
+
+The final production build (`e8f1cdd1c1202dcad92b217c6a1f00d73f687a0fcba183c09c7211ceef7d272f`) completed 900.001 seconds of editing: 180 tab/edit/save rounds and 45 genuine C executions, after opening and closing Markdown, notebook plots and PDF previews. No renderer error or unexpected network request was observed. The process exited normally with code 0, and the harness verified the captured app family was gone.
+
+Summed RSS moved from 600.5 to 659.7 MiB, peaking at 661.3 MiB. Attributed footprint moved from 404.7 to 355.7 MiB, peaking at 408.6 MiB. Live renderer heap moved from 19.5 to 23.9 MiB while files and undo histories accumulated actual edits. Tab-switch median/p95/max was 59.0 / 62.4 / 67.2 ms. Insert-text observation median/p95/max was 13.2 / 13.8 / 15.0 ms. These software/automation timings do not measure physical display latency. No collection was forced. This finite session cannot prove that every longer workload is leak-free.
+
+Earlier incomplete captures remain retained, including a client-interrupted 155-round attempt. They are not counted as completed runs. The successful capture is `session-release-stabilization-2026-11-11T19-22-51.693Z.json`; its sanitized summary and raw-input digest are in the [public capture](docs/benchmarks/stabilization-macos.json).
+
+```sh
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-session-lifecycle.mjs --target dist --label release-stabilization --soak-seconds 900 --interval-seconds 5
+```
+
+### Native Windows candidate
+
+The completed native run at source `3d2998c75bc74901811812a34094eb40f8133203` passed all four verification jobs. Its Windows Server 2025 x64 VM used an AMD EPYC 7763 and 17,174,360,064 bytes of visible RAM. Measurements include the Electron process tree. Three ordinary trials measured Welcome at 297.8 MiB summed working set / 135.1 MiB private bytes and one C file at 357.7 / 184.3 MiB. Fresh/warm medians were 627.5 / 424.9 ms. A real C run reached output in 300.5 ms. These are the ordinary harness's own protocol, separate from development-workflow timings. [Native run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43086657774) · [Sanitized raw capture](docs/benchmarks/stabilization-windows.json)
+
+| Development workflow, median of three | Working set / private bytes | Sample CPU |
+| --- | ---: | ---: |
+| Welcome | 300.5 / 137.2 MiB | 0.00% |
+| One C file | 362.1 / 186.4 MiB | 0.00% |
+| Ten tabs | 381.0 / 203.6 MiB | 0.00% |
+| Medium repository, Git closed | 391.3 / 213.2 MiB | 0.00% |
+| Git status open | 413.6 / 229.1 MiB | 0.00% |
+| Large diff | 444.9 / 258.9 MiB | 0.00% |
+| Completed suite, dialog closed | 422.1 / 236.9 MiB | 0.00% |
+
+The development harness measured fresh/warm startup at 470.7 / 400.1 ms, first source at 392.9 ms, Git first-open/refresh at 593.5 / 138.0 ms, large diff at 1,530.0 ms and the four-case suite at 5,200.2 ms, including the deliberate 3.6-second wait. Zero CPU means no measurable increment at the sampling resolution. Private bytes include private committed memory that may be paged out. Working set can count shared pages repeatedly. Neither is interchangeable with macOS-attributed footprint.
+
+The unmodified `9adcdea` Windows baseline cannot save under this workload. Its incomplete trial remains explicitly unavailable. All three candidate trials and the final one-minute soak must complete; no matched Windows improvement or regression can be inferred. The thirty-second Windows bulk-fixture preparation cap is outside app measurements. Physical 8 GiB laptops and manual retail Windows qualification remain open.
 
 ```sh
 node scripts/test-git-configuration-race.mjs --source /path/to/9adcdea-source --expect-vulnerable --out before.json
@@ -58,7 +88,7 @@ ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-stabilization-memory.mjs --baseli
 ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-stabilization-memory.mjs --baseline /path/to/9adcdea-dist --cycles 12 --checkpoints 0 --diagnostic-gc
 ```
 
-Raw reports and transcripts are under `performance-results/stabilization/`. The natural reports are `memory-before-final.json` and `memory-after-verified.json`, the separate collection pass is `memory-diagnostic.json`, the alternating launch report is `startup.json`, and ordinary workloads are `development-before.json` and `development-after.json`. [Engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) · [Coverage and skips](TEST_COVERAGE_AUDIT.md)
+A [sanitized capture](docs/benchmarks/stabilization-macos.json) preserves the completed ordinary, natural-memory, alternating-startup and shutdown measurements without command lines or private paths. Full local reports and transcripts are under `performance-results/stabilization/`. The natural reports are `memory-before-final.json` and `memory-after-verified.json`, the separate collection pass is `memory-diagnostic.json`, the alternating launch report is `startup.json`, and ordinary workloads are `development-before.json` and `development-after.json`. [Engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) · [Coverage and skips](TEST_COVERAGE_AUDIT.md)
 
 ## Git and saved Run Tests
 

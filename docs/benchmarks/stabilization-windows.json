@@ -1,0 +1,1274 @@
+{
+  "schema": 1,
+  "sourceCommit": "3d2998c75bc74901811812a34094eb40f8133203",
+  "run": "43086657774",
+  "artifactDigest": "sha256:a71605382425845ac9df89746933a511f6691e61b8d2f55fa78c3a2538b3948a",
+  "description": "Completed native Windows candidate measurements. Member process identifiers and command lines are omitted. The unchanged checkpoint baseline failed saving, so no matched full-workflow comparison is available. See PERFORMANCE.md.",
+  "ordinary": {
+    "host": {
+      "platform": "win32",
+      "release": "10.0.26100",
+      "arch": "x64",
+      "memoryBytes": 17174360064,
+      "cpu": "AMD EPYC 7763 64-Core Processor                "
+    },
+    "protocol": {
+      "trials": 3,
+      "idleMs": 3000,
+      "soakMs": 60000
+    },
+    "label": "candidate",
+    "summary": {
+      "freshMs": 627.4668999999994,
+      "warmMs": 424.8811999999998,
+      "firstSourceMs": 392.8526000000056,
+      "runMs": 300.50049999999464,
+      "welcome": {
+        "workingSetMiB": 297.77734375,
+        "privateMiB": 135.08203125,
+        "cpuPercent": 0
+      },
+      "oneFile": {
+        "workingSetMiB": 357.703125,
+        "privateMiB": 184.34765625,
+        "cpuPercent": 0
+      },
+      "tenTabs": {
+        "workingSetMiB": 366.2734375,
+        "privateMiB": 189.71484375,
+        "cpuPercent": 0
+      },
+      "medium": {
+        "workingSetMiB": 380.80859375,
+        "privateMiB": 206.0625,
+        "cpuPercent": 0
+      },
+      "pdf": {
+        "workingSetMiB": 429.95703125,
+        "privateMiB": 234.6171875,
+        "cpuPercent": 0
+      },
+      "running": {
+        "workingSetMiB": 475.19140625,
+        "privateMiB": 254.00390625,
+        "cpuPercent": 0
+      },
+      "terminal": {
+        "workingSetMiB": 410.26171875,
+        "privateMiB": 215.984375,
+        "cpuPercent": 2.7352533411338436
+      },
+      "terminalClosed": {
+        "workingSetMiB": 390.15234375,
+        "privateMiB": 208.73828125,
+        "cpuPercent": 0
+      }
+    },
+    "samples": [
+      {
+        "freshMs": 1007.6667,
+        "warmMs": 424.8811999999998,
+        "welcome": {
+          "workingSetMiB": 296.76171875,
+          "privateMiB": 135.140625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 8844.3938,
+            "workingSetMiB": 296.76171875,
+            "privateMiB": 135.140625
+          }
+        },
+        "firstSourceMs": 644.7615999999998,
+        "oneFile": {
+          "workingSetMiB": 354.60546875,
+          "privateMiB": 180.84375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 14139.2902,
+            "workingSetMiB": 354.60546875,
+            "privateMiB": 180.84375
+          }
+        },
+        "tenTabs": {
+          "workingSetMiB": 367.5859375,
+          "privateMiB": 189.71484375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 19211.14645,
+            "workingSetMiB": 367.5859375,
+            "privateMiB": 189.71484375
+          }
+        },
+        "medium": {
+          "workingSetMiB": 384.37109375,
+          "privateMiB": 208.6328125,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 23970.31575,
+            "workingSetMiB": 384.37109375,
+            "privateMiB": 208.6328125
+          }
+        },
+        "pdf": {
+          "workingSetMiB": 434.375,
+          "privateMiB": 237.74609375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 28832.8487,
+            "workingSetMiB": 434.375,
+            "privateMiB": 237.74609375
+          }
+        },
+        "runMs": 3684.204700000002,
+        "running": {
+          "workingSetMiB": 455.4609375,
+          "privateMiB": 236.20703125,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 37779.298200000005,
+            "workingSetMiB": 455.4609375,
+            "privateMiB": 236.20703125
+          }
+        },
+        "terminal": {
+          "workingSetMiB": 417.09375,
+          "privateMiB": 223.578125,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 42978.81835,
+            "workingSetMiB": 417.09375,
+            "privateMiB": 223.578125
+          }
+        },
+        "terminalClosed": {
+          "workingSetMiB": 389.8828125,
+          "privateMiB": 208.73828125,
+          "cpuPercent": 3.2000665672361497,
+          "last": {
+            "timeMs": 47941.12205,
+            "workingSetMiB": 389.8828125,
+            "privateMiB": 208.73828125
+          }
+        }
+      },
+      {
+        "freshMs": 627.4668999999994,
+        "warmMs": 428.2705999999962,
+        "welcome": {
+          "workingSetMiB": 297.86328125,
+          "privateMiB": 134.87890625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 54261.6624,
+            "workingSetMiB": 297.86328125,
+            "privateMiB": 134.87890625
+          }
+        },
+        "firstSourceMs": 392.8526000000056,
+        "oneFile": {
+          "workingSetMiB": 358.50390625,
+          "privateMiB": 185.58984375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 59325.8008,
+            "workingSetMiB": 358.50390625,
+            "privateMiB": 185.58984375
+          }
+        },
+        "tenTabs": {
+          "workingSetMiB": 366.2734375,
+          "privateMiB": 189.9375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 64399.3422,
+            "workingSetMiB": 366.2734375,
+            "privateMiB": 189.9375
+          }
+        },
+        "medium": {
+          "workingSetMiB": 380.80859375,
+          "privateMiB": 206.0390625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 69171.35725,
+            "workingSetMiB": 380.80859375,
+            "privateMiB": 206.0390625
+          }
+        },
+        "pdf": {
+          "workingSetMiB": 428.40625,
+          "privateMiB": 233.47265625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 73914.75555,
+            "workingSetMiB": 428.40625,
+            "privateMiB": 233.47265625
+          }
+        },
+        "runMs": 300.50049999999464,
+        "running": {
+          "workingSetMiB": 475.76953125,
+          "privateMiB": 254.90234375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 79457.00305,
+            "workingSetMiB": 475.76953125,
+            "privateMiB": 254.90234375
+          }
+        },
+        "terminal": {
+          "workingSetMiB": 409.60546875,
+          "privateMiB": 213.8125,
+          "cpuPercent": 4.563309464474672,
+          "last": {
+            "timeMs": 84618.08495,
+            "workingSetMiB": 409.60546875,
+            "privateMiB": 213.8125
+          }
+        },
+        "terminalClosed": {
+          "workingSetMiB": 390.15234375,
+          "privateMiB": 208.40625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 89573.97845,
+            "workingSetMiB": 390.15234375,
+            "privateMiB": 208.40625
+          }
+        }
+      },
+      {
+        "freshMs": 621.9407999999967,
+        "warmMs": 415.12429999999586,
+        "welcome": {
+          "workingSetMiB": 297.77734375,
+          "privateMiB": 135.08203125,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 95881.0323,
+            "workingSetMiB": 297.77734375,
+            "privateMiB": 135.08203125
+          }
+        },
+        "firstSourceMs": 365.6493000000046,
+        "oneFile": {
+          "workingSetMiB": 357.703125,
+          "privateMiB": 184.34765625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 100831.33385,
+            "workingSetMiB": 357.703125,
+            "privateMiB": 184.34765625
+          }
+        },
+        "tenTabs": {
+          "workingSetMiB": 365.38671875,
+          "privateMiB": 189.0859375,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 105890.0608,
+            "workingSetMiB": 365.38671875,
+            "privateMiB": 189.0859375
+          }
+        },
+        "medium": {
+          "workingSetMiB": 380.68359375,
+          "privateMiB": 206.0625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 110662.43655,
+            "workingSetMiB": 380.68359375,
+            "privateMiB": 206.0625
+          }
+        },
+        "pdf": {
+          "workingSetMiB": 429.95703125,
+          "privateMiB": 234.6171875,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 115420.16884999999,
+            "workingSetMiB": 429.95703125,
+            "privateMiB": 234.6171875
+          }
+        },
+        "runMs": 286.4811000000045,
+        "running": {
+          "workingSetMiB": 475.19140625,
+          "privateMiB": 254.00390625,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 120951.6483,
+            "workingSetMiB": 475.19140625,
+            "privateMiB": 254.00390625
+          }
+        },
+        "terminal": {
+          "workingSetMiB": 410.26171875,
+          "privateMiB": 215.984375,
+          "cpuPercent": 2.7352533411338436,
+          "last": {
+            "timeMs": 126126.6629,
+            "workingSetMiB": 410.26171875,
+            "privateMiB": 215.984375
+          }
+        },
+        "terminalClosed": {
+          "workingSetMiB": 391.3046875,
+          "privateMiB": 209.6171875,
+          "cpuPercent": 0,
+          "last": {
+            "timeMs": 131118.0637,
+            "workingSetMiB": 391.3046875,
+            "privateMiB": 209.6171875
+          }
+        },
+        "soak": [
+          {
+            "timeMs": 132620.66715,
+            "workingSetMiB": 401.7890625,
+            "privateMiB": 217.23828125
+          },
+          {
+            "timeMs": 134797.20655,
+            "workingSetMiB": 406.44140625,
+            "privateMiB": 221.90625
+          },
+          {
+            "timeMs": 136981.57695000002,
+            "workingSetMiB": 405.6640625,
+            "privateMiB": 220.765625
+          },
+          {
+            "timeMs": 139144.66255,
+            "workingSetMiB": 407.62109375,
+            "privateMiB": 222.734375
+          },
+          {
+            "timeMs": 141378.6464,
+            "workingSetMiB": 413.49609375,
+            "privateMiB": 228.59765625
+          },
+          {
+            "timeMs": 143584.7388,
+            "workingSetMiB": 413.59765625,
+            "privateMiB": 228.6171875
+          },
+          {
+            "timeMs": 145780.1689,
+            "workingSetMiB": 415.2421875,
+            "privateMiB": 230.921875
+          },
+          {
+            "timeMs": 148595.66745,
+            "workingSetMiB": 414.6953125,
+            "privateMiB": 230.69140625
+          },
+          {
+            "timeMs": 151300.2592,
+            "workingSetMiB": 412.18359375,
+            "privateMiB": 228.8515625
+          },
+          {
+            "timeMs": 153802.8045,
+            "workingSetMiB": 405.21484375,
+            "privateMiB": 222.8125
+          },
+          {
+            "timeMs": 156880.0706,
+            "workingSetMiB": 410.8515625,
+            "privateMiB": 228.43359375
+          },
+          {
+            "timeMs": 159227.4092,
+            "workingSetMiB": 407.88671875,
+            "privateMiB": 226.4453125
+          },
+          {
+            "timeMs": 161429.7894,
+            "workingSetMiB": 414.01171875,
+            "privateMiB": 233.84765625
+          },
+          {
+            "timeMs": 163598.38675,
+            "workingSetMiB": 410.5625,
+            "privateMiB": 230.87109375
+          },
+          {
+            "timeMs": 165790.72379999998,
+            "workingSetMiB": 411.953125,
+            "privateMiB": 233.3359375
+          },
+          {
+            "timeMs": 167961.157,
+            "workingSetMiB": 409.06640625,
+            "privateMiB": 231.5703125
+          },
+          {
+            "timeMs": 170120.10125,
+            "workingSetMiB": 411.359375,
+            "privateMiB": 235.0390625
+          },
+          {
+            "timeMs": 172277.83955,
+            "workingSetMiB": 408.45703125,
+            "privateMiB": 232.87109375
+          },
+          {
+            "timeMs": 174455.9672,
+            "workingSetMiB": 408.84375,
+            "privateMiB": 234.4609375
+          },
+          {
+            "timeMs": 176592.3211,
+            "workingSetMiB": 405.64453125,
+            "privateMiB": 232.30859375
+          },
+          {
+            "timeMs": 178762.76735,
+            "workingSetMiB": 408.19140625,
+            "privateMiB": 236.55859375
+          },
+          {
+            "timeMs": 180909.908,
+            "workingSetMiB": 404.5703125,
+            "privateMiB": 233.171875
+          },
+          {
+            "timeMs": 183095.5305,
+            "workingSetMiB": 405.61328125,
+            "privateMiB": 234.765625
+          },
+          {
+            "timeMs": 185258.722,
+            "workingSetMiB": 403.6875,
+            "privateMiB": 233.43359375
+          },
+          {
+            "timeMs": 187438.14715,
+            "workingSetMiB": 404.390625,
+            "privateMiB": 235.796875
+          },
+          {
+            "timeMs": 189613.20575000002,
+            "workingSetMiB": 402.73828125,
+            "privateMiB": 235.0234375
+          },
+          {
+            "timeMs": 191776.26035,
+            "workingSetMiB": 402.87890625,
+            "privateMiB": 236.1484375
+          }
+        ],
+        "soakSeconds": 61.457977700000015
+      }
+    ]
+  },
+  "development": {
+    "complete": true,
+    "time": "2026-11-11T19:27:16.951Z",
+    "host": {
+      "platform": "win32",
+      "arch": "x64",
+      "release": "10.0.26100",
+      "cpu": "AMD EPYC 7763 64-Core Processor                ",
+      "ramBytes": 17174360064
+    },
+    "protocol": {
+      "trials": 3,
+      "soakSeconds": 60,
+      "idleMs": 1400,
+      "fixture": "1000 files, 10 open tabs, 7,000-line diff, 4 C cases",
+      "memory": "summed working set and private bytes, per-process CIM and Get-Process counters",
+      "cpu": "delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.",
+      "input": "keypress to second renderer animation callback. Physical screen presentation is outside the measurement.",
+      "baselineFailurePolicy": "Record an incomplete baseline as unavailable. Every candidate trial must pass."
+    },
+    "builds": {
+      "candidate": "e8f1cdd1c1202dcad92b217c6a1f00d73f687a0fcba183c09c7211ceef7d272f",
+      "baseline": "b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300"
+    },
+    "samples": {
+      "candidate": [
+        {
+          "freshMs": 505.2482999999993,
+          "warmMs": 400.04119999999966,
+          "welcome": {
+            "timeMs": 56489.196899999995,
+            "workingSetMiB": 299.01953125,
+            "privateMiB": 135.453125,
+            "cpuPercent": 0
+          },
+          "openSourceMs": 392.84530000000086,
+          "oneFile": {
+            "timeMs": 59606.90265,
+            "workingSetMiB": 359.68359375,
+            "privateMiB": 184.66015625,
+            "cpuPercent": 0
+          },
+          "tenTabs": {
+            "timeMs": 62733.3258,
+            "workingSetMiB": 379.15625,
+            "privateMiB": 202.078125,
+            "cpuPercent": 0
+          },
+          "repoClosed": {
+            "timeMs": 65572.59295,
+            "workingSetMiB": 388.51953125,
+            "privateMiB": 209.5234375,
+            "cpuPercent": 0
+          },
+          "input": {
+            "tabMs": [
+              54.09739999999874,
+              65.0223999999871,
+              68.92329999999492,
+              59.780999999988126,
+              71.58079999999609,
+              55.009799999999814,
+              63.007299999997485,
+              59.10929999999644
+            ],
+            "typingMs": 18.29999999998836,
+            "scrollMs": 35.634600000004866
+          },
+          "openGitMs": 593.5222999999969,
+          "gitOpen": {
+            "timeMs": 69709.5647,
+            "workingSetMiB": 410.44921875,
+            "privateMiB": 224.1328125,
+            "cpuPercent": 0
+          },
+          "gitRefreshMs": 142.91759999998612,
+          "largeDiffMs": 1529.2202000000107,
+          "largeDiff": {
+            "timeMs": 73987.42885,
+            "workingSetMiB": 441.40625,
+            "privateMiB": 254.359375,
+            "cpuPercent": 0
+          },
+          "gitClosed": {
+            "timeMs": 76615.96435,
+            "workingSetMiB": 441.7265625,
+            "privateMiB": 255.1015625,
+            "cpuPercent": 0.8540413304078208
+          },
+          "gitCycles": [
+            232.35409999999683,
+            167.90439999999944,
+            254.20900000000256,
+            167.5057000000088,
+            868.2866000000067,
+            270.9380999999994
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 81380.7446,
+            "workingSetMiB": 444.0078125,
+            "privateMiB": 260.18359375,
+            "cpuPercent": 0
+          },
+          "savedConfigIdle": {
+            "timeMs": 84000.72709999999,
+            "workingSetMiB": 440.94140625,
+            "privateMiB": 258.62890625,
+            "cpuPercent": 0
+          },
+          "testDialogIdle": {
+            "timeMs": 87401.54195000001,
+            "workingSetMiB": 415.765625,
+            "privateMiB": 228.359375,
+            "cpuPercent": 1.71208837115336
+          },
+          "suiteActive": {
+            "timeMs": 91177.53675,
+            "workingSetMiB": 429,
+            "privateMiB": 230.515625,
+            "cpuPercent": 0
+          },
+          "suiteMs": 6625.660499999998,
+          "suiteClosed": {
+            "timeMs": 97056.4027,
+            "workingSetMiB": 417.61328125,
+            "privateMiB": 230.85546875,
+            "cpuPercent": 0
+          }
+        },
+        {
+          "freshMs": 470.27730000000156,
+          "warmMs": 400.0454000000027,
+          "welcome": {
+            "timeMs": 110884.7755,
+            "workingSetMiB": 300.48046875,
+            "privateMiB": 137.2265625,
+            "cpuPercent": 0
+          },
+          "openSourceMs": 381.3555999999953,
+          "oneFile": {
+            "timeMs": 113966.24365,
+            "workingSetMiB": 362.05859375,
+            "privateMiB": 186.39453125,
+            "cpuPercent": 0.8546427915844269
+          },
+          "tenTabs": {
+            "timeMs": 117062.92675,
+            "workingSetMiB": 381,
+            "privateMiB": 203.55859375,
+            "cpuPercent": 0
+          },
+          "repoClosed": {
+            "timeMs": 119865.8635,
+            "workingSetMiB": 397.26953125,
+            "privateMiB": 218.58984375,
+            "cpuPercent": 0
+          },
+          "input": {
+            "tabMs": [
+              48.08209999999963,
+              61.302799999990384,
+              62.990200000000186,
+              55.04360000000452,
+              63.510800000003655,
+              62.21240000000398,
+              61.74580000000424,
+              63.682300000000396
+            ],
+            "typingMs": 18.199999999953434,
+            "scrollMs": 36.27370000000519
+          },
+          "openGitMs": 592.1855000000069,
+          "gitOpen": {
+            "timeMs": 123894.6092,
+            "workingSetMiB": 420.95703125,
+            "privateMiB": 234.8671875,
+            "cpuPercent": 0
+          },
+          "gitRefreshMs": 116.48679999999877,
+          "largeDiffMs": 1530.0348000000085,
+          "largeDiff": {
+            "timeMs": 128106.39665,
+            "workingSetMiB": 452.265625,
+            "privateMiB": 264.47265625,
+            "cpuPercent": 0
+          },
+          "gitClosed": {
+            "timeMs": 130744.13455,
+            "workingSetMiB": 452.38671875,
+            "privateMiB": 264.98046875,
+            "cpuPercent": 0
+          },
+          "gitCycles": [
+            238.97780000000785,
+            269.46610000001965,
+            250.08950000000186,
+            255.0896000000066,
+            272.13060000000405,
+            254.44590000002063
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 135043.14010000002,
+            "workingSetMiB": 454.76171875,
+            "privateMiB": 270.890625,
+            "cpuPercent": 0
+          },
+          "savedConfigIdle": {
+            "timeMs": 137643.29645,
+            "workingSetMiB": 451.80078125,
+            "privateMiB": 271.5,
+            "cpuPercent": 0
+          },
+          "testDialogIdle": {
+            "timeMs": 141029.02500000002,
+            "workingSetMiB": 422.23828125,
+            "privateMiB": 234.56640625,
+            "cpuPercent": 9.372152995524
+          },
+          "suiteActive": {
+            "timeMs": 143390.2118,
+            "workingSetMiB": 436.6875,
+            "privateMiB": 238.8359375,
+            "cpuPercent": 0
+          },
+          "suiteMs": 5197.4140999999945,
+          "suiteClosed": {
+            "timeMs": 149258.89915,
+            "workingSetMiB": 426.0078125,
+            "privateMiB": 239.20703125,
+            "cpuPercent": 0
+          }
+        },
+        {
+          "freshMs": 470.6854999999923,
+          "warmMs": 400.3277999999991,
+          "welcome": {
+            "timeMs": 163348.8621,
+            "workingSetMiB": 301.48046875,
+            "privateMiB": 139.484375,
+            "cpuPercent": 0
+          },
+          "openSourceMs": 412.2331000000122,
+          "oneFile": {
+            "timeMs": 166426.70815000002,
+            "workingSetMiB": 363.22265625,
+            "privateMiB": 189.56640625,
+            "cpuPercent": 0
+          },
+          "tenTabs": {
+            "timeMs": 169538.2325,
+            "workingSetMiB": 382.1015625,
+            "privateMiB": 205.765625,
+            "cpuPercent": 0.8590625782691934
+          },
+          "repoClosed": {
+            "timeMs": 172344.87415,
+            "workingSetMiB": 391.3125,
+            "privateMiB": 213.16796875,
+            "cpuPercent": 0.8534617158240168
+          },
+          "input": {
+            "tabMs": [
+              51.193700000003446,
+              62.431400000001304,
+              58.445799999986775,
+              57.10390000001644,
+              68.54349999999977,
+              56.95110000000568,
+              62.27079999999842,
+              59.693800000008196
+            ],
+            "typingMs": 18,
+            "scrollMs": 36.064299999998184
+          },
+          "openGitMs": 596.5276000000013,
+          "gitOpen": {
+            "timeMs": 176432.57760000002,
+            "workingSetMiB": 413.640625,
+            "privateMiB": 229.046875,
+            "cpuPercent": 0
+          },
+          "gitRefreshMs": 137.9505000000063,
+          "largeDiffMs": 1533.9609999999811,
+          "largeDiff": {
+            "timeMs": 180677.6017,
+            "workingSetMiB": 444.88671875,
+            "privateMiB": 258.92578125,
+            "cpuPercent": 0
+          },
+          "gitClosed": {
+            "timeMs": 183317.6133,
+            "workingSetMiB": 445.12109375,
+            "privateMiB": 259.8671875,
+            "cpuPercent": 0
+          },
+          "gitCycles": [
+            232.06489999999758,
+            168.20490000001155,
+            263.67420000000857,
+            255.17699999999604,
+            255.38959999999497,
+            265.0442000000039
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 187525.6879,
+            "workingSetMiB": 447.4375,
+            "privateMiB": 265.19140625,
+            "cpuPercent": 0
+          },
+          "savedConfigIdle": {
+            "timeMs": 190155.47499999998,
+            "workingSetMiB": 444.0546875,
+            "privateMiB": 264.7578125,
+            "cpuPercent": 0
+          },
+          "testDialogIdle": {
+            "timeMs": 193601.21435000002,
+            "workingSetMiB": 420.421875,
+            "privateMiB": 234.3046875,
+            "cpuPercent": 8.51634179706907
+          },
+          "suiteActive": {
+            "timeMs": 195981.5986,
+            "workingSetMiB": 432.984375,
+            "privateMiB": 236.078125,
+            "cpuPercent": 0
+          },
+          "suiteMs": 5200.165500000003,
+          "suiteClosed": {
+            "timeMs": 201840.22715,
+            "workingSetMiB": 422.13671875,
+            "privateMiB": 236.87890625,
+            "cpuPercent": 0
+          },
+          "soak": [
+            {
+              "second": 1.5585136000000057,
+              "gitMs": 252.11040000000503,
+              "testMs": 250.53859999999986,
+              "input": {
+                "tabMs": [
+                  27.36919999998645,
+                  60.37359999999171,
+                  62.95819999999367,
+                  58.969000000011874,
+                  65.53639999998268,
+                  62.79250000001048,
+                  60.91949999998906,
+                  55.288200000009965
+                ],
+                "typingMs": 18.5,
+                "scrollMs": 35.55569999999716
+              },
+              "timeMs": 203862.91645000002,
+              "workingSetMiB": 436.59375,
+              "privateMiB": 249.5390625
+            },
+            {
+              "second": 4.298749699999986,
+              "gitMs": 263.3545999999915,
+              "testMs": 247.61939999999595,
+              "input": {
+                "tabMs": [
+                  21.434399999998277,
+                  52.34590000001481,
+                  64.39920000001439,
+                  60.65570000000298,
+                  62.58100000000559,
+                  64.09659999998985,
+                  60.766800000012154,
+                  62.54159999999683
+                ],
+                "typingMs": 19.199999999953434,
+                "scrollMs": 34.84580000001006
+              },
+              "timeMs": 206567.6441,
+              "workingSetMiB": 444.21875,
+              "privateMiB": 258.2890625
+            },
+            {
+              "second": 6.970263899999991,
+              "gitMs": 266.7073000000091,
+              "testMs": 243.19569999998203,
+              "input": {
+                "tabMs": [
+                  23.902600000001257,
+                  67.87719999998808,
+                  63.572099999990314,
+                  62.26350000000093,
+                  60.53570000000764,
+                  62.608399999997346,
+                  62.11960000000545,
+                  64.25750000000698
+                ],
+                "typingMs": 19.600000000093132,
+                "scrollMs": 34.73170000000391
+              },
+              "timeMs": 209243.46045,
+              "workingSetMiB": 439.9765625,
+              "privateMiB": 253.12109375
+            },
+            {
+              "second": 9.70413070000001,
+              "gitMs": 252.82909999997355,
+              "testMs": 238.88300000000163,
+              "input": {
+                "tabMs": [
+                  21.825500000006286,
+                  54.47179999999935,
+                  63.15140000000247,
+                  67.11679999998887,
+                  63.30210000000079,
+                  62.4316000000108,
+                  54.53979999999865,
+                  62.52860000001965
+                ],
+                "typingMs": 20.70000000006985,
+                "scrollMs": 34.61329999999725
+              },
+              "timeMs": 211974.21275,
+              "workingSetMiB": 438.46875,
+              "privateMiB": 252.99609375
+            },
+            {
+              "second": 12.408123300000007,
+              "gitMs": 253.69880000001285,
+              "testMs": 242.3342999999877,
+              "input": {
+                "tabMs": [
+                  22.20559999998659,
+                  49.41599999999744,
+                  66.14629999999306,
+                  59.33800000001793,
+                  63.84959999998682,
+                  63.412799999990966,
+                  62.151599999982864,
+                  61.391299999988405
+                ],
+                "typingMs": 20.300000000046566,
+                "scrollMs": 34.748600000020815
+              },
+              "timeMs": 214680.1279,
+              "workingSetMiB": 437.02734375,
+              "privateMiB": 253.4921875
+            },
+            {
+              "second": 15.141733299999993,
+              "gitMs": 246.28669999999693,
+              "testMs": 252.60060000000522,
+              "input": {
+                "tabMs": [
+                  21.532700000010664,
+                  49.3006999999925,
+                  65.7948000000033,
+                  62.07279999999446,
+                  63.75899999999092,
+                  61.80860000001849,
+                  61.39890000000014,
+                  63.95089999999618
+                ],
+                "typingMs": 21.100000000093132,
+                "scrollMs": 34.50649999998859
+              },
+              "timeMs": 217416.87735,
+              "workingSetMiB": 441.1328125,
+              "privateMiB": 258.34765625
+            },
+            {
+              "second": 17.831228399999993,
+              "gitMs": 271.5130000000063,
+              "testMs": 243.92720000000554,
+              "input": {
+                "tabMs": [
+                  28.34409999998752,
+                  50.71889999997802,
+                  61.01800000001094,
+                  64.77549999998882,
+                  61.241199999989476,
+                  62.07970000000205,
+                  65.55370000001858,
+                  60.047200000000885
+                ],
+                "typingMs": 19.599999999976717,
+                "scrollMs": 34.161900000006426
+              },
+              "timeMs": 220116.63075,
+              "workingSetMiB": 438.41015625,
+              "privateMiB": 256.9453125
+            },
+            {
+              "second": 20.532772299999984,
+              "gitMs": 271.5763999999908,
+              "testMs": 249.62169999998878,
+              "input": {
+                "tabMs": [
+                  19.862599999993108,
+                  52.820300000021234,
+                  62.77950000000419,
+                  62.24319999999716,
+                  63.29749999998603,
+                  61.30939999999828,
+                  61.33970000001136,
+                  64.85480000000098
+                ],
+                "typingMs": 20.699999999953434,
+                "scrollMs": 33.334900000016205
+              },
+              "timeMs": 222802.5003,
+              "workingSetMiB": 430.30859375,
+              "privateMiB": 249.53515625
+            },
+            {
+              "second": 23.204446200000007,
+              "gitMs": 268.85169999999925,
+              "testMs": 247.0284999999858,
+              "input": {
+                "tabMs": [
+                  21.597500000003492,
+                  52.48749999998836,
+                  62.53699999998207,
+                  61.09909999999218,
+                  62.80580000000191,
+                  63.17719999997644,
+                  61.72359999999753,
+                  61.86460000000079
+                ],
+                "typingMs": 20.900000000023283,
+                "scrollMs": 35.936599999986356
+              },
+              "timeMs": 225480.5375,
+              "workingSetMiB": 424.1875,
+              "privateMiB": 244.6171875
+            },
+            {
+              "second": 25.986848800000008,
+              "gitMs": 262.84170000001905,
+              "testMs": 357.28859999999986,
+              "input": {
+                "tabMs": [
+                  25.38990000000922,
+                  52.36019999999553,
+                  63.536800000001676,
+                  61.34020000000601,
+                  60.414400000008754,
+                  63.23960000000079,
+                  70.47329999998328,
+                  54.73489999998128
+                ],
+                "typingMs": 19.900000000023283,
+                "scrollMs": 35.580199999996694
+              },
+              "timeMs": 228270.04215,
+              "workingSetMiB": 427.3046875,
+              "privateMiB": 249.203125
+            },
+            {
+              "second": 28.721269700000004,
+              "gitMs": 243.77289999998175,
+              "testMs": 249.08189999999013,
+              "input": {
+                "tabMs": [
+                  21.057700000004843,
+                  52.78310000000056,
+                  63.264500000019325,
+                  61.84550000002491,
+                  61.437999999994645,
+                  63.313099999999395,
+                  59.83919999998761,
+                  64.92319999999017
+                ],
+                "typingMs": 19.699999999953434,
+                "scrollMs": 34.617000000027474
+              },
+              "timeMs": 231005.59185,
+              "workingSetMiB": 428.25,
+              "privateMiB": 253.08984375
+            },
+            {
+              "second": 31.454692099999985,
+              "gitMs": 247.4305999999924,
+              "testMs": 236.57889999999315,
+              "input": {
+                "tabMs": [
+                  22.42710000000079,
+                  52.36679999998887,
+                  62.95490000001155,
+                  61.4199999999837,
+                  60.80580000000191,
+                  65.04189999998198,
+                  63.49580000000424,
+                  60.1933999999892
+                ],
+                "typingMs": 21.599999999976717,
+                "scrollMs": 33.848400000017136
+              },
+              "timeMs": 233721.3985,
+              "workingSetMiB": 429.95703125,
+              "privateMiB": 256.296875
+            },
+            {
+              "second": 34.18813199999998,
+              "gitMs": 252.8247000000265,
+              "testMs": 247.9493000000075,
+              "input": {
+                "tabMs": [
+                  28.4545999999973,
+                  49.139300000009825,
+                  63.91370000000461,
+                  62.48019999999087,
+                  61.171000000002095,
+                  64.79360000000452,
+                  60.812300000019604,
+                  63.834900000016205
+                ],
+                "typingMs": 21,
+                "scrollMs": 33.904899999994086
+              },
+              "timeMs": 236461.1387,
+              "workingSetMiB": 433.5546875,
+              "privateMiB": 260.703125
+            },
+            {
+              "second": 36.922310499999995,
+              "gitMs": 247.45209999999497,
+              "testMs": 237.30410000000848,
+              "input": {
+                "tabMs": [
+                  29.842900000017835,
+                  51.686599999986356,
+                  64.88310000000638,
+                  61.9541999999783,
+                  59.891299999988405,
+                  65.32380000001285,
+                  59.75920000000042,
+                  62.55259999999544
+                ],
+                "typingMs": 20.699999999953434,
+                "scrollMs": 35.436900000000605
+              },
+              "timeMs": 239197.48229999997,
+              "workingSetMiB": 433.546875,
+              "privateMiB": 261.55078125
+            },
+            {
+              "second": 39.594743300000005,
+              "gitMs": 262.2870999999868,
+              "testMs": 229.78330000001006,
+              "input": {
+                "tabMs": [
+                  22.866600000008475,
+                  48.80900000000838,
+                  64.68899999998393,
+                  63.897300000011455,
+                  62.31869999997434,
+                  61.45590000000084,
+                  61.881099999998696,
+                  63.412899999995716
+                ],
+                "typingMs": 21.400000000023283,
+                "scrollMs": 36.340500000020256
+              },
+              "timeMs": 241865.5602,
+              "workingSetMiB": 428.67578125,
+              "privateMiB": 257.33203125
+            },
+            {
+              "second": 42.330839299999994,
+              "gitMs": 255.26029999999446,
+              "testMs": 249.67869999998948,
+              "input": {
+                "tabMs": [
+                  22.09969999999157,
+                  49.62510000000475,
+                  64.61939999999595,
+                  62.21089999997639,
+                  60.84030000001076,
+                  64.10639999998966,
+                  60.55100000000675,
+                  64.95040000000154
+                ],
+                "typingMs": 20.599999999976717,
+                "scrollMs": 34.891800000012154
+              },
+              "timeMs": 244605.65649999998,
+              "workingSetMiB": 431.56640625,
+              "privateMiB": 261.08984375
+            },
+            {
+              "second": 45.00296119999999,
+              "gitMs": 243.40020000000368,
+              "testMs": 248.5122000000265,
+              "input": {
+                "tabMs": [
+                  25.949900000006892,
+                  52.53369999999995,
+                  62.14859999998589,
+                  63.78839999999036,
+                  61.20610000001034,
+                  63.921300000016345,
+                  60.2502000000095,
+                  63.561900000000605
+                ],
+                "typingMs": 21.5,
+                "scrollMs": 33.82510000001639
+              },
+              "timeMs": 247280.6801,
+              "workingSetMiB": 435.02734375,
+              "privateMiB": 265.79296875
+            },
+            {
+              "second": 48.860440999999994,
+              "gitMs": 246.18510000000242,
+              "testMs": 1226.2882999999856,
+              "input": {
+                "tabMs": [
+                  21.809899999992922,
+                  63.154100000014296,
+                  74.04279999999562,
+                  61.001799999998184,
+                  56.530200000008335,
+                  62.734599999996135,
+                  70.10980000000563,
+                  61.490200000000186
+                ],
+                "typingMs": 19.099999999976717,
+                "scrollMs": 36.21730000001844
+              },
+              "timeMs": 251141.0525,
+              "workingSetMiB": 434.5078125,
+              "privateMiB": 265.95703125
+            },
+            {
+              "second": 52.661955199999994,
+              "gitMs": 246.71319999999832,
+              "testMs": 1200.9906000000192,
+              "input": {
+                "tabMs": [
+                  25.715100000001257,
+                  51.61689999999362,
+                  68.95049999997718,
+                  55.8015000000014,
+                  63.30460000000312,
+                  67.32800000000861,
+                  63.71630000000005,
+                  56.579899999982445
+                ],
+                "typingMs": 19.20000000006985,
+                "scrollMs": 35.42919999998412
+              },
+              "timeMs": 254957.21594999998,
+              "workingSetMiB": 433.56640625,
+              "privateMiB": 265.85546875
+            },
+            {
+              "second": 56.62044870000001,
+              "gitMs": 172.6878999999899,
+              "testMs": 1422.7811999999976,
+              "input": {
+                "tabMs": [
+                  29.03660000002128,
+                  54.08040000000619,
+                  61.90789999999106,
+                  69.03500000000349,
+                  54.95799999998417,
+                  61.40249999999651,
+                  63.88210000001709,
+                  61.77609999998822
+                ],
+                "typingMs": 21,
+                "scrollMs": 35.53639999998268
+              },
+              "timeMs": 258898.58899999998,
+              "workingSetMiB": 430.6015625,
+              "privateMiB": 266.45703125
+            },
+            {
+              "second": 60.07039660000001,
+              "gitMs": 246.71429999999236,
+              "testMs": 900.3074000000197,
+              "input": {
+                "tabMs": [
+                  26.300900000002002,
+                  66.02460000000428,
+                  64.12849999999162,
+                  71.01980000000913,
+                  62.9771999999939,
+                  54.341500000009546,
+                  59.46530000001076,
+                  70.60579999999027
+                ],
+                "typingMs": 21.29999999993015,
+                "scrollMs": 36.52739999999176
+              },
+              "timeMs": 262380.35395,
+              "workingSetMiB": 427.83203125,
+              "privateMiB": 265.16015625
+            }
+          ]
+        }
+      ],
+      "baseline": []
+    }
+  },
+  "baselineUnavailable": {
+    "checkpoint": "9adcdea",
+    "stage": "save",
+    "matchedComparisonAvailable": false
+  }
+}

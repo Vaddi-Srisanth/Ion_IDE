@@ -16,13 +16,23 @@ The stabilization follow-up has a deterministic reproduction of the 9adcdea Git 
 8. Verify the downloaded installers against the manifests before uploading. For example, from the repository with the matching tag available, substitute the tag and paths for the new release.
 
    ```sh
-   tag=v0.9.4
+   tag=v0.9.6
    commit=$(git rev-parse --verify "$tag^{commit}")
    node scripts/release-evidence.mjs verify "$tag" "$commit" \
      path/to/macos-installer.dmg.json path/to/windows-installer.exe.json > SHA256SUMS
    ```
 
    Each JSON file belongs beside its installer. Verify the run and attempt against the GitHub run page. Publish those exact bytes and the generated checksums through GitHub Releases, then confirm the published digests. For a correction, use a new version and tag so installed copies and the updater can identify it.
+
+## 0.9.6 stabilization record
+
+- [x] Reproduced the Git configuration race on 9adcdea and verified the fixed launch boundary on native macOS and Windows, including real Git LFS.
+- [x] Passed all four native branch jobs at 3d2998c: macOS, Windows desktop, Windows installer/upgrade and Windows performance.
+- [x] Passed final type checking, 183/195 local unit cases with 12 documented skips, four signing/evidence cases and the source-history sensitive-data scan.
+- [x] Completed 60 local startup/shutdown cycles, recovery and active-child cases, plus a fifteen-minute session with 180 editing rounds and 45 C executions.
+- [x] Retained matched five-minute memory recovery and separate Windows candidate measurements, without claiming a RAM reduction or a valid failed-baseline comparison.
+- [ ] Before publication, require the exact-tag run to pass and verify both downloaded installers against matching run/attempt manifests.
+- [ ] Physical 8 GiB hardware, four-hour sessions, retail Windows qualification and trusted platform signing remain separate preview limitations.
 
 ## 0.6.2 verification record
 

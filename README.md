@@ -6,7 +6,7 @@
 
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
-The 0.9.6 stabilization candidate adds reproducible Git configuration-race tests, private index publication, cancellation cleanup, and measured memory recovery. The [engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) records the security boundary, native checks and remaining gates. [Performance evidence](PERFORMANCE.md)
+Version 0.9.6 adds reproducible Git configuration-race protection, safe index publication, native Windows file-operation fixes, and measured resource cleanup. The [engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) records the security boundary, native checks and remaining gates. [Performance evidence](PERFORMANCE.md)
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -14,7 +14,7 @@ The 0.9.6 stabilization candidate adds reproducible Git configuration-race tests
 
 ## Download and install
 
-Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The latest public installer is [version 0.9.5](docs/releases/0.9.5.md). The 0.9.6 development source adds Source Control, saved Run Tests, the expanded theme picker, and the new navigation.
+Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The current preview is [version 0.9.6](docs/releases/0.9.6.md), including Source Control, saved Run Tests, the expanded theme picker, source navigation and reliability fixes. To update an older Ion, choose **Preferences → Updates → Check for Updates**. When a compatible installer is available, **Update available** appears in the title bar.
 
 | Platform | Installer | Install |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ For supported C compiler errors, Ion connects the source location, the original 
 
 ### Run, learn, and verify
 
-| Capability | Coverage in the development build |
+| Capability | Coverage in 0.9.6 |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
 | **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
@@ -113,7 +113,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 
 ## Screenshots
 
-The published 0.9.5 screenshots and development previews use disposable sample workspaces.
+Screenshots use disposable sample workspaces. The core-workflow images were captured in 0.9.5 and the Source Control and Run Tests images in the 0.9.6 development build.
 
 ![Learning Lens links an actual C compiler diagnostic to the highlighted line and the relevant offline concept](docs/screenshots/learning-lens.webp)
 
@@ -143,7 +143,7 @@ The published 0.9.5 screenshots and development previews use disposable sample w
 </details>
 
 <details>
-<summary>Source Control and saved Run Tests in the 0.9.6 development build</summary>
+<summary>Source Control and saved Run Tests in 0.9.6</summary>
 
 ![Source Control showing the staged and working-tree groups, Explorer badges, and a side-by-side diff](docs/screenshots/source-control.webp)
 
@@ -157,13 +157,14 @@ Production-build measurements include the Electron process tree. CPU is a percen
 
 | Ion version | Host | Measured workload | Memory metric | CPU | Fresh / warm startup |
 | --- | --- | --- | --- | --- | --- |
+| 0.9.6 stabilization candidate | Apple M3, 24 GiB, macOS 27.2.1 (26B131) | One C file, ordinary-workflow median of three | 520.7 MiB summed RSS, 258.4 MiB macOS-attributed footprint | See matched protocol | 328.3 / 338.0 ms, separate seven-pair launch check |
 | 0.9.4 public preview | Apple M3, 24 GiB, macOS 27.2 | Welcome, six-second idle sample | 418.59 MiB summed RSS, 123.00 MiB macOS-attributed footprint | 0.29% | 375.21 / 366.50 ms |
 | 0.9.5 with Learning Lens | Apple M3, 24 GiB, macOS 27.2 (26B123) | C compiler error and explanation open, 1.5-second CPU sample | 540.8 MiB summed RSS | 0.65% | 399.6 ms fresh profile |
 | 0.9.5 before Learning Lens | Xeon Platinum 8370C, ~16 GiB, Windows Server 2025 x64 (26100) | Welcome, roughly three-second idle sample | 301.1 MiB summed working set, 137.5 MiB private bytes | 0.00% at sample resolution | 536 / 412 ms |
 
 Summed RSS and working set can count shared resident pages more than once. macOS-attributed footprint and Windows private bytes use different accounting. Each row describes its own host and workload. [macOS methodology](PERFORMANCE.md) · [Windows methodology](WINDOWS_RELEASE_READINESS.md#native-windows-performance)
 
-Development workflow benchmarks cover the closed and open Git panel, large diffs, and saved test runs. Native verification, platform differences, and outstanding hardware tests are tracked separately. [Benchmark report](PERFORMANCE.md#git-and-saved-run-tests) · [Platform matrix](docs/windows/FEATURE_PARITY.md) · [Coverage audit](TEST_COVERAGE_AUDIT.md)
+Development workflow benchmarks cover the closed and open Git panel, large diffs, and saved test runs. The stabilization report records exact measured build hashes and later correctness fixes separately. No RAM improvement is claimed. Native verification, platform differences, and outstanding hardware tests are tracked separately. [Benchmark report](PERFORMANCE.md#git-and-saved-run-tests) · [Platform matrix](docs/windows/FEATURE_PARITY.md) · [Coverage audit](TEST_COVERAGE_AUDIT.md)
 
 ## Limitations
 
@@ -172,7 +173,7 @@ Development workflow benchmarks cover the closed and open Git panel, large diffs
 - **Source Control.** Open a repository or linked worktree root and explicitly trust its Git configuration for this workspace session. Diffs cover saved UTF-8 text up to 256 KiB and 12,000 lines per side. Use a terminal for binary files, repository-local filters, hooks, signed commits, conflicts, and remote operations.
 - **Notebooks and documents.** Notebook execution requires a local Python kernel. Preview supports static outputs, with limitations for widgets, rich math, and `input()`. Office previews have layout limits. macOS PowerPoint uses LibreOffice for static slides. Windows opens PowerPoint externally.
 - **Platforms and signing.** Packaged targets are Apple Silicon macOS and Windows x64 preview. Intel Mac and Linux installers are unavailable. On Windows, the source preview uses Command Prompt for its integrated Terminal. Use Windows Terminal for PowerShell. See the installer section for signing and OS coverage.
-- **Recovery.** Crash recovery restores the last saved checkpoint, which can miss recent keystrokes. Undo history does not survive relaunch. A competing replacement detected during a save leaves the displaced version in an adjacent recovery file. Windows uses two safe moves and may retain the original under its backup name if the process is interrupted between them. Profile export excludes source workspaces, practice attempts, and recovery drafts. [File safety and recovery](docs/USAGE.md#file-safety-and-recovery)
+- **Recovery.** Crash recovery restores the last saved checkpoint, which can miss recent keystrokes. If a recovery write fails, Ion warns; a newer checkpoint may require another edit or **Keep Drafts**. Undo history does not survive relaunch. A competing replacement detected during a save leaves the displaced version in an adjacent recovery file. Windows uses two safe moves and may retain the original under its backup name if the process is interrupted between them. Profile export excludes source workspaces, practice attempts, and recovery drafts. [File safety and recovery](docs/USAGE.md#file-safety-and-recovery)
 - **Execution.** Programs and build scripts run with your account's permissions. Timeouts, output limits, and process cleanup bound the runner. Treat code, shell commands, and project builds as trusted before running them.
 
 [Windows known issues](docs/windows/KNOWN_ISSUES.md) · [Release checklist](RELEASE_CHECKLIST.md) · [Roadmap](ROADMAP.md)

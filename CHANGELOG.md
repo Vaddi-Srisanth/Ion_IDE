@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.9.6 development source
+## 0.9.6 preview
 
 - Stabilized Git configuration loading with a validated per-operation snapshot, preserved Git LFS storage, and deterministic late-configuration tests. Stage/Unstage publish through an owned index transaction and cancel on panel/window close.
+- Preserved Git's racy-index timestamps so rapid same-size changes stage their actual bytes. Repaired rooted Windows file renames and cross-file C/C++ and Java navigation without relaxing workspace path checks.
 - Improved shutdown diagnostics and cleanup after natural app exit. Added launch/quit, recovery and child-process stress tests and natural memory recovery measurements at 20 seconds, two minutes and five minutes. [Stabilization audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea)
 - Added on-demand Source Control with Explorer badges, staged and working-tree diffs, stage, unstage, and local commits using installed Git.
 - Added **Run Tests** for saved, approved C cases and suites. Reuses the local runner for exit status, output comparisons, reliable compiler locations, reruns, and Stop.

@@ -1,12 +1,12 @@
 # Windows feature comparison
 
-Ion uses the same workbench and local data stores on both platforms. The evidence below distinguishes the released 0.9.5 workflows from changes in the development branch. Hosted Windows tests are separate from testing on retail hardware. [Release evidence](../../WINDOWS_RELEASE_READINESS.md) · [Verification checklist](KNOWN_ISSUES.md)
+Ion uses the same workbench and local data stores on both platforms. The 0.9.6 stabilization passed native Windows and macOS verification at source 3d2998c. Historical 0.9.5 evidence and the final exact-tag installer gate are identified separately. Hosted Windows tests are separate from testing on retail hardware. [Release evidence](../../WINDOWS_RELEASE_READINESS.md) · [Verification checklist](KNOWN_ISSUES.md)
 
 | Area | macOS on Apple Silicon | Windows x64 preview |
 | --- | --- | --- |
 | Workbench | Editing, tabs, explorer, autosave, recovery, local themes, shortcuts, and workspace search | Same features, with Ctrl-based shortcuts and a native Windows menu |
 | Source navigation | Breadcrumbs and Back/Forward verified. Real Smart Java and optional clangd navigation tested in the development build | Shared implementation. Native Java and clangd verification is a CI gate |
-| Source Control | Real Git fixtures verify status, text diffs, staging, unstaging, commits, and worktrees | Shared implementation using Git for Windows. Native desktop and repository fixtures are a CI gate |
+| Source Control | Real Git fixtures verify status, text diffs, staging, unstaging, commits, and worktrees | Shared implementation using Git for Windows. Native desktop and repository fixtures passed the stabilization run |
 | Saved Run Tests | Real compiler and program fixtures cover saved approval, result comparison, cancellation, and persisted evidence | Shared test adapter uses the native C runner. Native desktop verification is a CI gate |
 | Standalone Run | C, C++, Java, Python, and JavaScript with local toolchains | Same language targets, with Windows tool discovery |
 | Interactive input | Pseudo-terminal for ordinary character input and resize events | Windows ConPTY, with labeled line input when the helper or API is unavailable |
@@ -15,7 +15,7 @@ Ion uses the same workbench and local data stores on both platforms. The evidenc
 | Preview | Local web and Markdown, Jupyter, and read-only PDF, DOCX, XLSX, and CSV | Shared preview and notebook implementation. A local Python kernel is required for notebook execution |
 | PowerPoint | Static slide preview with a compatible LibreOffice installation and the macOS converter restrictions | Opens the original in its associated desktop app |
 | Learn, Projects, and Practice | Offline packs, local project specs and approved C tests, challenge catalog and solution history | Shared workspace features and data formats. Execution uses the installed Windows toolchains |
-| Learning Lens | Local source-linked C explanations, resolution history, and optional lesson pane | Native Windows Lens regression configured. Other language packs offer reviewed explanations for selected diagnostics |
+| Learning Lens | Local source-linked C explanations, resolution history, and optional lesson pane | Native Windows Lens regression passed. Other language packs offer reviewed explanations for selected diagnostics |
 | Theme picker | Built-in and imported themes, live preview, accessibility variants, and undo preservation verified in the development build | Shared picker. Native theme suite runs in Windows CI |
 | AI Mentor | Future milestone. The optional online project planner is a separate feature | Same scope |
 | Desktop integration | Finder Open With, Applications, Trash, and native full screen | Start menu, Recycle Bin, Settings uninstall, and native full screen. Setup registers Open With for supported files. The user chooses defaults |

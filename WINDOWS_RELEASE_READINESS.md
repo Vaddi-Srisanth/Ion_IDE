@@ -1,4 +1,12 @@
-# Ion IDE 0.9.5 Windows release readiness
+# Ion IDE Windows release readiness
+
+## 0.9.6 stabilization
+
+The complete [native run at 3d2998c](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43086657774) passed macOS, Windows desktop, Windows installer/upgrade and Windows process-tree performance jobs. Windows exercised ten scoped filesystem/conflict cases, 55 of 57 selected unit cases with two documented skips, four evidence/signing cases, five ConPTY cases, the Git configuration race, genuine Git LFS, crash recovery, shutdown cleanup, Source Control, saved C tests, C/C++ and Java navigation, formatting, themes, viewers, workspaces, Learning Lens, onboarding and the updater. The installer upgraded the actual public 0.9.5 package and preserved its test profile and unrelated files. Final release installers must come from the exact tag's separately successful verification run and attempt. [Coverage and skips](TEST_COVERAGE_AUDIT.md) · [Current measurements](PERFORMANCE.md#native-windows-candidate)
+
+The old Windows checkpoint failed its save workload, so a matched full-workflow comparison is unavailable. The successful candidate measurements are labeled separately. Preview setup remains unsigned. Manual Windows 10/11 qualification, physical 8 GiB hardware and a four-hour session remain open.
+
+## Historical 0.9.5 evidence
 
 **Windows x64 test preview.** Version 0.9.5 uses the shared Electron app and local data stores. Hosted Windows verification and retail Windows qualification are separate; the manual checklist below remains open.
 

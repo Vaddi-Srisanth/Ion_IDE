@@ -1,0 +1,2986 @@
+{
+  "schema": 1,
+  "description": "Sanitized measurements copied from completed production-build captures. Per-process command lines, temporary paths and process identifiers are omitted. Outer before/after roles identify the experiment; inner candidate labels mean the supplied harness target, whose hash is recorded. Timing and forced-collection protocols remain separate. See PERFORMANCE.md for interpretation and later correctness changes.",
+  "ordinaryBefore": {
+    "complete": true,
+    "time": "2026-11-11T16:49:21.518Z",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "27.2.0",
+      "cpu": "Apple M3",
+      "ramBytes": 25769803776
+    },
+    "protocol": {
+      "trials": 3,
+      "soakSeconds": 0,
+      "idleMs": 1400,
+      "fixture": "1000 files, 10 open tabs, 7,000-line diff, 4 C cases",
+      "memory": "summed RSS and per-process macOS-attributed footprint",
+      "cpu": "delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.",
+      "input": "keypress to second renderer animation callback. Physical screen presentation is outside the measurement."
+    },
+    "builds": {
+      "candidate": "b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300"
+    },
+    "samples": {
+      "candidate": [
+        {
+          "freshMs": 311.002875,
+          "warmMs": 322.606542,
+          "welcome": {
+            "timeMs": 3866.889541,
+            "rssMiB": 417.578125,
+            "footprintMiB": 138.8641586303711,
+            "cpuPercent": 0.5335435216140558
+          },
+          "openSourceMs": 187.79387499999984,
+          "oneFile": {
+            "timeMs": 5949.120916,
+            "rssMiB": 520.359375,
+            "footprintMiB": 249.7550811767578,
+            "cpuPercent": 2.6750889990749642
+          },
+          "tenTabs": {
+            "timeMs": 8196.253583,
+            "rssMiB": 530.453125,
+            "footprintMiB": 250.7707061767578,
+            "cpuPercent": 1.478353017294126
+          },
+          "repoClosed": {
+            "timeMs": 10378.049458,
+            "rssMiB": 547.390625,
+            "footprintMiB": 270.4113311767578,
+            "cpuPercent": 5.2922199411165
+          },
+          "input": {
+            "tabMs": [
+              46.694666000001234,
+              49.750834000000395,
+              50.13141700000051,
+              49.464958999999,
+              50.63891700000022,
+              49.44874999999956,
+              50.12129199999981,
+              49.54479100000026
+            ],
+            "typingMs": 19.100000001490116,
+            "scrollMs": 36.005833000001076
+          },
+          "openGitMs": 976.5861670000013,
+          "gitOpen": {
+            "timeMs": 14681.275125,
+            "rssMiB": 573.03125,
+            "footprintMiB": 277.9582290649414,
+            "cpuPercent": 1.0117607013510506
+          },
+          "gitRefreshMs": 82.42625000000044,
+          "largeDiffMs": 1434.5053339999995,
+          "largeDiff": {
+            "timeMs": 18035.59875,
+            "rssMiB": 606.296875,
+            "footprintMiB": 342.02086639404297,
+            "cpuPercent": 4.534427019453141
+          },
+          "gitClosed": {
+            "timeMs": 19927.302583,
+            "rssMiB": 611.28125,
+            "footprintMiB": 358.45836639404297,
+            "cpuPercent": 7.143542215209508
+          },
+          "gitCycles": [
+            112.51487500000076,
+            119.19525000000067,
+            119.75604200000089,
+            112.64891699999862,
+            119.78745799999888,
+            119.77304100000038
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 22649.550958,
+            "rssMiB": 616.515625,
+            "footprintMiB": 356.88024139404297,
+            "cpuPercent": 5.155884452072577
+          },
+          "savedConfigIdle": {
+            "timeMs": 24496.481541,
+            "rssMiB": 612.140625,
+            "footprintMiB": 316.5677185058594,
+            "cpuPercent": 0.2389306251022313
+          },
+          "testDialogIdle": {
+            "timeMs": 27157.656333,
+            "rssMiB": 615.28125,
+            "footprintMiB": 328.6927185058594,
+            "cpuPercent": 0.5210707933332842
+          },
+          "suiteActive": {
+            "timeMs": 27291.532208,
+            "rssMiB": 619.78125,
+            "footprintMiB": 445.30216217041016
+          },
+          "suiteMs": 4897.633833,
+          "suiteClosed": {
+            "timeMs": 33955.352833,
+            "rssMiB": 584.875,
+            "footprintMiB": 284.67711639404297,
+            "cpuPercent": 0.3221504835882438
+          }
+        },
+        {
+          "freshMs": 279.5848330000008,
+          "warmMs": 286.0699999999997,
+          "welcome": {
+            "timeMs": 37160.970583,
+            "rssMiB": 421.71875,
+            "footprintMiB": 148.00485229492188,
+            "cpuPercent": 0.36950364929534674
+          },
+          "openSourceMs": 227.4554999999964,
+          "oneFile": {
+            "timeMs": 39289.444583,
+            "rssMiB": 520.484375,
+            "footprintMiB": 264.0675811767578,
+            "cpuPercent": 3.898030822864448
+          },
+          "tenTabs": {
+            "timeMs": 41545.839291,
+            "rssMiB": 530.640625,
+            "footprintMiB": 255.11443328857422,
+            "cpuPercent": 1.350382990962044
+          },
+          "repoClosed": {
+            "timeMs": 43717.361666,
+            "rssMiB": 547.953125,
+            "footprintMiB": 274.9894561767578,
+            "cpuPercent": 1.5754751618863119
+          },
+          "input": {
+            "tabMs": [
+              41.129667000001064,
+              49.506374999997206,
+              50.1807919999992,
+              49.381249999998545,
+              50.73800000000483,
+              49.745332999998936,
+              49.92016700000386,
+              49.61424999999872
+            ],
+            "typingMs": 20.099999997764826,
+            "scrollMs": 35.738750000004075
+          },
+          "openGitMs": 930.253082999996,
+          "gitOpen": {
+            "timeMs": 47155.206125,
+            "rssMiB": 579.296875,
+            "footprintMiB": 295.270751953125,
+            "cpuPercent": 0.7421521310595708
+          },
+          "gitRefreshMs": 65.17849999999453,
+          "largeDiffMs": 1414.515124999998,
+          "largeDiff": {
+            "timeMs": 50448.479916,
+            "rssMiB": 610.890625,
+            "footprintMiB": 347.52091217041016,
+            "cpuPercent": 5.411171954579355
+          },
+          "gitClosed": {
+            "timeMs": 52332.74775,
+            "rssMiB": 615.78125,
+            "footprintMiB": 363.92716217041016,
+            "cpuPercent": 2.2835841456978168
+          },
+          "gitCycles": [
+            107.03033300000243,
+            119.08649999999761,
+            119.04054099999485,
+            118.26416700000118,
+            119.7311669999981,
+            119.64904199999728
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 55034.937958,
+            "rssMiB": 622.0625,
+            "footprintMiB": 359.73966217041016,
+            "cpuPercent": 5.127024601301397
+          },
+          "savedConfigIdle": {
+            "timeMs": 56868.0595,
+            "rssMiB": 617.671875,
+            "footprintMiB": 321.66153717041016,
+            "cpuPercent": 0.24076265338930955
+          },
+          "testDialogIdle": {
+            "timeMs": 59482.508541,
+            "rssMiB": 620.984375,
+            "footprintMiB": 334.59903717041016,
+            "cpuPercent": 0.1600867884259522
+          },
+          "suiteActive": {
+            "timeMs": 60172.860666,
+            "rssMiB": 627.078125,
+            "footprintMiB": 451.94313049316406,
+            "cpuPercent": 0.7657285426377657
+          },
+          "suiteMs": 4009.1723330000023,
+          "suiteClosed": {
+            "timeMs": 65375.746583,
+            "rssMiB": 626.34375,
+            "footprintMiB": 338.45841217041016,
+            "cpuPercent": 0.08835116426578789
+          }
+        },
+        {
+          "freshMs": 306.2953750000015,
+          "warmMs": 287.0682919999963,
+          "welcome": {
+            "timeMs": 68595.621791,
+            "rssMiB": 422.125,
+            "footprintMiB": 148.19235229492188,
+            "cpuPercent": 0.3809279922291149
+          },
+          "openSourceMs": 192.85612499999115,
+          "oneFile": {
+            "timeMs": 70661.454625,
+            "rssMiB": 520.3125,
+            "footprintMiB": 256.6144332885742,
+            "cpuPercent": 3.4185854715603763
+          },
+          "tenTabs": {
+            "timeMs": 72875.624083,
+            "rssMiB": 530.46875,
+            "footprintMiB": 249.98941040039062,
+            "cpuPercent": 0.7734730625524926
+          },
+          "repoClosed": {
+            "timeMs": 75022.446541,
+            "rssMiB": 547.671875,
+            "footprintMiB": 269.9113311767578,
+            "cpuPercent": 5.064754605392962
+          },
+          "input": {
+            "tabMs": [
+              35.53629100001126,
+              50.855750000002445,
+              49.319834000008996,
+              49.26454200000444,
+              50.51912500000617,
+              49.44400000000314,
+              50.06408300000476,
+              49.441832999989856
+            ],
+            "typingMs": 22.5,
+            "scrollMs": 35.432500000009895
+          },
+          "openGitMs": 931.8983750000043,
+          "gitOpen": {
+            "timeMs": 78451.556666,
+            "rssMiB": 577.375,
+            "footprintMiB": 293.927001953125,
+            "cpuPercent": 1.2406283394558733
+          },
+          "gitRefreshMs": 70.21249999999418,
+          "largeDiffMs": 1457.4697080000042,
+          "largeDiff": {
+            "timeMs": 81772.002583,
+            "rssMiB": 610.484375,
+            "footprintMiB": 352.66153717041016,
+            "cpuPercent": 2.947049724192137
+          },
+          "gitClosed": {
+            "timeMs": 83625.42325,
+            "rssMiB": 611.03125,
+            "footprintMiB": 355.06778717041016,
+            "cpuPercent": 3.4586537056029467
+          },
+          "gitCycles": [
+            97.13037499999336,
+            114.50679200000013,
+            119.2800419999985,
+            114.3885830000072,
+            119.57704200000444,
+            114.49591700000747
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 86309.405708,
+            "rssMiB": 620.25,
+            "footprintMiB": 354.84903717041016,
+            "cpuPercent": 5.315876507112313
+          },
+          "savedConfigIdle": {
+            "timeMs": 88127.841166,
+            "rssMiB": 615.90625,
+            "footprintMiB": 321.20841217041016,
+            "cpuPercent": 0.1703623503080496
+          },
+          "testDialogIdle": {
+            "timeMs": 90771.875916,
+            "rssMiB": 619.140625,
+            "footprintMiB": 333.77091217041016,
+            "cpuPercent": 0.42078754463903867
+          },
+          "suiteActive": {
+            "timeMs": 91475.781458,
+            "rssMiB": 625.1875,
+            "footprintMiB": 451.11500549316406,
+            "cpuPercent": 0.43660474281063416
+          },
+          "suiteMs": 4035.9205000000075,
+          "suiteClosed": {
+            "timeMs": 96722.981375,
+            "rssMiB": 624.515625,
+            "footprintMiB": 336.28653717041016,
+            "cpuPercent": 0.20827918941005202
+          }
+        }
+      ],
+      "baseline": []
+    }
+  },
+  "ordinaryAfter": {
+    "complete": true,
+    "time": "2026-11-11T17:41:24.233Z",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "27.2.0",
+      "cpu": "Apple M3",
+      "ramBytes": 25769803776
+    },
+    "protocol": {
+      "trials": 3,
+      "soakSeconds": 0,
+      "idleMs": 1400,
+      "fixture": "1000 files, 10 open tabs, 7,000-line diff, 4 C cases",
+      "memory": "summed RSS and per-process macOS-attributed footprint",
+      "cpu": "delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.",
+      "input": "keypress to second renderer animation callback. Physical screen presentation is outside the measurement."
+    },
+    "builds": {
+      "candidate": "d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd"
+    },
+    "samples": {
+      "candidate": [
+        {
+          "freshMs": 378.44341699999995,
+          "warmMs": 335.6484170000001,
+          "welcome": {
+            "timeMs": 4232.496583,
+            "rssMiB": 418.078125,
+            "footprintMiB": 139.34862518310547,
+            "cpuPercent": 0.46593451493971183
+          },
+          "openSourceMs": 212.16299999999956,
+          "oneFile": {
+            "timeMs": 6362.904625,
+            "rssMiB": 516.8125,
+            "footprintMiB": 247.0207290649414,
+            "cpuPercent": 2.9418739631203006
+          },
+          "tenTabs": {
+            "timeMs": 8640.419542,
+            "rssMiB": 531,
+            "footprintMiB": 258.067626953125,
+            "cpuPercent": 1.2249105211102822
+          },
+          "repoClosed": {
+            "timeMs": 10804.522167,
+            "rssMiB": 548.734375,
+            "footprintMiB": 274.208251953125,
+            "cpuPercent": 3.585460850559165
+          },
+          "input": {
+            "tabMs": [
+              49.89083399999981,
+              49.24570800000038,
+              51.02404200000092,
+              48.37175000000025,
+              50.480499999999665,
+              49.39954100000068,
+              50.49708299999838,
+              49.88341600000058
+            ],
+            "typingMs": 16.899999998509884,
+            "scrollMs": 34.79445900000064
+          },
+          "openGitMs": 981.1967080000013,
+          "gitOpen": {
+            "timeMs": 14350.609,
+            "rssMiB": 578.4375,
+            "footprintMiB": 296.5832748413086,
+            "cpuPercent": 0.5504262607443214
+          },
+          "gitRefreshMs": 72.50041699999929,
+          "largeDiffMs": 1439.6209579999995,
+          "largeDiff": {
+            "timeMs": 17702.949917,
+            "rssMiB": 608.15625,
+            "footprintMiB": 349.61466217041016,
+            "cpuPercent": 6.969465502127681
+          },
+          "gitClosed": {
+            "timeMs": 19585.491333,
+            "rssMiB": 613.125,
+            "footprintMiB": 363.80216217041016,
+            "cpuPercent": 5.515805716268077
+          },
+          "gitCycles": [
+            102.48633399999744,
+            119.47341600000073,
+            117.85570799999914,
+            119.05354199999783,
+            120.06366699999853,
+            119.62833300000057
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 22292.437208,
+            "rssMiB": 621.703125,
+            "footprintMiB": 362.14593505859375,
+            "cpuPercent": 4.88072714881869
+          },
+          "savedConfigIdle": {
+            "timeMs": 24162.691917,
+            "rssMiB": 617.296875,
+            "footprintMiB": 321.97406005859375,
+            "cpuPercent": 0.25475763862894407
+          },
+          "testDialogIdle": {
+            "timeMs": 26826.336625,
+            "rssMiB": 620.328125,
+            "footprintMiB": 333.92718505859375,
+            "cpuPercent": 0.3357157012006886
+          },
+          "suiteActive": {
+            "timeMs": 26993.315875,
+            "rssMiB": 624.78125,
+            "footprintMiB": 450.86475372314453
+          },
+          "suiteMs": 4909.710041999999,
+          "suiteClosed": {
+            "timeMs": 33652.602542,
+            "rssMiB": 584.96875,
+            "footprintMiB": 284.36468505859375,
+            "cpuPercent": 6.695823010320544
+          }
+        },
+        {
+          "freshMs": 391.0842499999999,
+          "warmMs": 376.8061250000028,
+          "welcome": {
+            "timeMs": 37155.434792,
+            "rssMiB": 433.1875,
+            "footprintMiB": 157.12987518310547,
+            "cpuPercent": 0.45618188348870126
+          },
+          "openSourceMs": 207.20137499999691,
+          "oneFile": {
+            "timeMs": 39272.022458,
+            "rssMiB": 526.203125,
+            "footprintMiB": 264.2706832885742,
+            "cpuPercent": 2.812977065666692
+          },
+          "tenTabs": {
+            "timeMs": 41535.249417,
+            "rssMiB": 537.171875,
+            "footprintMiB": 257.0362854003906,
+            "cpuPercent": 1.171824961829231
+          },
+          "repoClosed": {
+            "timeMs": 43725.981875,
+            "rssMiB": 555.859375,
+            "footprintMiB": 278.2550582885742,
+            "cpuPercent": 3.1316854217338994
+          },
+          "input": {
+            "tabMs": [
+              44.58079100000032,
+              49.804416999999376,
+              50.01941699999588,
+              49.72333300000173,
+              50.62212500000169,
+              48.96337499999936,
+              50.802332999999635,
+              49.662083000002895
+            ],
+            "typingMs": 16.900000002235174,
+            "scrollMs": 36.0815419999999
+          },
+          "openGitMs": 950.4454160000023,
+          "gitOpen": {
+            "timeMs": 47241.551875,
+            "rssMiB": 581.53125,
+            "footprintMiB": 296.1769561767578,
+            "cpuPercent": 0.8642967215509018
+          },
+          "gitRefreshMs": 77.25879200000054,
+          "largeDiffMs": 1477.9747079999943,
+          "largeDiff": {
+            "timeMs": 50624.124958,
+            "rssMiB": 612.9375,
+            "footprintMiB": 348.36461639404297,
+            "cpuPercent": 5.845048265065353
+          },
+          "gitClosed": {
+            "timeMs": 52523.235833,
+            "rssMiB": 613.59375,
+            "footprintMiB": 355.22401428222656,
+            "cpuPercent": 4.907747755412489
+          },
+          "gitCycles": [
+            114.32245800000237,
+            120.40704199999891,
+            118.90437499999825,
+            125.1785830000008,
+            115.25858299999527,
+            118.38470800000505
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 55281.133083,
+            "rssMiB": 624.15625,
+            "footprintMiB": 362.67716217041016,
+            "cpuPercent": 5.30170703139398
+          },
+          "savedConfigIdle": {
+            "timeMs": 57157.419958,
+            "rssMiB": 619.78125,
+            "footprintMiB": 322.45836639404297,
+            "cpuPercent": 0.07231867080313065
+          },
+          "testDialogIdle": {
+            "timeMs": 59821.540417,
+            "rssMiB": 622.421875,
+            "footprintMiB": 334.42711639404297,
+            "cpuPercent": 0.30677931151362536
+          },
+          "suiteActive": {
+            "timeMs": 60656.445042,
+            "rssMiB": 628.46875,
+            "footprintMiB": 452.50560760498047,
+            "cpuPercent": 0.14224022053533086
+          },
+          "suiteMs": 4174.399624999998,
+          "suiteClosed": {
+            "timeMs": 65950.32525,
+            "rssMiB": 591.671875,
+            "footprintMiB": 296.86461639404297,
+            "cpuPercent": 8.076727070779409
+          }
+        },
+        {
+          "freshMs": 336.1871669999964,
+          "warmMs": 315.456124999997,
+          "welcome": {
+            "timeMs": 69427.61525,
+            "rssMiB": 422.84375,
+            "footprintMiB": 152.92681884765625,
+            "cpuPercent": 0.4623814451796372
+          },
+          "openSourceMs": 193.50283399999898,
+          "oneFile": {
+            "timeMs": 71524.118042,
+            "rssMiB": 520.71875,
+            "footprintMiB": 258.3957748413086,
+            "cpuPercent": 3.696516919494513
+          },
+          "tenTabs": {
+            "timeMs": 73787.657708,
+            "rssMiB": 531.171875,
+            "footprintMiB": 250.6613998413086,
+            "cpuPercent": 1.2926065847632906
+          },
+          "repoClosed": {
+            "timeMs": 75980.900833,
+            "rssMiB": 549.875,
+            "footprintMiB": 272.0363998413086,
+            "cpuPercent": 3.7995216703036925
+          },
+          "input": {
+            "tabMs": [
+              39.71424999998999,
+              48.263374999994994,
+              51.09612499999639,
+              48.89595900000131,
+              51.16945799998939,
+              49.163707999992766,
+              50.34404100000393,
+              50.03112499999406
+            ],
+            "typingMs": 16.700000002980232,
+            "scrollMs": 34.52866700000595
+          },
+          "openGitMs": 1069.236791999996,
+          "gitOpen": {
+            "timeMs": 79610.44475,
+            "rssMiB": 580.265625,
+            "footprintMiB": 295.6770706176758,
+            "cpuPercent": 0.5714171284745072
+          },
+          "gitRefreshMs": 162.74524999999267,
+          "largeDiffMs": 1475.7753340000054,
+          "largeDiff": {
+            "timeMs": 83082.608083,
+            "rssMiB": 615.671875,
+            "footprintMiB": 355.16153717041016,
+            "cpuPercent": 3.964051198204118
+          },
+          "gitClosed": {
+            "timeMs": 84981.332917,
+            "rssMiB": 616.03125,
+            "footprintMiB": 362.41153717041016,
+            "cpuPercent": 6.37314735985599
+          },
+          "gitCycles": [
+            210.16433299999335,
+            220.8034170000028,
+            222.58287500000733,
+            220.04904199999874,
+            220.0872079999972,
+            224.50216599999112
+          ],
+          "gitRepeatedClosed": {
+            "timeMs": 88299.469542,
+            "rssMiB": 623.6875,
+            "footprintMiB": 358.91158294677734,
+            "cpuPercent": 6.222475213123324
+          },
+          "savedConfigIdle": {
+            "timeMs": 90162.946917,
+            "rssMiB": 619.3125,
+            "footprintMiB": 323.58343505859375,
+            "cpuPercent": 0.0976681913492714
+          },
+          "testDialogIdle": {
+            "timeMs": 92820.909667,
+            "rssMiB": 622.625,
+            "footprintMiB": 335.69281005859375,
+            "cpuPercent": 0.4221503085776385
+          },
+          "suiteActive": {
+            "timeMs": 93662.114542,
+            "rssMiB": 628.734375,
+            "footprintMiB": 453.78690338134766,
+            "cpuPercent": 0.0912548575478962
+          },
+          "suiteMs": 4162.387750000009,
+          "suiteClosed": {
+            "timeMs": 98928.031708,
+            "rssMiB": 585.59375,
+            "footprintMiB": 284.94281005859375,
+            "cpuPercent": 14.789962072125212
+          }
+        }
+      ],
+      "baseline": []
+    }
+  },
+  "naturalMemoryBefore": {
+    "complete": true,
+    "timestamp": "2026-11-11T17:05:52.040Z",
+    "harnessSha256": "a2919c40eaf60f2399e0c575098cdf27b1ace388038f4b170e7ca7be94b62a4d",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "27.2.0",
+      "cpu": "Apple M3",
+      "ramBytes": 25769803776
+    },
+    "protocol": {
+      "cycles": 20,
+      "paceMs": 1000,
+      "checkpointsSeconds": [
+        20,
+        120,
+        300
+      ],
+      "windowsVisible": false,
+      "offline": true,
+      "fixture": "1,000-file Git workspace, ten source tabs, 7,000-line Git diff and one approved native C sample per cycle. The first cycle also runs a 3.6-second waiting C case to observe its actual native process.",
+      "workload": "Each cycle switches source/note tabs, types and undoes one edit, saves source, opens/closes Git status and a real diff, then runs/closes the approved C case.",
+      "recovery": "Checkpoint deadlines start when the final test dialog closes, before native child cleanup verification. Memory is captured at the requested deadline; the following two-second sample is used for CPU. No forced GC before or during these checkpoints. Both builds use identical windows, input and cycle counts with fresh profiles.",
+      "cpu": "Two-second process CPU interval following each checkpoint. Includes the sample instrumentation; exited child CPU is reported separately when available.",
+      "memory": "Per-process macOS-attributed footprint and summed process RSS.",
+      "diagnosticGc": false,
+      "limits": "Hidden-window automation and software frame callbacks do not measure physical display latency, GPU hardware utilization, laptop battery drain, or an 8 GB host."
+    },
+    "builds": {
+      "candidate": {
+        "mainSha256": "b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300"
+      }
+    },
+    "samples": [
+      {
+        "build": "candidate",
+        "complete": true,
+        "timings": [
+          {
+            "cycle": 1,
+            "elapsedMs": 8124.181625
+          },
+          {
+            "cycle": 2,
+            "elapsedMs": 2827.9583329999987
+          },
+          {
+            "cycle": 3,
+            "elapsedMs": 2146.4644580000004
+          },
+          {
+            "cycle": 4,
+            "elapsedMs": 2167.4820839999993
+          },
+          {
+            "cycle": 5,
+            "elapsedMs": 2171.4562079999996
+          },
+          {
+            "cycle": 6,
+            "elapsedMs": 2164.1175000000003
+          },
+          {
+            "cycle": 7,
+            "elapsedMs": 2172.9109580000004
+          },
+          {
+            "cycle": 8,
+            "elapsedMs": 2170.108375
+          },
+          {
+            "cycle": 9,
+            "elapsedMs": 2152.227665999999
+          },
+          {
+            "cycle": 10,
+            "elapsedMs": 2147.6980409999996
+          },
+          {
+            "cycle": 11,
+            "elapsedMs": 2171.679250000001
+          },
+          {
+            "cycle": 12,
+            "elapsedMs": 2065.326666999994
+          },
+          {
+            "cycle": 13,
+            "elapsedMs": 2130.790084
+          },
+          {
+            "cycle": 14,
+            "elapsedMs": 2150.496041999999
+          },
+          {
+            "cycle": 15,
+            "elapsedMs": 2072.266583000004
+          },
+          {
+            "cycle": 16,
+            "elapsedMs": 2166.5494580000013
+          },
+          {
+            "cycle": 17,
+            "elapsedMs": 2155.0464169999977
+          },
+          {
+            "cycle": 18,
+            "elapsedMs": 2166.2120829999985
+          },
+          {
+            "cycle": 19,
+            "elapsedMs": 2239.574166999999
+          },
+          {
+            "cycle": 20,
+            "elapsedMs": 2166.504832999999
+          }
+        ],
+        "activity": [
+          {
+            "cycle": 2,
+            "elapsedMs": 10954.501333,
+            "timeMs": 15571.307791,
+            "rssMiB": 637.125,
+            "footprintMiB": 481.44281005859375,
+            "heap": {
+              "usedSize": 21164112,
+              "totalSize": 48365568,
+              "embedderHeapUsedSize": 6488624,
+              "backingStorageSize": 4465356
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2039,
+              "jsEventListeners": 959
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 185.5,
+                "footprintMiB": 48.93919372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 106.828125,
+                "footprintMiB": 250.04804229736328
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 296.828125,
+                "footprintMiB": 175.40782928466797
+              }
+            }
+          },
+          {
+            "cycle": 4,
+            "elapsedMs": 15325.065874999998,
+            "timeMs": 19932.491541,
+            "rssMiB": 663.9375,
+            "footprintMiB": 474.72412872314453,
+            "heap": {
+              "usedSize": 26446320,
+              "totalSize": 53870592,
+              "embedderHeapUsedSize": 11048576,
+              "backingStorageSize": 4466014
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4378,
+              "jsEventListeners": 2400
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.921875,
+                "footprintMiB": 50.12669372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 106.5625,
+                "footprintMiB": 216.34491729736328
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 322.484375,
+                "footprintMiB": 201.20477294921875
+              }
+            }
+          },
+          {
+            "cycle": 6,
+            "elapsedMs": 19707.536249999997,
+            "timeMs": 24311.97375,
+            "rssMiB": 670.515625,
+            "footprintMiB": 491.0522766113281,
+            "heap": {
+              "usedSize": 23205956,
+              "totalSize": 51773440,
+              "embedderHeapUsedSize": 6833576,
+              "backingStorageSize": 4408330
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2039,
+              "jsEventListeners": 959
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 187.265625,
+                "footprintMiB": 50.37669372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 107.9375,
+                "footprintMiB": 227.46994018554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 327.34375,
+                "footprintMiB": 206.15789794921875
+              }
+            }
+          },
+          {
+            "cycle": 8,
+            "elapsedMs": 24094.399665999998,
+            "timeMs": 28701.976083,
+            "rssMiB": 675.46875,
+            "footprintMiB": 484.0366516113281,
+            "heap": {
+              "usedSize": 24071288,
+              "totalSize": 58851328,
+              "embedderHeapUsedSize": 7098672,
+              "backingStorageSize": 4465362
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2039,
+              "jsEventListeners": 959
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.328125,
+                "footprintMiB": 49.64231872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 108.46875,
+                "footprintMiB": 216.14181518554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 332.703125,
+                "footprintMiB": 211.20477294921875
+              }
+            }
+          },
+          {
+            "cycle": 10,
+            "elapsedMs": 28440.830208,
+            "timeMs": 33045.537875,
+            "rssMiB": 677.640625,
+            "footprintMiB": 486.4741516113281,
+            "heap": {
+              "usedSize": 24979704,
+              "totalSize": 60424192,
+              "embedderHeapUsedSize": 6725312,
+              "backingStorageSize": 4465362
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2038,
+              "jsEventListeners": 955
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.28125,
+                "footprintMiB": 48.23606872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 109.4375,
+                "footprintMiB": 220.76681518554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 333.953125,
+                "footprintMiB": 210.42352294921875
+              }
+            }
+          },
+          {
+            "cycle": 12,
+            "elapsedMs": 32722.203999999998,
+            "timeMs": 37321.668291,
+            "rssMiB": 693.875,
+            "footprintMiB": 509.5835266113281,
+            "heap": {
+              "usedSize": 31804056,
+              "totalSize": 64880640,
+              "embedderHeapUsedSize": 12277888,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 3310,
+              "jsEventListeners": 2395
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 187.390625,
+                "footprintMiB": 49.32981872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 109.359375,
+                "footprintMiB": 226.64181518554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 349.15625,
+                "footprintMiB": 226.56414794921875
+              }
+            }
+          },
+          {
+            "cycle": 14,
+            "elapsedMs": 37041.640791,
+            "timeMs": 41646.608125,
+            "rssMiB": 707.65625,
+            "footprintMiB": 513.8022994995117,
+            "heap": {
+              "usedSize": 35189376,
+              "totalSize": 64094208,
+              "embedderHeapUsedSize": 14175176,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4347,
+              "jsEventListeners": 2399
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 185.265625,
+                "footprintMiB": 47.62669372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 109.21875,
+                "footprintMiB": 215.34494018554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 365.203125,
+                "footprintMiB": 243.78292083740234
+              }
+            }
+          },
+          {
+            "cycle": 16,
+            "elapsedMs": 41324.983208,
+            "timeMs": 45930.264416,
+            "rssMiB": 724.734375,
+            "footprintMiB": 533.0523223876953,
+            "heap": {
+              "usedSize": 35400660,
+              "totalSize": 74317824,
+              "embedderHeapUsedSize": 14568864,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4309,
+              "jsEventListeners": 2395
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.96875,
+                "footprintMiB": 49.36106872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 109.171875,
+                "footprintMiB": 217.45431518554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 380.625,
+                "footprintMiB": 259.18919372558594
+              }
+            }
+          },
+          {
+            "cycle": 18,
+            "elapsedMs": 45690.984583,
+            "timeMs": 50295.465791,
+            "rssMiB": 656.234375,
+            "footprintMiB": 484.1616973876953,
+            "heap": {
+              "usedSize": 35485416,
+              "totalSize": 80871424,
+              "embedderHeapUsedSize": 14723184,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4309,
+              "jsEventListeners": 2395
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 183.4375,
+                "footprintMiB": 49.57981872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 105.53125,
+                "footprintMiB": 230.59494018554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 319.296875,
+                "footprintMiB": 196.93919372558594
+              }
+            }
+          },
+          {
+            "cycle": 20,
+            "elapsedMs": 50140.699375,
+            "timeMs": 54743.17025,
+            "rssMiB": 678.265625,
+            "footprintMiB": 497.0835952758789,
+            "heap": {
+              "usedSize": 28577292,
+              "totalSize": 78774272,
+              "embedderHeapUsedSize": 10758440,
+              "backingStorageSize": 4506528
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2969,
+              "jsEventListeners": 2396
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 184.671875,
+                "footprintMiB": 51.47044372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 106.375,
+                "footprintMiB": 217.28244018554688
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 7.0477447509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 339.25,
+                "footprintMiB": 221.28296661376953
+              }
+            }
+          }
+        ],
+        "recovery": [
+          {
+            "requestedSeconds": 20,
+            "elapsedSeconds": 20.065457291999998,
+            "cpuPercent": 0.11048800603882739,
+            "cpuIntervalMs": 2069.606541000001,
+            "timeMs": 74768.146375,
+            "rssMiB": 596.828125,
+            "footprintMiB": 235.4117202758789,
+            "heap": {
+              "usedSize": 24206464,
+              "totalSize": 26869760,
+              "embedderHeapUsedSize": 5513264,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 182.875,
+                "footprintMiB": 44.89231872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 100.9375,
+                "footprintMiB": 53.579315185546875
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48,
+                "footprintMiB": 6.8914947509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 265.015625,
+                "footprintMiB": 130.04859161376953
+              }
+            }
+          },
+          {
+            "requestedSeconds": 120,
+            "elapsedSeconds": 120.06721775000001,
+            "cpuPercent": 0.07387629912840357,
+            "cpuIntervalMs": 2052.981832999998,
+            "timeMs": 174768.505833,
+            "rssMiB": 596.8125,
+            "footprintMiB": 235.3804473876953,
+            "heap": {
+              "usedSize": 24225832,
+              "totalSize": 26869760,
+              "embedderHeapUsedSize": 5708280,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 182.984375,
+                "footprintMiB": 44.92356872558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 100.9375,
+                "footprintMiB": 53.548065185546875
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.96875,
+                "footprintMiB": 6.9071197509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 264.921875,
+                "footprintMiB": 130.00169372558594
+              }
+            }
+          },
+          {
+            "requestedSeconds": 300,
+            "elapsedSeconds": 300.06784600000003,
+            "cpuPercent": 0.07079209428601026,
+            "cpuIntervalMs": 2064.14291699999,
+            "timeMs": 354769.531083,
+            "rssMiB": 492.421875,
+            "footprintMiB": 237.2398223876953,
+            "heap": {
+              "usedSize": 24242984,
+              "totalSize": 26869760,
+              "embedderHeapUsedSize": 5708280,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 155.03125,
+                "footprintMiB": 45.06419372558594
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 78.203125,
+                "footprintMiB": 53.532440185546875
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 42.421875,
+                "footprintMiB": 6.9071197509765625
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 216.765625,
+                "footprintMiB": 131.73606872558594
+              }
+            }
+          }
+        ],
+        "startupMs": 440.22804199999996,
+        "welcome": {
+          "timeMs": 1530.523958,
+          "rssMiB": 420.234375,
+          "footprintMiB": 251.11431884765625,
+          "heap": {
+            "usedSize": 3273600,
+            "totalSize": 5849088,
+            "embedderHeapUsedSize": 1959480,
+            "backingStorageSize": 372790
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 195,
+            "jsEventListeners": 190
+          },
+          "ui": {
+            "editors": 0,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 170.265625,
+              "footprintMiB": 45.04856872558594
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 79.5625,
+              "footprintMiB": 164.1417236328125
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.65625,
+              "footprintMiB": 6.9539947509765625
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 122.75,
+              "footprintMiB": 34.97003173828125
+            }
+          }
+        },
+        "before": {
+          "timeMs": 4563.535333,
+          "rssMiB": 551.171875,
+          "footprintMiB": 258.9426040649414,
+          "heap": {
+            "usedSize": 21912144,
+            "totalSize": 37355520,
+            "embedderHeapUsedSize": 15610080,
+            "backingStorageSize": 4533030
+          },
+          "dom": {
+            "documents": 3,
+            "nodes": 4548,
+            "jsEventListeners": 4859
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 182.890625,
+              "footprintMiB": 48.75169372558594
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 95.078125,
+              "footprintMiB": 93.2198486328125
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.890625,
+              "footprintMiB": 7.0789947509765625
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 225.3125,
+              "footprintMiB": 109.8920669555664
+            }
+          }
+        },
+        "nativeTestActive": {
+          "timeMs": 8838.919166,
+          "rssMiB": 614.03125,
+          "footprintMiB": 468.75563049316406,
+          "heap": {
+            "usedSize": 23581104,
+            "totalSize": 39976960,
+            "embedderHeapUsedSize": 10012736,
+            "backingStorageSize": 4588992
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 2962,
+            "jsEventListeners": 2166
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 1,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 186.03125,
+              "footprintMiB": 50.79856872558594
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 104.6875,
+              "footprintMiB": 252.46991729736328
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.90625,
+              "footprintMiB": 7.0477447509765625
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 273.84375,
+              "footprintMiB": 157.42343139648438
+            },
+            "child": {
+              "count": 1,
+              "rssMiB": 1.5625,
+              "footprintMiB": 1.0159683227539062
+            }
+          }
+        },
+        "workloadMs": 50179.996166,
+        "afterWork": {
+          "timeMs": 54812.587125,
+          "rssMiB": 676.875,
+          "footprintMiB": 497.0210952758789,
+          "heap": {
+            "usedSize": 28586748,
+            "totalSize": 78774272,
+            "embedderHeapUsedSize": 10758440,
+            "backingStorageSize": 4506528
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 2969,
+            "jsEventListeners": 2396
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 184.671875,
+              "footprintMiB": 51.47044372558594
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 105.765625,
+              "footprintMiB": 217.21994018554688
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.96875,
+              "footprintMiB": 7.0477447509765625
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 338.46875,
+              "footprintMiB": 221.28296661376953
+            }
+          },
+          "elapsedSeconds": 0.10918074999999954
+        },
+        "editorIdentityAndUndoPreserved": true,
+        "processFamilyExited": true
+      }
+    ]
+  },
+  "naturalMemoryAfter": {
+    "complete": true,
+    "timestamp": "2026-11-11T17:35:28.671Z",
+    "harnessSha256": "a2919c40eaf60f2399e0c575098cdf27b1ace388038f4b170e7ca7be94b62a4d",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "27.2.0",
+      "cpu": "Apple M3",
+      "ramBytes": 25769803776
+    },
+    "protocol": {
+      "cycles": 20,
+      "paceMs": 1000,
+      "checkpointsSeconds": [
+        20,
+        120,
+        300
+      ],
+      "windowsVisible": false,
+      "offline": true,
+      "fixture": "1,000-file Git workspace, ten source tabs, 7,000-line Git diff and one approved native C sample per cycle. The first cycle also runs a 3.6-second waiting C case to observe its actual native process.",
+      "workload": "Each cycle switches source/note tabs, types and undoes one edit, saves source, opens/closes Git status and a real diff, then runs/closes the approved C case.",
+      "recovery": "Checkpoint deadlines start when the final test dialog closes, before native child cleanup verification. Memory is captured at the requested deadline; the following two-second sample is used for CPU. No forced GC before or during these checkpoints. Both builds use identical windows, input and cycle counts with fresh profiles.",
+      "cpu": "Two-second process CPU interval following each checkpoint. Includes the sample instrumentation; exited child CPU is reported separately when available.",
+      "memory": "Per-process macOS-attributed footprint and summed process RSS.",
+      "diagnosticGc": false,
+      "limits": "Hidden-window automation and software frame callbacks do not measure physical display latency, GPU hardware utilization, laptop battery drain, or an 8 GB host."
+    },
+    "builds": {
+      "candidate": {
+        "mainSha256": "d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd"
+      }
+    },
+    "samples": [
+      {
+        "build": "candidate",
+        "complete": true,
+        "timings": [
+          {
+            "cycle": 1,
+            "elapsedMs": 8008.057458000001
+          },
+          {
+            "cycle": 2,
+            "elapsedMs": 2079.216625000001
+          },
+          {
+            "cycle": 3,
+            "elapsedMs": 2089.3948330000003
+          },
+          {
+            "cycle": 4,
+            "elapsedMs": 2080.786333
+          },
+          {
+            "cycle": 5,
+            "elapsedMs": 2092.4752499999995
+          },
+          {
+            "cycle": 6,
+            "elapsedMs": 2082.867875
+          },
+          {
+            "cycle": 7,
+            "elapsedMs": 2089.9302500000013
+          },
+          {
+            "cycle": 8,
+            "elapsedMs": 2080.597791
+          },
+          {
+            "cycle": 9,
+            "elapsedMs": 2089.992666000002
+          },
+          {
+            "cycle": 10,
+            "elapsedMs": 2065.437291000002
+          },
+          {
+            "cycle": 11,
+            "elapsedMs": 2071.5828340000007
+          },
+          {
+            "cycle": 12,
+            "elapsedMs": 2065.4985000000015
+          },
+          {
+            "cycle": 13,
+            "elapsedMs": 2085.426333000003
+          },
+          {
+            "cycle": 14,
+            "elapsedMs": 2065.2583749999976
+          },
+          {
+            "cycle": 15,
+            "elapsedMs": 2075.9740840000013
+          },
+          {
+            "cycle": 16,
+            "elapsedMs": 2100.135374999998
+          },
+          {
+            "cycle": 17,
+            "elapsedMs": 2091.189750000005
+          },
+          {
+            "cycle": 18,
+            "elapsedMs": 2064.8392499999973
+          },
+          {
+            "cycle": 19,
+            "elapsedMs": 2210.0434590000004
+          },
+          {
+            "cycle": 20,
+            "elapsedMs": 2094.587667
+          }
+        ],
+        "activity": [
+          {
+            "cycle": 2,
+            "elapsedMs": 10089.719583,
+            "timeMs": 14729.302625,
+            "rssMiB": 628.203125,
+            "footprintMiB": 488.81778717041016,
+            "heap": {
+              "usedSize": 21020572,
+              "totalSize": 43646976,
+              "embedderHeapUsedSize": 6687416,
+              "backingStorageSize": 4465338
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2039,
+              "jsEventListeners": 959
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 184.53125,
+                "footprintMiB": 50.40796661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 103.609375,
+                "footprintMiB": 259.7198486328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.046875,
+                "footprintMiB": 7.125846862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 292.015625,
+                "footprintMiB": 171.56412506103516
+              }
+            }
+          },
+          {
+            "cycle": 4,
+            "elapsedMs": 14305.125542,
+            "timeMs": 18942.473667,
+            "rssMiB": 655.453125,
+            "footprintMiB": 470.84908294677734,
+            "heap": {
+              "usedSize": 34135760,
+              "totalSize": 52822016,
+              "embedderHeapUsedSize": 13340560,
+              "backingStorageSize": 4502256
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 3393,
+              "jsEventListeners": 2684
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.28125,
+                "footprintMiB": 51.89234161376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 103.796875,
+                "footprintMiB": 214.8135986328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.046875,
+                "footprintMiB": 7.125846862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 317.328125,
+                "footprintMiB": 197.01729583740234
+              }
+            }
+          },
+          {
+            "cycle": 6,
+            "elapsedMs": 18523.54425,
+            "timeMs": 23163.89925,
+            "rssMiB": 661.796875,
+            "footprintMiB": 485.42720794677734,
+            "heap": {
+              "usedSize": 26692752,
+              "totalSize": 53608448,
+              "embedderHeapUsedSize": 10843808,
+              "backingStorageSize": 4506076
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 3930,
+              "jsEventListeners": 2392
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.3125,
+                "footprintMiB": 51.93921661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 104.578125,
+                "footprintMiB": 223.8135986328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 322.875,
+                "footprintMiB": 202.56417083740234
+              }
+            }
+          },
+          {
+            "cycle": 8,
+            "elapsedMs": 22739.927458,
+            "timeMs": 27379.164042,
+            "rssMiB": 672.046875,
+            "footprintMiB": 501.27098083496094,
+            "heap": {
+              "usedSize": 23868868,
+              "totalSize": 58589184,
+              "embedderHeapUsedSize": 6771904,
+              "backingStorageSize": 4465362
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 2039,
+              "jsEventListeners": 955
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 187.5625,
+                "footprintMiB": 53.11109161376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 105.703125,
+                "footprintMiB": 230.5479965209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 330.75,
+                "footprintMiB": 210.50167083740234
+              }
+            }
+          },
+          {
+            "cycle": 10,
+            "elapsedMs": 26940.186875,
+            "timeMs": 31580.960708,
+            "rssMiB": 681.0625,
+            "footprintMiB": 494.08348083496094,
+            "heap": {
+              "usedSize": 34250716,
+              "totalSize": 66191360,
+              "embedderHeapUsedSize": 14249904,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4347,
+              "jsEventListeners": 2399
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 186.265625,
+                "footprintMiB": 48.51734161376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 106.734375,
+                "footprintMiB": 219.7823715209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 340.03125,
+                "footprintMiB": 218.67354583740234
+              }
+            }
+          },
+          {
+            "cycle": 12,
+            "elapsedMs": 31123.624958,
+            "timeMs": 35765.029833,
+            "rssMiB": 680.96875,
+            "footprintMiB": 495.86473083496094,
+            "heap": {
+              "usedSize": 39619256,
+              "totalSize": 66453504,
+              "embedderHeapUsedSize": 15846416,
+              "backingStorageSize": 4502280
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4354,
+              "jsEventListeners": 2680
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 185.765625,
+                "footprintMiB": 48.87671661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 106.734375,
+                "footprintMiB": 220.8448715209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 340.4375,
+                "footprintMiB": 219.03292083740234
+              }
+            }
+          },
+          {
+            "cycle": 14,
+            "elapsedMs": 35321.282167,
+            "timeMs": 39957.400042,
+            "rssMiB": 708.828125,
+            "footprintMiB": 526.6616516113281,
+            "heap": {
+              "usedSize": 40122268,
+              "totalSize": 72482816,
+              "embedderHeapUsedSize": 16095360,
+              "backingStorageSize": 4502280
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4392,
+              "jsEventListeners": 2684
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 182.515625,
+                "footprintMiB": 49.47046661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 102.78125,
+                "footprintMiB": 216.2667465209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 375.5,
+                "footprintMiB": 253.81421661376953
+              }
+            }
+          },
+          {
+            "cycle": 16,
+            "elapsedMs": 39538.504208,
+            "timeMs": 44177.150208,
+            "rssMiB": 710.71875,
+            "footprintMiB": 530.1147766113281,
+            "heap": {
+              "usedSize": 37356188,
+              "totalSize": 73007104,
+              "embedderHeapUsedSize": 13690600,
+              "backingStorageSize": 4502280
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 3393,
+              "jsEventListeners": 2684
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 183.578125,
+                "footprintMiB": 50.29859161376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 102.765625,
+                "footprintMiB": 218.3604965209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.03125,
+                "footprintMiB": 7.110221862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 376.34375,
+                "footprintMiB": 254.34546661376953
+              }
+            }
+          },
+          {
+            "cycle": 18,
+            "elapsedMs": 43739.710416999995,
+            "timeMs": 48380.298333,
+            "rssMiB": 654.71875,
+            "footprintMiB": 486.7085266113281,
+            "heap": {
+              "usedSize": 32650148,
+              "totalSize": 76677120,
+              "embedderHeapUsedSize": 11823128,
+              "backingStorageSize": 4490655
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 3310,
+              "jsEventListeners": 2395
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 183.640625,
+                "footprintMiB": 50.54859161376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 102.71875,
+                "footprintMiB": 227.1573715209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.984375,
+                "footprintMiB": 7.063346862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 320.375,
+                "footprintMiB": 201.93921661376953
+              }
+            }
+          },
+          {
+            "cycle": 20,
+            "elapsedMs": 48091.016458,
+            "timeMs": 52734.209583,
+            "rssMiB": 686.046875,
+            "footprintMiB": 512.3491744995117,
+            "heap": {
+              "usedSize": 39941180,
+              "totalSize": 82444288,
+              "embedderHeapUsedSize": 16477288,
+              "backingStorageSize": 4502280
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 4461,
+              "jsEventListeners": 2695
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 185.703125,
+                "footprintMiB": 53.15796661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 105.03125,
+                "footprintMiB": 223.5323715209961
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 47.984375,
+                "footprintMiB": 7.063346862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 347.328125,
+                "footprintMiB": 228.59548950195312
+              }
+            }
+          }
+        ],
+        "recovery": [
+          {
+            "requestedSeconds": 20,
+            "elapsedSeconds": 20.070211250000007,
+            "cpuPercent": 0.1942553170243832,
+            "cpuIntervalMs": 2068.432958000005,
+            "timeMs": 72756.408,
+            "rssMiB": 613.90625,
+            "footprintMiB": 262.1147766113281,
+            "heap": {
+              "usedSize": 24016980,
+              "totalSize": 25821184,
+              "embedderHeapUsedSize": 5532440,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 183.6875,
+                "footprintMiB": 46.12671661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 99.625,
+                "footprintMiB": 53.8917236328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 48.046875,
+                "footprintMiB": 6.922721862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 282.546875,
+                "footprintMiB": 155.17361450195312
+              }
+            }
+          },
+          {
+            "requestedSeconds": 120,
+            "elapsedSeconds": 120.07062995799998,
+            "cpuPercent": 0.13607838341460748,
+            "cpuIntervalMs": 2071.2635829999927,
+            "timeMs": 172755.178125,
+            "rssMiB": 508.421875,
+            "footprintMiB": 263.83350372314453,
+            "heap": {
+              "usedSize": 24036348,
+              "totalSize": 25821184,
+              "embedderHeapUsedSize": 5699864,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 155.46875,
+                "footprintMiB": 46.15796661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 76.921875,
+                "footprintMiB": 53.8760986328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 42.265625,
+                "footprintMiB": 6.907096862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 233.765625,
+                "footprintMiB": 156.89234161376953
+              }
+            }
+          },
+          {
+            "requestedSeconds": 300,
+            "elapsedSeconds": 300.078375167,
+            "cpuPercent": 0.09542762636678863,
+            "cpuIntervalMs": 2068.278417000023,
+            "timeMs": 352760.083083,
+            "rssMiB": 504.234375,
+            "footprintMiB": 263.86475372314453,
+            "heap": {
+              "usedSize": 24053492,
+              "totalSize": 25821184,
+              "embedderHeapUsedSize": 5791384,
+              "backingStorageSize": 4400285
+            },
+            "dom": {
+              "documents": 2,
+              "nodes": 1789,
+              "jsEventListeners": 688
+            },
+            "ui": {
+              "editors": 1,
+              "diffEditors": 0,
+              "testDialogs": 0,
+              "sourceControlPanels": 0,
+              "loadedWorkerAssets": []
+            },
+            "roles": {
+              "main": {
+                "count": 1,
+                "rssMiB": 154.921875,
+                "footprintMiB": 46.18921661376953
+              },
+              "gpu-process": {
+                "count": 1,
+                "rssMiB": 75.890625,
+                "footprintMiB": 53.8760986328125
+              },
+              "utility": {
+                "count": 1,
+                "rssMiB": 42.21875,
+                "footprintMiB": 6.907096862792969
+              },
+              "renderer": {
+                "count": 1,
+                "rssMiB": 231.203125,
+                "footprintMiB": 156.89234161376953
+              }
+            }
+          }
+        ],
+        "startupMs": 295.46070799999995,
+        "welcome": {
+          "timeMs": 1259.237458,
+          "rssMiB": 412.015625,
+          "footprintMiB": 251.20797729492188,
+          "heap": {
+            "usedSize": 3391148,
+            "totalSize": 6373376,
+            "embedderHeapUsedSize": 1835488,
+            "backingStorageSize": 372790
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 195,
+            "jsEventListeners": 190
+          },
+          "ui": {
+            "editors": 0,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 170.09375,
+              "footprintMiB": 45.87671661376953
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 71.28125,
+              "footprintMiB": 163.00102996826172
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.671875,
+              "footprintMiB": 6.969596862792969
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 122.96875,
+              "footprintMiB": 35.360633850097656
+            }
+          }
+        },
+        "before": {
+          "timeMs": 4596.540833,
+          "rssMiB": 548.6875,
+          "footprintMiB": 262.6457290649414,
+          "heap": {
+            "usedSize": 21574340,
+            "totalSize": 36306944,
+            "embedderHeapUsedSize": 15553056,
+            "backingStorageSize": 4531726
+          },
+          "dom": {
+            "documents": 3,
+            "nodes": 4548,
+            "jsEventListeners": 4859
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 182.109375,
+              "footprintMiB": 50.29859161376953
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 92.546875,
+              "footprintMiB": 93.3135757446289
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.90625,
+              "footprintMiB": 7.110221862792969
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 226.125,
+              "footprintMiB": 111.92333984375
+            }
+          }
+        },
+        "nativeTestActive": {
+          "timeMs": 8764.336458,
+          "rssMiB": 607.46875,
+          "footprintMiB": 468.95845794677734,
+          "heap": {
+            "usedSize": 26590428,
+            "totalSize": 39714816,
+            "embedderHeapUsedSize": 11112368,
+            "backingStorageSize": 4490751
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 3341,
+            "jsEventListeners": 2169
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 1,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 185.25,
+              "footprintMiB": 52.42359161376953
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 102.375,
+              "footprintMiB": 253.8760986328125
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.96875,
+              "footprintMiB": 7.110221862792969
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 271.84375,
+              "footprintMiB": 155.47035217285156
+            },
+            "child": {
+              "count": 1,
+              "rssMiB": 0.03125,
+              "footprintMiB": 0.07819366455078125
+            }
+          }
+        },
+        "workloadMs": 48137.415167,
+        "afterWork": {
+          "timeMs": 52812.844958,
+          "rssMiB": 684.65625,
+          "footprintMiB": 512.3491744995117,
+          "heap": {
+            "usedSize": 39950636,
+            "totalSize": 82444288,
+            "embedderHeapUsedSize": 16477288,
+            "backingStorageSize": 4502280
+          },
+          "dom": {
+            "documents": 2,
+            "nodes": 4461,
+            "jsEventListeners": 2695
+          },
+          "ui": {
+            "editors": 1,
+            "diffEditors": 0,
+            "testDialogs": 0,
+            "sourceControlPanels": 0,
+            "loadedWorkerAssets": []
+          },
+          "roles": {
+            "main": {
+              "count": 1,
+              "rssMiB": 185.703125,
+              "footprintMiB": 53.15796661376953
+            },
+            "gpu-process": {
+              "count": 1,
+              "rssMiB": 104.421875,
+              "footprintMiB": 223.5323715209961
+            },
+            "utility": {
+              "count": 1,
+              "rssMiB": 47.984375,
+              "footprintMiB": 7.063346862792969
+            },
+            "renderer": {
+              "count": 1,
+              "rssMiB": 346.546875,
+              "footprintMiB": 228.59548950195312
+            }
+          },
+          "elapsedSeconds": 0.12573166700000002
+        },
+        "editorIdentityAndUndoPreserved": true,
+        "processFamilyExited": true
+      }
+    ]
+  },
+  "interleavedStartup": {
+    "complete": true,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "27.2.0",
+      "cpu": "Apple M3",
+      "ramBytes": 25769803776
+    },
+    "protocol": {
+      "trials": 7,
+      "launch": "Fresh process to Welcome DOM, then same-profile warm launch. OS caches retained. Alternating order per pair. Hidden disposable Minimal Mode profiles."
+    },
+    "builds": {
+      "baseline": "b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300",
+      "candidate": "d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd"
+    },
+    "samples": [
+      {
+        "label": "baseline",
+        "pair": 0,
+        "freshMs": 434.117666,
+        "warmMs": 323.02208399999995
+      },
+      {
+        "label": "candidate",
+        "pair": 0,
+        "freshMs": 328.29220799999985,
+        "warmMs": 327.0067079999999
+      },
+      {
+        "label": "candidate",
+        "pair": 1,
+        "freshMs": 322.3633749999999,
+        "warmMs": 307.84204100000034
+      },
+      {
+        "label": "baseline",
+        "pair": 1,
+        "freshMs": 303.64066600000024,
+        "warmMs": 317.88695899999993
+      },
+      {
+        "label": "baseline",
+        "pair": 2,
+        "freshMs": 298.781708,
+        "warmMs": 289.86783300000025
+      },
+      {
+        "label": "candidate",
+        "pair": 2,
+        "freshMs": 291.7839170000002,
+        "warmMs": 299.86154200000055
+      },
+      {
+        "label": "candidate",
+        "pair": 3,
+        "freshMs": 297.7645419999999,
+        "warmMs": 343.3674999999994
+      },
+      {
+        "label": "baseline",
+        "pair": 3,
+        "freshMs": 325.7308750000002,
+        "warmMs": 340.96916599999986
+      },
+      {
+        "label": "baseline",
+        "pair": 4,
+        "freshMs": 330.15800000000036,
+        "warmMs": 335.82379200000014
+      },
+      {
+        "label": "candidate",
+        "pair": 4,
+        "freshMs": 333.2775419999998,
+        "warmMs": 339.99666699999943
+      },
+      {
+        "label": "candidate",
+        "pair": 5,
+        "freshMs": 329.4285840000002,
+        "warmMs": 339.14129199999934
+      },
+      {
+        "label": "baseline",
+        "pair": 5,
+        "freshMs": 346.98825000000033,
+        "warmMs": 340.3420839999999
+      },
+      {
+        "label": "baseline",
+        "pair": 6,
+        "freshMs": 338.3780829999996,
+        "warmMs": 338.6363339999989
+      },
+      {
+        "label": "candidate",
+        "pair": 6,
+        "freshMs": 333.8601660000004,
+        "warmMs": 338.0397090000006
+      }
+    ]
+  },
+  "shutdownAfter": {
+    "complete": true,
+    "platform": "darwin",
+    "arch": "arm64",
+    "mainSha256": "d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd",
+    "cycles": [
+      {
+        "startupMs": 381.07562499999995,
+        "quitMs": 24.207042
+      },
+      {
+        "startupMs": 285.7272919999999,
+        "quitMs": 41.72033299999998
+      },
+      {
+        "startupMs": 312.22575000000006,
+        "quitMs": 30.088666999999987
+      },
+      {
+        "startupMs": 290.7780829999999,
+        "quitMs": 24.92862500000001
+      },
+      {
+        "startupMs": 281.07570799999985,
+        "quitMs": 27.668458999999984
+      },
+      {
+        "startupMs": 281.9250840000004,
+        "quitMs": 37.59145800000033
+      },
+      {
+        "startupMs": 297.38904200000025,
+        "quitMs": 27.20849999999973
+      },
+      {
+        "startupMs": 282.4661249999999,
+        "quitMs": 41.38645799999995
+      },
+      {
+        "startupMs": 297.38016700000026,
+        "quitMs": 28.957917000000634
+      },
+      {
+        "startupMs": 293.6417499999998,
+        "quitMs": 26.439500000000407
+      },
+      {
+        "startupMs": 281.50108399999954,
+        "quitMs": 28.53687499999978
+      },
+      {
+        "startupMs": 290.0617910000001,
+        "quitMs": 26.592791000000034
+      },
+      {
+        "startupMs": 280.2795419999993,
+        "quitMs": 29.691291000000092
+      },
+      {
+        "startupMs": 283.17475000000013,
+        "quitMs": 25.682415999999648
+      },
+      {
+        "startupMs": 278.2327500000001,
+        "quitMs": 32.534208000000035
+      },
+      {
+        "startupMs": 419.06541600000037,
+        "quitMs": 42.10466600000018
+      },
+      {
+        "startupMs": 413.7516659999992,
+        "quitMs": 28.66479199999958
+      },
+      {
+        "startupMs": 319.59312500000124,
+        "quitMs": 25.48199999999997
+      },
+      {
+        "startupMs": 300.3117920000004,
+        "quitMs": 25.55225000000064
+      },
+      {
+        "startupMs": 298.6075409999994,
+        "quitMs": 24.373250000000553
+      },
+      {
+        "startupMs": 286.18833300000006,
+        "quitMs": 25.122166000001016
+      },
+      {
+        "startupMs": 298.7822500000002,
+        "quitMs": 25.89666600000055
+      },
+      {
+        "startupMs": 283.84504200000083,
+        "quitMs": 31.982124999998632
+      },
+      {
+        "startupMs": 313.9157919999998,
+        "quitMs": 24.870167000000947
+      },
+      {
+        "startupMs": 319.35925000000134,
+        "quitMs": 23.608625000000757
+      },
+      {
+        "startupMs": 304.5799590000006,
+        "quitMs": 25.2115419999991
+      },
+      {
+        "startupMs": 285.9757500000014,
+        "quitMs": 24.828292000000147
+      },
+      {
+        "startupMs": 287.0917079999999,
+        "quitMs": 43.75908399999935
+      },
+      {
+        "startupMs": 309.0268329999999,
+        "quitMs": 26.666832999999315
+      },
+      {
+        "startupMs": 302.9962910000013,
+        "quitMs": 41.50983300000007
+      },
+      {
+        "startupMs": 322.2193750000006,
+        "quitMs": 32.490999999999985
+      },
+      {
+        "startupMs": 299.8777090000003,
+        "quitMs": 42.00070799999958
+      },
+      {
+        "startupMs": 303.77912500000093,
+        "quitMs": 36.94329099999959
+      },
+      {
+        "startupMs": 315.4075839999987,
+        "quitMs": 25.789208999998664
+      },
+      {
+        "startupMs": 288.13816699999734,
+        "quitMs": 37.487999999997555
+      },
+      {
+        "startupMs": 321.43808400000125,
+        "quitMs": 39.80291700000089
+      },
+      {
+        "startupMs": 297.6877080000013,
+        "quitMs": 30.15441600000122
+      },
+      {
+        "startupMs": 283.7474169999987,
+        "quitMs": 438.6893749999981
+      },
+      {
+        "startupMs": 301.9492500000015,
+        "quitMs": 27.23316700000214
+      },
+      {
+        "startupMs": 310.6240829999988,
+        "quitMs": 43.479167000001326
+      },
+      {
+        "startupMs": 295.4173340000016,
+        "quitMs": 27.51433299999917
+      },
+      {
+        "startupMs": 293.648541999999,
+        "quitMs": 24.353957999999693
+      },
+      {
+        "startupMs": 297.6408330000013,
+        "quitMs": 29.191500000000815
+      },
+      {
+        "startupMs": 302.5641250000008,
+        "quitMs": 41.653833000000304
+      },
+      {
+        "startupMs": 274.6994590000031,
+        "quitMs": 33.28220800000054
+      },
+      {
+        "startupMs": 299.49004200000127,
+        "quitMs": 26.55279099999825
+      },
+      {
+        "startupMs": 303.68754199999967,
+        "quitMs": 24.54816700000083
+      },
+      {
+        "startupMs": 293.52491700000246,
+        "quitMs": 38.378083999999944
+      },
+      {
+        "startupMs": 297.7658330000013,
+        "quitMs": 28.142250000000786
+      },
+      {
+        "startupMs": 290.9147910000029,
+        "quitMs": 40.45499999999811
+      },
+      {
+        "startupMs": 337.72808299999815,
+        "quitMs": 25.169832999999926
+      },
+      {
+        "startupMs": 321.4177920000002,
+        "quitMs": 37.39654199999859
+      },
+      {
+        "startupMs": 574.2526660000003,
+        "quitMs": 26.727209000000585
+      },
+      {
+        "startupMs": 306.1052079999972,
+        "quitMs": 39.63354199999958
+      },
+      {
+        "startupMs": 316.00104099999953,
+        "quitMs": 26.3695000000007
+      },
+      {
+        "startupMs": 280.3029580000002,
+        "quitMs": 26.567917000000307
+      },
+      {
+        "startupMs": 277.56445899999744,
+        "quitMs": 31.02716700000019
+      },
+      {
+        "startupMs": 283.3478749999995,
+        "quitMs": 39.88850000000093
+      },
+      {
+        "startupMs": 302.901249999999,
+        "quitMs": 38.87054100000023
+      },
+      {
+        "startupMs": 296.62404199999946,
+        "quitMs": 42.55537499999991
+      }
+    ],
+    "cases": [
+      "Canceled close preserves dirty edits and Keep Drafts writes recovery before exit",
+      "Kept edits restore after relaunch and explicit discard exits",
+      {
+        "name": "Run Console descendant and explicit terminal drained on quit",
+        "quitMs": 40.41437500000029
+      },
+      "Run Tests modal deliberately declines quit, then dismissing it allows a later quit",
+      "Running approved suite canceled and all captured descendants exited on quit"
+    ]
+  },
+  "extendedSession": {
+    "complete": true,
+    "sourceCommit": "3d2998c75bc74901811812a34094eb40f8133203",
+    "mainSha256": "e8f1cdd1c1202dcad92b217c6a1f00d73f687a0fcba183c09c7211ceef7d272f",
+    "protocol": {
+      "soakSeconds": 900,
+      "intervalSeconds": 5,
+      "settleMs": 1000,
+      "featureRounds": 3
+    },
+    "host": {
+      "macOS": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131",
+      "processor": "Apple M3",
+      "ramBytes": 25769803776,
+      "power": "Now drawing from 'Battery Power'"
+    },
+    "rounds": 180,
+    "elapsedMs": 900001.115667,
+    "cRuns": 45,
+    "start": {
+      "rssMiB": 600.484375,
+      "footprintMiB": 404.6616516113281,
+      "heapUsedMiB": 19.51583480834961,
+      "dom": {
+        "documents": 2,
+        "nodes": 4423,
+        "jsEventListeners": 2456
+      },
+      "visible": {
+        "editors": 1,
+        "notebookCells": 0,
+        "pdfCanvases": 0,
+        "previewImages": 0
+      },
+      "pdfWorkers": 0
+    },
+    "end": {
+      "rssMiB": 659.703125,
+      "footprintMiB": 355.6616516113281,
+      "heapUsedMiB": 23.882526397705078,
+      "dom": {
+        "documents": 2,
+        "nodes": 1957,
+        "jsEventListeners": 2434
+      },
+      "visible": {
+        "editors": 1,
+        "notebookCells": 0,
+        "pdfCanvases": 0,
+        "previewImages": 0
+      },
+      "pdfWorkers": 0
+    },
+    "peakRssMiB": 661.25,
+    "peakFootprintMiB": 408.5522766113281,
+    "processFamilyExited": true,
+    "exit": {
+      "code": 0,
+      "signal": null
+    },
+    "switchMs": {
+      "median": 58.95589600000676,
+      "p95": 62.44683299999451,
+      "max": 67.174291000003
+    },
+    "editMs": {
+      "median": 13.172416500005056,
+      "p95": 13.826333999983035,
+      "max": 15.03849999999511
+    }
+  },
+  "rawInputSha256": {
+    "development-before.json": "313f9ce24ca280d7ece32eabebfef71af77d7dcfb9475f704e51d9cb3c372aac",
+    "development-after.json": "803ebd599702976997688d80bbc0a6afd9349508aa438264cefae300d07c65dc",
+    "memory-before-final.json": "b5676b723f433671a00c2a8d0076f74b12201a1dbcc099db814f18c57b51f359",
+    "memory-after-verified.json": "ea31b316c6fda46a53029d75bef25e0cbf6e53ea7c200d7d69348c10adb8223d",
+    "startup.json": "46e9a6ada1e1297704f35cc94f0bdfe6fbe5b681b1690e950bde99997e7971b0",
+    "shutdown-after.json": "bc61d911102a12e509ad536aeb48866af668a1e34300feabfbc9a58b2663aa1e",
+    "session-release-stabilization-2026-11-11T19-22-51.693Z.json": "14e27209eba0a65a0c500c46adfc7f106c46be5a54bfc3dac0ba44b0aeab9c6f"
+  }
+}
