@@ -41,6 +41,7 @@ import { Documents, type Tab } from './documents';
 import type { LiveToolReport } from './java/editor-tools';
 import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
+import { sourcePathFromUri } from '../shared/source-path';
 import { applyEditorTheme, clearEditorTheme } from './themes/editor-theme';
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -237,7 +238,8 @@ export default function MonacoSurface({
       openCodeEditor(source, resource, location) {
         if (source !== instance || resource.scheme !== 'file') return false;
         const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
-        const path = resource.toString() === instance.getModel()?.uri.toString() ? tab?.path : resource.fsPath;
+        const path = resource.toString() === instance.getModel()?.uri.toString() ? tab?.path
+          : sourcePathFromUri(resource, window.ion.platform);
         if (!path) return false;
         const line = location ? ('lineNumber' in location ? location.lineNumber : location.startLineNumber) : 1;
         const column = location ? ('column' in location ? location.column : location.startColumn) : 1;

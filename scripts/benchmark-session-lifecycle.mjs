@@ -59,6 +59,18 @@ await withScratch('session-benchmark', async (scratch) => {
   ])
   const session = await launch(target, join(scratch, 'profile'))
   const { app, page } = session
+  const diagnostics = { mainConsole: [], stderr: [], lifecycle: [] }
+  const bounded = (items, value) => { items.push(value); if (items.length > 12) items.shift() }
+  const onConsole = message => bounded(diagnostics.mainConsole, message.text().slice(0, 1200))
+  const onStderr = bytes => bounded(diagnostics.stderr, bytes.toString().slice(-1200))
+  const onExit = (code, signal) => { diagnostics.exit = { code, signal } }
+  const onPageClose = () => bounded(diagnostics.lifecycle, { event: 'page-closed', time: Date.now() })
+  const onCrash = () => bounded(diagnostics.lifecycle, { event: 'page-crashed', time: Date.now() })
+  app.on('console', onConsole)
+  session.appProcess.stderr?.on('data', onStderr)
+  session.appProcess.once('exit', onExit)
+  page.on('close', onPageClose)
+  page.on('crash', onCrash)
   const cdp = await page.context().newCDPSession(page)
   async function sample(label, timingMs, settleMs = 1000) {
     if (settleMs) await sleep(settleMs)
@@ -179,12 +191,19 @@ await withScratch('session-benchmark', async (scratch) => {
     assert.deepEqual(session.requests, [])
   } catch (error) {
     report.error = String(error)
+    report.diagnostics = diagnostics
     throw error
   } finally {
     await cdp.detach().catch(() => {})
     await record()
     await close(session)
     await eventually(async () => !(await resourceSnapshot(session, { details: true })).members.length, 'App process family must exit')
+    report.diagnostics = diagnostics
+    app.removeListener('console', onConsole)
+    session.appProcess.stderr?.removeListener('data', onStderr)
+    session.appProcess.removeListener('exit', onExit)
+    page.removeListener('close', onPageClose)
+    page.removeListener('crash', onCrash)
   }
   report.complete = true
   await record()

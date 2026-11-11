@@ -6,6 +6,19 @@ import { fileLanguage, formatterFamily, languageCapabilities, runnableLanguage }
 import { diagnosticPackIds } from '../src/shared/learning-packs'
 import { practiceLanguages } from '../src/shared/practice'
 import { parsePack } from '../src/main/learning/pack-format'
+import { sourcePathFromUri } from '../src/shared/source-path'
+
+test('source navigation keeps native drive casing and decoded Unicode paths without broadening workspace grants', () => {
+  const file = (path: string, authority = '') => ({ scheme: 'file', path, authority })
+  assert.equal(sourcePathFromUri(file('/C:/Study café/資料%20#1.java'), 'win32'), 'C:\\Study café\\資料%20#1.java')
+  assert.equal(sourcePathFromUri(file('/d:/code/main.c'), 'win32'), 'd:\\code\\main.c')
+  assert.equal(sourcePathFromUri(file('/Share/Study/main.c', 'Server'), 'win32'), '\\\\Server\\Share\\Study\\main.c')
+  assert.equal(sourcePathFromUri(file('/work/café/main.c'), 'darwin'), '/work/café/main.c')
+  assert.equal(sourcePathFromUri(file('/work/back\\slash.c'), 'linux'), '/work/back\\slash.c')
+  assert.equal(sourcePathFromUri(file('/outside.c'), 'win32'), undefined)
+  assert.equal(sourcePathFromUri({ scheme: 'https', authority: 'example.invalid', path: '/main.c' }, 'win32'), undefined)
+  assert.equal(sourcePathFromUri(file('/C:/bad\0name.c'), 'win32'), undefined)
+})
 
 test('file detection preserves runner distinctions and formatter exclusions', () => {
   assert.equal(fileLanguage('C:\\sample\\module.C').id, 'cpp')
