@@ -21,8 +21,11 @@ const execute = promisify(execFile)
 const mb = 1024 ** 2
 const candidate = await artifact(values.target)
 const baseline = values.baseline ? await artifact(values.baseline) : undefined
+const output = resolve(values.out)
+await mkdir(dirname(output), { recursive: true })
 const hash = async (target) => createHash('sha256').update(await readFile(join(target.path, 'main/index.cjs'))).digest('hex')
 const report = {
+  complete: false,
   time: new Date().toISOString(), host: { platform: process.platform, arch: process.arch, release: release(),
     cpu: cpus()[0]?.model, ramBytes: totalmem() },
   protocol: { trials, soakSeconds, idleMs: 1_400, fixture: '1000 files, 10 open tabs, 7,000-line diff, 4 C cases',
@@ -212,15 +215,20 @@ await withScratch('development-bench', async (scratch) => {
       assert.deepEqual(session.requests, [])
       console.log(`${label} ${index + 1}/${trials} finished`)
       return result
+    } catch (error) {
+      report.failure = { build: label, trial: index + 1, message: String(error) }
+      await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+      console.error(`${label} ${index + 1}/${trials} failed`, error)
+      throw error
     } finally { await close(session) }
   }
 
   for (let index = 0; index < trials; index++) {
     if (baseline) report.samples.baseline.push(await sample(baseline, 'baseline', index))
     report.samples.candidate.push(await sample(candidate, 'candidate', index))
+    await writeFile(output, JSON.stringify(report, null, 2) + '\n')
   }
 })
-const output = resolve(values.out)
-await mkdir(dirname(output), { recursive: true })
+report.complete = true
 await writeFile(output, JSON.stringify(report, null, 2) + '\n')
 console.log(output)
