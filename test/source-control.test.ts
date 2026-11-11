@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type SpawnOptions } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
-import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -109,6 +109,29 @@ test('Source Control reports saved and staged content, stages literal paths and 
     assert.equal(await git('show', 'HEAD:' + path), workingText)
     assert.equal((await git('log', '-1', '--format=%s')).trim(), 'Update value')
     assert.deepEqual((await status(service, root)).entries.map(({ path }) => path), ['untouched.txt'])
+  })
+})
+
+test('Source Control preserves racy-index detection when staging same-size timestamp-preserving changes', async () => {
+  await fixture(async ({ root, service, git }) => {
+    await git('config', 'core.trustctime', 'false')
+    await git('config', 'core.checkStat', 'minimal')
+    const path = 'same-second.txt'
+    const disk = join(root, path)
+    const timestamp = Math.floor(Date.now() / 1000) - 10
+    await writeFile(disk, 'before\n')
+    await utimes(disk, timestamp, timestamp)
+    await git('add', '--', path)
+    await git('commit', '-qm', 'Original content')
+    // Reproduce a coarse filesystem clock without sleeps. Git must rehash a
+    // same-size entry whose timestamp meets its index's racy boundary.
+    await utimes(join(root, '.git', 'index'), timestamp, timestamp)
+    await writeFile(disk, 'after!\n')
+    await utimes(disk, timestamp, timestamp)
+    assert.equal((await status(service, root)).entries.find(entry => entry.path === path)?.worktree, 'M')
+    await service.change(root, { path, action: 'stage' })
+    assert.equal(await git('show', ':' + path), 'after!\n')
+    assert.equal(await readFile(disk, 'utf8'), 'after!\n')
   })
 })
 

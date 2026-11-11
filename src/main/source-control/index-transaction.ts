@@ -21,6 +21,14 @@ async function transfer(source: FileHandle, target: FileHandle, signal: AbortSig
   }
 }
 
+async function preserveIndexTimestamp(target: FileHandle, source: { atimeNs: bigint; mtimeNs: bigint }): Promise<void> {
+  // Git uses the index timestamp to distrust stat-cache entries written in the
+  // same filesystem clock tick. A fresh copy timestamp can make changed bytes
+  // look clean. Round down rather than forward across a racy boundary when
+  // converting Node's nanoseconds to utimes' floating-point seconds.
+  await target.utimes(Number(source.atimeNs / 1_000_000_000n), Number(source.mtimeNs / 1_000_000_000n))
+}
+
 /** Git owns only the private index. Ion owns and publishes the real index lock,
  * so even a force-killed Git/filter process cannot strand that real lock. */
 export async function withIndexTransaction<T>(directory: string, signal: AbortSignal,
@@ -48,7 +56,10 @@ export async function withIndexTransaction<T>(directory: string, signal: AbortSi
         previous = await original.stat({ bigint: true })
         if (!previous.isFile() || previous.size > 32n * 1024n * 1024n) throw new Error('This Git index exceeds the safe staging limit.')
         const copy = await open(privateIndex, 'wx', 0o600)
-        try { await transfer(original, copy, signal) } finally { await copy.close() }
+        try {
+          await transfer(original, copy, signal)
+          await preserveIndexTimestamp(copy, previous)
+        } finally { await copy.close() }
       } finally { await original.close() }
     }
     const result = await run(privateIndex)
@@ -65,10 +76,11 @@ export async function withIndexTransaction<T>(directory: string, signal: AbortSi
     const staged = await open(privateIndex, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0))
     let stagedMode
     try {
-      const stats = await staged.stat()
-      if (!stats.isFile() || stats.size > 32 * 1024 * 1024) throw new Error('This Git index exceeds the safe staging limit.')
-      stagedMode = stats.mode & 0o777
+      const stats = await staged.stat({ bigint: true })
+      if (!stats.isFile() || stats.size > 32n * 1024n * 1024n) throw new Error('This Git index exceeds the safe staging limit.')
+      stagedMode = Number(stats.mode & 0o777n)
       await transfer(staged, lock, signal)
+      await preserveIndexTimestamp(lock, stats)
     } finally { await staged.close() }
     await lock.chmod(stagedMode)
     await lock.sync()
