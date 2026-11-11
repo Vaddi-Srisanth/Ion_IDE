@@ -99,11 +99,13 @@ jobs:
           npm install --global --prefix $tools --ignore-scripts --no-audit --no-fund prettier@3.6.2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $tools >> $env:GITHUB_PATH
+      - name: Verify native filesystem conflicts and scoped mutation
+        run: npm test -- workspace-files-windows file-mutation-races
       - name: Run portable and Windows-specific unit tests
         env:
           ION_TEST_WINDOWS_JAVA_BUILDS: '1'
           ION_TEST_PRIME_MAVEN: '1'
-        run: npm test -- languages line-console run-plans windows-java-build workspace-files-windows workspace-search shortcuts updates preferences-windows source-control projects file-mutation-races
+        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates preferences-windows source-control projects
       - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
       - run: npm run build
         id: native-build
@@ -242,7 +244,7 @@ jobs:
             npm run build
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { Pop-Location }
-          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
+          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --allow-unavailable-baseline --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-performance-candidate-attempt-${{ github.run_attempt }}

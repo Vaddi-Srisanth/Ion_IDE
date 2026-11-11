@@ -19,7 +19,7 @@ export function fileMutations(executable = process.env.ION_FILE_MUTATIONS_TEST_H
     return new Promise((resolve, reject) => {
       const child = execFile(executable, args, { windowsHide: true, timeout: 15_000, maxBuffer: 2048 }, (reason, _stdout, stderr) => {
         if (!reason) return resolve()
-        const detail = stderr.trim()
+        const detail = stderr.trim().split(/\r?\n/).at(-1)?.trim() ?? ''
         const code = nativeCodes.test(detail) ? detail : 'FILE_OPERATION_FAILED'
         const message = code === 'EEXIST' ? 'A file or folder with that name already exists.'
           : code === 'SCOPE_CHANGED' ? 'The destination folder changed. Reopen the folder and try again.'

@@ -304,10 +304,18 @@ export async function eventually(check, message, timeoutMs = 8000) {
 
 export async function withScratch(prefix, run) {
   const scratch = await temporaryDirectory(prefix)
+  let failure
   try {
     return await run(scratch)
+  } catch (error) {
+    failure = error
+    throw error
   } finally {
-    await rm(scratch, { recursive: true, force: true })
+    try { await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) }
+    catch (error) {
+      if (failure) throw new AggregateError([failure, error], 'The workload failed and its disposable files could not be removed.')
+      throw error
+    }
   }
 }
 

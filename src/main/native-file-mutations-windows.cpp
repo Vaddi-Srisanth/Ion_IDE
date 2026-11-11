@@ -48,6 +48,7 @@ using OpenFile = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_
 using CreateFileRelative = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK,
                                            PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 using ToDosError = ULONG(NTAPI*)(NTSTATUS);
+using SetFileRelative = NTSTATUS(NTAPI*)(HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG, FILE_INFORMATION_CLASS);
 
 template <class Function>
 Function loadFunction(HMODULE module, const char* name) {
@@ -75,9 +76,21 @@ class NativeFiles {
   NativeFiles() : library_(GetModuleHandleW(L"ntdll.dll")),
       open_(library_ ? loadFunction<OpenFile>(library_, "NtOpenFile") : nullptr),
       create_(library_ ? loadFunction<CreateFileRelative>(library_, "NtCreateFile") : nullptr),
+      set_(library_ ? loadFunction<SetFileRelative>(library_, "NtSetInformationFile") : nullptr),
       error_(library_ ? loadFunction<ToDosError>(library_, "RtlNtStatusToDosError") : nullptr) {}
 
-  explicit operator bool() const { return open_ && create_ && error_; }
+  explicit operator bool() const { return open_ && create_ && set_ && error_; }
+
+  bool renameRelative(HANDLE source, void* information, ULONG bytes, DWORD& error) const {
+    IO_STATUS_BLOCK io{};
+    // Native FileRenameInformation is class 10. The Win32 FileRenameInfo
+    // enumeration is class 3 and cannot be passed to this API.
+    const NTSTATUS status = set_(source, &io, information, bytes, static_cast<FILE_INFORMATION_CLASS>(10));
+    error = status < 0 ? error_(status) : ERROR_SUCCESS;
+    if (status < 0) std::fprintf(stderr, "NT_RENAME_STATUS=%08lX WIN32_ERROR=%lu\n",
+      static_cast<unsigned long>(status), static_cast<unsigned long>(error));
+    return status >= 0;
+  }
 
   FileHandle openRelative(HANDLE parent, std::wstring_view leaf, DWORD access, DWORD sharing,
                           bool directory, DWORD& error) const {
@@ -107,6 +120,7 @@ class NativeFiles {
   HMODULE library_;
   OpenFile open_;
   CreateFileRelative create_;
+  SetFileRelative set_;
   ToDosError error_;
 };
 
@@ -255,7 +269,7 @@ const char* pinParent(const NativeFiles& files, std::wstring_view path, std::uin
   return nullptr;
 }
 
-bool moveNoReplace(HANDLE source, HANDLE parent, const std::wstring& destination, DWORD& error) {
+bool moveNoReplace(const NativeFiles& files, HANDLE source, HANDLE parent, const std::wstring& destination, DWORD& error) {
   struct RenameRequest {
     FILE_RENAME_INFO information;
     wchar_t remaining[255];
@@ -266,9 +280,7 @@ bool moveNoReplace(HANDLE source, HANDLE parent, const std::wstring& destination
   request.information.RootDirectory = parent;
   request.information.FileNameLength = static_cast<DWORD>(nameBytes - sizeof(wchar_t));
   std::memcpy(reinterpret_cast<unsigned char*>(&request) + offset, destination.c_str(), nameBytes);
-  if (SetFileInformationByHandle(source, FileRenameInfo, &request, static_cast<DWORD>(offset + nameBytes))) return true;
-  error = GetLastError();
-  return false;
+  return files.renameRelative(source, &request, static_cast<ULONG>(sizeof(request)), error);
 }
 
 bool sameName(const std::wstring& left, const std::wstring& right) {
@@ -290,7 +302,7 @@ int renameEntry(const NativeFiles& files, HANDLE parent, HANDLE source, const BY
       }
     }
   }
-  return moveNoReplace(source, parent, to, error) ? 0 : fail(operationError(error));
+  return moveNoReplace(files, source, parent, to, error) ? 0 : fail(operationError(error));
 }
 
 int replaceEntry(const NativeFiles& files, HANDLE parent, HANDLE staged, const std::wstring& destination,
@@ -306,10 +318,10 @@ int replaceEntry(const NativeFiles& files, HANDLE parent, HANDLE staged, const s
   // Keep the actual destination under a unique adjacent name before publishing.
   // A crash between these two renames can leave the original name absent, but
   // its bytes remain in backup. Neither move can replace an external arrival.
-  if (!moveNoReplace(previous.get(), parent, backup, error)) return fail(operationError(error));
-  if (moveNoReplace(staged, parent, destination, error)) return 0;
+  if (!moveNoReplace(files, previous.get(), parent, backup, error)) return fail(operationError(error));
+  if (moveNoReplace(files, staged, parent, destination, error)) return 0;
   const DWORD publishError = error;
-  if (!moveNoReplace(previous.get(), parent, destination, error)) return fail("BACKUP_RETAINED");
+  if (!moveNoReplace(files, previous.get(), parent, destination, error)) return fail("BACKUP_RETAINED");
   return fail(operationError(publishError));
 }
 
@@ -388,7 +400,7 @@ int moveEntry(const NativeFiles& files, wchar_t* args[]) {
   BY_HANDLE_FILE_INFORMATION info{};
   if (!information(entry.get(), info, error)) return fail(operationError(error));
   if (reparse(info) || !exactLeaf(entry.get(), source)) return fail("SCOPE_CHANGED");
-  return moveNoReplace(entry.get(), to.back().get(), destination, error) ? 0 : fail(operationError(error));
+  return moveNoReplace(files, entry.get(), to.back().get(), destination, error) ? 0 : fail(operationError(error));
 }
 
 }  // namespace

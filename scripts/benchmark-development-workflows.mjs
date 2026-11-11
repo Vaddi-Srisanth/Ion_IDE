@@ -10,7 +10,8 @@ import { developmentFixture, processTree, testSpec, waitForChildren } from './de
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' }, baseline: { type: 'string' },
   trials: { type: 'string', default: '3' }, 'soak-seconds': { type: 'string', default: '60' },
-  out: { type: 'string', default: 'performance-results/development-workflows.json' } } })
+  out: { type: 'string', default: 'performance-results/development-workflows.json' },
+  'allow-unavailable-baseline': { type: 'boolean', default: false } } })
 const trials = Number(values.trials)
 const soakSeconds = Number(values['soak-seconds'])
 assert.ok(Number.isInteger(trials) && trials >= 1 && trials <= 8)
@@ -31,7 +32,8 @@ const report = {
   protocol: { trials, soakSeconds, idleMs: 1_400, fixture: '1000 files, 10 open tabs, 7,000-line diff, 4 C cases',
     memory: win ? 'summed working set and private bytes, per-process CIM and Get-Process counters' : 'summed RSS and per-process macOS-attributed footprint',
     cpu: 'delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.',
-    input: 'keypress to second renderer animation callback. Physical screen presentation is outside the measurement.' },
+    input: 'keypress to second renderer animation callback. Physical screen presentation is outside the measurement.',
+    baselineFailurePolicy: values['allow-unavailable-baseline'] ? 'Record an incomplete baseline as unavailable. Every candidate trial must pass.' : 'Fail on an incomplete baseline.' },
   builds: { candidate: await hash(candidate), ...(baseline && { baseline: await hash(baseline) }) },
   samples: { candidate: [], baseline: [] },
 }
@@ -226,7 +228,16 @@ await withScratch('development-bench', async (scratch) => {
   }
 
   for (let index = 0; index < trials; index++) {
-    if (baseline) report.samples.baseline.push(await sample(baseline, 'baseline', index))
+    if (baseline && !report.baselineUnavailable) {
+      try { report.samples.baseline.push(await sample(baseline, 'baseline', index)) }
+      catch (error) {
+        if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
+        report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
+        delete report.failure
+        console.error('BASELINE UNAVAILABLE. Its failed workload is retained in the report. No matched comparison can be claimed.')
+        await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+      }
+    }
     report.samples.candidate.push(await sample(candidate, 'candidate', index))
     await writeFile(output, JSON.stringify(report, null, 2) + '\n')
   }
