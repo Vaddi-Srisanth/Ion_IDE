@@ -8,10 +8,14 @@ import { windowsProcessTree } from './windows/process-tree.mjs'
 const execute = promisify(execFile)
 
 export async function git(root, ...args) {
+  const began = performance.now()
   const { stdout } = await execute('git', ['-C', root, ...args], {
-    windowsHide: true, timeout: 10_000, maxBuffer: 2_000_000,
+    // This prepares a real 1,000-file fixture before any application timing.
+    // Hosted Windows can exceed ten seconds during its initial bulk add.
+    windowsHide: true, timeout: process.platform === 'win32' ? 30_000 : 10_000, maxBuffer: 2_000_000,
     env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' },
   })
+  if (performance.now() - began > 5000) console.log(`Fixture Git ${args[0]} took ${Math.round(performance.now() - began)} ms before application measurement.`)
   return stdout
 }
 
