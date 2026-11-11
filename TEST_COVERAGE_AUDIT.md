@@ -1,5 +1,7 @@
 # Test coverage audit
 
+The stabilization follow-up's final unit run recorded 193 cases, 181 passes, 12 skips and zero failures. The final native Git rerun passed 19 cases. All skipped platform/tool requirements below remain explicit. The macOS fullscreen desktop test is deliberately skipped under background automation. The genuine Git LFS fixture was executed with a verified local 3.8.1 tool, and the native Windows workflow requires its installed Git LFS fixture. Missing tools fail that fixture with `UNAVAILABLE` rather than passing a substitute. [Stabilization evidence](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea)
+
 ## Twelve skipped tests
 
 The preceding macOS production regression recorded 164 unit tests, 152 passes, 12 skips, and zero failures. The eleven native Windows skips are expected on macOS. The Java launcher integration is opt-in because it needs separate tools and a populated dependency cache. The tests and skip gates are preserved.

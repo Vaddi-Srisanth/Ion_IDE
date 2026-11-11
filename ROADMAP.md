@@ -4,7 +4,7 @@ These milestones describe product scope. The current package uses its own releas
 
 ## Current engineering checkpoint
 
-The comprehensive audit and renderer profiling are recorded in [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md) and [BOTTLENECK_REPORT.md](BOTTLENECK_REPORT.md). The local 0.9.6 candidate includes the verified macOS file-race protection and reviewed-tree Git commit fix. Publication is held by EA-04, the executable-filter configuration race in a trusted repository. Resolve that launch boundary before a source push. Then run the native Windows mutation, desktop, installer and performance gates, investigate EA-15 and EA-16, and complete the longer hardware workloads. Focus Mode, debugger integration, learning progression and accessibility verification remain independent increments.
+The audit and renderer profiling are recorded in [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md) and [BOTTLENECK_REPORT.md](BOTTLENECK_REPORT.md). The 0.9.6 stabilization follow-up fixes the reproduced Git launch boundary, adds owned index publication and cancellation, and traces protected quits and natural memory recovery. Final native Windows, installer, performance and extended-session gates precede delivery. Physical lower-memory hardware remains an independent check. Focus Mode, debugger integration, learning progression and accessibility verification stay in later increments.
 
 ## Performance-first development milestones
 

@@ -2,6 +2,64 @@
 
 Paths under `performance-results/` refer to local benchmark outputs and logs. Reproduction commands are listed with the relevant workloads.
 
+## Stabilization from 9adcdea
+
+The preserved checkpoint and stabilized production builds ran on the same Apple M3, 24 GiB RAM, macOS 27.2.1 (26B131), Electron 45.2.3, battery power, hidden 1260 × 790 windows at 2× scale, and disposable Minimal Mode profiles. No thermal warning was recorded. OS caches and unrelated applications were preserved. The main-bundle hashes are `b4cca48d979b930ac389552a7da46b56ddc8b45654264eaec7db734355b72300` before and `d2cbdeda35cc757f4273a885017c13a8d41c7107bc257dc19d8c83a1e1be66dd` after. The main bundle grew from 193,007 to 201,127 bytes. No runtime dependency or persistent process was added.
+
+Three sequential ordinary-workload trials per build used the same 1,000-file repository, ten tabs, 7,000-line diff and four approved C cases. They ran before and after implementation, with time and background-load variation between groups. The separate startup check alternated seven pairs and measured a fresh process and a same-profile relaunch in each pair.
+
+| Measurement | Before | Stabilized |
+| --- | ---: | ---: |
+| Interleaved fresh launch, median of seven | 330.2 ms | 328.3 ms |
+| Interleaved warm launch, median of seven | 335.8 ms | 338.0 ms |
+| Welcome attributed footprint / summed RSS | 148.0 / 421.7 MiB | 152.9 / 422.8 MiB |
+| One C file footprint / RSS | 256.6 / 520.4 MiB | 258.4 / 520.7 MiB |
+| Ten tabs footprint / RSS | 250.8 / 530.5 MiB | 257.0 / 531.2 MiB |
+| Medium project, Git closed, footprint / RSS | 270.4 / 547.7 MiB | 274.2 / 549.9 MiB |
+| Welcome CPU, short sample, fraction of one core | 0.38% | 0.46% |
+| First source open | 192.9 ms | 207.2 ms |
+| Keydown to second animation callback | 20.1 ms | 16.9 ms |
+| Tab switch to observed source | 49.6 ms | 49.8 ms |
+| First Git panel / manual refresh | 931.9 / 70.2 ms | 981.2 / 77.3 ms |
+| Large diff ready | 1,434.5 ms | 1,475.8 ms |
+| Four-case suite, including intentional 3.6 s wait | 4,035.9 ms | 4,174.4 ms |
+
+The first sequential startup series measured 306.3 → 378.4 ms fresh and 287.1 → 335.7 ms warm. The seven-pair interleaved recheck above did not reproduce that difference. The results support similar launch behavior and a small measured Git-operation cost for configuration capture. They do not establish a startup or typing speedup. Animation callbacks measure software readiness, not physical display presentation. Summed RSS can count shared pages repeatedly.
+
+### Natural memory recovery
+
+One complete run per build repeated 20 identical edit/undo/save, Git/diff open-close and approved native C test cycles, then sampled at 20, 120 and 300 seconds after the last test dialog closed. No collection was forced. Both reports record the same harness SHA-256 `a2919c40eaf60f2399e0c575098cdf27b1ace388038f4b170e7ca7be94b62a4d`, actual elapsed times, per-role memory, heap and DOM counters. The stable Monaco host, keyboard context and original saved undo history survived. All observed native children and app processes exited.
+
+| Recovery point | Before footprint / RSS | Stabilized footprint / RSS |
+| --- | ---: | ---: |
+| 20 s | 235.4 / 596.8 MiB | 262.1 / 613.9 MiB |
+| 120 s | 235.4 / 596.8 MiB | 263.8 / 508.4 MiB |
+| 300 s | 237.2 / 492.4 MiB | 263.9 / 504.2 MiB |
+
+At five minutes, renderer footprint was 131.7 → 156.9 MiB, GPU helper footprint 53.5 → 53.9 MiB, and main footprint 45.1 → 46.2 MiB. Renderer heap was 23.12 → 22.94 MiB. Both had two DOM documents, 1,789 nodes and 688 listeners at every recovery point. The 100-second idle CPU interval measured 0.061% → 0.057% of one core. The following 180-second interval measured 0.047% → 0.118%. These intervals include sparse diagnostic calls. Native children were absent during recovery.
+
+The stabilized natural run retained 26.7 MiB more attributed memory and 11.8 MiB more summed RSS at five minutes. That single pair cannot establish an implementation-caused increase. A separate matched 12-cycle diagnostic pass with collection explicitly requested only after activity measured post-collection footprint 314.7 → 297.9 MiB, RSS 622.9 → 591.2 MiB and renderer heap 22.66 → 21.21 MiB. DOM and listener counts matched. Its immediate pre-collection RSS was 804.1 → 648.4 MiB. Timing and collection policy differ from the natural series, so the rows are separate. The varied native residency and stable live object counts support transient allocation and cache/allocator retention. They leave exact native allocation ownership open. Production never forces collection.
+
+The earlier pilot reached 20/120/300-second points but failed a test assertion on `.monaco-editor`, which Monaco replaces during model switches. That incomplete run is retained locally. The corrected harness verifies the stable `.monaco-host`, its keybinding context and actual Undo. The successful natural runs above use that corrected, identical script.
+
+### Reliability and packaging evidence
+
+The final unit run passed 181 tests with 12 documented skips. The final native Git suite separately passed 19 cases, including reftable and linked-worktree behavior. Genuine Git LFS passed six integrations. The macOS desktop regression and final Git/saved-suite desktop reruns passed. Baseline shutdown passed 24 cycles, with median 28.18 ms, p95 47.54 ms and maximum 49.92 ms. The stabilized 60-cycle run measured 28.81 ms median, 42.56 ms p95 and 438.69 ms maximum. Captured app/helper processes all exited. Recovery, canceled quits, a running terminal/program descendant and an active approved suite also passed. The historical shutdown workload error remains unavailable. The reproducible harness masking/disposed-process defects and a separate Git cancellation-owner gap were fixed.
+
+The local Apple Silicon DMG built and verified with ad-hoc signing. Its SHA-256 is `c6d61acf78a17d9edf62db6fd7b4c809f5e999acf95541210b3c95cdc16d9898`. The final native Windows and extended-session outcomes are recorded with the delivery gates. Physical 8 GiB hardware, visible display latency and a four-hour workload remain separate measurements. No RAM reduction is claimed from this stabilization work.
+
+```sh
+node scripts/test-git-configuration-race.mjs --source /path/to/9adcdea-source --expect-vulnerable --out before.json
+npm run test:git-security
+node scripts/test-git-lfs.mjs --toolpath /absolute/path/to/git-lfs
+ION_SHOW_TEST_WINDOWS=0 npm run test:shutdown -- --cycles 60
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-stabilization-startup.mjs --baseline /path/to/9adcdea-dist --trials 7
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-stabilization-memory.mjs --baseline /path/to/9adcdea-dist --target dist --cycles 20 --checkpoints 20,120,300
+ION_SHOW_TEST_WINDOWS=0 node scripts/benchmark-stabilization-memory.mjs --baseline /path/to/9adcdea-dist --cycles 12 --checkpoints 0 --diagnostic-gc
+```
+
+Raw reports and transcripts are under `performance-results/stabilization/`. The natural reports are `memory-before-final.json` and `memory-after-verified.json`, the separate collection pass is `memory-diagnostic.json`, the alternating launch report is `startup.json`, and ordinary workloads are `development-before.json` and `development-after.json`. [Engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) · [Coverage and skips](TEST_COVERAGE_AUDIT.md)
+
 ## Git and saved Run Tests
 
 These measurements compare the preserved 0.9.5 production build with the 0.9.6 development-workflow build before the filesystem and Git trust hardening. The same Apple M3 with 24 GiB RAM and macOS 27.2.1 ran three paired trials, alternating the builds. Each trial used a disposable Minimal Mode profile, offline renderer, hidden 1260 × 790 window at 2× scale, a 1,000-file Git project, and ten source tabs. Fresh launches leave OS filesystem caches intact. CPU is a fraction of one logical core. The GPU column measures the macOS-attributed memory of Chromium's GPU helper.

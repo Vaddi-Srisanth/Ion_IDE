@@ -93,6 +93,7 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
   const app = await _electron.launch({
     executablePath, args: [`--user-data-dir=${profile}`, ...launchArgs, ...(background ? [backgroundEntry] : args)], env, timeout: 20_000,
   })
+  const appProcess = app.process()
   const requests = []
   const errors = []
   app.context().on('request', (request) => {
@@ -112,17 +113,50 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
     const identity = await app.evaluate(({ app }) => ({ profile: app.getPath('userData'), pid: process.pid }))
     assert.equal(identity.profile, profile, 'app uses disposable profile')
     assert.equal(page.url(), 'app://workbench/index.html', 'production renderer loaded from the local app protocol')
-    return { app, page, profile, startupMs, requests, errors, pid: identity.pid }
+    return { app, appProcess, page, profile, startupMs, requests, errors, pid: identity.pid }
   } catch (error) {
-    await close({ app }).catch(() => {})
+    await close({ app, appProcess }).catch(() => {})
     throw error
   }
 }
 
 export async function close(session) {
-  const proc = session.app.process()
+  const proc = session.appProcess ?? session.app.process()
   if (proc.exitCode !== null || proc.signalCode !== null) return
   const exited = once(proc, 'exit')
+  const output = []
+  const observeConsole = (message) => {
+    output.push({ type: message.type(), text: message.text().slice(0, 1000) })
+    if (output.length > 12) output.shift()
+  }
+  session.app.on('console', observeConsole)
+  await session.app.evaluate(({ app, BrowserWindow }) => {
+    const events = []
+    const record = (name, prevented) => {
+      events.push({ name, prevented, time: Date.now() })
+      if (events.length > 16) events.shift()
+    }
+    const before = event => record('before-quit', event.defaultPrevented)
+    const will = event => record('will-quit', event.defaultPrevented)
+    app.on('before-quit', before)
+    app.on('will-quit', will)
+    const windows = BrowserWindow.getAllWindows().map(window => {
+      const closing = event => record('window-close', event.defaultPrevented)
+      const closed = () => record('window-closed')
+      window.on('close', closing)
+      window.on('closed', closed)
+      return { window, closing, closed }
+    })
+    globalThis.ionShutdownDiagnostics = { events, cleanup() {
+      app.removeListener('before-quit', before)
+      app.removeListener('will-quit', will)
+      for (const { window, closing, closed } of windows) {
+        window.removeListener('close', closing)
+        window.removeListener('closed', closed)
+      }
+      delete globalThis.ionShutdownDiagnostics
+    } }
+  }).catch(() => {})
   // Keep the inspector attached while the renderer confirms the window close.
   // Wait for the actual app process, including the asynchronous runner drain.
   let quitError
@@ -136,6 +170,19 @@ export async function close(session) {
       }),
     ])
   } catch (error) {
+    const lifecycle = await Promise.race([
+      session.app.evaluate(({ BrowserWindow }) => ({
+        events: globalThis.ionShutdownDiagnostics?.events,
+        windows: BrowserWindow.getAllWindows().map(window => ({
+          destroyed: window.isDestroyed(), loading: window.webContents.isLoadingMainFrame(),
+          crashed: window.webContents.isCrashed(),
+        })),
+        handles: process._getActiveHandles().map(handle => handle.constructor.name),
+        requests: process._getActiveRequests().map(request => request.constructor.name),
+      })).catch(() => undefined),
+      sleep(300, undefined, { ref: false }),
+    ])
+    if (lifecycle) console.error('Desktop shutdown lifecycle:', lifecycle)
     const dialogs = session.page && await Promise.race([
       session.page.locator('dialog[open]').evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')))
         .catch(() => undefined),
@@ -143,6 +190,7 @@ export async function close(session) {
     ])
     if (dialogs?.length) console.error('Open dialogs at shutdown:', dialogs)
     if (quitError) console.error('Failed to request desktop shutdown:', quitError.message)
+    if (output.length) console.error('Recent desktop console messages:', output)
     if (proc.exitCode === null && proc.signalCode === null) {
       proc.kill('SIGKILL')
       await exited
@@ -150,6 +198,10 @@ export async function close(session) {
     throw error
   } finally {
     clearTimeout(timer)
+    session.app.removeListener('console', observeConsole)
+    if (proc.exitCode === null && proc.signalCode === null) {
+      await session.app.evaluate(() => globalThis.ionShutdownDiagnostics?.cleanup()).catch(() => {})
+    }
   }
 }
 

@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { execute } from '../runner'
+import { withFrozenConfiguration } from './configuration'
+import { withIndexTransaction } from './index-transaction'
 
 export function inside(root: string, path: string): boolean {
   const fromRoot = relative(root, path)
@@ -121,12 +123,62 @@ const gitOptions = [
   '--no-pager', '--no-optional-locks', '--literal-pathspecs',
   '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false',
   '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', '-c', 'commit.gpgSign=false',
+  '-c', 'core.alternateRefsCommand=',
   '-c', 'status.submoduleSummary=false', '-c', 'submodule.recurse=false', '-c', 'protocol.allow=never',
 ]
 
-export async function git(repository: Repository, signal: AbortSignal, args: string[], options: {
+interface GitOptions {
   limit?: number; input?: string; timeout?: number; allowTruncation?: boolean; allowNotFound?: boolean; indexFile?: string
-} = {}) {
+}
+
+const objectId = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
+
+function plumbingCommand(args: string[]): boolean {
+  switch (args[0]) {
+    case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
+    case 'read-tree': return args.length === 2 && (args[1] === '--empty' || objectId.test(args[1]))
+    case 'update-index': return args.join(' ') === 'update-index -z --index-info'
+      || args.length >= 4 && args[1] === '--force-remove' && args[2] === '--'
+    case 'write-tree': return args.length === 1
+    case 'restore': return args.length >= 5 && args[1] === '--staged' && args[2] === '--source=HEAD' && args[3] === '--'
+    case 'commit-tree': return (args.length === 5 || args.length === 7) && objectId.test(args[1])
+      && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
+      && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
+    case 'symbolic-ref': return args.join(' ') === 'symbolic-ref --quiet --no-recurse HEAD'
+    case 'update-ref': return args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
+      && args[4].startsWith('refs/heads/') && objectId.test(args[5]) && objectId.test(args[6])
+    default: return false
+  }
+}
+
+export async function git(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {}) {
+  if (args[0] === 'status' || args[0] === 'add') {
+    if (args[0] === 'add' && (args.length < 4 || args[1] !== '-A' || args[2] !== '--')
+      || args[0] === 'status' && args.join(' ') !== 'status --porcelain=v2 -z --branch --untracked-files=all --ignore-submodules=dirty --find-renames=50%') {
+      throw new Error('This Git operation is outside Ion Source Control.')
+    }
+    const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'],
+      { limit: 256 * 1024 })
+    return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) => {
+      const projected = { ...repository, directory }
+      if (args[0] === 'add') return withIndexTransaction(repository.directory, signal, async indexFile => {
+        const result = await invokeGit(projected, signal, args, { ...options, indexFile }, environment)
+        await verifyMetadata()
+        return result
+      })
+      return invokeGit(projected, signal, args, options, environment)
+    })
+  }
+  if (!plumbingCommand(args)) throw new Error('This Git operation is outside Ion Source Control.')
+  if (!options.indexFile && ['read-tree', 'update-index', 'restore', 'write-tree'].includes(args[0])) {
+    return withIndexTransaction(repository.directory, signal, indexFile =>
+      invokeGit(repository, signal, args, { ...options, indexFile }))
+  }
+  return invokeGit(repository, signal, args, options)
+}
+
+async function invokeGit(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {},
+  environment: NodeJS.ProcessEnv = {}) {
   const result = await execute(repository.executable, [
     ...gitOptions, ...(options.indexFile ? ['-c', 'core.splitIndex=false'] : []),
     '--git-dir=' + repository.directory, '--work-tree=' + repository.root, ...args,
@@ -135,6 +187,7 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
     budget: { remaining: options.limit ?? 8192 }, splitOutput: true, collectOutput: false,
     environment: { ...envFor(repository.paths, tmpdir()), LC_ALL: 'C', GIT_TERMINAL_PROMPT: '0',
       GIT_ALLOW_PROTOCOL: '', GIT_NO_LAZY_FETCH: '1', GIT_NO_REPLACE_OBJECTS: '1',
+      ...environment,
       ...(options.indexFile && { GIT_INDEX_FILE: options.indexFile }) },
   })
   signal.throwIfAborted()
@@ -149,18 +202,4 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
   const detail = result.stderr?.trim().slice(0, 360)
   if (result.state === 'timeout') throw new Error('Git took too long. Try again or use a terminal for this repository.')
   throw new Error(detail || result.detail || 'Git could not complete the operation.')
-}
-
-/** Local config can run arbitrary executables through clean/process filters.
- * Installed global and system filters belong to the user's Git configuration. */
-export async function checkRepositoryFilters(repository: Repository, signal: AbortSignal): Promise<void> {
-  const { text } = await git(repository, signal, [
-    'config', '--includes', '--show-scope', '--null', '--name-only', '--get-regexp', '^filter\\..*\\.(clean|process)$',
-  ], { allowNotFound: true, limit: 32 * 1024 })
-  const fields = text.split('\0')
-  for (let index = 0; index < fields.length - 1; index += 2) {
-    if (fields[index] === 'local' || fields[index] === 'worktree') {
-      throw new Error('This repository configures a local Git filter. Use your terminal if you trust it.')
-    }
-  }
 }

@@ -1,5 +1,13 @@
 # Ion IDE bottleneck report
 
+## Stabilization follow-up
+
+The follow-up changed the Git execution boundary, index publication and test cleanup. It preserves the existing renderer and Monaco architecture. Seven alternating startup pairs measured fresh medians of 330.2 → 328.3 ms and warm medians of 335.8 → 338.0 ms. This recheck did not reproduce the earlier slower sequential launch group. The configuration snapshot added a measured 7.1 ms to median Git refresh in the three-trial workload. No permanent service was introduced. [Measurements and commands](PERFORMANCE.md#stabilization-from-9adcdea)
+
+Two natural five-minute runs kept live heap and DOM counts stable after 20 mixed cycles. RSS recovered from 596.8 to 492.4 MiB in the checkpoint and 613.9 to 504.2 MiB in the stabilized build. The stabilized five-minute renderer footprint was 25.2 MiB higher. In a separate matched diagnostic collection, renderer heap and whole-tree memory were lower in the candidate. These observations leave native allocation ownership open and do not justify forcing production collection, discarding undo, or replacing the editor. The raw reports preserve the larger temporary RSS values and the incomplete model-view assertion pilot.
+
+Repeated shutdown verified real program and shell descendants, drafts and active suites. The old eight-second report could hide a workload failure when an open modal declined quit. The exact historical primary error remains unavailable. The harness now retains the actual process handle and captures prevented close events and active resource types. Git writes now retain their cancellation owner, and private index publication protects the real lock during a killed filter. [Shutdown fixture](scripts/test-shutdown-stability.mjs) · [Index transaction](src/main/source-control/index-transaction.ts)
+
 ## Measurement protocol
 
 The preserved 0.9.5 baseline and 0.9.6 pre-hardening build ran production Electron and Monaco on Apple M3, 24 GiB RAM, macOS 27.2.1. Both runs used offline disposable Minimal Mode profiles and hidden 1260 × 790 windows at 2× scale. The input benchmark verifies a changed model viewport or observable UI state before sampling the next Chromium animation callback. It measures software scheduling and rendering readiness. Physical keyboard-to-display latency, native presented frames, GPU utilization and battery energy were outside this experiment.

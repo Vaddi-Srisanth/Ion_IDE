@@ -6,6 +6,8 @@
 
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
+The 0.9.6 stabilization candidate adds reproducible Git configuration-race tests, private index publication, cancellation cleanup, and measured memory recovery. The [engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) records the security boundary, native checks and remaining gates. [Performance evidence](PERFORMANCE.md)
+
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
 ![Ion IDE editing a C program with the workspace explorer, syntax highlighting, and editor tabs](docs/screenshots/editor.webp)

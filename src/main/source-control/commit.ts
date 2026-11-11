@@ -73,7 +73,11 @@ export async function commitReviewedChanges(repository: Repository, status: Pars
     // Name the reviewed branch, never HEAD. Git can compare-and-swap the ref
     // even if an external Git process stages files or changes branches.
     const old = status.unborn ? '0'.repeat(objectLength) : status.head
-    await run(repository, signal, ['update-ref', '--no-deref', '-m', 'commit: Ion Source Control', ref, commit, old])
+    signal.throwIfAborted()
+    // Once publication starts, closing the panel waits for this bounded CAS.
+    // Killing the writer here could strand a real ref lock or obscure success.
+    await run(repository, new AbortController().signal,
+      ['update-ref', '--no-deref', '-m', 'commit: Ion Source Control', ref, commit, old])
   } finally {
     await rm(scratch, { recursive: true, force: true }).catch(() => {})
   }

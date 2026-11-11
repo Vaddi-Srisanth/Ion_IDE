@@ -36,6 +36,11 @@ jobs:
           fi
           test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
       - run: npm run test:regression
+      - name: Verify configuration isolation and shutdown cleanup
+        run: |
+          npm run test:git-security
+          node scripts/test-git-lfs.mjs
+          npm run test:shutdown
       - name: Verify rendered syntax, capability labels, and clangd navigation
         run: |
           xcrun --find clangd
@@ -119,6 +124,14 @@ jobs:
           npm run test:source-control
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:project-suites
+      - name: Verify configuration isolation and shutdown cleanup
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:git-security
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-lfs.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:shutdown
       - name: Verify rendered syntax and capability labels
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/test-language-capabilities.mjs
@@ -214,13 +227,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node scripts/benchmark-windows.mjs --label candidate --terminal
-      - name: Benchmark Git and saved tests against the public 0.9.5 baseline
+      - name: Benchmark stabilization against local checkpoint 9adcdea
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'ion-performance-baseline'
-          git fetch --no-tags origin 51452e338da5405a8c5d8fb1bb567bfddc7e81c6
+          git fetch --no-tags origin 9adcdea658fbd12b701e8113616b39a33a61cceb
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git worktree add --detach $baseline 51452e338da5405a8c5d8fb1bb567bfddc7e81c6
+          git worktree add --detach $baseline 9adcdea658fbd12b701e8113616b39a33a61cceb
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Push-Location $baseline
           try {

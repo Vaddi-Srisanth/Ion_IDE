@@ -129,7 +129,9 @@ await withScratch('development-bench', async (scratch) => {
       await capture('repoClosed')
       result.input = await responsiveness(page, project)
       assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(({ name }) => /SourceControl|ProjectTestsDialog/.test(name))), false)
-      if (label === 'candidate') {
+      // The stabilization baseline already has these workflows. Older public
+      // builds can still supply the ordinary-editor control without this UI.
+      if (await page.getByTestId('toggle-source-control').count()) {
         const gitButton = page.getByTestId('toggle-source-control')
         const panel = page.getByTestId('source-control')
         const gitReady = panel.getByTestId('git-branch')

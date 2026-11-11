@@ -46,6 +46,8 @@
     "test:release:win": "node scripts/verify-windows-release.mjs",
     "test:workspaces": "node scripts/workspaces.mjs",
     "test:source-control": "node scripts/test-source-control.mjs",
+    "test:git-security": "node scripts/test-git-configuration-race.mjs",
+    "test:shutdown": "node scripts/test-shutdown-stability.mjs",
     "test:project-suites": "node scripts/test-project-suites.mjs",
     "test:resources": "node scripts/resource-lifecycle.mjs",
     "bench:resources": "node scripts/benchmark-resources.mjs",

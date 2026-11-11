@@ -2,6 +2,8 @@
 
 ## 0.9.6 development source
 
+- Stabilized Git configuration loading with a validated per-operation snapshot, preserved Git LFS storage, and deterministic late-configuration tests. Stage/Unstage publish through an owned index transaction and cancel on panel/window close.
+- Improved shutdown diagnostics and cleanup after natural app exit. Added launch/quit, recovery and child-process stress tests and natural memory recovery measurements at 20 seconds, two minutes and five minutes. [Stabilization audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea)
 - Added on-demand Source Control with Explorer badges, staged and working-tree diffs, stage, unstage, and local commits using installed Git.
 - Added **Run Tests** for saved, approved C cases and suites. Reuses the local runner for exit status, output comparisons, reliable compiler locations, reruns, and Stop.
 - Added shared language capabilities, source breadcrumbs and navigation history, and optional clangd definitions and references for C/C++.

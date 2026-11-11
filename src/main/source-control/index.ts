@@ -2,7 +2,7 @@ import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import type { SourceControlDiff, SourceControlEntry, SourceControlStatus } from '../../shared/source-control'
 import { commitReviewedChanges, gitObjectId } from './commit'
-import { absent, checkRepositoryFilters, git, gitDirectory, inside, readTextFile, resolveGit,
+import { absent, git, gitDirectory, inside, readTextFile, resolveGit,
   type Repository, UnavailableDiff } from './repository'
 import { parseStatus, safeGitPath, type ParsedStatus, type StatusEntry } from './status'
 
@@ -21,7 +21,6 @@ function exceedsLineLimit(text: string): boolean {
 }
 
 async function statusOf(repository: Repository, signal: AbortSignal): Promise<ParsedStatus> {
-  await checkRepositoryFilters(repository, signal)
   const { text, complete } = await git(repository, signal, [
     'status', '--porcelain=v2', '-z', '--branch', '--untracked-files=all', '--ignore-submodules=dirty', '--find-renames=50%',
   ], { limit: statusLimit, allowTruncation: true })
@@ -82,6 +81,7 @@ interface Snapshot {
 export class SourceControlService {
   private read?: AbortController
   private write?: Promise<void>
+  private writeController?: AbortController
   private snapshot?: Snapshot
 
   constructor(private readonly runGit: typeof git = git) {}
@@ -170,7 +170,6 @@ export class SourceControlService {
       const code = action === 'stage' ? entry.worktree : entry.index
       const paths = code === 'R' && entry.previousPath ? [path, entry.previousPath] : [path]
       if (action === 'stage') {
-        await checkRepositoryFilters(repository, signal)
         for (const name of paths) {
           const absolute = join(repository.root, name)
           await fileWithin(repository, absolute)
@@ -214,6 +213,7 @@ export class SourceControlService {
 
   close(): void {
     this.read?.abort()
+    this.writeController?.abort()
     this.read = undefined
     this.snapshot = undefined
   }
@@ -245,10 +245,13 @@ export class SourceControlService {
     if (this.write) throw new Error('Another Git operation is running.')
     this.read?.abort()
     const current = this.snapshot
-    const pending = operation(new AbortController().signal).then(() => {
+    const controller = new AbortController()
+    this.writeController = controller
+    const pending = operation(controller.signal).then(() => {
       if (this.snapshot === current) this.snapshot = undefined
     }).finally(() => {
       this.write = undefined
+      this.writeController = undefined
     })
     this.write = pending
     return pending
