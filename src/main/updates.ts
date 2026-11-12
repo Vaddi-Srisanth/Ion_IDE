@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { mkdtemp, open, rename, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { createHash, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
+import { lstat, mkdir, mkdtemp, open, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import type { UpdateStatus } from '../shared/updates'
 
@@ -18,6 +19,15 @@ interface Installer {
   url: string
   digest: string
   bytes: number
+}
+
+export interface DownloadedUpdate extends Installer { path: string; latest: string }
+const cacheFolder = /^Ion Update [A-Za-z0-9]{6}$/
+
+async function pruneCache(destination: string, keep?: string): Promise<void> {
+  const folders = await readdir(destination, { withFileTypes: true })
+  await Promise.all(folders.filter((entry) => entry.isDirectory() && cacheFolder.test(entry.name) && entry.name !== keep)
+    .map((entry) => rm(join(destination, entry.name), { recursive: true, force: true }).catch(() => {})))
 }
 
 type Result = { status: UpdateStatus; installer?: Installer }
@@ -92,19 +102,79 @@ export class GitHubUpdates {
   private result?: Result
   private checkPending?: Promise<UpdateStatus>
   private downloadController?: AbortController
+  private downloaded?: DownloadedUpdate
+  private notice?: string
 
   constructor(private readonly current: string, private readonly platform: string, private readonly arch: string,
     private readonly request: typeof fetch = fetch) {}
 
   status(): UpdateStatus {
-    return this.result?.status ?? { current: this.current, state: 'unchecked' }
+    const status = this.result?.status ?? { current: this.current, state: 'unchecked' as const }
+    return { ...status, ...(this.notice ? { notice: this.notice } : {}),
+      ...(status.state === 'available' && this.downloaded?.name === status.name ? { ready: true } : {}) }
+  }
+
+  ready(): DownloadedUpdate {
+    if (!this.downloaded || this.status().state !== 'available' || this.result?.installer?.name !== this.downloaded.name) {
+      throw new Error('Download and verify the update before installing it.')
+    }
+    return { ...this.downloaded }
+  }
+
+  // Loaded only when Updates is requested. The receipt cannot nominate an
+  // arbitrary path, URL, executable or command. Bytes are rehashed at install.
+  async restore(destination: string): Promise<void> {
+    try {
+      const file = await open(join(destination, 'result.json'), constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+      try {
+        const info = await file.stat()
+        if (info.isFile() && info.size <= 4096) {
+          const buffer = Buffer.alloc(4097)
+          const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
+          if (bytesRead <= 4096) {
+            const result = JSON.parse(buffer.subarray(0, bytesRead).toString('utf8')) as Record<string, unknown>
+            if (result.schemaVersion === 1 && ['installed', 'failed'].includes(String(result.state))
+              && typeof result.message === 'string' && result.message.length <= 512) {
+              this.notice = result.message.replace(/[\u0000-\u001f\u007f]/g, ' ')
+            }
+          }
+        }
+      } finally { await file.close() }
+    } catch { /* An absent receipt is normal before the first in-place update. */ }
+    try {
+      if (!(await lstat(destination)).isDirectory()) return
+      const path = join(destination, 'ready.json')
+      const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+      let saved: Record<string, unknown>
+      try {
+        const info = await file.stat()
+        if (!info.isFile() || info.size > 4096) return
+        const buffer = Buffer.alloc(4097)
+        const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
+        if (bytesRead > 4096) return
+        saved = JSON.parse(buffer.subarray(0, bytesRead).toString('utf8')) as Record<string, unknown>
+      } finally { await file.close() }
+      if (typeof saved.folder !== 'string' || !cacheFolder.test(saved.folder)) return
+      const suffix = platformSuffix(this.platform, this.arch)
+      if (!suffix) return
+      const result = selectInstaller(saved.release, this.current, suffix)
+      if (!result.installer || result.status.state !== 'available') { await pruneCache(destination); return }
+      const directory = join(destination, saved.folder)
+      if (!(await lstat(directory)).isDirectory()) return
+      const payload = join(directory, result.installer.name)
+      const stat = await lstat(payload)
+      if (!stat.isFile() || stat.size !== result.installer.bytes) return
+      this.result = result
+      this.downloaded = { ...result.installer, latest: result.status.latest, path: payload }
+      await pruneCache(destination, saved.folder)
+    } catch { /* A missing or damaged receipt never blocks ordinary editing. */ }
   }
 
   check(): Promise<UpdateStatus> {
     if (this.checkPending) return this.checkPending
     this.checkPending = this.getLatest().then((result) => {
       this.result = result
-      return result.status
+      return this.status()
     }).finally(() => { this.checkPending = undefined })
     return this.checkPending
   }
@@ -148,9 +218,10 @@ export class GitHubUpdates {
     throw new Error('GitHub returned an unexpected installer download location.')
   }
 
-  async download(destination: string): Promise<{ name: string; path: string }> {
+  async download(destination: string, persist = false): Promise<{ name: string; path: string }> {
     const installer = this.result?.installer
     if (!installer) throw new Error('Check for an available update first.')
+    if (this.downloaded?.name === installer.name) return this.downloaded
     if (this.downloadController) throw new Error('An update download is already running.')
     const controller = new AbortController()
     this.downloadController = controller
@@ -158,6 +229,8 @@ export class GitHubUpdates {
     let directory: string | undefined
     let published = false
     try {
+      await mkdir(destination, { recursive: true, mode: 0o700 })
+      if (!(await lstat(destination)).isDirectory()) throw new Error('The update cache must be a regular directory.')
       directory = await mkdtemp(join(destination, 'Ion Update '))
       const temporary = join(directory, installer.name + '.part')
       const path = join(directory, installer.name)
@@ -190,6 +263,23 @@ export class GitHubUpdates {
       }
       signal.throwIfAborted()
       await rename(temporary, path)
+      const latest = this.result!.status.state === 'available' ? this.result!.status.latest : ''
+      if (persist) {
+        const receipt = { folder: basename(directory), release: {
+          tag_name: 'v' + latest, draft: false, prerelease: false,
+          assets: [{ ...installer, state: 'uploaded', size: installer.bytes, browser_download_url: installer.url }],
+        } }
+        const temporaryReceipt = join(destination, '.ready-' + randomUUID() + '.json')
+        try {
+          const file = await open(temporaryReceipt, 'wx', 0o600)
+          try { await file.writeFile(JSON.stringify(receipt)); await file.sync() } finally { await file.close() }
+          await rename(temporaryReceipt, join(destination, 'ready.json'))
+        } finally { await rm(temporaryReceipt, { force: true }) }
+        await pruneCache(destination, basename(directory))
+      }
+      const previous = this.downloaded
+      this.downloaded = { ...installer, latest, path }
+      if (previous && dirname(previous.path) !== directory) await rm(dirname(previous.path), { recursive: true, force: true })
       published = true
       return { name: installer.name, path }
     } catch (error) {

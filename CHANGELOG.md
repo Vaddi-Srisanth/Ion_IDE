@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.7 preview
+
+- Added explicit **Install and Restart** after a verified GitHub download. The Mac helper waits for the normal save/quit flow, atomically replaces the running app at its existing location and retains a rollback archive. The Windows helper waits for exit, protects the verified installer, backs up the application and runs per-user Setup in place; failed Setup restores the prior app.
+- Updates use a bounded local cache and resume a previously verified download offline. They preserve quarantine/Internet-zone metadata and can require native OS approval. No updater process starts during normal editing. Versions through 0.9.6 need one bootstrap installation before this new flow is available.
+- Added optional remembered workspace-folder approval for single-file Runs, with exact directory identity, bounded local persistence and a **Forget Trusted Run Folders** action. Unchecked or cancelled prompts grant no persistent trust; builds and tests keep their own approval.
+- Added native updater failure/race tests, real editor quit/recovery integration tests and an on-demand whole-process-family runtime sampler with local HTML, Markdown, CSV and JSON output.
+
 ## 0.9.6 preview
 
 - Stabilized Git configuration loading with a validated per-operation snapshot, preserved Git LFS storage, and deterministic late-configuration tests. Stage/Unstage publish through an owned index transaction and cancel on panel/window close.

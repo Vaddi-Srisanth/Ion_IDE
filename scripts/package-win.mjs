@@ -70,7 +70,7 @@ try {
 
   const stage = join(scratch, 'app')
   const native = join(output, 'native')
-  const resources = ['ion-rg.exe', 'ion-file-ops.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt']
+  const resources = ['ion-rg.exe', 'ion-file-ops.exe', 'ion-update.exe', 'ion-rg-LICENSE.txt', 'ion-rg-NOTICES.txt']
   if (await access(join(native, 'ion-pty.exe')).then(() => true, () => false)) resources.push('ion-pty.exe')
   await mkdir(stage)
   await writeFile(join(stage, 'package.json'), JSON.stringify({ name, productName, version, main, author }))
@@ -113,6 +113,7 @@ try {
     console.log('Signing and verifying the application executable…')
     await signWindowsBinary(executable, signing)
     await signWindowsBinary(join(payload, 'resources', 'ion-file-ops.exe'), signing)
+    await signWindowsBinary(join(payload, 'resources', 'ion-update.exe'), signing)
     if (resources.includes('ion-pty.exe')) {
       await signWindowsBinary(join(payload, 'resources', 'ion-pty.exe'), signing)
     }

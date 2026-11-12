@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, rmdir } from 'node:fs/promises'
+import { access, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, rmdir } from 'node:fs/promises'
+import { constants } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,7 +9,12 @@ import { parseArgs } from 'node:util'
 if (process.platform !== 'darwin') throw new Error('Install Ion IDE on a Mac.')
 const { values } = parseArgs({ options: { source: { type: 'string' } } })
 const project = fileURLToPath(new URL('..', import.meta.url))
-const applications = join(homedir(), 'Applications')
+const systemApps = '/Applications'
+const personalApps = join(homedir(), 'Applications')
+const existing = await Promise.all([systemApps, personalApps].map(async (folder) =>
+  await lstat(join(folder, 'Ion IDE.app')).then(() => folder, () => undefined)))
+if (existing.every(Boolean)) throw new Error('Two Ion installations exist. Keep one before installing another update.')
+const applications = existing.find(Boolean) ?? (await access(systemApps, constants.W_OK).then(() => systemApps, () => personalApps))
 const installed = join(applications, 'Ion IDE.app')
 const rollback = join(homedir(), 'Library', 'Application Support', 'Ion IDE Rollback')
 const bundleId = 'dev.ionide.desktop'
@@ -72,7 +78,7 @@ try {
   stage = await mkdtemp(join(applications, '.ion-update-'))
   const replacement = join(stage, 'Ion IDE.app')
   const original = join(stage, 'previous')
-  command('/usr/bin/ditto', ['--norsrc', '--noextattr', source, replacement])
+  command('/usr/bin/ditto', [source, replacement])
   await verify(replacement)
   const version = bundleInfo(replacement, 'CFBundleShortVersionString')
 

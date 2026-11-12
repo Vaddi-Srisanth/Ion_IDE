@@ -26,6 +26,7 @@ const priorSetup = process.env.ION_PREVIOUS_WINDOWS_INSTALLER
 const publicInstallers = new Map([
   ['51de3b61a873bfc8f2ed42afb9c2cd1bfe9d1798183ead97a2ef81c9e6ffc6bd', '0.9.4'],
   ['4addcd1a00e8cb903807775fd4301472ee4bed0c1d2191671addbb8ce8660a90', '0.9.5'],
+  ['8d29adc4b3d7d0b0bf2857e39d990ff7e0031eb6e5c40f1943e3716fe20b10af', '0.9.6'],
 ])
 const present = (path) => lstat(path).then(() => true, (error) => {
   if (error.code === 'ENOENT') return false

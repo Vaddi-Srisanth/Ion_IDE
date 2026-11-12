@@ -51,10 +51,12 @@ const bridge: IonBridge = {
   setOptionalPanel: (panel, path) => ipcRenderer.invoke('ion:set-optional-panel', panel, path),
   getPreferences: () => ipcRenderer.invoke('ion:get-preferences'),
   updateSettings: (patch) => ipcRenderer.invoke('ion:update-settings', patch),
+  clearRunTrust: () => ipcRenderer.invoke('ion:clear-run-trust'),
   updates: {
     status: () => ipcRenderer.invoke('ion:updates-status'),
     check: () => ipcRenderer.invoke('ion:updates-check'),
     download: () => ipcRenderer.invoke('ion:updates-download'),
+    install: () => ipcRenderer.invoke('ion:updates-install'),
     cancel: () => ipcRenderer.invoke('ion:updates-cancel'),
   },
   exportLocalProfile: () => ipcRenderer.invoke('ion:export-local-profile'),

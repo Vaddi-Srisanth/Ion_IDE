@@ -19,6 +19,7 @@ VIAddVersionKey "LegalCopyright" ""
 !include "MUI2.nsh"
 !include "WinVer.nsh"
 !include "x64.nsh"
+!include "FileFunc.nsh"
 !define MUI_ICON "ion.ico"
 !define MUI_UNICON "ion.ico"
 !define OPEN_WITH_KEY "Software\Classes\Applications\Ion IDE.exe"
@@ -42,6 +43,19 @@ Function .onInit
   ; Use the fixed application path for installation and managed upgrades.
   StrCpy $INSTDIR "$LOCALAPPDATA\Programs\Ion IDE"
   SetShellVarContext current
+FunctionEnd
+
+Function .onInstSuccess
+  ; Explicit convenience for silent, user-requested installs only. The updater
+  ; helper normally restarts Ion itself to preserve the active local profile.
+  IfSilent 0 done
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/IONRESTART=" $1
+  IfErrors done
+  StrCmp $1 "1" 0 done
+  Exec '"$INSTDIR\App\Ion IDE.exe"'
+  done:
 FunctionEnd
 
 Section "Ion IDE"

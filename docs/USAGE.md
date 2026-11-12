@@ -10,7 +10,7 @@ To watch it again, choose **Preferences → Window → Replay Intro**. Replay re
 
 ## macOS setup
 
-If you build Ion locally, quit the app and run `npm run install:mac` from the project to update your copy in `~/Applications`. It replaces the app at the same path and keeps the previous binary at `~/Library/Application Support/Ion IDE Rollback/Ion IDE.zip`. Settings and recovery drafts live separately in Application Support.
+If you build Ion locally, quit the app and run `npm run install:mac` from the project. It reuses an existing `/Applications` or `~/Applications` installation, refuses dual installations, and otherwise prefers writable `/Applications`. It keeps the previous binary at `~/Library/Application Support/Ion IDE Rollback/Ion IDE.zip`. Settings and recovery drafts live separately in Application Support. From 0.9.7, installed apps also offer [Install and Restart](UPDATES.md).
 
 Turn on **Preferences → Window → Open in full screen** to launch future Ion windows in macOS full screen. Use **View → Toggle Full Screen** to change the current window without changing the launch preference.
 
@@ -74,7 +74,9 @@ Choose **Resume Session** on Welcome to reopen the previous workspace, ordered t
 
 Press **Run** or **F5** with a C, C++, Java, Python, or JavaScript file open. Ion chooses a local toolchain, saves pending edits by default, compiles when needed, and focuses the **Run Console**. Type directly into that console when the program asks for input. Compiler messages and program output appear there along with exit status and duration. The console offers scrollback, **Stop**, **Rerun**, and **Clear**. Preferences controls save-before-run and whether the console keeps previous runs. Ion uses a pseudo-terminal. On Windows, if the native helper or ConPTY API is unavailable, the Run Console labels its line-input fallback. [Windows console details](windows/FEATURE_PARITY.md)
 
-Ion requests trust for each new source file in a window. Window trust follows edits saved through Ion. With **Save before Run** enabled, Ion asks you to reload an open file if its saved revision changed externally. With the setting off, Run uses the current saved file and external changes require renewed consent. Select the C pack in Learn to enable explanations for recognized C diagnostics. All languages keep their raw diagnostics in the console.
+Ion requests approval for each new source file in a window. Window approval follows edits saved through Ion. Optionally check **Trust this folder for future single-file Runs**: approval then survives edits and restarts for that exact opened directory identity. Nested workspaces do not inherit a parent’s approval, and a replaced directory requires approval again. **Preferences → Run Console → Forget Trusted Run Folders** clears remembered and current-window single-file approvals. Cancelling grants nothing. Builds, tests, notebooks and Git retain separate approval.
+
+With **Save before Run** enabled, Ion asks you to reload an open file if its saved revision changed externally. With it off, Run uses the saved file; external changes require renewed consent unless you explicitly trusted the folder. Select the C pack in Learn to enable explanations for recognized C diagnostics. All languages retain raw diagnostics in the console.
 
 | Source | Local execution |
 | --- | --- |

@@ -1307,14 +1307,15 @@ export function App() {
         <div className="title-actions">
           {updates.status?.state === 'available' && <button className="button title-update" type="button"
             data-testid="title-update" disabled={Boolean(updates.busy)}
-            title={updates.downloaded ? 'Installer ready in Downloads. Open update details.'
+            title={updates.downloaded ? 'Install and restart Ion in its existing location'
               : `Download Ion ${updates.status.latest} from GitHub`}
             onClick={() => {
-              if (updates.downloaded) setDialog({ kind: 'settings' });
+              if (updates.downloaded) void updates.install().then((error) => { if (error) notify(error, true); });
               else void updates.download().then((error) => { if (error) notify(error, true); });
             }}>
             <Icon name={updates.downloaded ? 'check' : 'download'} size={14}/>
-            {updates.busy === 'download' ? 'Downloading…' : updates.downloaded ? 'Update downloaded' : 'Update available'}
+            {updates.busy === 'download' ? 'Downloading…' : updates.busy === 'install' ? 'Preparing update…'
+              : updates.downloaded ? 'Install and Restart' : 'Update available'}
           </button>}
           {recoveryDrafts.length > 0 && <button className="button" data-testid="recover-edits"
             onClick={() => setDialog({ kind: 'recovery' })}>Recover edits ({recoveryDrafts.length})</button>}
@@ -1439,6 +1440,7 @@ export function App() {
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
         onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady} updates={updates}
+        onInstallUpdate={() => { setDialog(null); void updates.install().then((error) => { if (error) notify(error, true); }); }}
         onThemeChange={changeTheme} onThemePreview={setPreviewTheme} onThemeFavorite={changeThemeFavorite}
         startBrowsing={dialog.browseThemes} onLanguageSupport={() => setDialog({ kind: 'language-support' })}
         onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}

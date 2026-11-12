@@ -353,7 +353,7 @@ int main(void) {
       let approvalRequested
       globalThis.ionApprovalRequested = new Promise((resolve) => { approvalRequested = resolve })
       dialog.showMessageBox = (owner, options) => {
-        if (!options.message.startsWith('Trust workspace race.js')) return original(owner, options)
+        if (!options.message.includes('workspace race.js') || !options.buttons?.includes('Run Program')) return original(owner, options)
         dialog.showMessageBox = original
         return new Promise((resolve) => {
           globalThis.ionCompleteApproval = () => resolve({ response: 1, checkboxChecked: false })

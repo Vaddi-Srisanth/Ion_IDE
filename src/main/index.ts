@@ -99,6 +99,8 @@ let formatJob: { id: string; controller: AbortController; done: Promise<FormatRe
 let closeApproved = false
 let closePending = false
 let quitRequested = false
+let updatePreparation: Promise<import('./update-install').PreparedUpdate> | undefined
+let pendingUpdate: { prepared: import('./update-install').PreparedUpdate; complete(value: boolean): void } | undefined
 let lastRendererRestart = -Infinity
 interface ActiveRun {
   id: string
@@ -128,6 +130,9 @@ const keyboardPlatform = shortcutPlatform(process.platform)
 let shortcutOverrides: ShortcutOverrides = defaultSettings.shortcuts
 let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
 const trustedSources = new Map<string, string>()
+let runTrust: Promise<import('./run-trust').RunTrustStore> | undefined
+const getRunTrust = () => runTrust ??= import('./run-trust').then(({ RunTrustStore }) =>
+  new RunTrustStore(join(app.getPath('userData'), 'run-trust.json')))
 const earlyFiles: string[] = []
 
 function nativeTool(name: string): string {
@@ -592,11 +597,33 @@ function createWindow(): BrowserWindow {
     ignoreTerminalAccelerators = false
     const cleanup = Promise.all([runner.drain(), fileCleanup, preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
-      practiceRun?.job?.catch(() => undefined), formatting?.done])
+      practiceRun?.job?.catch(() => undefined), formatting?.done,
+      updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain())])
     if (restartAfterCrash) {
       void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
     } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
-      void cleanup.then(() => { if (!window) app.quit() })
+      void cleanup.then(async () => {
+        if (window) return
+        const update = pendingUpdate
+        pendingUpdate = undefined
+        if (update) {
+          try {
+            if (!closeApproved || !quitRequested) throw new Error('Update installation was canceled.')
+            await update.prepared.start()
+            update.complete(true)
+          } catch (reason) {
+            await update.prepared.dispose().catch(() => console.warn('Could not remove unused update staging. The installed app is unchanged.'))
+            update.complete(false)
+            quitRequested = false
+            createWindow()
+            // An explicit failed install is actionable, not a background popup.
+            void dialog.showMessageBox(window!, { type: 'error', message: 'Ion IDE was not updated',
+              detail: reason instanceof Error ? reason.message : 'The original installation is unchanged.' })
+            return
+          }
+        }
+        app.quit()
+      })
     }
   })
   void target.loadURL(expectedURL).catch((error: unknown) => {
@@ -622,7 +649,12 @@ async function approveRunSource(
   signal?: AbortSignal, nativeProject?: NativeProject,
 ): Promise<string | undefined> {
   if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
-  if (nativeProject || build || trustedSources.get(path) !== token) {
+  const root = scope.rootPath
+  const folder = !nativeProject && !build && root && isWithin(root, path)
+    ? await (await getRunTrust()).snapshot(root) : undefined
+  const remembered = folder && await (await getRunTrust()).trusted(folder)
+  if (signal?.aborted || target !== window || target.isDestroyed() || scope !== files || scope.rootPath !== root) return 'Run was not approved.'
+  if (nativeProject || build || (!remembered && trustedSources.get(path) !== token)) {
     const tool = build === 'maven' ? 'Maven' : 'Gradle'
     const nativeSources = nativeProject?.sources.slice(0, 8).map((source) => relative(scope.rootPath ?? dirname(path), source))
     const nativeDetail = nativeProject && nativeSources
@@ -633,16 +665,22 @@ async function approveRunSource(
       signal,
       type: 'warning', buttons: ['Cancel', nativeProject ? 'Run C/C++ Build' : build ? `Run ${tool} Build` : 'Run Program'],
       defaultId: 0, cancelId: 0,
+      ...(folder ? { checkboxLabel: 'Trust this folder for future single-file Runs', checkboxChecked: false } : {}),
       message: nativeProject ? 'Compile and run this C/C++ project?'
-        : build ? `Run this project’s ${tool} build?` : 'Trust ' + basename(path) + ' for this window?',
+        : build ? `Run this project’s ${tool} build?` : 'Run ' + basename(path) + '?',
       detail: (nativeDetail ?? (build
         ? `${tool} will use its local cache. Project build scripts, plugins, and the program can run code with your user account’s permissions. Review this project before continuing.`
         : 'Only run code you trust. Programs run with your user account’s permissions and can access files and the network. Time and output limits apply. Programs run outside a security sandbox.'))
-        + '\n\n' + path,
+        + '\n\n' + path + (folder ? '\n\nOptional folder trust: ' + folder.path
+          + '\nRemembering this folder permits future single-file Runs after edits and restarts. Builds and tests keep their separate approval. Revoke it in Preferences → Run Console.' : ''),
     })
     if (choice.response !== 1 || signal?.aborted || target.isDestroyed() || target !== window) return 'Run was not approved.'
     if (revision((await scope.inspect(path, 'file')).stats) !== token) {
       return 'The source changed while awaiting approval. Review it and run again.'
+    }
+    if (folder && choice.checkboxChecked) {
+      if (scope !== files || scope.rootPath !== root) return 'The workspace changed while awaiting approval.'
+      await (await getRunTrust()).remember(folder)
     }
   }
   if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
@@ -869,8 +907,12 @@ function registerIpc(): void {
     languageIdle = setTimeout(() => void stopLanguageTools(), 15_000)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
-  const getUpdates = () => updates ??= import('./updates').then(({ GitHubUpdates }) =>
-    new GitHubUpdates(app.getVersion(), process.platform, process.arch))
+  const updateCache = join(app.getPath('userData'), 'updates')
+  const getUpdates = () => updates ??= import('./updates').then(async ({ GitHubUpdates }) => {
+    const service = new GitHubUpdates(app.getVersion(), process.platform, process.arch)
+    await service.restore(updateCache)
+    return service
+  })
   handle('updates-status', async () => (await getUpdates()).status())
   handle('updates-check', async () => (await getUpdates()).check())
   handle('updates-download', async (target) => {
@@ -879,14 +921,45 @@ function registerIpc(): void {
     const cancel = () => service.cancel()
     target.once('closed', cancel)
     try {
-      const { name, path } = await service.download(app.getPath('downloads'))
-      if (target === window && target.isFocused()) shell.showItemInFolder(path)
+      const { name } = await service.download(updateCache, true)
       return { name }
     } finally {
       target.removeListener('closed', cancel)
     }
   })
   handle('updates-cancel', async () => (await updates)?.cancel())
+  handle('clear-run-trust', async () => {
+    await (await getRunTrust()).clear()
+    trustedSources.clear()
+  })
+  handle('updates-install', async (target) => {
+    if (updatePreparation || pendingUpdate) throw new Error('An update installation is already being prepared.')
+    const service = await getUpdates()
+    if (updatePreparation || pendingUpdate) throw new Error('An update installation is already being prepared.')
+    if (target !== window || closePending || quitRequested) throw new Error('Finish the current close request before installing.')
+    updatePreparation = import('./update-install').then(({ prepareUpdate }) => prepareUpdate({
+      update: service.ready(), currentVersion: app.getVersion(), executable: process.execPath,
+      helper: nativeTool('ion-update'), profile: app.getPath('userData'), arch: process.arch,
+      platform: process.platform, packaged: app.isPackaged,
+    })).then(async (prepared) => {
+      if (target !== window || target.isDestroyed() || closePending || quitRequested) {
+        await prepared.dispose()
+        throw new Error('Update preparation was canceled because the Ion window closed.')
+      }
+      return prepared
+    })
+    try {
+      const prepared = await updatePreparation
+      if (target !== window || target.isDestroyed() || closePending || quitRequested) {
+        await prepared.dispose()
+        return false
+      }
+      const completion = new Promise<boolean>((complete) => { pendingUpdate = { prepared, complete } })
+      // Normal renderer save/keep-drafts/cancel flow; no bypass or forced exit.
+      app.quit()
+      return completion
+    } finally { updatePreparation = undefined }
+  })
   let profileExportPending = false
   handle('export-local-profile', async (target) => {
     if (profileExportPending) throw new Error('A local profile export is already in progress.')
@@ -1402,6 +1475,11 @@ function registerIpc(): void {
     closePending = false
     if (!allow) {
       quitRequested = false
+      const update = pendingUpdate
+      pendingUpdate = undefined
+      if (update) void update.prepared.dispose()
+        .catch(() => console.warn('Could not remove canceled update staging. The installed app is unchanged.'))
+        .finally(() => update.complete(false))
       return
     }
     closeApproved = true
@@ -1454,6 +1532,7 @@ app.on('before-quit', (event) => {
 })
 
 app.on('second-instance', (_event, argv) => {
+  if (pendingUpdate && quitRequested) return
   openWindowsArguments(argv)
   if (!initialized) return
   const target = window ?? createWindow()
@@ -1463,7 +1542,7 @@ app.on('second-instance', (_event, argv) => {
 })
 
 app.on('activate', () => {
-  if (!window && initialized) createWindow()
+  if (!window && initialized && !quitRequested) createWindow()
 })
 
 // The window's close handler drains owned processes and applies the selected profile.

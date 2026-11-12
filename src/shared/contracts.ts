@@ -197,6 +197,7 @@ export interface IonBridge {
   setOptionalPanel(panel: OptionalPanel | null, projectPath?: string): Promise<void>
   getPreferences(): Promise<Preferences>
   updateSettings(patch: Partial<Settings>): Promise<Settings>
+  clearRunTrust(): Promise<void>
   updates: UpdatesBridge
   exportLocalProfile(): Promise<string | null>
   openFolder(): Promise<Entry | null>

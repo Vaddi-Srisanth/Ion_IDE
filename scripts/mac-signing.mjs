@@ -6,7 +6,7 @@ const codesign = '/usr/bin/codesign'
 const xcrun = '/usr/bin/xcrun'
 const spctl = '/usr/sbin/spctl'
 const hdiutil = '/usr/bin/hdiutil'
-const nativeTools = ['ion-pty', 'ion-rg']
+const nativeTools = ['ion-pty', 'ion-rg', 'ion-file-ops', 'ion-update']
 const digest = /^[a-f0-9]{40}$/i
 const developerId = /^Developer ID Application: .+ \(([A-Z0-9]{10})\)$/
 

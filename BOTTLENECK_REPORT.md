@@ -109,3 +109,11 @@ The separate raw outputs are `performance-results/git-tests/workspace-gpu-short.
 ## Remaining measurements
 
 The Windows runner must independently measure working set and private bytes. Physical Windows laptop tests, native scaling and assistive-technology verification, visible and fullscreen compositor tracing, and a four-hour soak remain separate gates. GPU and optional-workflow isolation reports use the same disposable profiles. Debugger latency cannot be measured until a debugger is integrated.
+
+## 0.9.7 updater resource ownership
+
+The duplicate-install issue was a destination/lifecycle defect, not evidence of an extra always-running updater. Version 0.9.6 downloaded an installer without replacing its own bundle. Version 0.9.7 adds a native helper only after explicit installation; the helper waits for normal exit, performs the update and exits. The editor, Monaco models, document viewers and offline learning systems are unchanged. No runtime dependency or resident service was added.
+
+Installer bytes are streamed and bounded at 512 MiB; Mac unpacked size is checked at 2 GiB, Windows rollback traversal has file/depth/byte limits, and one completed cached installer is retained. Windows locks may defer removing a completed helper folder until a later updater access. Temporary staging and rollback require disk space; they are not idle RAM allocations. Run trust stores at most 64 exact-root records in 64 KiB and is loaded only on Run or explicit reset.
+
+Matched hidden packaged baseline attempts were stopped when the app unexpectedly activated. A live 0.9.5 capture ended when the user quit, leaving only one usable snapshot; it cannot establish idle CPU, sustained usage or an improvement. Do not substitute these incomplete observations for a matched benchmark.

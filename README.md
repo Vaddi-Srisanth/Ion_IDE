@@ -6,7 +6,7 @@
 
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
-Version 0.9.6 adds reproducible Git configuration-race protection, safe index publication, native Windows file-operation fixes, and measured resource cleanup. The [engineering audit](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea) records the security boundary, native checks and remaining gates. [Performance evidence](PERFORMANCE.md)
+Version 0.9.7 adds **Install and Restart** for in-place updates and optional remembered Run approvals for your own folders. It retains the 0.9.6 Git, Windows file-safety and resource-cleanup fixes. [Update behavior](docs/UPDATES.md) · [Engineering audit](ENGINEERING_AUDIT.md) · [Performance evidence](PERFORMANCE.md)
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -14,7 +14,9 @@ Version 0.9.6 adds reproducible Git configuration-race protection, safe index pu
 
 ## Download and install
 
-Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The current preview is [version 0.9.6](docs/releases/0.9.6.md), including Source Control, saved Run Tests, the expanded theme picker, source navigation and reliability fixes. To update an older Ion, choose **Preferences → Updates → Check for Updates**. When a compatible installer is available, **Update available** appears in the title bar.
+Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The current preview is [version 0.9.7](docs/releases/0.9.7.md). Choose **Preferences → Updates → Check for Updates**. A newer compatible release shows **Update available** in the title bar; download it, then choose **Install and Restart**. Ion protects unsaved work and replaces its existing installation.
+
+**Updating from 0.9.6 or earlier:** those versions only download an installer. Install 0.9.7 once into the same Applications location as your existing Mac copy, or run Windows Setup. In-place updates are available from 0.9.7 onward. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
 
 | Platform | Installer | Install |
 | --- | --- | --- |
@@ -85,7 +87,7 @@ For supported C compiler errors, Ion connects the source location, the original 
 
 ### Run, learn, and verify
 
-| Capability | Coverage in 0.9.6 |
+| Capability | Coverage in 0.9.7 |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
 | **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
@@ -107,7 +109,8 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
 - **Make it yours.** Sixteen built-in palettes include two high-contrast options. Open **Preferences → Appearance → Browse Themes** or **Color Theme** in the command palette. Search, preview, favorite, and apply themes offline. Cancel restores the current selection. Automatic appearance, local JSON import/export, and Minimal and Full Mode remain available.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
-- **Update when you choose.** Check in Preferences → Updates, or opt in to checks on launch. When a compatible GitHub release is available, the title bar offers a checksum-verified installer download that you can open yourself.
+- **Update when you choose.** Opt-in GitHub checks, streamed checksum-verified downloads, a single local installer cache, and **Install and Restart** at the existing app location. Unsaved-change protection and local profiles remain intact. Operating-system security approval can still be required.
+- **Remember Run approval optionally.** In a single-file Run confirmation, choose **Trust this folder for future single-file Runs** to avoid repeated prompts in your own workspace. Revoke it in Preferences → Run Console. Project builds, tests, notebooks and Git retain separate approval.
 
 [Usage guide](docs/USAGE.md) · [Resource profiles](RESOURCE_PROFILES.md) · [Local profile export](PORTABLE_PROFILE.md)
 

@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { buildWindowsPty } from './windows/build-pty.mjs'
 import { buildFileMutations } from './build-file-mutations.mjs'
+import { buildUpdater } from './build-updater.mjs'
 import { build as bundle } from 'esbuild'
 import electron from 'electron'
 import { build, createServer } from 'vite'
@@ -75,16 +76,18 @@ async function buildDesktop() {
       'main/web-preview': 'src/main/web-preview.ts',
       'main/profile-export': 'src/main/profile-export.ts',
       'main/workspace-search': 'src/main/workspace-search.ts',
+      'main/update-install': 'src/main/update-install.ts',
+      'main/run-trust': 'src/main/run-trust.ts',
       'preload/index': 'src/preload/index.ts',
     },
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
           const singleFile = path.endsWith('/ipc') || path === './web-preview' || path === './profile-export'
             || path === './notebooks/kernel-service' || path === './learning/catalog-store'
-            || path === './workspace-search' || path.endsWith('/service')
+            || path === './workspace-search' || path === './update-install' || path === './run-trust' || path.endsWith('/service')
           return { path: path + (singleFile ? '.cjs' : '/index.cjs'), external: true }
         })
       },
@@ -105,6 +108,7 @@ async function buildDesktop() {
   await Promise.all([
     buildPty(),
     buildFileMutations(resolve(output, 'native', targetPlatform === 'win32' ? 'ion-file-ops.exe' : 'ion-file-ops'), targetPlatform, targetArch),
+    buildUpdater(resolve(output, 'native', targetPlatform === 'win32' ? 'ion-update.exe' : 'ion-update'), targetPlatform, targetArch),
     buildSearchTool(),
     cp('src/main/learning/packs', resolve(output, 'main/learning-packs'), { recursive: true }),
     compileLearningCatalog(resolve('src/main/learning/catalog'), resolve(output, 'main/learning-catalog'), version),

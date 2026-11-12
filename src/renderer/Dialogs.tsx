@@ -6,6 +6,7 @@ import { appearanceFor } from './appearance';
 import { ThemeSettings } from './themes/ThemeSettings';
 import { ShortcutSettings } from './ShortcutSettings';
 import { UpdateSettings } from './UpdateSettings';
+import { errorMessage } from './documents';
 import type { UpdateControls } from './useUpdates';
 import type { ShortcutOverrides } from '../shared/shortcuts';
 import { starterLanguages, type StarterLanguage } from '../shared/starter-code';
@@ -37,7 +38,7 @@ export function Modal({ title, className = '', children, onClose, busy = false, 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThemePreview, onThemeFavorite, startBrowsing, onLanguageSupport, onChange, onUpdateLaunchChange,
-  preferencesReady, updates, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
+  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string, loaded?: ThemeData): Promise<void>;
@@ -49,6 +50,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
   onUpdateLaunchChange(enabled: boolean): Promise<void>;
   preferencesReady: boolean;
   updates: UpdateControls;
+  onInstallUpdate(): void;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
   onReplayIntro(): void;
@@ -63,6 +65,17 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
   const themeSupportsAccent = ['dark', 'light', 'system'].includes(settings.theme);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ message: string; error?: boolean } | null>(null);
+  const [trustBusy, setTrustBusy] = useState(false);
+  const [trustStatus, setTrustStatus] = useState('');
+  const forgetTrust = async () => {
+    setTrustBusy(true);
+    setTrustStatus('');
+    try {
+      await window.ion.clearRunTrust();
+      setTrustStatus('Remembered Run approvals cleared. Ion will ask again next time.');
+    } catch (reason) { setTrustStatus(errorMessage(reason)); }
+    finally { setTrustBusy(false); }
+  };
   const exportProfile = async () => {
     setExportBusy(true);
     setExportStatus(null);
@@ -76,8 +89,9 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
     }
   };
   return (
-    <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy} style={settingsStyle}>
-      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady} updates={updates}/>
+    <Modal title="Preferences" className="preferences" onClose={onClose} busy={exportBusy || trustBusy} style={settingsStyle}>
+      <UpdateSettings onLaunch={settings.checkUpdatesOnLaunch} onChange={onUpdateLaunchChange} ready={preferencesReady} updates={updates}
+        onInstall={onInstallUpdate}/>
       <div className="settings-group">
         <h3>Window</h3>
         <div className="setting">
@@ -205,6 +219,11 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
 
       <div className="settings-group">
         <h3>Run Console</h3>
+        <div className="setting">
+          <span><b>Trusted Run folders</b><small>Folder trust is optional in the first Run confirmation. It survives edits and restarts; builds and tests keep separate approval.</small></span>
+          <button className="button" type="button" disabled={trustBusy} onClick={() => void forgetTrust()}>Forget Trusted Run Folders</button>
+        </div>
+        {trustStatus && <p role="status">{trustStatus}</p>}
         <label className="setting">
           <span><b>Save before Run</b><small>Run the latest editor contents. Turn off to use the saved file.</small></span>
           <input type="checkbox" checked={settings.saveBeforeRun} onChange={(event) => onChange({ saveBeforeRun: event.target.checked })}/>

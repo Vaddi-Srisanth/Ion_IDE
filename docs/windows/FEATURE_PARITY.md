@@ -19,7 +19,7 @@ Ion uses the same workbench and local data stores on both platforms. The 0.9.6 s
 | Theme picker | Built-in and imported themes, live preview, accessibility variants, and undo preservation verified in the development build | Shared picker. Native theme suite runs in Windows CI |
 | AI Mentor | Future milestone. The optional online project planner is a separate feature | Same scope |
 | Desktop integration | Finder Open With, Applications, Trash, and native full screen | Start menu, Recycle Bin, Settings uninstall, and native full screen. Setup registers Open With for supported files. The user chooses defaults |
-| Updates | Checks GitHub for the macOS disk image when requested | Checks GitHub for the Windows installer when requested |
+| Updates | Verified download, explicit in-place Install and Restart, atomic bundle exchange and rollback ZIP | Verified download, explicit in-place Install and Restart, per-user Setup and failed-install rollback |
 
 Programs using buffered stdout may need an explicit flush before reading input from the Windows console. For example, call `fflush(stdout)` after a C prompt or `std::flush` after a C++ prompt.
 

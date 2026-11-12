@@ -1,7 +1,7 @@
 {
   "name": "ion-ide",
   "productName": "Ion IDE",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "An offline-first desktop IDE for writing and running your own code.",
   "private": true,
   "type": "module",
@@ -33,7 +33,7 @@
     "test:notebooks": "node scripts/test-notebook.mjs --edit",
     "test:window": "node scripts/test-window-startup.mjs",
     "test:onboarding": "node scripts/test-onboarding.mjs",
-    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:desktop && npm run test:window && npm run test:onboarding && node scripts/test-update-preferences.mjs && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:java-tools && npm run test:format && npm run test:workspace-search && npm run test:run-console && npm run test:native-projects && npm run test:terminal && npm run test:workspaces && npm run test:source-control && npm run test:project-suites && npm run test:learning-lens && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
+    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:desktop && npm run test:window && npm run test:onboarding && node scripts/test-update-preferences.mjs && node scripts/test-update-lifecycle.mjs && node scripts/test-run-trust.mjs && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:java-tools && npm run test:format && npm run test:workspace-search && npm run test:run-console && npm run test:native-projects && npm run test:terminal && npm run test:workspaces && npm run test:source-control && npm run test:project-suites && npm run test:learning-lens && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
     "bench:desktop": "node scripts/benchmark.mjs",
     "bench:development": "node scripts/benchmark-development-workflows.mjs",
     "bench:java-tools": "node scripts/benchmark-java-tools.mjs",
@@ -68,7 +68,8 @@
     "test:native-projects": "node scripts/test-native-projects.mjs",
     "bench:run-console": "node scripts/benchmark-run-console.mjs",
     "test:terminal": "node scripts/test-integrated-terminal.mjs",
-    "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs"
+    "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs",
+    "stats:live": "node scripts/sample-live-runtime.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
