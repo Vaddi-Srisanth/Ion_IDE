@@ -42,9 +42,72 @@ let restartedPid
 let activePid
 const portFile = join(profile, 'DevToolsActivePort')
 
-async function close(pid) {
-  await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-    `if (!(Get-Process -Id ${pid}).CloseMainWindow()) { exit 1 }`], quiet)
+// .NET MainWindowHandle/CloseMainWindow excludes hidden windows. CI launches
+// this disposable app with windowsHide, so enumerate its actual owned Chromium
+// frame instead and use the ordinary WM_CLOSE route, never TerminateProcess.
+const nativeWindows = `
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class IonUpdateWindows {
+  private delegate bool Callback(IntPtr window, IntPtr data);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(Callback callback, IntPtr data);
+  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint owner);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)] private static extern int GetClassNameW(IntPtr window, StringBuilder name, int size);
+  [DllImport("user32.dll", SetLastError = true, ExactSpelling = true)] private static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
+  public static IntPtr[] Find(uint process) {
+    List<IntPtr> found = new List<IntPtr>();
+    EnumWindows(delegate(IntPtr window, IntPtr data) {
+      uint owner; GetWindowThreadProcessId(window, out owner);
+      if (owner == process) {
+        StringBuilder name = new StringBuilder(256);
+        GetClassNameW(window, name, name.Capacity);
+        if (name.ToString().StartsWith("Chrome_WidgetWin_", StringComparison.Ordinal)) found.Add(window);
+      }
+      return true;
+    }, IntPtr.Zero);
+    return found.ToArray();
+  }
+  public static bool RequestClose(IntPtr window) { return PostMessageW(window, 0x0010, UIntPtr.Zero, IntPtr.Zero); }
+}
+`
+
+async function ownedWindows(pid, closeWindows = false) {
+  assert.ok(Number.isSafeInteger(pid) && pid > 0)
+  const script = `
+    $ErrorActionPreference = 'Stop'
+    $owner = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $env:ION_UPDATE_PID)
+    if (!$owner -or $owner.ExecutablePath -ne $env:ION_UPDATE_TARGET -or !$owner.CommandLine.Contains($env:ION_UPDATE_PROFILE)) {
+      throw 'Refusing to act on a process outside the exact disposable Ion profile.'
+    }
+    Add-Type -TypeDefinition @'
+${nativeWindows}
+'@
+    $windows = @([IonUpdateWindows]::Find([uint32]$env:ION_UPDATE_PID))
+    if ($env:ION_UPDATE_CLOSE -eq '1') {
+      if ($windows.Count -eq 0) { throw 'No owned Ion frame accepted a normal close request.' }
+      foreach ($window in $windows) {
+        if (![IonUpdateWindows]::RequestClose($window)) { throw 'The owned Ion frame could not receive WM_CLOSE.' }
+      }
+    }
+    $windows.Count
+  `
+  const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    ...quiet, env: { ...process.env, ION_UPDATE_PID: String(pid), ION_UPDATE_TARGET: target,
+      ION_UPDATE_PROFILE: profile, ION_UPDATE_CLOSE: closeWindows ? '1' : '0' },
+  })
+  return Number(stdout.trim())
+}
+
+async function close(pid, page) {
+  if (page && !page.isClosed()) {
+    // Use the live renderer for the initially CDP-attached session. Context
+    // destruction is expected only if the real window/process actually exits.
+    await page.evaluate(() => window.close()).catch(error => {
+      if (!/closed|destroyed/i.test(error.message)) throw error
+    })
+  } else await ownedWindows(pid, true)
   await eventually(async () => {
     try { process.kill(pid, 0); return false } catch { return true }
   }, 'The owned test application did not close normally.', 20000)
@@ -82,11 +145,8 @@ async function findRestart(previous) {
     return Number.isSafeInteger(foundPid) && foundPid > 0 && foundPid !== previous
   }, 'Ion did not restart with the same private profile.', 30000)
   // A native window establishes that the restarted process got beyond launch.
-  await eventually(async () => {
-    const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      `(Get-Process -Id ${foundPid}).MainWindowHandle`], quiet)
-    return Number(stdout.trim()) !== 0
-  }, 'The restarted Ion process did not create its window.', 30000)
+  await eventually(async () => await ownedWindows(foundPid) > 0,
+    'The restarted Ion process did not create its native frame.', 30000)
   return foundPid
 }
 
@@ -187,7 +247,7 @@ try {
   const failedInstall = await begin({ '--installer': failureSetup,
     '--sha256': createHash('sha256').update(await readFile(failureSetup)).digest('hex') })
   await rm(portFile, { force: true })
-  await close(child.pid)
+  await close(child.pid, page)
   assert.deepEqual(await Promise.race([failedInstall.updated, sleep(180000, undefined, { ref: false }).then(() => 'timeout')]),
     [8, null], failedInstall.error())
   const rollback = JSON.parse(await readFile(join(stage, 'result.json'), 'utf8'))
