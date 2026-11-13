@@ -151,6 +151,8 @@ jobs:
         shell: pwsh
         run: |
           if (!$env:ION_NOTEBOOK_PYTHON -or !(Test-Path $env:ION_NOTEBOOK_PYTHON)) { throw 'The disposable real Jupyter fixture is unavailable.' }
+          & $env:ION_NOTEBOOK_PYTHON scripts/test-notebook-interrupt.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/test-notebook.mjs --edit --kernel-python $env:ION_NOTEBOOK_PYTHON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify notebook authorization and injected cleanup failure propagation

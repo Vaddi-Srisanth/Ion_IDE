@@ -429,6 +429,9 @@ if (values['kernel-python']) await withScratch('notebook-kernel', async (scratch
   const switchMarker = join(scratch, 'tab-switch-code-started')
   const switchRelease = join(scratch, 'tab-switch-can-finish')
   const original = encodeNotebook(kernelNotebook({ markerPath: trustedMarker }))
+  const interruptedNotebook = interruptNotebook(busyMarker)
+  interruptedNotebook.cells.push({ cell_type: 'code', id: 'after-interrupt', metadata: {},
+    execution_count: null, outputs: [], source: 'print("Ion kernel survived interrupt", 6 * 7)' })
   const switchingNotebook = kernelBenchmarkNotebook()
   switchingNotebook.cells[0].source = [
     'import time', 'from pathlib import Path', `Path(${JSON.stringify(switchMarker)}).write_text('started')`,
@@ -438,7 +441,7 @@ if (values['kernel-python']) await withScratch('notebook-kernel', async (scratch
   await Promise.all([
     writeFile(noKernelPath, encodeNotebook(cellNotebook(2))),
     writeFile(notebookPath, original),
-    writeFile(busyPath, encodeNotebook(interruptNotebook(busyMarker))),
+    writeFile(busyPath, encodeNotebook(interruptedNotebook)),
     writeFile(switchPath, encodeNotebook(switchingNotebook)),
     writeFile(quitPath, encodeNotebook(kernelBenchmarkNotebook())),
   ])
@@ -556,6 +559,14 @@ if (values['kernel-python']) await withScratch('notebook-kernel', async (scratch
     assert.ok(interruptPids.length > 0)
     await busy.getByTestId('notebook-kernel-interrupt').click()
     await notebookOutput(busy, /KeyboardInterrupt/).waitFor({ timeout: 20_000 })
+    await eventually(async () => !await busy.getByTestId('notebook-run-cell').isDisabled(),
+      'Interrupted execution must return to idle.')
+    assert.ok(interruptPids.every(alive), 'Interrupt must preserve the existing broker and kernel.')
+    await selectNotebookCodeCell(busy, 1)
+    await busy.getByTestId('notebook-run-cell').click()
+    await notebookOutput(busy, 'Ion kernel survived interrupt 42').waitFor()
+    assert.deepEqual((await kernelPids(session)).sort((a, b) => a - b), [...interruptPids].sort((a, b) => a - b),
+      'A post-interrupt execution must reuse the same actual kernel processes.')
     await page.getByTestId('save-file').click()
     await waitForFile(readFile, busyPath, 'KeyboardInterrupt')
     await closeNotebook(page, busyPath)

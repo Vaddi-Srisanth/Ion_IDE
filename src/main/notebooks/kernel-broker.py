@@ -75,9 +75,30 @@ def output_for(kind, content):
 def signal_kernel(process, sig):
     try:
         if process.poll() is None:
-            process.send_signal(sig)
+            if sys.platform == 'win32' and sig == signal.SIGINT:
+                # Windows Popen cannot deliver POSIX SIGINT. Jupyter's launcher
+                # gives ipykernel an inherited native interrupt event instead.
+                from jupyter_client.win_interrupt import send_interrupt
+                send_interrupt(process.win32_interrupt_event)
+            else:
+                process.send_signal(sig)
     except ProcessLookupError:
         pass
+
+
+def close_windows_kernel_handles(process, environment):
+    # launch_kernel creates these plain integer handles; neither Popen.wait nor
+    # the Jupyter launcher closes them. The broker owns its copies until exit.
+    from _winapi import CloseHandle
+    failures = []
+    for handle in (process.win32_interrupt_event, int(environment['JPY_PARENT_PID'])):
+        try:
+            CloseHandle(handle)
+        except OSError as error:
+            failures.append(error)
+    if failures:
+        raise OSError('Could not close Jupyter kernel handles: '
+                      + '; '.join(str(error) for error in failures)) from failures[0]
 
 
 def read_commands(process, commands, stop, interrupted):
@@ -188,9 +209,17 @@ def main():
     environment = dict(os.environ, IPYTHONDIR=os.path.join(scratch, 'ipython'),
                        JUPYTER_CONFIG_DIR=os.path.join(scratch, 'config'),
                        JUPYTER_RUNTIME_DIR=os.path.join(scratch, 'runtime'))
-    process = subprocess.Popen([sys.executable, '-E', '-c', KERNEL_BOOT, connection, sys.argv[1]],
-                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                               env=environment)
+    command = [sys.executable, '-E', '-c', KERNEL_BOOT, connection, sys.argv[1]]
+    if sys.platform == 'win32':
+        from jupyter_client.launcher import launch_kernel
+        # Reuse the installed Jupyter Windows launcher so the kernel receives
+        # its interrupt/parent handles. It stays inside Ion's existing Job.
+        process = launch_kernel(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, env=environment,
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, env=environment)
     stop, interrupted = threading.Event(), threading.Event()
     commands = queue.Queue(maxsize=1)
     threading.Thread(target=read_commands, args=(process, commands, stop, interrupted), daemon=True).start()
@@ -210,8 +239,11 @@ def main():
         try:
             process.wait(timeout=1)
         except subprocess.TimeoutExpired:
-            signal_kernel(process, signal.SIGKILL)
+            process.kill()
             process.wait(timeout=1)
+        finally:
+            if sys.platform == 'win32':
+                close_windows_kernel_handles(process, environment)
 
 
 if __name__ == '__main__':

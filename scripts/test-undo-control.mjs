@@ -35,7 +35,11 @@ try {
       loader: { '.ttf': 'file' }, logLevel: 'silent' })
     await writeFile(join(scratch, 'stock.html'), '<link rel="stylesheet" href="stock-bundle.css"><div id="editor" style="height:700px"></div><button id="save">Save</button><script src="stock-bundle.js"></script>')
     await writeFile(join(scratch, 'stock-main.cjs'), `const {app,BrowserWindow}=require('electron');app.whenReady().then(()=>{const w=new BrowserWindow({show:false,webPreferences:{backgroundThrottling:false}});w.loadFile(${JSON.stringify(join(scratch, 'stock.html'))});});app.on('window-all-closed',()=>app.quit());`)
-    const stock = await _electron.launch({ executablePath: electron, args: [join(scratch, 'stock-main.cjs')], env: { ...process.env, ELECTRON_RUN_AS_NODE: '' } })
+    // Windows treats a present, empty ELECTRON_RUN_AS_NODE as enabled. Match
+    // the real desktop harness by omitting it, rather than setting it empty.
+    const stockEnvironment = { ...process.env }
+    delete stockEnvironment.ELECTRON_RUN_AS_NODE
+    const stock = await _electron.launch({ executablePath: electron, args: [join(scratch, 'stock-main.cjs')], env: stockEnvironment })
     try {
       const page = await stock.firstWindow()
       await page.waitForFunction(() => !!globalThis.control)
