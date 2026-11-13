@@ -264,14 +264,26 @@ jobs:
           $gcc >> $env:GITHUB_PATH
       - run: npm ci
       - run: npm run build
+        id: attribution-build
       - run: node --test scripts/windows/run-trace-prelude.test.cjs
       - run: node scripts/trace-windows-run.mjs
+      - name: Verify isolated standalone controls
+        if: ${{ !cancelled() && steps.attribution-build.outcome == 'success' }}
+        env:
+          ION_UNDO_REPORT: performance-results/windows-standalone-undo.json
+        run: |
+          node scripts/test-undo-control.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-refresh.mjs --out performance-results/windows-standalone-git-refresh.json
       - name: Preserve first-Run attribution
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-run-attribution-${{ github.sha }}-${{ github.run_attempt }}
-          path: performance-results/windows-run-diagnostic.json
+          path: |
+            performance-results/windows-run-diagnostic.json
+            performance-results/windows-standalone-undo.json
+            performance-results/windows-standalone-git-refresh.json
           if-no-files-found: warn
           retention-days: 14
 

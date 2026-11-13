@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { build } from 'esbuild'
 import { _electron } from 'playwright-core'
@@ -26,6 +26,8 @@ async function insert(page, method) {
 const out = resolve(process.env.ION_UNDO_REPORT ?? 'remediation/undo-control.json')
 try {
   await withScratch('undo-control', async scratch => {
+    const stockProfile = join(scratch, 'stock-profile')
+    await mkdir(stockProfile)
     const stockEntry = join(scratch, 'stock.js')
     const modulePath = path => JSON.stringify(resolve(path).replaceAll('\\', '/'))
     await writeFile(stockEntry, `import {editor} from ${modulePath('node_modules/monaco-editor/esm/vs/editor/editor.api.js')};
@@ -34,14 +36,20 @@ try {
     await build({ entryPoints: [stockEntry], outfile: join(scratch, 'stock-bundle.js'), bundle: true, format: 'iife',
       loader: { '.ttf': 'file' }, logLevel: 'silent' })
     await writeFile(join(scratch, 'stock.html'), '<link rel="stylesheet" href="stock-bundle.css"><div id="editor" style="height:700px"></div><button id="save">Save</button><script src="stock-bundle.js"></script>')
-    await writeFile(join(scratch, 'stock-main.cjs'), `const {app,BrowserWindow}=require('electron');app.whenReady().then(()=>{const w=new BrowserWindow({show:false,webPreferences:{backgroundThrottling:false}});w.loadFile(${JSON.stringify(join(scratch, 'stock.html'))});});app.on('window-all-closed',()=>app.quit());`)
+    await writeFile(join(scratch, 'stock-main.cjs'), `const {app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(stockProfile)});if(process.platform==='darwin')app.setActivationPolicy('prohibited');app.whenReady().then(()=>{const w=new BrowserWindow({show:false,webPreferences:{backgroundThrottling:false}});w.loadFile(${JSON.stringify(join(scratch, 'stock.html'))});});app.on('window-all-closed',()=>app.quit());`)
     // Windows treats a present, empty ELECTRON_RUN_AS_NODE as enabled. Match
     // the real desktop harness by omitting it, rather than setting it empty.
     const stockEnvironment = { ...process.env }
     delete stockEnvironment.ELECTRON_RUN_AS_NODE
-    const stock = await _electron.launch({ executablePath: electron, args: [join(scratch, 'stock-main.cjs')], env: stockEnvironment })
+    const stock = await _electron.launch({ executablePath: electron,
+      args: ['--user-data-dir=' + stockProfile, join(scratch, 'stock-main.cjs')], env: stockEnvironment })
     try {
       const page = await stock.firstWindow()
+      const isolated = await stock.evaluate(({ app, BrowserWindow }) => ({ path: app.getPath('userData'),
+        hidden: BrowserWindow.getAllWindows().every(window => !window.isVisible() && !window.isFocused()) }))
+      assert.equal(await realpath(isolated.path), await realpath(stockProfile))
+      assert.equal(isolated.hidden, true, 'The stock control must remain hidden and unfocused.')
+      result.stockProfileIsolated = true
       await page.waitForFunction(() => !!globalThis.control)
       for (const method of ['insertText', 'typing', 'paste']) {
         await page.evaluate(value => { globalThis.control.setValue(value); globalThis.control.setPosition({lineNumber:1,column:999}); globalThis.control.focus() }, original)
@@ -59,6 +67,8 @@ try {
         if (method === 'paste') assert.equal(states.length, 1, 'A clipboard paste is one Undo operation')
         result.cases.push({ app: 'stock Monaco', method, before, focusedUndoStates: states })
       }
+      assert.equal(await stock.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().every(window => !window.isVisible() && !window.isFocused())), true)
     } finally { await stock.close() }
     const project = { directory: join(scratch, 'project'), program: join(scratch, 'project', 'undo.c') }
     const path = join(project.directory, 'undo.c')
