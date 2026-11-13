@@ -76,7 +76,7 @@ export function useNotebookKernel({ path, preferredName, onRunningChange, onExec
       if (!mounted.current) return;
       setEnvironments(found);
       setDiscovered(true);
-      if (!found.length) setMessage({ text: 'No compatible Python kernels found. Choose a Python with Jupyter Client and ipykernel installed.' });
+      if (!found.length) setMessage({ text: 'No Python candidates found. Choose a local interpreter. Notebook support is checked only after Run approval.' });
     } catch (error) {
       if (mounted.current) setMessage({ text: errorMessage(error), error: true });
     } finally { if (mounted.current) setConfiguring(false); }
@@ -144,8 +144,8 @@ export function useNotebookKernel({ path, preferredName, onRunningChange, onExec
   }
 
   const activeEnvironment = status.environment;
-  const choices = activeEnvironment && !environments.some(({ id }) => id === activeEnvironment.id)
-    ? [activeEnvironment, ...environments] : environments;
+  const choices = activeEnvironment
+    ? [activeEnvironment, ...environments.filter(({ id }) => id !== activeEnvironment.id)] : environments;
   const currentEnvironmentId = selectedId && choices.some(({ id }) => id === selectedId)
     ? selectedId : activeEnvironment?.id ?? '';
 
@@ -191,7 +191,7 @@ export function NotebookKernelToolbar({ kernel, path, python, selected, above, a
     <div className="notebook-kernel-actions" aria-label="Python environment">
       <span className="notebook-kernel-status" data-testid="notebook-kernel-status" role="status">{status}</span>
       <button className="button" type="button" data-testid="notebook-kernel-discover" disabled={locked}
-        onClick={() => void kernel.discover()}>{kernel.configuring ? 'Checking Python…' : 'Find kernels'}</button>
+        onClick={() => void kernel.discover()}>{kernel.configuring ? 'Finding Python…' : 'Find kernels'}</button>
       <button className="button" type="button" data-testid="notebook-kernel-choose" disabled={locked || state !== 'stopped'}
         onClick={() => void kernel.choose()}>Choose Python…</button>
       {(kernel.discovered || kernel.choices.length > 0) && <select className="notebook-cell-type" data-testid="notebook-kernel-select"

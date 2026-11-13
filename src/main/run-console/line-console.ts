@@ -36,20 +36,34 @@ export function startLineConsole(options: Omit<PtyOptions, 'helper' | 'columns' 
       if (!write || signal.aborted) return
       let echo = ''
       const text = data.replace(/\x1b(?:\[[0-?]*[ -/]*[@-~]|O.)?/g, '').replace(/\r\n/g, '\n')
+      // Preflight the bounded line before changing/echoing any of this input.
+      // A rejected paste must not leave an invisible truncated prefix behind.
+      let pending = line
+      for (const character of text) {
+        if (character === '\x03' || character === '\x04' || character === '\x1a') break
+        if (character === '\r' || character === '\n') pending = ''
+        else if (character === '\x7f' || character === '\b') {
+          const pair = (pending.codePointAt(pending.length - 2) ?? 0) > 0xffff
+          pending = pending.slice(0, pair ? -2 : -1)
+        } else if (character >= ' ' && !/[\u0080-\u009f]/.test(character)) {
+          if (pending.length + character.length > maxLineLength) throw new Error(`Input was not sent: line input supports at most ${maxLineLength} characters.`)
+          pending += character
+        }
+      }
       for (const character of text) {
         if (character === '\x03') {
           controller.abort()
           break
         }
         if (character === '\x04' || character === '\x1a') {
-          if (line && !write(line)) break
+          if (line && !write(line)) throw new Error('Input could not be sent: the program input buffer is busy.')
           line = ''
           write(null)
           write = undefined
           break
         }
         if (character === '\r' || character === '\n') {
-          if (!write(line + '\n')) break
+          if (!write(line + '\n')) throw new Error('Input could not be sent: the program input buffer is busy.')
           echo += '\r\n'
           line = ''
         } else if (character === '\x7f' || character === '\b') {

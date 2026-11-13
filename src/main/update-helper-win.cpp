@@ -25,11 +25,12 @@ constexpr wchar_t uninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersio
 class Handle {
  public:
   explicit Handle(HANDLE value = nullptr) : value_(value) {}
-  ~Handle() { if (valid()) CloseHandle(value_); }
+  ~Handle() { reset(); }
   Handle(const Handle&) = delete;
   Handle& operator=(const Handle&) = delete;
   HANDLE get() const { return value_; }
   bool valid() const { return value_ && value_ != INVALID_HANDLE_VALUE; }
+  void reset(HANDLE value = nullptr) { if (valid()) CloseHandle(value_); value_ = value; }
  private:
   HANDLE value_;
 };
@@ -72,20 +73,34 @@ bool restoreVersion(const RegistryVersion& previous) {
   if (!previous.present) {
     const LSTATUS opened = RegOpenKeyExW(HKEY_CURRENT_USER, uninstallKey, 0, KEY_SET_VALUE | previous.view, &key);
     if (opened == ERROR_FILE_NOT_FOUND) return true;
-    if (opened != ERROR_SUCCESS) return false;
+    if (opened != ERROR_SUCCESS) { SetLastError(static_cast<DWORD>(opened)); return false; }
     const LSTATUS removed = RegDeleteValueW(key, L"DisplayVersion");
     RegCloseKey(key);
-    return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
+    if (removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND) return true;
+    SetLastError(static_cast<DWORD>(removed));
+    return false;
   }
-  if (RegCreateKeyExW(HKEY_CURRENT_USER, uninstallKey, 0, nullptr, 0, KEY_SET_VALUE | previous.view,
-    nullptr, &key, nullptr) != ERROR_SUCCESS) return false;
+  const LSTATUS opened = RegCreateKeyExW(HKEY_CURRENT_USER, uninstallKey, 0, nullptr, 0, KEY_SET_VALUE | previous.view,
+    nullptr, &key, nullptr);
+  if (opened != ERROR_SUCCESS) { SetLastError(static_cast<DWORD>(opened)); return false; }
   const LSTATUS written = RegSetValueExW(key, L"DisplayVersion", 0, REG_SZ, previous.bytes.data(), static_cast<DWORD>(previous.bytes.size()));
   RegCloseKey(key);
-  return written == ERROR_SUCCESS;
+  if (written == ERROR_SUCCESS) return true;
+  SetLastError(static_cast<DWORD>(written));
+  return false;
 }
 
 unsigned long long backupBytes = 0;
 ULONGLONG backupMs = 0;
+const char* rollbackOperation = "none";
+DWORD rollbackError = ERROR_SUCCESS;
+
+void rollbackFailure(const char* operation, DWORD code) {
+  if (rollbackError == ERROR_SUCCESS) {
+    rollbackOperation = operation;
+    rollbackError = code ? code : ERROR_GEN_FAILURE;
+  }
+}
 
 bool absolute(const std::wstring& path) {
   // Upgrades deliberately support local, per-user installed copies only.
@@ -369,7 +384,8 @@ void result(const Options& options, bool installed, const char* message) {
   const std::string version(options.version.begin(), options.version.end());
   const std::string json = "{\"schemaVersion\":1,\"state\":\"" + std::string(installed ? "installed" : "failed")
     + "\",\"version\":\"" + version + "\",\"message\":\"" + message + "\",\"timestamp\":\"" + timestamp
-    + "\",\"backupBytes\":" + std::to_string(backupBytes) + ",\"backupMs\":" + std::to_string(backupMs) + "}\n";
+    + "\",\"backupBytes\":" + std::to_string(backupBytes) + ",\"backupMs\":" + std::to_string(backupMs)
+    + ",\"rollbackOperation\":\"" + rollbackOperation + "\",\"rollbackError\":" + std::to_string(rollbackError) + "}\n";
   writeResult(parentPath(options.installer), json);
   // Profiles are local and user-owned. Reject a redirected updates directory;
   // never write through a junction or a result-file symbolic link.
@@ -459,6 +475,12 @@ int perform(const Options& options) {
       return 9;
     }
   }
+  // Identity and rollback bytes are now captured. Open source handles can pin
+  // Windows image/directory objects across replacement even after process exit.
+  // Keep only the immutable installer handle during Setup; never pin App files.
+  target.reset();
+  uninstaller.reset();
+  parent.reset();
   HANDLE rawSetup = nullptr;
   DWORD status = 1;
   const bool started = launch(options.installer, L"/S", &rawSetup);
@@ -481,12 +503,15 @@ int perform(const Options& options) {
     const auto failed = uniqueName(root, L".ion-update-failed-");
     const bool missing = GetFileAttributesW(app.c_str()) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     const bool moved = missing || (!failed.empty() && MoveFileExW(app.c_str(), failed.c_str(), MOVEFILE_WRITE_THROUGH));
+    if (!moved) rollbackFailure("move-failed-app", GetLastError());
     const bool renamed = moved && MoveFileExW(backupApp.c_str(), app.c_str(), MOVEFILE_WRITE_THROUGH);
+    if (moved && !renamed) rollbackFailure("restore-app", GetLastError());
     bool restored = false;
     if (renamed) {
       Handle recovered(CreateFileW(options.target.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
       restored = recovered.valid() && regular(recovered.get(), maxBackup) && sha256(recovered.get()) == originalDigest;
+      if (!restored) rollbackFailure("verify-restored-app", ERROR_CRC);
     }
     if (restored && !missing) removeTree(failed);
     bool metadataRestored = false;
@@ -496,11 +521,17 @@ int perform(const Options& options) {
       const auto temporary = uniqueName(root, L".ion-uninstall-restore-");
       const bool copiedUninstaller = !temporary.empty() && hasDigest(backupUninstaller, originalUninstallerDigest, maxUninstaller)
         && CopyFileW(backupUninstaller.c_str(), temporary.c_str(), TRUE);
+      if (!copiedUninstaller) rollbackFailure("copy-uninstaller", GetLastError());
       const bool replacedUninstaller = copiedUninstaller && MoveFileExW(temporary.c_str(), uninstallPath.c_str(),
         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+      if (copiedUninstaller && !replacedUninstaller) rollbackFailure("restore-uninstaller", GetLastError());
       if (copiedUninstaller && !replacedUninstaller) DeleteFileW(temporary.c_str());
       metadataRestored = replacedUninstaller && hasDigest(uninstallPath, originalUninstallerDigest, maxUninstaller);
-      if (metadataRestored) for (const auto& version : versions) if (!restoreVersion(version)) metadataRestored = false;
+      if (replacedUninstaller && !metadataRestored) rollbackFailure("verify-restored-uninstaller", ERROR_CRC);
+      if (metadataRestored) for (const auto& version : versions) if (!restoreVersion(version)) {
+        metadataRestored = false;
+        rollbackFailure("restore-display-version", GetLastError());
+      }
       if (metadataRestored) removeTree(backup);
     }
     const char* failure = restored && metadataRestored ? "Setup failed. The previous application and installer metadata were restored."

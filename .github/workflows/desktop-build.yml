@@ -65,7 +65,7 @@ jobs:
   windows:
     name: Windows x64
     runs-on: windows-2025
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -106,12 +106,62 @@ jobs:
         env:
           ION_TEST_WINDOWS_JAVA_BUILDS: '1'
           ION_TEST_PRIME_MAVEN: '1'
-        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates update-install run-trust preferences-windows source-control projects
+        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates update-install run-trust preferences-windows source-control projects recovery learning-diagnostics learning-packs terminal-input
       - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
       - run: npm run build
         id: native-build
       - name: Verify native pseudoconsole and child ownership
         run: npm test -- windows-conpty
+      - name: Verify current Windows pipe supervisor and parser
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm test -- windows-process-job windows-pipe-protocol
+      - name: Prepare disposable real Jupyter fixture with direct pins and resolved receipt
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'ion-notebook-fixture'
+          New-Item -ItemType Directory -Force performance-results | Out-Null
+          python -m venv $fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = Join-Path $fixture 'Scripts\python.exe'
+          $pythonVersion = & $python -c 'import sys; print(sys.version)'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pipVersion = & $python -m pip --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pins = @('ipykernel==6.31.0', 'jupyter_client==8.6.3', 'pandas==2.3.3', 'matplotlib==3.10.6')
+          & $python -m pip install --disable-pip-version-check --only-binary=:all: $pins
+          $installStatus = $LASTEXITCODE
+          $resolved = & $python -m pip freeze --all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $resolved | Set-Content -Encoding utf8NoBOM performance-results/windows-notebook-environment.freeze.txt
+          [ordered]@{
+            scope = 'Disposable CI fixture: direct pins with resolved transitive receipt; not a prelocked Windows environment.'
+            python = $pythonVersion
+            pip = $pipVersion
+            directPins = $pins
+            pipInstallExitCode = $installStatus
+            resolvedPackages = @($resolved)
+          } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8NoBOM performance-results/windows-notebook-environment.json
+          if ($installStatus -ne 0) { exit $installStatus }
+          "ION_NOTEBOOK_PYTHON=$python" >> $env:GITHUB_ENV
+      - name: Verify real offline notebook execution and kernel ownership
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          if (!$env:ION_NOTEBOOK_PYTHON -or !(Test-Path $env:ION_NOTEBOOK_PYTHON)) { throw 'The disposable real Jupyter fixture is unavailable.' }
+          node scripts/test-notebook.mjs --edit --kernel-python $env:ION_NOTEBOOK_PYTHON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify notebook authorization and injected cleanup failure propagation
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node scripts/test-notebook-trust.mjs --out performance-results/windows-notebook-trust.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-notebook-cleanup-ownership.mjs --output performance-results/windows-notebook-cleanup.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-shutdown-cleanup-failure.mjs --out performance-results/windows-shutdown-cleanup-failure.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify interactive Run Console
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/verify-windows-run-console.mjs
@@ -121,6 +171,17 @@ jobs:
       - name: Verify Windows crash recovery
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: npm run test:recovery
+      - name: Verify queued recovery publication and final editor fixes
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node scripts/test-recovery-drain.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-undo-control.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-input-boundary.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-refresh.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify Git and saved project test workflows
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: |
@@ -167,6 +228,19 @@ jobs:
           node scripts/test-update-lifecycle.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/test-run-trust.mjs
+      - name: Preserve native correctness receipts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-native-stabilization-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            performance-results/windows-notebook-trust.json
+            performance-results/windows-notebook-cleanup.json
+            performance-results/windows-shutdown-cleanup-failure.json
+            performance-results/windows-notebook-environment.json
+            performance-results/windows-notebook-environment.freeze.txt
+          if-no-files-found: warn
+          retention-days: 14
   windows-installer:
     name: Windows x64 installer and upgrade
     runs-on: windows-2025
@@ -203,6 +277,14 @@ jobs:
           }
           "ION_PREVIOUS_WINDOWS_INSTALLER=$setup" >> $env:GITHUB_ENV
       - run: node scripts/test-windows-updater.mjs
+      - name: Preserve primary updater diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-updater-diagnostics-${{ github.sha }}-${{ github.run_attempt }}
+          path: performance-results/windows-updater-diagnostics.json
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run test:release:win
       - run: node scripts/release-evidence.mjs record windows-x64
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

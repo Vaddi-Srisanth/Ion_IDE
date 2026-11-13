@@ -29,6 +29,7 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
   const [selection, setSelection] = useState<string>()
   const mounted = useRef(false)
   const pending = useRef(false)
+  const refreshRequested = useRef(false)
   const lastRevision = useRef(revision)
   const listeners = useRef({ onEntries, onDiff })
   listeners.current = { onEntries, onDiff }
@@ -50,21 +51,32 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
     catch (reason) { if (mounted.current) setError(errorMessage(reason)) }
     finally {
       pending.current = false
-      if (mounted.current) setBusy(false)
+      if (mounted.current) {
+        setBusy(false)
+        if (refreshRequested.current) {
+          refreshRequested.current = false
+          void act(loadStatus)
+        }
+      }
     }
   }
 
   useEffect(() => {
     mounted.current = true
     void act(loadStatus)
-    return () => { mounted.current = false }
+    return () => { mounted.current = false; refreshRequested.current = false }
   }, [bridge])
 
   useEffect(() => {
     if (lastRevision.current === revision) return
-    lastRevision.current = revision
     if (status?.kind !== 'repository') return
-    const timer = setTimeout(() => { void act(loadStatus) }, 450)
+    lastRevision.current = revision
+    const timer = setTimeout(() => {
+      // A source-save event while diff/stage/commit is pending must survive
+      // the debounce. Drain one coalesced refresh when that operation settles.
+      if (pending.current) refreshRequested.current = true
+      else void act(loadStatus)
+    }, 450)
     return () => clearTimeout(timer)
   }, [revision, bridge, status?.kind])
 

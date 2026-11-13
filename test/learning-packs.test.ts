@@ -229,3 +229,23 @@ test('an import preview does not install, binds confirmation to the file, and ex
     await assert.rejects(store.getLesson('community', 'branches'), /UTF-8 JSON/)
   })
 })
+
+
+test('four reviewed lesson prompts agree with their acceptance contracts', async () => {
+  const read = async (language: string) => JSON.parse(await readFile(resolve('src/main/learning/catalog', language + '.json'), 'utf8')) as {
+    lessons: Array<{ id: string; practice: string; exercise?: { expected: string; completion: string } }>
+  }
+  const c = await read('c'), cpp = await read('cpp'), python = await read('python')
+  const summing = c.lessons.find((lesson) => lesson.practice.includes('sums an array'))!
+  assert.ok(summing, 'C task asks for the sum described by its expected behavior')
+  assert.match(summing.exercise!.expected, /Sum/)
+  const words = cpp.lessons.find((lesson) => lesson.practice.startsWith('Count words in a list'))!
+  assert.ok(words, 'C++ task counts words rather than characters')
+  assert.match(words.exercise!.expected, /Count words/)
+  const collections = python.lessons.find((lesson) => lesson.id === 'collections')!
+  assert.match(collections.practice, /Count each word.*sorted order/)
+  assert.match(collections.exercise!.expected, /Count each word.*sorted order/)
+  const functions = python.lessons.find((lesson) => lesson.id === 'functions')!
+  assert.match(functions.practice, /square roots.*at or below/)
+  assert.match(functions.exercise!.expected, /square roots.*at or below/)
+})

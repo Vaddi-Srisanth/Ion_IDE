@@ -1,11 +1,11 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access, copyFile, mkdtemp, readdir, realpath, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import type { RunResult, RunStatus } from '../shared/contracts'
-import { processTempEnvironment, stopWindowsProcessTree, windowsEnvironment, workspaceSafeWindowsToolPaths } from './windows-process'
+import { processTempEnvironment, windowsEnvironment, windowsPipeCommand, monitorWindowsPipeProcess, workspaceSafeWindowsToolPaths } from './windows-process'
 
 const systemPath = '/usr/bin:/bin:/usr/sbin:/sbin'
 const maxInputBytes = 64 * 1024
@@ -44,14 +44,19 @@ export function execute(executable: string, args: string[], options: ProcessOpti
   if (options.signal.aborted) return Promise.resolve({ state: 'cancelled', exitCode: null, output: '' })
   return new Promise((resolve) => {
     const grouped = process.platform !== 'win32'
-    const child = spawn(executable, args, {
+    let command: ReturnType<typeof windowsPipeCommand> | undefined
+    try { if (!grouped) command = windowsPipeCommand(executable, args) } catch (error) {
+      resolve({ state: 'error', exitCode: null, output: '', detail: error instanceof Error ? error.message : 'Windows process helper unavailable.' })
+      return
+    }
+    const child = spawn(command?.executable ?? executable, command?.args ?? args, {
       cwd: options.cwd,
       env: options.environment,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: command ? ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
       detached: grouped,
       shell: false,
       windowsHide: true,
-    })
+    }) as ChildProcessWithoutNullStreams
     const stdout = new StringDecoder()
     const stderr = new StringDecoder()
     const chunks: string[] = []
@@ -62,13 +67,15 @@ export function execute(executable: string, args: string[], options: ProcessOpti
     let finished = false
     let detail: string | undefined
     let exitSignal: NodeJS.Signals | null = null
-    let termination: Promise<void> | undefined
+    let termination: Promise<boolean> | undefined
 
     function killGroup() {
       if (!child.pid) return
       try {
         if (grouped) process.kill(-child.pid, 'SIGKILL')
-        else termination ??= stopWindowsProcessTree(child)
+        else if (child.exitCode === null && child.signalCode === null) {
+          termination ??= ownership?.requestStop() ?? Promise.resolve(false)
+        }
       } catch {
         // The child may already have exited.
       }
@@ -77,6 +84,12 @@ export function execute(executable: string, args: string[], options: ProcessOpti
     function finish(exitCode: number | null, signal?: NodeJS.Signals | null, outputComplete = true) {
       if (finished) return
       finished = true
+      if (ownership && !ownership.verified) {
+        if (state === 'exited') state = 'error'
+        detail ??= ownership.detail ?? 'The Windows process exited without verified descendant cleanup.'
+        outputComplete = false
+      }
+      ownership?.dispose()
       clearTimeout(timer)
       clearTimeout(guard)
       options.signal.removeEventListener('abort', cancel)
@@ -90,16 +103,21 @@ export function execute(executable: string, args: string[], options: ProcessOpti
         stdout: stdoutChunks?.join(''), stderr: stderrChunks?.join(''),
         outputComplete: outputComplete && state !== 'output-limit', signal: signal ?? exitSignal ?? undefined,
       }
-      if (termination) void termination.then(() => resolve(result))
-      else resolve(result)
+      resolve(result)
     }
 
     function stop(reason: ProcessState) {
       if (state !== 'exited') return
       state = reason
       killGroup()
-      // A descendant can detach and keep a pipe open. Do not wait forever on that pipe.
-      guard = setTimeout(() => finish(null, undefined, false), 250)
+      if (ownership) {
+        // Wait for native Stop/Job-drain/reader cleanup acknowledgement. A
+        // timeout falls back only to the retained helper and remains unverified.
+        void termination?.then(() => { if (!finished) finish(child.exitCode, child.signalCode, ownership.verified) })
+      } else {
+        // POSIX descendants can detach and retain a pipe indefinitely.
+        guard = setTimeout(() => finish(null, undefined, false), 250)
+      }
     }
 
     function cancel() {
@@ -121,6 +139,10 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       if (count < data.length) stop('output-limit')
     }
 
+    const ownership = command ? monitorWindowsPipeProcess(child, (message) => {
+      detail = message
+      stop('error')
+    }) : undefined
     const timer = setTimeout(() => stop('timeout'), options.timeoutMs)
     options.signal.addEventListener('abort', cancel, { once: true })
     child.stdout.on('data', (chunk: Buffer) => collect(chunk, stdout, stdoutChunks))

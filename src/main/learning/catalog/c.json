@@ -3,7 +3,7 @@
   "id": "c",
   "name": "C",
   "summary": "Learn C syntax, memory, strings, structs, and the standard headers used in everyday programs.",
-  "version": 2,
+  "version": 3,
   "lessons": [
     {
       "id": "program",
@@ -128,7 +128,7 @@
           "description": "Send the result to the caller."
         }
       ],
-      "practice": "Implement a function that counts the even numbers in an array. Pass its length explicitly.",
+      "practice": "Implement a function that sums an array. Pass its length explicitly; an empty array range must return zero without changing the input.",
       "pitfall": "The sizeof array / sizeof array[0] idiom works where the object is still an array. Inside this function values is a pointer.",
       "difficulty": "beginner",
       "prerequisites": [

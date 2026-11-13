@@ -54,6 +54,24 @@ test('pipe console stops running code on interrupt and bounds program output', {
   assert.equal(output, 'X'.repeat(16))
 })
 
+test('line input rejects an oversized paste without changing its existing input', { timeout: 5000 }, async () => {
+  const events = new EventEmitter()
+  let output = ''
+  const terminal = startLineConsole({
+    executable: process.execPath, args: ['-e', 'process.stdin.on("data",data=>process.stdout.write("Received:"+data));'],
+    cwd: process.cwd(), environment, signal: new AbortController().signal,
+    timeoutMs: 3000, budget: { remaining: 4096 }, ready() { events.emit('ready') },
+    onOutput(text) { output += text },
+  })
+  await once(events, 'ready')
+  terminal.input('pre')
+  assert.throws(() => terminal.input('x'.repeat(16 * 1024)), /Input was not sent/)
+  terminal.input('fix\r\x04')
+  assert.equal((await terminal.result).exitCode, 0)
+  assert.match(output, /Received:prefix\r\n/)
+  assert.doesNotMatch(output, /xxx/)
+})
+
 test('Windows Run Console stops the process tree', { skip: process.platform !== 'win32', timeout: 10_000 }, async (t) => {
   const controller = new AbortController()
   const cwd = await mkdtemp(join(tmpdir(), 'ion-line-stop-'))

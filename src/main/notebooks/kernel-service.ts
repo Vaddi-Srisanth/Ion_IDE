@@ -8,7 +8,7 @@ import type {
 } from '../../shared/notebook-kernel'
 import source from './kernel-broker.py'
 import { NotebookPythonEnvironments, notebookPythonEnvironment } from './python-environments'
-import { stopWindowsProcessTree } from '../windows-process'
+import { monitorWindowsPipeProcess, windowsPipeCommand } from '../windows-process'
 
 const maxSessions = 2
 const maxCommandBytes = 2 * 1024 * 1024
@@ -51,6 +51,7 @@ class KernelSession {
   readonly ready: Promise<void>
   private readonly child: ChildProcessWithoutNullStreams
   private readonly exited: Promise<void>
+  private readonly ownership?: ReturnType<typeof monitorWindowsPipeProcess>
   private readonly decoder = new TextDecoder('utf-8', { fatal: true })
   private readonly startTimer: NodeJS.Timeout
   private resolveReady!: () => void
@@ -70,14 +71,17 @@ class KernelSession {
     private readonly retire: (session: KernelSession, closed: Promise<void>) => void,
   ) {
     this.ready = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject })
-    this.child = spawn(environment.path, ['-E', '-c', source, dirname(path)], {
+    const args = ['-E', '-c', source, dirname(path)]
+    const command = grouped ? undefined : windowsPipeCommand(environment.path, args)
+    this.child = spawn(command?.executable ?? environment.path, command?.args ?? args, {
       cwd: scratch,
       env: notebookPythonEnvironment(scratch, environment.path),
       detached: grouped,
       windowsHide: true,
       shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+      stdio: command ? ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
+    }) as ChildProcessWithoutNullStreams
+    this.ownership = command ? monitorWindowsPipeProcess(this.child, (detail) => this.fail(new Error(detail))) : undefined
     this.exited = new Promise((resolve) => {
       const exited = () => { this.hasExited = true; resolve() }
       this.child.once('exit', exited)
@@ -113,12 +117,14 @@ class KernelSession {
     this.child.stdin.write('{"op":"interrupt"}\n')
   }
 
-  stop(): Promise<void> {
-    return this.close(true)
+  async stop(): Promise<void> {
+    await this.close(true)
   }
 
   private fail(error: Error): void {
-    void this.close(false, error)
+    // Retirement retains the failure for the owner even if no Run/Stop caller
+    // remains to observe it (for example after an unsolicited broker exit).
+    void this.close(false, error).catch(() => undefined)
   }
 
   private receive(chunk: Buffer): void {
@@ -212,14 +218,28 @@ class KernelSession {
     if (this.child.pid && (grouped || !this.hasExited)) {
       try {
         if (grouped) process.kill(-this.child.pid, 'SIGKILL')
-        else await stopWindowsProcessTree(this.child)
+        else {
+          await this.ownership?.requestStop()
+        }
       } catch { /* The group may already have exited. */ }
     }
     await this.waitForExit(350)
     this.child.stdin.destroy()
     this.child.stdout.destroy()
     this.child.stderr.destroy()
+    let cleanupVerified = true
+    if (this.ownership) {
+      let timer: NodeJS.Timeout | undefined
+      const verified = await Promise.race([
+        this.ownership.finished,
+        new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), 500) }),
+      ])
+      clearTimeout(timer)
+      cleanupVerified = verified
+      this.ownership.dispose()
+    }
     await rm(this.scratch, { recursive: true, force: true }).catch(() => undefined)
+    if (!cleanupVerified) throw new Error('The notebook process stopped, but descendant cleanup could not be verified.')
   }
 
   private waitForExit(timeoutMs: number): Promise<void> {
@@ -239,32 +259,38 @@ export class NotebookKernels {
   private readonly closing = new Map<string, Promise<void>>()
   private readonly confirmAgain = new Set<string>()
   private disposed = false
+  private cleanupFailed = false
 
   constructor(private readonly emit: (event: NotebookKernelEvent) => void) {}
 
-  discover(): Promise<NotebookKernelEnvironment[]> { return this.python.discover() }
+  discover(root?: string): Promise<NotebookKernelEnvironment[]> { return this.python.discover(root) }
   addInterpreter(path: string): Promise<NotebookKernelEnvironment> { return this.python.add(path) }
 
   status(path: string): NotebookKernelStatus {
     return this.sessions.get(path)?.status() ?? { state: this.operations.has(path) ? 'starting' : 'stopped' }
   }
 
-  async run(path: string, value: unknown, confirm: (environment: NotebookKernelEnvironment) => Promise<boolean>): Promise<NotebookKernelResult> {
+  async run(path: string, value: unknown, confirm: (environment: NotebookKernelEnvironment) => Promise<boolean>, root = dirname(path), current = () => true): Promise<NotebookKernelResult> {
     const request = requestFrom(value)
     const ticket = this.begin(path)
     try {
       let session = this.sessions.get(path)
       if (!session || (request.environmentId && request.environmentId !== session.environment.id)) {
-        const environment = await this.selectEnvironment(request)
+        let environment = await this.selectEnvironment(request, root)
         this.check(path, ticket)
         if (!await confirm(environment)) return { outputs: [], count: null, status: 'interrupted' }
         this.check(path, ticket)
+        if (!current()) throw new Error('The notebook workspace changed.')
+        environment = await this.python.verify(environment)
+        this.check(path, ticket)
+        if (!current()) throw new Error('The notebook workspace changed.')
         if (session) await session.stop()
-        session = await this.start(path, environment, ticket)
+        session = await this.start(path, environment, ticket, current)
       } else if (this.confirmAgain.has(path)) {
         if (!await confirm(session.environment)) return { outputs: [], count: null, status: 'interrupted' }
       }
       this.check(path, ticket)
+      if (!current()) throw new Error('The notebook workspace changed.')
       this.confirmAgain.delete(path)
       return await session.run(request)
     } finally {
@@ -272,7 +298,7 @@ export class NotebookKernels {
     }
   }
 
-  async restart(path: string): Promise<NotebookKernelStatus> {
+  async restart(path: string, current = () => true): Promise<NotebookKernelStatus> {
     const session = this.sessions.get(path)
     if (!session || session.status().state === 'starting') throw new Error('Start the notebook kernel before restarting it.')
     const renewTrust = this.confirmAgain.has(path)
@@ -280,7 +306,7 @@ export class NotebookKernels {
     const ticket = this.begin(path)
     try {
       await session.stop()
-      const restarted = await this.start(path, session.environment, ticket)
+      const restarted = await this.start(path, session.environment, ticket, current)
       if (renewTrust) this.confirmAgain.add(path)
       return restarted.status()
     } finally {
@@ -310,11 +336,15 @@ export class NotebookKernels {
     this.python.dispose()
     this.operations.clear()
     this.confirmAgain.clear()
-    await Promise.all([...this.sessions.values()].map((session) => session.stop()).concat([...this.closing.values()]))
+    const results = await Promise.allSettled([...this.sessions.values()].map((session) => session.stop()).concat([...this.closing.values()]))
+    if (this.cleanupFailed || results.some((result) => result.status === 'rejected')) {
+      throw new Error('One or more notebook processes could not be verified as fully stopped.')
+    }
   }
 
   private begin(path: string): symbol {
     if (this.disposed) throw new Error('The notebook window has closed.')
+    if (this.cleanupFailed) throw new Error('A previous notebook process cleanup could not be verified. Restart Ion before running another notebook.')
     if (this.operations.has(path)) throw new Error('This notebook already has a pending kernel operation.')
     const ticket = Symbol(path)
     this.operations.set(path, ticket)
@@ -323,12 +353,13 @@ export class NotebookKernels {
 
   private check(path: string, ticket: symbol): void {
     if (this.disposed || this.operations.get(path) !== ticket) throw new Error('The notebook kernel operation was stopped.')
+    if (this.cleanupFailed) throw new Error('A previous notebook process cleanup could not be verified.')
   }
 
-  private async selectEnvironment(request: NotebookKernelRequest): Promise<NotebookKernelEnvironment> {
-    let options = this.python.list()
+  private async selectEnvironment(request: NotebookKernelRequest, root: string): Promise<NotebookKernelEnvironment> {
+    let options = this.python.list(root)
     if (!options.length || (request.environmentId && !options.some(({ id }) => id === request.environmentId))) {
-      options = await this.python.discover()
+      options = await this.python.discover(root)
     }
     const environment = request.environmentId ? options.find(({ id }) => id === request.environmentId)
       : options.find(({ names }) => request.preferredName && names?.includes(request.preferredName)) ?? options[0]
@@ -336,7 +367,7 @@ export class NotebookKernels {
     return environment
   }
 
-  private async start(path: string, environment: NotebookKernelEnvironment, ticket: symbol): Promise<KernelSession> {
+  private async start(path: string, environment: NotebookKernelEnvironment, ticket: symbol, current = () => true): Promise<KernelSession> {
     await this.closing.get(path)
     this.check(path, ticket)
     if (this.sessions.size + this.launching.size + this.closing.size >= maxSessions) {
@@ -347,19 +378,26 @@ export class NotebookKernels {
     let session: KernelSession | undefined
     try {
       scratch = await mkdtemp(join(tmpdir(), 'ion-notebook-kernel-'))
+      await this.python.assertCurrent(environment)
       this.check(path, ticket)
+      if (!current()) throw new Error('The notebook workspace changed.')
       session = new KernelSession(environment, path, scratch, this.emit, (closedSession, closed) => {
         if (this.sessions.get(path) === closedSession) {
           this.sessions.delete(path)
           this.confirmAgain.delete(path)
         }
         this.closing.set(path, closed)
-        void closed.finally(() => { if (this.closing.get(path) === closed) this.closing.delete(path) })
+        const forget = () => { if (this.closing.get(path) === closed) this.closing.delete(path) }
+        void closed.then(forget, () => { this.cleanupFailed = true; forget() })
       })
       this.sessions.set(path, session)
       this.launching.delete(ticket)
       await session.ready
       this.check(path, ticket)
+      if (!current()) {
+        await session.stop()
+        throw new Error('The notebook workspace changed.')
+      }
       return session
     } finally {
       this.launching.delete(ticket)

@@ -94,6 +94,34 @@ test('listing skips malformed headers and cleans interrupted temporary writes wi
   assert.ok(!(await readdir(directory)).includes(tempName))
 })
 
+test('drain settles accepted checkpoints and removals before another store opens them', async (t) => {
+  const { directory, store } = await setup(t)
+  const draft = { id: randomUUID(), name: 'queued.txt' }
+  const requests = [
+    store.write({ ...draft, text: 'earlier' }),
+    store.remove([draft.id]),
+    store.write({ ...draft, text: 'latest unacknowledged request' }),
+  ]
+  await store.drain()
+  assert.equal(await new RecoveryStore(directory).read(draft.id), 'latest unacknowledged request')
+  await Promise.all(requests)
+  assert.deepEqual(await readdir(directory), [draft.id + '.draft'])
+})
+
+test('a failed checkpoint does not poison draining or the next accepted write', async (t) => {
+  const { directory, store } = await setup(t)
+  const intact = { id: randomUUID(), name: 'intact.txt' }
+  await store.write({ ...intact, text: 'previously acknowledged' })
+  const blocked = { id: randomUUID(), name: 'blocked.txt' }
+  await mkdir(join(directory, blocked.id + '.draft'))
+  const failed = assert.rejects(store.write({ ...blocked, text: 'must not publish' }), /Invalid recovery draft destination/)
+  const next = store.write({ ...intact, text: 'later successful checkpoint' })
+  await store.drain()
+  await Promise.all([failed, next])
+  assert.equal(await new RecoveryStore(directory).read(intact.id), 'later successful checkpoint')
+  assert.ok(!(await readdir(directory)).some((name) => name.endsWith('.tmp')))
+})
+
 test('queued writes and removals run in request order and leave no temporary files', async (t) => {
   const { directory, store } = await setup(t)
   const draft = { id: randomUUID(), name: 'draft.txt' }

@@ -3,7 +3,7 @@
   "id": "python",
   "name": "Python",
   "summary": "Build confidence with core Python, collections, files, JSON, and the standard library.",
-  "version": 2,
+  "version": 3,
   "lessons": [
     {
       "id": "values",
@@ -131,7 +131,7 @@
           "description": "Return a new sorted list without changing the input."
         }
       ],
-      "practice": "Count the first letters of several words. Use a set to show how many distinct letters appear.",
+      "practice": "Count each word in a list and report the unique words in sorted order. Empty input must produce an empty result.",
       "pitfall": "list.sort() modifies the list and returns None. Use sorted() when you need a new list.",
       "difficulty": "beginner",
       "prerequisites": [
@@ -178,7 +178,7 @@
           "description": "Test whether at least one item or every item is truthy."
         }
       ],
-      "practice": "Write a function that returns the lengths of words longer than a threshold.",
+      "practice": "Write a function that returns square roots of nonnegative values at or below an adjustable limit. Exclude negative values and values above the limit.",
       "pitfall": "Avoid a list or dictionary as a default parameter when callers need independent values. Defaults are evaluated once.",
       "difficulty": "beginner",
       "prerequisites": [
@@ -195,7 +195,7 @@
       "exampleMode": "program",
       "expectedOutput": "[2.0, 3.0]",
       "exercise": {
-        "expected": "Return the square roots of nonnegative values under an adjustable limit.",
+        "expected": "Return the square roots of nonnegative values at or below an adjustable limit.",
         "completion": "Inputs above the limit and negative inputs are excluded."
       },
       "related": [

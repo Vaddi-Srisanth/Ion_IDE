@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { copyFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -40,6 +40,8 @@ let browser
 let updating
 let restartedPid
 let activePid
+let phase = 'setup'
+let primaryError
 const portFile = join(profile, 'DevToolsActivePort')
 
 // .NET MainWindowHandle/CloseMainWindow excludes hidden windows. CI launches
@@ -182,11 +184,45 @@ async function begin(extra = {}) {
   return { updated, error: () => errors }
 }
 
+async function diagnostics(error) {
+  const report = { phase, primary: { message: String(error?.message ?? error).slice(0, 3000), code: error?.code }, receipts: {}, layout: [] }
+  for (const [name, path] of [['stage', join(stage, 'result.json')], ['profile', join(profile, 'updates', 'result.json')]]) {
+    try {
+      const info = await lstat(path)
+      if (!info.isFile() || info.isSymbolicLink() || info.size > 4096) throw new Error('Invalid receipt size/type')
+      const value = JSON.parse(await readFile(path, 'utf8'))
+      report.receipts[name] = Object.fromEntries(['schemaVersion', 'state', 'version', 'message', 'backupBytes', 'backupMs', 'rollbackOperation', 'rollbackError']
+        .filter(key => typeof value[key] === 'string' || typeof value[key] === 'number').map(key => [key, value[key]]))
+    } catch (reason) { report.receipts[name] = { unavailable: reason.code ?? reason.message } }
+  }
+  const backups = (await readdir(root).catch(() => [])).filter(name => /^\.ion-update-(?:backup|failed)-[a-f0-9]{32}$/.test(name)).slice(0, 8)
+  for (const relative of ['App/Ion IDE.exe', 'Uninstall.exe', ...backups.flatMap(name => [name, name + '/App/Ion IDE.exe', name + '/Ion IDE.exe', name + '/Uninstall.exe'])]) {
+    try {
+      const info = await lstat(join(root, ...relative.split('/')))
+      const item = { relative, size: info.size, directory: info.isDirectory(), symlink: info.isSymbolicLink() }
+      // Files here belong only to the disposable install. Hash bounded files;
+      // never print document contents or unrestricted directory listings.
+      if (info.isFile() && !info.isSymbolicLink() && info.size < 256 * 1024 * 1024) {
+        item.sha256 = createHash('sha256').update(await readFile(join(root, ...relative.split('/')))).digest('hex')
+      }
+      report.layout.push(item)
+    } catch (reason) { report.layout.push({ relative, unavailable: reason.code ?? reason.message }) }
+  }
+  console.error('PRIMARY WINDOWS UPDATER FAILURE:', error?.stack ?? error)
+  console.error('WINDOWS UPDATER DIAGNOSTICS:', JSON.stringify(report))
+  await mkdir('performance-results', { recursive: true })
+  await writeFile('performance-results/windows-updater-diagnostics.json', JSON.stringify(report, null, 2) + '\n')
+}
+
 try {
   await mkdir(profile)
   await mkdir(stage)
   await copyFile(installer, setup)
   await buildWindowsUpdater(helper, 'x64')
+  await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    '$v=(Get-Item -LiteralPath $env:ION_UPDATE_HELPER).VersionInfo; if($v.CompanyName -cne $env:ION_UPDATE_PUBLISHER -or $v.ProductVersion -cne $env:ION_UPDATE_VERSION) { throw "Updater VERSIONINFO did not match publisher/version" }'],
+  { ...quiet, env: { ...process.env, ION_UPDATE_HELPER: helper, ION_UPDATE_VERSION: version,
+    ION_UPDATE_PUBLISHER: process.env.ION_WIN_SIGN === '1' ? process.env.ION_WIN_SIGN_PUBLISHER : 'Ion IDE' } })
   const prefs = JSON.stringify({ version: 1, settings: { autoSave: false, openFullScreen: false }, recents: [] })
   await writeFile(join(profile, 'preferences.json'), prefs)
   await writeFile(join(scratch, 'user-code.c'), '#include <stdio.h>\nint main(void) { return 0; }\n')
@@ -200,6 +236,8 @@ try {
   assert.equal((await page.evaluate(() => window.ion.updates.status())).current,
     process.env.ION_PREVIOUS_WINDOWS_INSTALLER ? '0.9.6' : version)
   console.log('PASS real installed Ion starts with a separate Unicode test profile.')
+
+  phase = 'security-rejections'
 
   await rejected({ '--target': join(scratch, 'Ion IDE.exe') }, 3)
   await rejected({ '--parent': String(process.pid) }, 4)
@@ -244,6 +282,7 @@ try {
   const originalInstalledHash = createHash('sha256').update(await readFile(target)).digest('hex')
   const originalUninstallerHash = createHash('sha256').update(await readFile(uninstaller)).digest('hex')
   const originalVersions = await Promise.all([32, 64].map(view => registryValue('DisplayVersion', view)))
+  phase = 'failing-installer-rollback'
   const failedInstall = await begin({ '--installer': failureSetup,
     '--sha256': createHash('sha256').update(await readFile(failureSetup)).digest('hex') })
   await rm(portFile, { force: true })
@@ -270,6 +309,7 @@ try {
   // may require native user consent and is a separate manual release check.
   await writeFile(`${setup}:Zone.Identifier`, '[ZoneTransfer]\r\nZoneId=0\r\n')
 
+  phase = 'real-upgrade'
   const successful = await begin()
   await assert.rejects(writeFile(setup, 'untrusted replacement'), error => ['EBUSY', 'EACCES', 'EPERM'].includes(error.code))
   assert.equal(createHash('sha256').update(await readFile(setup)).digest('hex'), digest)
@@ -296,14 +336,30 @@ try {
   restartedPid = undefined
   await rm(join(root, 'App', 'unowned-test-file.txt'))
   console.log('PASS real local-fixture installer upgrades in place, restarts the same Unicode profile, preserves code/settings/unowned files and retains the zone metadata.')
+} catch (error) {
+  primaryError = error
+  // Print the primary failure before teardown can encounter a damaged binary.
+  console.error('PRIMARY WINDOWS UPDATER FAILURE PHASE:', phase, error?.stack ?? error)
+  try { await diagnostics(error) } catch (reason) { console.error('Updater diagnostics unavailable:', reason?.message ?? reason) }
+  throw error
 } finally {
-  for (const pid of [restartedPid, activePid, child?.exitCode === null ? child.pid : undefined]) {
-    if (pid) await execute('taskkill.exe', ['/PID', String(pid), '/T', '/F'], quiet).catch(() => {})
+  const cleanupErrors = []
+  const safely = async (label, operation) => {
+    try { await operation() } catch (error) {
+      cleanupErrors.push(error)
+      console.error('Windows updater teardown warning:', label, error?.message ?? error)
+    }
   }
-  if (updating?.exitCode === null) await execute('taskkill.exe', ['/PID', String(updating.pid), '/T', '/F'], quiet).catch(() => {})
-  if (browser) await Promise.race([browser.close().catch(() => {}), sleep(2000)])
-  await rm(join(root, 'App', 'unowned-test-file.txt'), { force: true })
-  await rm(join(root, 'updater-fixture-mutated.txt'), { force: true })
-  if (await present(uninstaller)) await execute(uninstaller, ['/S'], quiet).catch(() => {})
-  await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+  for (const pid of [restartedPid, activePid, child?.exitCode === null ? child.pid : undefined]) {
+    if (pid) await safely('owned application process', () => execute('taskkill.exe', ['/PID', String(pid), '/T', '/F'], quiet))
+  }
+  if (updating?.exitCode === null) await safely('owned update process', () => execute('taskkill.exe', ['/PID', String(updating.pid), '/T', '/F'], quiet))
+  if (browser) await safely('test CDP connection', () => Promise.race([browser.close(), sleep(2000)]))
+  await safely('fixture marker', () => rm(join(root, 'App', 'unowned-test-file.txt'), { force: true }))
+  await safely('mutation proof', () => rm(join(root, 'updater-fixture-mutated.txt'), { force: true }))
+  await safely('disposable uninstaller', async () => {
+    if (await present(uninstaller)) await execute(uninstaller, ['/S'], quiet)
+  })
+  await safely('private test folder', () => rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }))
+  if (!primaryError && cleanupErrors.length) throw new AggregateError(cleanupErrors, 'The updater passed, but its disposable resources did not clean up.')
 }

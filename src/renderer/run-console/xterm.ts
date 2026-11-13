@@ -2,7 +2,6 @@ import type { ITheme, Terminal } from '@xterm/xterm';
 
 // Even three UTF-8 bytes per code unit fit the helper's 16 KiB frame and 64 KiB queue.
 const inputChunk = 5_000;
-const bracketedPasteEnd = '\x1b[201~';
 export const terminalDimension = (value: number) => Math.max(2, Math.min(512, value));
 
 function safeSliceEnd(text: string, end: number): number {
@@ -10,16 +9,16 @@ function safeSliceEnd(text: string, end: number): number {
   return end < text.length && previous >= 0xd800 && previous <= 0xdbff ? end - 1 : end;
 }
 
-export function sendTerminalInput(text: string, send: (chunk: string) => void, pasteLimit = 16_000): void {
-  if (text.length > pasteLimit) {
-    const suffix = text.startsWith('\x1b[200~') && text.endsWith(bracketedPasteEnd) ? bracketedPasteEnd : '';
-    text = text.slice(0, safeSliceEnd(text, pasteLimit - suffix.length)) + suffix;
-  }
+export function sendTerminalInput(text: string, send: (chunk: string) => void, pasteLimit = 16_000): boolean {
+  // Reject the entire paste before sending any prefix. A clipped command or
+  // program input can mean something different from what the user submitted.
+  if (text.length > pasteLimit) return false;
   for (let start = 0; start < text.length;) {
     const end = safeSliceEnd(text, Math.min(text.length, start + inputChunk));
     send(text.slice(start, end));
     start = end;
   }
+  return true;
 }
 
 export function readTerminalTheme(shell: HTMLElement): ITheme {

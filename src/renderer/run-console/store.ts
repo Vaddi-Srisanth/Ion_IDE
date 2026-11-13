@@ -94,6 +94,11 @@ export class RunConsoleStore {
     this.publish({ phase: 'finished', result: null, error: message });
   }
 
+  inputRejected(): void {
+    // Input rejection must not stop the running program or destroy its output.
+    this.publish({ error: 'Input was not sent: paste at most 16,000 characters at a time.' });
+  }
+
   clear(): void {
     this.previous = null;
     this.transcript = newTranscript();

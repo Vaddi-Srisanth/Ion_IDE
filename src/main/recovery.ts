@@ -82,6 +82,10 @@ export class RecoveryStore {
 
   constructor(private readonly directory: string) {}
 
+  // Wait for accepted requests to settle. Individual request failures still go
+  // to their callers; they must not strand later checkpoints or shutdown.
+  drain(): Promise<void> { return this.operations }
+
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.operations.then(operation)
     this.operations = result.then(() => undefined, () => undefined)

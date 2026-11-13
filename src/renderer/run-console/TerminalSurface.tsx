@@ -76,7 +76,8 @@ export function TerminalSurface({ store, onInput, onResize }: TerminalSurfacePro
       }
     });
     const data = terminal.onData((value) => {
-      if (!replaying && store.getSnapshot().phase === 'running') sendTerminalInput(value, callbacks.current.onInput);
+      if (!replaying && store.getSnapshot().phase === 'running'
+        && !sendTerminalInput(value, callbacks.current.onInput)) store.inputRejected();
     });
     const resizing = terminal.onResize(({ cols, rows }) => sendSize(cols, rows));
     const offState = store.subscribe(updateInput);

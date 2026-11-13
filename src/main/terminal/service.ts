@@ -167,13 +167,16 @@ export class TerminalService {
     if (!session) return
     session.controller.abort()
     session.pending = ''
-    await session.pty?.result
-    this.sessions.delete(session.id)
+    try { await session.pty?.result }
+    finally { this.sessions.delete(session.id) }
   }
 
   async closeAll(): Promise<void> {
     this.disposed = true
-    await Promise.all(Array.from(this.sessions.keys(), (id) => this.close(id)))
+    const results = await Promise.allSettled(Array.from(this.sessions.keys(), (id) => this.close(id)))
+    if (results.some((result) => result.status === 'rejected')) {
+      throw new Error('One or more terminal sessions could not be verified as fully stopped.')
+    }
   }
 
   private session(id: unknown): TerminalSession | undefined {

@@ -8,7 +8,7 @@ import {
   type LearningFeedback, type LearningHistory, type LearningTopic,
 } from '../../shared/learning'
 import type { RunLanguage } from '../../shared/run-console'
-import { cRetryFingerprint } from './c-retry'
+import { retryFingerprint } from './retry'
 import { diagnose, packDiagnostics, type ClassifiedDiagnostic } from './diagnostics'
 
 export { compilerProblems } from './diagnostics'
@@ -199,11 +199,12 @@ export class LearningService {
     const reportedCategories = new Set(records.filter(({ severity }) => severity !== 'note').map(({ category }) => category))
     const compilerReportedErrors = records.some(({ phase, severity }) => phase === 'compile'
       && (severity === 'error' || severity === 'fatal error'))
-    const compareTokens = readSource !== undefined && language === 'c' && result.status === 'compile-error'
+    const compareTokens = (language !== 'c' || readSource !== undefined)
+      && (result.status === 'compile-error' || result.status === 'runtime-error')
     return this.serial(async () => {
       const state = await this.read()
-      const source = compareTokens && diagnosticSet ? await readSource().catch(() => undefined) : undefined
-      const retryHash = source === undefined ? undefined : cRetryFingerprint(source, sourceHash)
+      const source = compareTokens && diagnosticSet && readSource ? await readSource().catch(() => undefined) : undefined
+      const retryHash = source === undefined ? undefined : retryFingerprint(language, source, sourceHash)
       const fileHistory = state.files[file]
       const previous = fileHistory?.episodes ?? {}
       const lastFailure = fileHistory?.lastFailure

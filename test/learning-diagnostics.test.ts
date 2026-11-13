@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { LearningService } from '../src/main/learning'
 import { diagnose } from '../src/main/learning/diagnostics'
+import { retryFingerprint } from '../src/main/learning/retry'
 import type { RunResult } from '../src/shared/contracts'
 import type { DiagnosticCategory } from '../src/shared/learning'
 import type { RunLanguage } from '../src/shared/run-console'
@@ -119,6 +120,7 @@ test('language diagnostics retain history and resolve a runtime failure only aft
     const observe = (source: string, input: RunResult, instance = service) => instance.observe({
       path: runtime.path, language: runtime.language, result: input,
       sourceHash: createHash('sha256').update(source).digest('hex'),
+      readSource: async () => source,
     })
     const first = await observe('first edit', result(runtime))
     assert.equal(first.language, 'java')
@@ -133,5 +135,55 @@ test('language diagnostics retain history and resolve a runtime failure only aft
       category === 'java-null-reference' && repeated === 1 && resolved === 1))
   } finally {
     await rm(directory, { recursive: true, force: true })
+  }
+})
+
+
+test('reviewed retries ignore trivia, preserve Python indentation, and abstain on ambiguous syntax', () => {
+  const fingerprint = (language: RunLanguage, source: string) => retryFingerprint(language, source,
+    createHash('sha256').update(source).digest('hex'))
+  for (const [language, original, cosmetic] of [
+    ['java', 'class A { int x = missing + 0; }', '// note\nclass A { int x=missing /* note */ + 0; }'],
+    ['python', 'if True:\n    print(missing + 0)\n', '# note\n\nif True: # note\n    print( missing + 0 )\n'],
+    ['javascript', 'console.log(missing + 0);', '// note\nconsole.log( missing /* note */ + 0 );'],
+  ] as const) {
+    assert.ok(fingerprint(language, original), language)
+    assert.equal(fingerprint(language, cosmetic), fingerprint(language, original), language)
+    assert.notEqual(fingerprint(language, original.replace('+ 0', '+ 1')), fingerprint(language, original), language)
+  }
+  assert.notEqual(fingerprint('python', 'if True:\n    x = 1\nprint(x)'), fingerprint('python', 'if True:\n    x = 1\n    print(x)'))
+  assert.equal(fingerprint('python', 'value=++missing'), fingerprint('python', 'value = + +missing'))
+  for (const [language, source] of [
+    ['java', 'class A { String x = """text"""; }'], ['java', String.raw`class A { int \u0078 = 0; }`],
+    ['javascript', 'const x = /pattern/;'], ['javascript', 'const x = `template ${value}`;'],
+    ['python', 'x = f"value {item}"'], ['python', 'if True:\n\tprint(value)'], ['python', 'print([missing)'],
+  ] as const) assert.equal(fingerprint(language, source), undefined)
+  assert.equal(retryFingerprint('java', 'class A {}', '0'.repeat(64)), undefined)
+  assert.equal(fingerprint('java', 'a'.repeat(128 * 1024 + 1)), undefined)
+})
+
+test('Java, Python and JS cosmetic retries persist without inflation; uncertain source abstains', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ion-language-retry-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const corpus = await fixtures()
+  for (const [id, source, comment, uncertain] of [
+    ['java-name', 'class Fixture { int attempt = 0; int x = missing; }', '// explanation\n', 'class A { String x = """text"""; }'],
+    ['python-name', 'attempt = 0\nprint(missing)\n', '# explanation\n', 'print(f"{missing}")'],
+    ['js-name', 'let attempt = 0; console.log(missing);', '// explanation\n', 'const x = /ambiguous/;'],
+  ]) {
+    const fixture = corpus.find((row) => row.id === id)!
+    const file = join(directory, fixture.language + '.json')
+    let service = new LearningService(file)
+    const observe = (text: string, read: string | undefined = text) => service.observe({ path: fixture.path,
+      language: fixture.language, result: result(fixture), sourceHash: createHash('sha256').update(text).digest('hex'),
+      readSource: async () => read })
+    assert.equal((await observe(source)).diagnostics[0].occurrence, 'new')
+    service = new LearningService(file)
+    assert.equal((await observe(comment + source)).diagnostics[0].occurrence, 'unchanged')
+    assert.equal((await observe(source.replace('= 0', '= 1'))).diagnostics[0].occurrence, 'repeated')
+    assert.equal((await observe(uncertain)).diagnostics[0].occurrence, 'unchanged')
+    assert.equal((await observe(source.replace('= 0', '= 2'), 'stale file')).diagnostics[0].occurrence, 'unchanged')
+    assert.equal((await service.getHistory()).categories.find((row) => row.category === fixture.expected)?.repeated, 1)
+    assert.doesNotMatch(await readFile(file, 'utf8'), /attempt|explanation|missing;/)
   }
 })

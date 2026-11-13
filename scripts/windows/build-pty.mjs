@@ -50,8 +50,7 @@ export async function buildWindowsPty(destination, arch) {
   if (process.platform !== 'win32') {
     const prebuilt = process.env.ION_WINDOWS_PTY_EXE
     if (!prebuilt) {
-      console.log('Cross-build without a Windows PTY helper. Run Console will use line input.')
-      return
+      throw new Error('A Windows build requires the verified pipe/PTY helper. Build natively on Windows or supply ION_WINDOWS_PTY_EXE.')
     }
     await requireX64Executable(prebuilt)
     await mkdir(dirname(destination), { recursive: true })
@@ -69,6 +68,8 @@ export async function buildWindowsPty(destination, arch) {
       ...quiet, cwd: scratch, env,
     })
     await requireX64Executable(destination)
+    const protocol = await run(destination, ['--pipe-version'], quiet)
+    if (protocol.stdout !== 'ION_PIPE_JOB_2\n') throw new Error('The Windows process helper has an incompatible pipe protocol.')
   } catch (error) {
     if (error?.stdout) console.error(error.stdout.trim())
     if (error?.stderr) console.error(error.stderr.trim())

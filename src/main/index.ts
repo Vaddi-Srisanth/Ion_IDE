@@ -22,6 +22,7 @@ import { quickOpenQuery, searchWorkspace } from './quick-open'
 import { RecoveryStore } from './recovery'
 import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
+import { configureWindowsProcessHelper } from './windows-process'
 import type { InteractiveRunner, NativeProject } from './run-console'
 import type { TerminalService } from './terminal/service'
 import type { SourceControlService } from './source-control'
@@ -76,6 +77,7 @@ function devServer(): URL | undefined {
 const development = devServer()
 const expectedURL = development?.href ?? rendererURL
 const runner = new CRunner()
+if (process.platform === 'win32') configureWindowsProcessHelper(nativeTool('ion-pty'))
 const safeMutations = fileMutations(nativeTool('ion-file-ops'))
 const workspaceFiles = () => new WorkspaceFiles(safeMutations, () => join(app.getPath('userData'), 'trash-staging'))
 let files = workspaceFiles()
@@ -591,19 +593,37 @@ function createWindow(): BrowserWindow {
     viewerService = undefined
     const kernelCleanup = notebookKernels?.then((service) => service.dispose(), () => undefined)
     notebookKernels = undefined
-    const terminalCleanup = terminalService?.then((service) => service.closeAll()).catch(() => undefined)
+    const terminalCleanup = terminalService?.then((service) => service.closeAll())
     terminalService = undefined
     terminalFocused = false
     ignoreTerminalAccelerators = false
-    const cleanup = Promise.all([runner.drain(), fileCleanup, preferences.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
+    // A failed process cleanup must not skip another owner's pending file or
+    // recovery publication. Wait for every owner before choosing what follows.
+    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, preferences.drain(), recovery.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), formatting?.done,
       updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain())])
-    if (restartAfterCrash) {
-      void cleanup.then(() => { if (!window && !quitRequested) createWindow() })
-    } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
-      void cleanup.then(async () => {
-        if (window) return
+    void cleanup.then(async (results) => {
+      const failed = results.some((result) => result.status === 'rejected')
+      if (failed) {
+        console.warn('Ion IDE cleanup could not be fully verified. Automatic restart and update installation were canceled.')
+        const update = pendingUpdate
+        pendingUpdate = undefined
+        if (update) {
+          try { await update.prepared.dispose() }
+          catch { console.warn('Could not remove unused update staging. The installed app is unchanged.') }
+          update.complete(false)
+        }
+        // Preserve the explicit failure instead of starting more work on top of
+        // unverified resources. All persistence owners have now settled.
+        quitRequested = true
+        app.quit()
+        return
+      }
+      if (window) return
+      if (restartAfterCrash) {
+        if (!quitRequested) createWindow()
+      } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
         const update = pendingUpdate
         pendingUpdate = undefined
         if (update) {
@@ -623,8 +643,12 @@ function createWindow(): BrowserWindow {
           }
         }
         app.quit()
-      })
-    }
+      }
+    }).catch(() => {
+      console.warn('Ion IDE could not finish its shutdown continuation. Automatic restart was canceled.')
+      quitRequested = true
+      app.quit()
+    })
   })
   void target.loadURL(expectedURL).catch((error: unknown) => {
     if (!target.isDestroyed()) startupFailure(error)
@@ -783,10 +807,10 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
         if (generation === panelGeneration && selection === learningSelectionGeneration) {
           result.learning = await service.observe({
             path, sourceHash, language: plan.language, result: { ...result, programOutput: runtimeExcerpt },
-            readSource: plan.language === 'c' ? async () => {
+            readSource: async () => {
               const source = await scope.read(path).catch(() => undefined)
               return source?.revision === token ? source.text : undefined
-            } : undefined,
+            },
           })
         }
       } catch { /* Compiler output remains available if learning storage fails. */ }
@@ -1137,36 +1161,51 @@ function registerIpc(): void {
     return entry
   })
   handle('notebook-kernel-discover', async (target, value) => {
-    await files.inspect(kernelPath(value), 'file')
-    return (await kernels(target)).discover()
+    const scope = files
+    const root = scope.rootPath
+    const { path } = await scope.inspect(kernelPath(value), 'file')
+    const result = await (await kernels(target)).discover(root ?? dirname(path))
+    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The notebook workspace changed.')
+    return result
   })
   handle('notebook-kernel-choose', async (target, value) => {
-    await files.inspect(kernelPath(value), 'file')
+    const scope = files
+    const root = scope.rootPath
+    await scope.inspect(kernelPath(value), 'file')
     const selection = await dialog.showOpenDialog(target, { title: 'Choose a Python Interpreter', properties: ['openFile', 'showHiddenFiles'] })
-    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
-    return (await kernels(target)).addInterpreter(selection.filePaths[0])
+    if (target !== window || scope !== files || scope.rootPath !== root || selection.canceled || !selection.filePaths[0]) return null
+    const result = await (await kernels(target)).addInterpreter(selection.filePaths[0])
+    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The notebook workspace changed.')
+    return result
   })
   handle('notebook-kernel-status', async (_target, value): Promise<NotebookKernelStatus> => {
     const path = kernelPath(value)
     return (await notebookKernels)?.status(path) ?? { state: 'stopped' }
   })
   handle('notebook-kernel-run', async (target, value, request) => {
-    const { path } = await files.inspect(kernelPath(value), 'file')
+    const scope = files
+    const root = scope.rootPath
+    const { path } = await scope.inspect(kernelPath(value), 'file')
+    const current = () => target === window && !target.isDestroyed() && scope === files && scope.rootPath === root
     return (await kernels(target)).run(path, request, async (environment) => {
-      if (target !== window || target.isDestroyed()) return false
+      if (!current()) return false
       const choice = await dialog.showMessageBox(target, {
         type: 'warning', buttons: ['Cancel', 'Trust and Run'], cancelId: 0, defaultId: 0,
         message: `Run Python from ${basename(path)}?`,
-        detail: `The selected notebook code will run using ${environment.label} at ${environment.path}. The local kernel can access files and other resources available to your user account. Run code you trust.`,
+        detail: `Ion will first run the interpreter at ${environment.path} to check notebook support, then run your notebook. Both the interpreter and notebook can access resources available to your user account. Approve only an interpreter and code you trust.`,
       })
-      if (choice.response !== 1 || target !== window || target.isDestroyed()) return false
-      await files.inspect(path, 'file')
-      return target === window
-    })
+      if (choice.response !== 1 || !current()) return false
+      await scope.inspect(path, 'file')
+      return current()
+    }, root ?? dirname(path), current)
   })
-  handle('notebook-kernel-restart', async (_target, value): Promise<NotebookKernelStatus> => {
+  handle('notebook-kernel-restart', async (target, value): Promise<NotebookKernelStatus> => {
+    const scope = files
+    const root = scope.rootPath
     const path = kernelPath(value)
-    return (await notebookKernels)?.restart(path) ?? { state: 'stopped' }
+    await scope.inspect(path, 'file')
+    return (await notebookKernels)?.restart(path,
+      () => target === window && !target.isDestroyed() && scope === files && scope.rootPath === root) ?? { state: 'stopped' }
   })
   handle('notebook-kernel-interrupt', async (_target, value) => {
     const path = kernelPath(value)

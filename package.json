@@ -31,9 +31,14 @@
     "test:practice": "node scripts/test-practice-catalog.mjs",
     "test:starters": "node scripts/test-starter-code.mjs",
     "test:notebooks": "node scripts/test-notebook.mjs --edit",
+    "test:notebook-trust": "node scripts/test-notebook-trust.mjs",
+    "test:recovery-drain": "node scripts/test-recovery-drain.mjs",
+    "test:git-refresh": "node scripts/test-git-refresh.mjs",
+    "test:undo-control": "node scripts/test-undo-control.mjs",
+    "test:process-family": "node --test scripts/test-process-family.mjs",
     "test:window": "node scripts/test-window-startup.mjs",
     "test:onboarding": "node scripts/test-onboarding.mjs",
-    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:desktop && npm run test:window && npm run test:onboarding && node scripts/test-update-preferences.mjs && node scripts/test-update-lifecycle.mjs && node scripts/test-run-trust.mjs && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:java-tools && npm run test:format && npm run test:workspace-search && npm run test:run-console && npm run test:native-projects && npm run test:terminal && npm run test:workspaces && npm run test:source-control && npm run test:project-suites && npm run test:learning-lens && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
+    "test:regression": "npm run typecheck && npm test && npm run build && npm run test:notebook-trust && npm run test:recovery-drain && npm run test:shutdown-failure && npm run test:notebook-cleanup && npm run test:git-refresh && npm run test:undo-control && npm run test:process-family && npm run test:desktop && npm run test:window && npm run test:onboarding && node scripts/test-update-preferences.mjs && node scripts/test-update-lifecycle.mjs && node scripts/test-run-trust.mjs && npm run test:integrity && npm run test:recovery && npm run test:editor-session && npm run test:keyboard && npm run test:java-tools && npm run test:format && npm run test:workspace-search && npm run test:run-console && npm run test:native-projects && npm run test:terminal && npm run test:workspaces && npm run test:source-control && npm run test:project-suites && npm run test:learning-lens && npm run test:marketplace && npm run test:practice && npm run test:starters && npm run test:profile-export && npm run test:resources && npm run test:themes && npm run test:viewers && npm run test:large-editor && npm run test:notebooks && npm run test:markdown",
     "bench:desktop": "node scripts/benchmark.mjs",
     "bench:development": "node scripts/benchmark-development-workflows.mjs",
     "bench:java-tools": "node scripts/benchmark-java-tools.mjs",
@@ -69,7 +74,9 @@
     "bench:run-console": "node scripts/benchmark-run-console.mjs",
     "test:terminal": "node scripts/test-integrated-terminal.mjs",
     "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs",
-    "stats:live": "node scripts/sample-live-runtime.mjs"
+    "stats:live": "node scripts/sample-live-runtime.mjs",
+    "test:shutdown-failure": "node scripts/test-shutdown-cleanup-failure.mjs",
+    "test:notebook-cleanup": "node scripts/test-notebook-cleanup-ownership.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",

@@ -9,6 +9,8 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright-core'
+import { nativePsEnvironment, parseIdentities } from './live-runtime-metrics.mjs'
+import { familyFor, identityCpuPercent, parseMacFamilyRows, rememberLaunchMetrics } from './process-family.mjs'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -110,10 +112,15 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
         BrowserWindow.getAllWindows().some((window) => window.isVisible() || window.isFocused()))
       assert.equal(visible, false, 'A background test window became visible or took focus.')
     }
-    const identity = await app.evaluate(({ app }) => ({ profile: app.getPath('userData'), pid: process.pid }))
+    const identity = await app.evaluate(({ app }) => ({ profile: app.getPath('userData'), pid: process.pid,
+      processes: app.getAppMetrics().map(({ pid, creationTime }) => ({ pid, creationTime })) }))
     assert.equal(identity.profile, profile, 'app uses disposable profile')
     assert.equal(page.url(), 'app://workbench/index.html', 'production renderer loaded from the local app protocol')
-    return { app, appProcess, page, profile, startupMs, requests, errors, pid: identity.pid }
+    const session = { app, appProcess, page, profile, startupMs, requests, errors, pid: identity.pid,
+      mainCreationTime: identity.processes.find(p => p.pid === identity.pid)?.creationTime,
+      executablePath: await realpath(executablePath) }
+    rememberLaunchMetrics(session, identity.processes)
+    return session
   } catch (error) {
     await close({ app, appProcess }).catch(() => {})
     throw error
@@ -330,53 +337,42 @@ export async function withScratch(prefix, run) {
 }
 
 export async function resourceSnapshot(session, { details = false } = {}) {
-  const { stdout } = await execute('/bin/ps', ['-axww', '-o', 'pid=,ppid=,rss=,time=,command='], { maxBuffer: 6_000_000 })
-  const processes = stdout.trim().split('\n').flatMap((line) => {
-    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/)
-    if (!match) return []
-    const [, pid, parent, rss, cpu, command] = match
-    const cpuSeconds = cpu.split(/[:-]/).map(Number).reverse().reduce((total, part, index) =>
-      total + part * [1, 60, 3600, 86400][index], 0)
-    return [{ pid: Number(pid), parent: Number(parent), rssMiB: Number(rss) / 1024, cpuSeconds, command }]
-  })
-  const owned = new Set([session.pid])
-  for (const process of processes) {
-    if (process.command.includes(`--user-data-dir=${session.profile}`)
-      || process.command.includes(`--database=${session.profile}/`)) owned.add(process.pid)
+  const { stdout } = await execute('/bin/ps', ['-axww', '-o', 'pid=,ppid=,rss=,time=,lstart=,command='],
+    { maxBuffer: 6_000_000, env: nativePsEnvironment() })
+  const family = familyFor(session, 'darwin')
+  const selected = family.select(parseMacFamilyRows(stdout))
+  let appProcesses = selected.members
+  if (appProcesses.length) {
+    let identities
+    try {
+      identities = parseIdentities((await execute('/bin/ps', ['-ww', '-p', appProcesses.map(p => p.pid).join(','), '-o', 'pid=,lstart='],
+        { env: nativePsEnvironment(), maxBuffer: 128_000 })).stdout)
+    } catch (error) {
+      if (error.code !== 1) throw error
+      identities = parseIdentities(error.stdout ?? '')
+    }
+    appProcesses = appProcesses.filter(p => identities.get(p.pid) === p.started)
   }
-  let previousSize
-  do {
-    previousSize = owned.size
-    for (const process of processes) if (owned.has(process.parent)) owned.add(process.pid)
-  } while (owned.size > previousSize)
-  const appProcesses = processes.filter((process) => owned.has(process.pid))
-  const nativeChildren = appProcesses.filter(({ pid, command }) =>
-    pid !== session.pid && !command.includes('--type=') && !command.includes('crashpad_handler'))
-  const childRssMiB = nativeChildren.reduce((total, process) => total + process.rssMiB, 0)
-  const kind = (process) => process.pid === session.pid ? 'main'
-    : process.command.match(/--type=([^ ]+)/)?.[1] ?? (process.command.includes('crashpad_handler') ? 'crashpad' : 'child')
+  const kind = p => family.kind(p)
+  const nativeChildren = appProcesses.filter(p => kind(p) === 'child')
+  const childRssMiB = nativeChildren.reduce((total, p) => total + p.rssMiB, 0)
   return {
     timeMs: performance.now(),
+    rootAlive: selected.rootAlive && appProcesses.some(p => p.pid === session.pid),
     childRssMiB,
-    ideRssMiB: appProcesses.reduce((total, process) => total + process.rssMiB, 0) - childRssMiB,
-    rssMiB: appProcesses.reduce((total, process) => total + process.rssMiB, 0),
-    cpuSecondsByPid: Object.fromEntries(appProcesses.map((process) => [process.pid, process.cpuSeconds])),
+    ideRssMiB: appProcesses.reduce((total, p) => total + p.rssMiB, 0) - childRssMiB,
+    rssMiB: appProcesses.reduce((total, p) => total + p.rssMiB, 0),
+    cpuSecondsByPid: Object.fromEntries(appProcesses.map(p => [p.pid, p.cpuSeconds])),
+    cpuSecondsByIdentity: Object.fromEntries(appProcesses.map(p => [p.pid + ':' + p.started, p.cpuSeconds])),
     processes: appProcesses.map(kind),
-    ...(details && { members: appProcesses.map((process) => ({
-      pid: process.pid,
-      parent: process.parent,
-      kind: kind(process),
-      rssMiB: process.rssMiB,
-      cpuSeconds: process.cpuSeconds,
-      ...(kind(process) === 'child' && { name: basename(process.command.split(' ', 1)[0]) }),
+    ...(details && { members: appProcesses.map(p => ({
+      pid: p.pid, parent: p.parent, started: p.started, startedMs: p.startedMs,
+      kind: kind(p), rssMiB: p.rssMiB, cpuSeconds: p.cpuSeconds,
+      ...(kind(p) === 'child' && { name: basename(p.command.split(' ', 1)[0]) }),
     })) }),
   }
 }
 
-export function cpuPercent(first, last) {
-  const delta = Object.entries(last.cpuSecondsByPid).reduce((total, [pid, seconds]) =>
-    total + Math.max(0, seconds - (first.cpuSecondsByPid[pid] ?? seconds)), 0)
-  return 100_000 * delta / (last.timeMs - first.timeMs)
-}
+export function cpuPercent(first, last) { return identityCpuPercent(first, last) }
 
 export { dirname, mkdir, sleep }

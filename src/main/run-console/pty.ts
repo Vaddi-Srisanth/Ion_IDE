@@ -211,9 +211,11 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
 
   return {
     input(data) {
-      if (!started || finished || state !== 'exited' || data.length > maxFrameBytes) return
+      if (!started || finished || state !== 'exited') return
+      if (data.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
       const bytes = Buffer.from(data)
-      if (bytes.length && bytes.length <= maxFrameBytes) send(0x44, bytes)
+      if (bytes.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
+      if (bytes.length && !send(0x44, bytes)) throw new Error('Input was not sent: the program input buffer is busy.')
     },
     writeInput(data) {
       const bytes = Buffer.from(data)

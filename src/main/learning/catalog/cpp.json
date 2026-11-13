@@ -3,7 +3,7 @@
   "id": "cpp",
   "name": "C++",
   "summary": "Learn modern C++ values, containers, algorithms, references, and resource ownership.",
-  "version": 2,
+  "version": 3,
   "lessons": [
     {
       "id": "program",
@@ -114,7 +114,7 @@
           "description": "Return an iterator to an entry, or end() when absent."
         }
       ],
-      "practice": "Count characters in a short word, then print the count of a character without inserting a new key.",
+      "practice": "Count words in a list, then look up a word without inserting a new key. An absent word must report zero.",
       "pitfall": "Growing a vector may invalidate its iterators, pointers, and references.",
       "difficulty": "beginner",
       "prerequisites": [

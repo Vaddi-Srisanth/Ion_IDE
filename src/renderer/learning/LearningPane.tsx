@@ -513,11 +513,12 @@ function DiagnosticHistory({ bridge, feedback, lens }: { bridge: LearningBridge;
         {lens && history.categories.some(({ resolved }) => resolved > 0) && (
           <p className="learning-copy lens-history-note">A resolved count means the diagnostic was absent from a later verified result.</p>
         )}
-        <h3>{lens ? 'Explanations opened' : 'Diagnostic topics viewed'}</h3>
+        <h3>{lens ? 'C explanations opened' : 'C diagnostic topics viewed'}</h3>
+        <p className="learning-copy">These view counts cover C diagnostic explanations. Other languages retain diagnostic encounters and resolved errors; their lesson views are not recorded here.</p>
         {history.topics.length ? <ul>{history.topics.map(({ id, viewed, selected }) => (
           <li key={id}><strong>{titles.get(id) ?? id}</strong>
             <span>{viewed} views · {selected} selected from topics</span></li>
-        ))}</ul> : <p className="learning-copy">No diagnostic topics viewed yet.</p>}
+        ))}</ul> : <p className="learning-copy">No C diagnostic topics viewed yet.</p>}
       </div>
     ) : !error && <p className="learning-copy" role="status">Opening history…</p>}
     <div className="learning-clear">

@@ -28,6 +28,32 @@ test('native Run Console owns a real terminal and cleans up after a run', { skip
     ready: () => {}, onOutput: () => {},
   }
 
+  await t.test('oversized input is explicitly rejected and a subsequent short input remains intact', async () => {
+    let output = ''
+    let ready = false
+    let completed: unknown
+    const controller = new AbortController()
+    const session = startPty({ ...options, signal: controller.signal, budget: { remaining: 4096 },
+      args: ['-c', 'stty -echo; printf "READY> "; read value; printf "GOT:%s\\n" "$value"'],
+      ready: () => { ready = true },
+      onOutput(text) { output += text },
+    })
+    void session.result.then((result) => { completed = result })
+    try {
+      const deadline = performance.now() + 2000
+      while (!output.includes('READY>') && performance.now() < deadline) await delay(10)
+      assert.match(output, /READY>/, JSON.stringify({ ready, completed, output }))
+      assert.throws(() => session.input('x'.repeat(16 * 1024 + 1)), /Input was not sent/)
+      session.input('ok\r')
+      assert.equal((await session.result).exitCode, 0)
+      assert.match(output, /GOT:ok/)
+      assert.doesNotMatch(output, /xxx/)
+    } finally {
+      controller.abort()
+      await session.result
+    }
+  })
+
   await t.test('real tty input, Unicode echo, terminal resize and both output streams', async () => {
     let stream = ''
     let prompted = false

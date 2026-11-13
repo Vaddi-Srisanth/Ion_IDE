@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { access, mkdtemp, realpath, rm, stat } from 'node:fs/promises'
+import { access, lstat, mkdtemp, realpath, rm, stat } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { basename, delimiter, dirname, isAbsolute, join } from 'node:path'
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { NotebookKernelEnvironment } from '../../shared/notebook-kernel'
 import { execute } from '../runner'
 import { windowsEnvironment, windowsToolPaths } from '../windows-process'
+import { commandPaths } from '../run-console/plans'
 
 const maxCandidates = 16
 const interpreterName = /^python(?:\d+(?:\.\d+)?)?(?:\.exe)?$/i
@@ -60,7 +61,7 @@ function insideEnvironment(home: string): string {
   return process.platform === 'win32' ? join(home, 'python.exe') : join(home, 'bin', 'python')
 }
 
-function candidatePaths(): string[] {
+async function candidatePaths(root: string): Promise<string[]> {
   const configured = [process.env.VIRTUAL_ENV, process.env.CONDA_PREFIX].filter((value): value is string => !!value && isAbsolute(value))
   const home = homedir()
   const prefixCandidates = ['/opt/anaconda3', '/opt/miniconda3', '/opt/miniforge3',
@@ -72,7 +73,7 @@ function candidatePaths(): string[] {
     ...configured.map(insideEnvironment),
     ...(process.platform === 'darwin' ? ['/Library/Frameworks/Python.framework/Versions/Current/bin/python3'] : []),
     ...prefixCandidates.map(insideEnvironment),
-    ...directories().flatMap((directory) => commandNames.map((command) => join(directory, command))),
+    ...(await commandPaths(root)).flatMap((directory) => commandNames.map((command) => join(directory, command))),
     // The macOS /usr/bin/python3 shim can open an Xcode install dialog. Probe the actual interpreter instead.
     ...(process.platform === 'darwin' ? ['/Library/Developer/CommandLineTools/usr/bin/python3'] : []),
   ])].filter((candidate) => !(process.platform === 'darwin' && candidate === '/usr/bin/python3'))
@@ -88,7 +89,7 @@ async function executable(path: string): Promise<boolean> {
   }
 }
 
-async function probe(path: string, signal: AbortSignal): Promise<NotebookKernelEnvironment | undefined> {
+async function probe(path: string, signal: AbortSignal): Promise<Omit<NotebookKernelEnvironment, 'id'> | undefined> {
   if (!await executable(path)) return
   const scratch = await mkdtemp(join(tmpdir(), 'ion-python-probe-'))
   let result
@@ -106,63 +107,120 @@ async function probe(path: string, signal: AbortSignal): Promise<NotebookKernelE
     if (!found || typeof found !== 'object' || !('version' in found) || typeof found.version !== 'string'
       || !/^\d+\.\d+\.\d+$/.test(found.version) || !('prefix' in found) || typeof found.prefix !== 'string'
       || !isAbsolute(found.prefix) || found.prefix.length > 4096) return
-    const prefix = await realpath(found.prefix).catch(() => found.prefix as string)
     const names = 'names' in found && Array.isArray(found.names) ? found.names
       .filter((name): name is string => typeof name === 'string' && /^[\w.-]{1,128}$/.test(name)).slice(0, 24) : []
     const label = 'label' in found && typeof found.label === 'string' ? found.label.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 100) : ''
-    const id = createHash('sha256').update(prefix).digest('hex').slice(0, 24)
-    return { id, path, label: label || `Python ${found.version}`, names }
+    return { path, label: label || `Python ${found.version}`, names }
   } catch {
     return undefined
   }
 }
 
+interface Candidate {
+  environment: NotebookKernelEnvironment
+  stamp: string
+}
+
+function inside(root: string, path: string): boolean {
+  const part = relative(root, path)
+  return part !== '..' && !part.startsWith('..' + sep) && !isAbsolute(part)
+}
+
+// Discovery is metadata-only. In particular, neither PATH nor a selected venv
+// is evidence that its executable is safe to run before the Run confirmation.
+async function candidate(path: string): Promise<Candidate | undefined> {
+  if (!await executable(path)) return
+  const [directory, binary, alias, file] = await Promise.all([
+    realpath(dirname(path)), realpath(path), lstat(path, { bigint: true }), stat(path, { bigint: true }),
+  ])
+  const identity = `${directory}\0${binary}`
+  const stamp = [identity, alias.dev, alias.ino, alias.size, alias.mtimeNs, alias.ctimeNs, alias.mode,
+    file.dev, file.ino, file.size, file.mtimeNs, file.ctimeNs, file.mode].join(':')
+  return { environment: { id: createHash('sha256').update(identity).digest('hex').slice(0, 24), path,
+    label: `Python · ${dirname(path)} (not checked)`, names: [] }, stamp }
+}
+
 export class NotebookPythonEnvironments {
   private readonly controller = new AbortController()
-  private readonly discovered = new Map<string, NotebookKernelEnvironment>()
-  private readonly selected = new Map<string, NotebookKernelEnvironment>()
-  private scanning?: Promise<NotebookKernelEnvironment[]>
+  private readonly discovered = new Map<string, Candidate>()
+  private readonly selected = new Map<string, Candidate>()
+  private readonly stamps = new WeakMap<NotebookKernelEnvironment, string>()
+  private root?: string
+  private scanning?: { root: string; promise: Promise<NotebookKernelEnvironment[]> }
+  private generation = 0
 
-  list(): NotebookKernelEnvironment[] {
-    return [...new Map([...this.discovered, ...this.selected]).values()]
+  list(root?: string): NotebookKernelEnvironment[] {
+    return [...new Map([...(root && this.root !== resolve(root) ? [] : this.discovered), ...this.selected]).values()]
+      .map(({ environment }) => environment)
   }
 
-  discover(): Promise<NotebookKernelEnvironment[]> {
-    this.scanning ??= this.scan().finally(() => { this.scanning = undefined })
-    return this.scanning
+  discover(root = process.cwd()): Promise<NotebookKernelEnvironment[]> {
+    root = resolve(root)
+    if (this.scanning?.root === root) return this.scanning.promise
+    const generation = ++this.generation
+    const promise = this.scan(root, generation).finally(() => {
+      if (this.scanning?.promise === promise) this.scanning = undefined
+    })
+    this.scanning = { root, promise }
+    return promise
   }
 
-  private async scan(): Promise<NotebookKernelEnvironment[]> {
-    const checked = await Promise.all(candidatePaths().map(async (path) => {
-      if (!await executable(path)) return
-      const [directory, binary] = await Promise.all([realpath(dirname(path)), realpath(path)]).catch(() => [])
-      return directory && binary ? { path, identity: `${directory}\0${binary}` } : undefined
+  private async scan(root: string, generation: number): Promise<NotebookKernelEnvironment[]> {
+    const canonicalRoot = await realpath(root).catch(() => root)
+    const checked = await Promise.all((await candidatePaths(root)).map(async (path) => {
+      if (inside(root, path)) return
+      try {
+        const [binary, directory] = await Promise.all([realpath(path), realpath(dirname(path))])
+        if (inside(canonicalRoot, binary) || inside(canonicalRoot, directory)) return
+        return await candidate(path)
+      } catch { return undefined }
     }))
-    const unique = new Map<string, string>()
-    for (const candidate of checked) if (candidate && !unique.has(candidate.identity)) unique.set(candidate.identity, candidate.path)
-    const candidates = [...unique.values()].slice(0, maxCandidates)
-    const next = new Map<string, NotebookKernelEnvironment>()
-    for (let index = 0; index < candidates.length && !this.controller.signal.aborted; index += 2) {
-      const group = await Promise.all(candidates.slice(index, index + 2).map((path) => probe(path, this.controller.signal)))
-      for (const result of group) {
-        if (result && !next.has(result.id)) next.set(result.id, result)
+    if (this.controller.signal.aborted || this.generation !== generation) return []
+    this.discovered.clear()
+    this.root = root
+    for (const entry of checked) {
+      if (entry && this.discovered.size < maxCandidates && !this.discovered.has(entry.environment.id)) {
+        this.discovered.set(entry.environment.id, entry)
+        this.stamps.set(entry.environment, entry.stamp)
       }
     }
-    if (this.controller.signal.aborted) return []
-    this.discovered.clear()
-    for (const [id, environment] of next) this.discovered.set(id, environment)
-    return this.list()
+    return this.list(root)
   }
 
   async add(path: string): Promise<NotebookKernelEnvironment> {
-    const result = await probe(path, this.controller.signal)
-    if (!result) throw new Error('Choose a local Python interpreter with ipykernel and jupyter_client installed.')
+    const result = await candidate(path)
+    if (!result) throw new Error('Choose a local Python interpreter executable.')
     this.controller.signal.throwIfAborted()
-    if (this.selected.size >= 24 && !this.selected.has(result.id)) {
+    if (this.selected.size >= 24 && !this.selected.has(result.environment.id)) {
       throw new Error('Ion can remember 24 explicitly selected Python environments per window.')
     }
-    this.selected.set(result.id, result)
-    return result
+    this.selected.set(result.environment.id, result)
+    this.stamps.set(result.environment, result.stamp)
+    return result.environment
+  }
+
+  async assertCurrent(environment: NotebookKernelEnvironment): Promise<void> {
+    this.controller.signal.throwIfAborted()
+    // Bind to the exact snapshot shown for approval, not a mutable registry ID.
+    // Concurrent discovery/selection must not bless a replacement executable.
+    const expected = this.stamps.get(environment)
+    const current = await candidate(environment.path).catch(() => undefined)
+    if (!expected || !current || expected !== current.stamp) {
+      throw new Error('The Python interpreter changed. Select it again and approve a new Run.')
+    }
+  }
+
+  // The only interpreter probe. Callers must obtain execution approval first.
+  async verify(environment: NotebookKernelEnvironment): Promise<NotebookKernelEnvironment> {
+    await this.assertCurrent(environment)
+    const result = await probe(environment.path, this.controller.signal)
+    await this.assertCurrent(environment)
+    if (!result) throw new Error('This Python needs ipykernel and jupyter_client installed to run notebooks.')
+    const verified = { ...result, id: environment.id }
+    this.stamps.set(verified, this.stamps.get(environment)!)
+    const entry = this.selected.get(environment.id) ?? this.discovered.get(environment.id)
+    if (entry?.environment === environment) entry.environment = verified
+    return verified
   }
 
   dispose(): void {
