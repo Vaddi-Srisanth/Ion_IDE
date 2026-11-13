@@ -106,8 +106,8 @@ jobs:
         env:
           ION_TEST_WINDOWS_JAVA_BUILDS: '1'
           ION_TEST_PRIME_MAVEN: '1'
-        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates update-install run-trust preferences-windows source-control projects recovery learning-diagnostics learning-packs terminal-input
-      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs
+        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates update-install run-trust preferences-windows source-control projects recovery learning-diagnostics learning-packs terminal-input windows-helper-bootstrap
+      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs scripts/windows/updater-processes.test.mjs
       - run: npm run build
         id: native-build
       - name: Verify native pseudoconsole and child ownership
@@ -335,6 +335,7 @@ jobs:
           } finally { Pop-Location }
           npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
         with:
           name: windows-performance-candidate-attempt-${{ github.run_attempt }}
           path: |

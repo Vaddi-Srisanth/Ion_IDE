@@ -51,17 +51,22 @@ export function stopWindowsProcessTree(child: ChildProcess): Promise<void> {
   })
 }
 
-// Configured by trusted main-process bootstrap, never by a workspace or IPC.
-let processHelper: string | undefined
+// Optional features are separate CJS bundles and each embeds this module.
+// Keep the trusted bootstrap capability in their shared MAIN-process realm,
+// rather than in one bundle's private variable. Renderer realms cannot read it.
+// Resolve the symbol only on use, so ordinary macOS startup adds no state.
+const helperKey = () => Symbol.for('ion.ide.trusted-windows-process-helper')
 export function configureWindowsProcessHelper(path: string): void {
   if (!isAbsolute(path) || path.includes('\0')) throw new Error('Invalid Windows process helper path.')
-  processHelper = path
+  Object.defineProperty(globalThis, helperKey(), { value: path, writable: true, enumerable: false })
 }
 
 export function windowsPipeCommand(executable: string, args: string[]): { executable: string; args: string[] } {
   // Only standalone Node tests use this environment override. Packaged Electron
   // always receives the installation-owned path from main bootstrap.
-  const helper = processHelper ?? (!process.versions.electron ? process.env.ION_WINDOWS_PROCESS_TEST_HELPER : undefined)
+  const configured: unknown = Reflect.get(globalThis, helperKey())
+  const helper = (typeof configured === 'string' ? configured : undefined)
+    ?? (!process.versions.electron ? process.env.ION_WINDOWS_PROCESS_TEST_HELPER : undefined)
   if (!helper || !isAbsolute(helper)) throw new Error('The Windows process helper is unavailable. Repair or reinstall Ion.')
   return { executable: helper, args: ['--pipe', String(process.pid), executable, ...args] }
 }

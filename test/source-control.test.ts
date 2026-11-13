@@ -547,9 +547,17 @@ test('closing Source Control cancels an in-flight native Git write and drains it
     await writeFile(script, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, String(process.pid)); setInterval(() => {}, 1000)`)
     const processes = require('node:child_process') as typeof import('node:child_process')
     const spawn = processes.spawn
-    processes.spawn = ((command: string, args: string[], options: SpawnOptions) =>
-      spawn(options.cwd === root && args.includes('add') ? process.execPath : command,
-        options.cwd === root && args.includes('add') ? [script] : args, options)) as typeof spawn
+    processes.spawn = ((command: string, args: string[], options: SpawnOptions) => {
+      if (options.cwd !== root || !args.includes('add')) return spawn(command, args, options)
+      if (process.platform === 'win32') {
+        // Replace only Git's payload. Keep the real native supervisor and its
+        // private READY/CLEAN status and Stop control pipes in this fixture.
+        assert.equal(args[0], '--pipe')
+        assert.equal(args[1], String(process.pid))
+        return spawn(command, [...args.slice(0, 2), process.execPath, script], options)
+      }
+      return spawn(process.execPath, [script], options)
+    }) as typeof spawn
     try {
       const work = service.change(root, { path: 'data.txt', action: 'stage' })
       const settled = assert.rejects(work, { name: 'AbortError' })

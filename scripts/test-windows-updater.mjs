@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -10,6 +10,7 @@ import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
 import { eventually, requireVisibleDesktop } from './desktop-harness.mjs'
 import { buildWindowsUpdater } from './windows/build-updater.mjs'
+import { inspectUpdaterProcesses } from './windows/updater-processes.mjs'
 
 assert.equal(process.platform, 'win32', 'Run this installed-app test on a disposable Windows machine.')
 requireVisibleDesktop()
@@ -29,7 +30,7 @@ const present = path => lstat(path).then(() => true, error => {
 })
 assert.equal(await present(root), false, 'Do not run updater integration checks against an existing installation.')
 assert.equal(await present(installedProfile), false, 'Do not run updater checks against an existing user profile.')
-const scratch = await mkdtemp(join(tmpdir(), 'ion-native-updater-'))
+const scratch = await realpath(await mkdtemp(join(tmpdir(), 'ion-native-updater-')))
 const profile = join(scratch, 'profile café 学习')
 const stage = join(scratch, 'installer café 学习')
 const helper = join(stage, 'ion-update.exe')
@@ -42,7 +43,42 @@ let restartedPid
 let activePid
 let phase = 'setup'
 let primaryError
+const processChecks = []
+const sourceIdentity = { commit: process.env.GITHUB_SHA ?? null, runId: process.env.GITHUB_RUN_ID ?? null,
+  runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null }
 const portFile = join(profile, 'DevToolsActivePort')
+
+async function processCandidates() {
+  const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+    $ErrorActionPreference = 'Stop'
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    $rows = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,ExecutablePath,CommandLine,CreationDate |
+      Where-Object { $_.ExecutablePath -eq $env:ION_UPDATE_TARGET } | Select-Object -First 65 | ForEach-Object {
+        [pscustomobject]@{ pid = [int]$_.ProcessId; parent = [int]$_.ParentProcessId;
+          executablePath = [string]$_.ExecutablePath; command = [string]$_.CommandLine;
+          created = $_.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) }
+      })
+    ConvertTo-Json -Compress -InputObject $rows
+  `], { ...quiet, timeout: 10000, maxBuffer: 512 * 1024,
+    env: { ...process.env, ION_UPDATE_TARGET: target } })
+  const rows = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''))
+  return Array.isArray(rows) ? rows : rows ? [rows] : []
+}
+
+function inspectCandidates(rows, previous, purpose) {
+  const inspected = inspectUpdaterProcesses(rows, { target, profile, previous })
+  processChecks.push({ phase, purpose, previous: previous ?? null, mainCount: inspected.mainCount,
+    selectedPid: inspected.selected?.pid ?? null, candidates: inspected.facts })
+  if (processChecks.length > 12) processChecks.shift()
+  return inspected
+}
+
+async function saveProcessChecks() {
+  await mkdir('performance-results', { recursive: true })
+  await writeFile('performance-results/windows-updater-diagnostics.json', JSON.stringify({
+    phase, checksComplete: false, sourceIdentity, processChecks,
+  }, null, 2) + '\n')
+}
 
 // .NET MainWindowHandle/CloseMainWindow excludes hidden windows. CI launches
 // this disposable app with windowsHide, so enumerate its actual owned Chromium
@@ -77,10 +113,15 @@ public static class IonUpdateWindows {
 
 async function ownedWindows(pid, closeWindows = false) {
   assert.ok(Number.isSafeInteger(pid) && pid > 0)
+  const inspected = inspectCandidates(await processCandidates(), undefined, closeWindows ? 'normal-close' : 'native-frame')
+  const selected = inspected.selected
+  assert.ok(selected?.pid === pid, 'Refusing to act outside the unique exact disposable Ion main process/profile.')
   const script = `
     $ErrorActionPreference = 'Stop'
     $owner = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $env:ION_UPDATE_PID)
-    if (!$owner -or $owner.ExecutablePath -ne $env:ION_UPDATE_TARGET -or !$owner.CommandLine.Contains($env:ION_UPDATE_PROFILE)) {
+    if (!$owner -or $owner.ExecutablePath -ne $env:ION_UPDATE_TARGET -or
+        $owner.CommandLine -cne $env:ION_UPDATE_COMMAND -or
+        $owner.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) -cne $env:ION_UPDATE_CREATED) {
       throw 'Refusing to act on a process outside the exact disposable Ion profile.'
     }
     Add-Type -TypeDefinition @'
@@ -97,7 +138,8 @@ ${nativeWindows}
   `
   const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
     ...quiet, env: { ...process.env, ION_UPDATE_PID: String(pid), ION_UPDATE_TARGET: target,
-      ION_UPDATE_PROFILE: profile, ION_UPDATE_CLOSE: closeWindows ? '1' : '0' },
+      ION_UPDATE_COMMAND: selected.command, ION_UPDATE_CREATED: selected.created,
+      ION_UPDATE_CLOSE: closeWindows ? '1' : '0' },
   })
   return Number(stdout.trim())
 }
@@ -139,16 +181,21 @@ function args(extra = {}) {
 
 async function findRestart(previous) {
   let foundPid
-  await eventually(async () => {
-    const found = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      '$p = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:ION_UPDATE_TARGET -and $_.CommandLine.Contains($env:ION_UPDATE_PROFILE) }); if ($p.Count -ne 1) { exit 1 }; $p[0].ProcessId'],
-    { ...quiet, env: { ...process.env, ION_UPDATE_TARGET: target, ION_UPDATE_PROFILE: profile } }).catch(() => null)
-    foundPid = Number(found?.stdout.trim())
-    return Number.isSafeInteger(foundPid) && foundPid > 0 && foundPid !== previous
-  }, 'Ion did not restart with the same private profile.', 30000)
-  // A native window establishes that the restarted process got beyond launch.
-  await eventually(async () => await ownedWindows(foundPid) > 0,
-    'The restarted Ion process did not create its native frame.', 30000)
+  try {
+    await eventually(async () => {
+      const inspected = inspectCandidates(await processCandidates(), previous, 'restart-selection')
+      foundPid = inspected.selected?.pid
+      return Boolean(foundPid)
+    }, 'Ion did not restart with the same private profile.', 30000)
+    // A native window and a fresh creation-identity recheck establish that the
+    // uniquely selected exact-profile main got beyond process launch.
+    await eventually(async () => await ownedWindows(foundPid) > 0,
+      'The restarted Ion process did not create its native frame.', 30000)
+  } catch (error) {
+    await saveProcessChecks().catch(reason => console.error('Restart candidate receipt unavailable:', reason?.message ?? reason))
+    throw error
+  }
+  await saveProcessChecks()
   return foundPid
 }
 
@@ -185,7 +232,13 @@ async function begin(extra = {}) {
 }
 
 async function diagnostics(error) {
-  const report = { phase, primary: { message: String(error?.message ?? error).slice(0, 3000), code: error?.code }, receipts: {}, layout: [] }
+  try { inspectCandidates(await processCandidates(), undefined, 'final-diagnostics') }
+  catch (reason) {
+    processChecks.push({ phase, purpose: 'final-diagnostics', unavailable: String(reason?.message ?? reason).slice(0, 500) })
+    if (processChecks.length > 12) processChecks.shift()
+  }
+  const report = { phase, checksComplete: !error && phase === 'complete', sourceIdentity, processChecks,
+    primary: error ? { message: String(error?.message ?? error).slice(0, 3000), code: error?.code } : null, receipts: {}, layout: [] }
   for (const [name, path] of [['stage', join(stage, 'result.json')], ['profile', join(profile, 'updates', 'result.json')]]) {
     try {
       const info = await lstat(path)
@@ -208,7 +261,7 @@ async function diagnostics(error) {
       report.layout.push(item)
     } catch (reason) { report.layout.push({ relative, unavailable: reason.code ?? reason.message }) }
   }
-  console.error('PRIMARY WINDOWS UPDATER FAILURE:', error?.stack ?? error)
+  if (error) console.error('PRIMARY WINDOWS UPDATER FAILURE:', error?.stack ?? error)
   console.error('WINDOWS UPDATER DIAGNOSTICS:', JSON.stringify(report))
   await mkdir('performance-results', { recursive: true })
   await writeFile('performance-results/windows-updater-diagnostics.json', JSON.stringify(report, null, 2) + '\n')
@@ -336,6 +389,8 @@ try {
   restartedPid = undefined
   await rm(join(root, 'App', 'unowned-test-file.txt'))
   console.log('PASS real local-fixture installer upgrades in place, restarts the same Unicode profile, preserves code/settings/unowned files and retains the zone metadata.')
+  phase = 'complete'
+  await diagnostics()
 } catch (error) {
   primaryError = error
   // Print the primary failure before teardown can encounter a damaged binary.
