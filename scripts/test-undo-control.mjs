@@ -27,12 +27,10 @@ const out = resolve(process.env.ION_UNDO_REPORT ?? 'remediation/undo-control.jso
 try {
   await withScratch('undo-control', async scratch => {
     const stockEntry = join(scratch, 'stock.js')
-    await writeFile(stockEntry, `import {editor} from ${JSON.stringify(resolve('node_modules/monaco-editor/esm/vs/editor/editor.api.js'))};
-      import ${JSON.stringify(resolve('node_modules/monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution.js'))};
+    const modulePath = path => JSON.stringify(resolve(path).replaceAll('\\', '/'))
+    await writeFile(stockEntry, `import {editor} from ${modulePath('node_modules/monaco-editor/esm/vs/editor/editor.api.js')};
+      import ${modulePath('node_modules/monaco-editor/esm/vs/languages/definitions/cpp/register.js')};
       globalThis.control=editor.create(document.querySelector('#editor'),{value:${JSON.stringify(original)},language:'c',automaticLayout:true,minimap:{enabled:false},fontSize:13});`)
-    // Resolve the maintained package's actual C registration entry.
-    const source = (await readFile(stockEntry, 'utf8')).replace('/esm/vs/basic-languages/cpp/cpp.contribution.js', '/esm/vs/languages/definitions/cpp/register.js')
-    await writeFile(stockEntry, source)
     await build({ entryPoints: [stockEntry], outfile: join(scratch, 'stock-bundle.js'), bundle: true, format: 'iife',
       loader: { '.ttf': 'file' }, logLevel: 'silent' })
     await writeFile(join(scratch, 'stock.html'), '<link rel="stylesheet" href="stock-bundle.css"><div id="editor" style="height:700px"></div><button id="save">Save</button><script src="stock-bundle.js"></script>')

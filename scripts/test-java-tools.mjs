@@ -103,9 +103,15 @@ await withScratch('java-tools', async (scratch) => {
     assert.match(await problem(page).innerText(), /Main.java:3:9/)
     await problem(page).getByTestId('problem-reveal').click()
     await page.getByText('Ln 3, Col 9', { exact: true }).waitFor()
-    const marker = sourceEditor(page).locator('.squiggly-error').first()
-    await marker.waitFor()
-    await marker.hover({ force: true })
+    // Monaco retains decoration nodes for clipped/hidden ranges. Target an
+    // actual visible squiggle in the revealed source viewport. Its decoration
+    // sits below the rendered text, so move a real pointer to that source
+    // position instead of asking the decorative overlay to receive events.
+    const marker = sourceEditor(page).locator('.view-overlays .squiggly-error:visible').first()
+    await marker.waitFor({ state: 'visible' })
+    const markerBox = await marker.boundingBox()
+    assert.ok(markerBox && markerBox.width > 0 && markerBox.height > 0, 'The diagnostic squiggle must occupy visible source pixels.')
+    await page.mouse.move(markerBox.x + markerBox.width / 2, markerBox.y + markerBox.height / 2)
     const hover = sourceEditor(page).locator('.monaco-hover').filter({ hasText: 'cannot find symbol' }).first()
     await hover.waitFor()
     assert.match(await hover.innerText(), /javac · error · 3:9/)

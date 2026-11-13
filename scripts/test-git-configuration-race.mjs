@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { build } from 'esbuild'
+import { buildWindowsPty } from './windows/build-pty.mjs'
 
 const { values } = parseArgs({ options: { source: { type: 'string', default: '.' },
   'expect-vulnerable': { type: 'boolean' }, out: { type: 'string' } } })
@@ -19,7 +20,11 @@ const report = { complete: false, platform: process.platform, source: resolve(va
 let service
 try {
   await mkdir(root)
-  await build({ entryPoints: [join(resolve(values.source), 'src/main/source-control/index.ts')],
+  const sourceRoot = resolve(values.source)
+  const modulePath = path => JSON.stringify(join(sourceRoot, path).replaceAll('\\', '/'))
+  await build({ stdin: { contents: `export { SourceControlService } from ${modulePath('src/main/source-control/index.ts')};
+    export { configureWindowsProcessHelper } from ${modulePath('src/main/windows-process.ts')};`,
+    resolveDir: sourceRoot, loader: 'ts' },
     outfile: join(scratch, 'service.cjs'), bundle: true, platform: 'node', format: 'cjs' })
   const git = (...args) => processes.execFileSync('git', ['-C', root, '-c', 'core.hooksPath=/dev/null', ...args],
     { encoding: 'utf8', windowsHide: true })
@@ -30,7 +35,12 @@ try {
   const script = join(scratch, 'filter.cjs')
   await writeFile(script, 'require("node:fs").writeFileSync("filter-ran", "executed"); process.stdin.pipe(process.stdout)')
   const command = `"${process.execPath.replaceAll('\\', '/')}" "${script.replaceAll('\\', '/')}"`
-  const { SourceControlService } = require(join(scratch, 'service.cjs'))
+  const { SourceControlService, configureWindowsProcessHelper } = require(join(scratch, 'service.cjs'))
+  if (process.platform === 'win32') {
+    const helper = join(scratch, 'ion-pty.exe')
+    await buildWindowsPty(helper, process.arch)
+    configureWindowsProcessHelper(helper)
+  }
   service = new SourceControlService()
   await service.status(root)
   processes.spawn = (executable, args, options) => {

@@ -58,7 +58,7 @@ const csp = [
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'app',
-  privileges: { standard: true, secure: true, supportFetchAPI: true },
+  privileges: { standard: true, secure: true, supportFetchAPI: true, codeCache: true },
 }, {
   scheme: 'ion-preview',
   privileges: { standard: true, secure: true, supportFetchAPI: true },

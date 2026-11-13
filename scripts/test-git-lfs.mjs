@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 import { build } from 'esbuild'
+import { buildWindowsPty } from './windows/build-pty.mjs'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -62,9 +63,17 @@ async function main() {
   let service
   try {
     const entry = join(scratch, 'source-control.cjs')
-    await build({ entryPoints: ['src/main/source-control/index.ts'], outfile: entry,
+    const modulePath = path => JSON.stringify(resolve(path).replaceAll('\\', '/'))
+    await build({ stdin: { contents: `export { SourceControlService } from ${modulePath('src/main/source-control/index.ts')};
+      export { configureWindowsProcessHelper } from ${modulePath('src/main/windows-process.ts')};`,
+      resolveDir: resolve('.'), loader: 'ts' }, outfile: entry,
       bundle: true, platform: 'node', format: 'cjs', external: ['electron'], logLevel: 'silent' })
-    const { SourceControlService } = require(entry)
+    const { SourceControlService, configureWindowsProcessHelper } = require(entry)
+    if (windows) {
+      const helper = join(scratch, 'ion-pty.exe')
+      await buildWindowsPty(helper, process.arch)
+      configureWindowsProcessHelper(helper)
+    }
     service = new SourceControlService()
     const root = join(scratch, 'source résumé')
     const linked = join(scratch, 'linked 資料')

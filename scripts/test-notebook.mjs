@@ -5,8 +5,9 @@ import { join } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 import {
   artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder,
-  openFromExplorer, resourceSnapshot, stubDialogs, waitForFile, withScratch,
+  openFromExplorer, stubDialogs, waitForFile, withScratch,
 } from './desktop-harness.mjs'
+import { processTree } from './development-workflow-fixtures.mjs'
 import { cellNotebook, chooseNotebookPython, editableNotebook, encodeNotebook, interruptNotebook,
   kernelBenchmarkNotebook, kernelNotebook, notebookCell, plotNotebook, revealNotebookCell,
   smallNotebook, stubNotebookTrust } from './notebook-fixtures.mjs'
@@ -156,7 +157,8 @@ await withScratch('notebook-viewer', async (scratch) => {
     assert.equal(await untrusted.locator('script, iframe, object, embed, form, style, [onload], [onerror], [src^="https:"]').count(), 0)
     assert.equal(await page.evaluate(() => Boolean(window.ionNotebookActive)), false)
     await assert.rejects(access(markerPath), { code: 'ENOENT' })
-    assert.equal((await resourceSnapshot(session)).childRssMiB, 0, 'Viewing should start no native kernel process.')
+    assert.deepEqual((await processTree(session)).members.filter(({ kind }) => kind === 'child'), [],
+      'Viewing should start no native kernel process.')
 
     await notebook.getByTestId('notebook-open-json').click()
     await notebook.waitFor({ state: 'detached' })
@@ -397,7 +399,7 @@ async function selectNotebookCodeCell(view, index) {
 }
 
 async function kernelPids(session) {
-  const { members } = await resourceSnapshot(session, { details: true })
+  const { members } = await processTree(session)
   return members.filter(({ kind }) => kind === 'child').map(({ pid }) => pid)
 }
 

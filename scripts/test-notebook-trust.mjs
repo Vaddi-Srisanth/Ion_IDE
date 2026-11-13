@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
@@ -27,7 +27,12 @@ try {
     const fixture = join(scratch, 'fixture.c')
     await writeFile(fixture, '#include <stdio.h>\n#include <wchar.h>\nint main(void) { FILE *f = _wfopen(' + wide(marker)
       + ', L"wb"); if (!f) return 9; fputs("executed", f); fclose(f); puts(' + JSON.stringify(response) + '); return 0; }\n')
-    await run('gcc.exe', ['-x', 'c', fixture, '-o', interpreter], { windowsHide: true, timeout: 30000 })
+    // MinGW's linker does not accept every Unicode output path. Compile in the
+    // ASCII scratch root, then use native filesystem APIs to place the real
+    // executable at the Unicode path whose authorization is being tested.
+    const compiled = join(scratch, 'fixture-python.exe')
+    await run('gcc.exe', ['-x', 'c', fixture, '-o', compiled], { windowsHide: true, timeout: 30000 })
+    await copyFile(compiled, interpreter)
     await buildWindowsPty(join(scratch, 'ion-pty.exe'), 'x64')
   } else {
     await writeFile(interpreter, '#!/bin/sh\nprintf executed > ' + shellQuote(marker)
