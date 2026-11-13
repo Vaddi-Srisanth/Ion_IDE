@@ -10,7 +10,7 @@ import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
 import { eventually, requireVisibleDesktop } from './desktop-harness.mjs'
 import { buildWindowsUpdater } from './windows/build-updater.mjs'
-import { inspectUpdaterProcesses } from './windows/updater-processes.mjs'
+import { assertUpdaterProcessesDrained, inspectUpdaterProcesses, rememberUpdaterProcesses, updaterProcessFilter, updaterQueryStages } from './windows/updater-processes.mjs'
 
 assert.equal(process.platform, 'win32', 'Run this installed-app test on a disposable Windows machine.')
 requireVisibleDesktop()
@@ -44,29 +44,55 @@ let activePid
 let phase = 'setup'
 let primaryError
 const processChecks = []
+const queryChecks = []
+const ownedMains = new Map()
+const began = performance.now()
 const sourceIdentity = { commit: process.env.GITHUB_SHA ?? null, runId: process.env.GITHUB_RUN_ID ?? null,
   runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null }
 const portFile = join(profile, 'DevToolsActivePort')
 
-async function processCandidates() {
-  const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+async function processCandidates(purpose) {
+  const observation = { phase, purpose, atMs: performance.now() - began }
+  queryChecks.push(observation)
+  if (queryChecks.length > 32) queryChecks.shift()
+  const started = performance.now()
+  try {
+    const { stdout, stderr } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
     $ErrorActionPreference = 'Stop'
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
-    $rows = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,ExecutablePath,CommandLine,CreationDate |
-      Where-Object { $_.ExecutablePath -eq $env:ION_UPDATE_TARGET } | Select-Object -First 65 | ForEach-Object {
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    [Console]::Error.WriteLine('ION_CIM_PHASE boot 0')
+    [Console]::Error.WriteLine('ION_CIM_PHASE query-start ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
+    $rows = @(Get-CimInstance -ClassName Win32_Process -Filter $env:ION_UPDATE_FILTER -Property ProcessId,ParentProcessId,ExecutablePath,CommandLine,CreationDate |
+      Select-Object -First 65 | ForEach-Object {
         [pscustomobject]@{ pid = [int]$_.ProcessId; parent = [int]$_.ParentProcessId;
           executablePath = [string]$_.ExecutablePath; command = [string]$_.CommandLine;
           created = $_.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) }
       })
+    [Console]::Error.WriteLine('ION_CIM_PHASE query-end ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
     ConvertTo-Json -Compress -InputObject $rows
+    [Console]::Error.WriteLine('ION_CIM_PHASE json-end ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
   `], { ...quiet, timeout: 10000, maxBuffer: 512 * 1024,
-    env: { ...process.env, ION_UPDATE_TARGET: target } })
-  const rows = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''))
-  return Array.isArray(rows) ? rows : rows ? [rows] : []
+      env: { ...process.env, ION_UPDATE_FILTER: updaterProcessFilter(target) } })
+    const value = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''))
+    const rows = Array.isArray(value) ? value : value ? [value] : []
+    observation.rows = rows.length
+    observation.stages = updaterQueryStages(stderr)
+    return rows
+  } catch (error) {
+    observation.error = { code: error.code, signal: error.signal, killed: error.killed,
+      stdoutBytes: Buffer.byteLength(error.stdout ?? ''), stderrBytes: Buffer.byteLength(error.stderr ?? '') }
+    observation.stages = updaterQueryStages(error.stderr)
+    throw error
+  } finally { observation.elapsedMs = performance.now() - started }
 }
 
 function inspectCandidates(rows, previous, purpose) {
   const inspected = inspectUpdaterProcesses(rows, { target, profile, previous })
+  // Retain ownership as soon as observed, even if a later frame check or the
+  // caller fails before assigning activePid. This does not select ambiguous
+  // mains for normal interaction; teardown can recheck each exact identity.
+  rememberUpdaterProcesses(ownedMains, inspected)
   processChecks.push({ phase, purpose, previous: previous ?? null, mainCount: inspected.mainCount,
     selectedPid: inspected.selected?.pid ?? null, candidates: inspected.facts })
   if (processChecks.length > 12) processChecks.shift()
@@ -76,7 +102,7 @@ function inspectCandidates(rows, previous, purpose) {
 async function saveProcessChecks() {
   await mkdir('performance-results', { recursive: true })
   await writeFile('performance-results/windows-updater-diagnostics.json', JSON.stringify({
-    phase, checksComplete: false, sourceIdentity, processChecks,
+    phase, checksComplete: false, sourceIdentity, processChecks, queryChecks,
   }, null, 2) + '\n')
 }
 
@@ -113,8 +139,9 @@ public static class IonUpdateWindows {
 
 async function ownedWindows(pid, closeWindows = false) {
   assert.ok(Number.isSafeInteger(pid) && pid > 0)
-  const inspected = inspectCandidates(await processCandidates(), undefined, closeWindows ? 'normal-close' : 'native-frame')
-  const selected = inspected.selected
+  const known = [...ownedMains.values()].filter(row => row.pid === pid)
+  const selected = known.length === 1 ? known[0] : inspectCandidates(await processCandidates('native-frame-selection'),
+    undefined, closeWindows ? 'normal-close' : 'native-frame').selected
   assert.ok(selected?.pid === pid, 'Refusing to act outside the unique exact disposable Ion main process/profile.')
   const script = `
     $ErrorActionPreference = 'Stop'
@@ -142,6 +169,22 @@ ${nativeWindows}
       ION_UPDATE_CLOSE: closeWindows ? '1' : '0' },
   })
   return Number(stdout.trim())
+}
+
+async function stopOwnedMain(row) {
+  const { stdout } = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+    $ErrorActionPreference = 'Stop'
+    $owner = Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId = ' + [uint32]$env:ION_UPDATE_PID) -Property ProcessId,ExecutablePath,CommandLine,CreationDate
+    if (!$owner) { 'already-exited'; exit 0 }
+    if ($owner.ExecutablePath -ne $env:ION_UPDATE_TARGET -or $owner.CommandLine -cne $env:ION_UPDATE_COMMAND -or
+        $owner.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) -cne $env:ION_UPDATE_CREATED) {
+      throw 'Refusing teardown of a reused PID or a different application/profile.'
+    }
+    & (Join-Path $env:SystemRoot 'System32\\taskkill.exe') /PID $env:ION_UPDATE_PID /T /F
+    if ($LASTEXITCODE -ne 0) { throw 'The owned application tree did not terminate.' }
+  `], { ...quiet, timeout: 10000, env: { ...process.env, ION_UPDATE_PID: String(row.pid),
+    ION_UPDATE_TARGET: target, ION_UPDATE_COMMAND: row.command, ION_UPDATE_CREATED: row.created } })
+  return stdout.trim().slice(0, 1000)
 }
 
 async function close(pid, page) {
@@ -183,7 +226,7 @@ async function findRestart(previous) {
   let foundPid
   try {
     await eventually(async () => {
-      const inspected = inspectCandidates(await processCandidates(), previous, 'restart-selection')
+      const inspected = inspectCandidates(await processCandidates('restart-selection'), previous, 'restart-selection')
       foundPid = inspected.selected?.pid
       return Boolean(foundPid)
     }, 'Ion did not restart with the same private profile.', 30000)
@@ -232,12 +275,12 @@ async function begin(extra = {}) {
 }
 
 async function diagnostics(error) {
-  try { inspectCandidates(await processCandidates(), undefined, 'final-diagnostics') }
+  try { inspectCandidates(await processCandidates('final-diagnostics'), undefined, 'final-diagnostics') }
   catch (reason) {
     processChecks.push({ phase, purpose: 'final-diagnostics', unavailable: String(reason?.message ?? reason).slice(0, 500) })
     if (processChecks.length > 12) processChecks.shift()
   }
-  const report = { phase, checksComplete: !error && phase === 'complete', sourceIdentity, processChecks,
+  const report = { phase, checksComplete: !error && phase === 'complete', sourceIdentity, processChecks, queryChecks,
     primary: error ? { message: String(error?.message ?? error).slice(0, 3000), code: error?.code } : null, receipts: {}, layout: [] }
   for (const [name, path] of [['stage', join(stage, 'result.json')], ['profile', join(profile, 'updates', 'result.json')]]) {
     try {
@@ -399,22 +442,50 @@ try {
   throw error
 } finally {
   const cleanupErrors = []
+  const cleanupActions = []
   const safely = async (label, operation) => {
-    try { await operation() } catch (error) {
+    try { await operation(); cleanupActions.push({ label, complete: true }); return true } catch (error) {
       cleanupErrors.push(error)
+      cleanupActions.push({ label, complete: false, message: String(error?.message ?? error).slice(0, 1000) })
       console.error('Windows updater teardown warning:', label, error?.message ?? error)
+      return false
     }
   }
-  for (const pid of [restartedPid, activePid, child?.exitCode === null ? child.pid : undefined]) {
-    if (pid) await safely('owned application process', () => execute('taskkill.exe', ['/PID', String(pid), '/T', '/F'], quiet))
-  }
-  if (updating?.exitCode === null) await safely('owned update process', () => execute('taskkill.exe', ['/PID', String(updating.pid), '/T', '/F'], quiet))
-  if (browser) await safely('test CDP connection', () => Promise.race([browser.close(), sleep(2000)]))
-  await safely('fixture marker', () => rm(join(root, 'App', 'unowned-test-file.txt'), { force: true }))
-  await safely('mutation proof', () => rm(join(root, 'updater-fixture-mutated.txt'), { force: true }))
-  await safely('disposable uninstaller', async () => {
-    if (await present(uninstaller)) await execute(uninstaller, ['/S'], quiet)
+  // Stop an in-flight updater first: killing its parent application first could
+  // otherwise let the updater install/restart a new main after discovery.
+  if (updating?.exitCode === null && updating.signalCode === null) await safely('owned update process', () =>
+    execute('taskkill.exe', ['/PID', String(updating.pid), '/T', '/F'], { ...quiet, timeout: 10000 }))
+  const discovered = await safely('final exact fixture process discovery', async () => {
+    inspectCandidates(await processCandidates('teardown-discovery'), undefined, 'teardown-discovery')
   })
-  await safely('private test folder', () => rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }))
+  // The initially spawned handle remains an independent ownership fact when a
+  // CIM observer fails before its first usable snapshot. Never use this branch
+  // for a restart PID discovered by process name alone.
+  if (child?.exitCode === null && child.signalCode === null && ![...ownedMains.values()].some(row => row.pid === child.pid)) {
+    await safely('initial spawned application tree', () =>
+      execute('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { ...quiet, timeout: 10000 }))
+  }
+  for (const row of ownedMains.values()) await safely(`exact owned application ${row.pid}:${row.created}`, () => stopOwnedMain(row))
+  const drained = await safely('verify every disposable target process role has exited', async () => {
+    const rows = await processCandidates('teardown-verification')
+    inspectCandidates(rows, undefined, 'teardown-verification')
+    assertUpdaterProcessesDrained(rows)
+  })
+  if (browser) await safely('test CDP connection', () => Promise.race([browser.close(), sleep(2000)]))
+  const processCleanupComplete = discovered && drained && cleanupErrors.length === 0
+  if (processCleanupComplete) {
+    await safely('fixture marker', () => rm(join(root, 'App', 'unowned-test-file.txt'), { force: true }))
+    await safely('mutation proof', () => rm(join(root, 'updater-fixture-mutated.txt'), { force: true }))
+    await safely('disposable uninstaller', async () => {
+      if (await present(uninstaller)) await execute(uninstaller, ['/S'], quiet)
+    })
+    await safely('private test folder', () => rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }))
+  } else console.error('Preserving disposable installation and scratch: exact process cleanup is unverified.')
+  await safely('final cleanup receipt', async () => {
+    const path = 'performance-results/windows-updater-diagnostics.json'
+    const previous = await readFile(path, 'utf8').then(JSON.parse, () => ({ phase, sourceIdentity, checksComplete: false }))
+    await writeFile(path, JSON.stringify({ ...previous, checksComplete: previous.checksComplete && cleanupErrors.length === 0,
+      queryChecks, teardown: { processCleanupComplete, scratchPreserved: !processCleanupComplete, actions: cleanupActions } }, null, 2) + '\n')
+  })
   if (!primaryError && cleanupErrors.length) throw new AggregateError(cleanupErrors, 'The updater passed, but its disposable resources did not clean up.')
 }
