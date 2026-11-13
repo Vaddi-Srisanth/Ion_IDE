@@ -5,6 +5,7 @@ import { windowsEnvironment, windowsToolPaths } from '../windows-process'
 import { startLineConsole } from './line-console'
 import type { CommandPlan, RunPlan } from './plans'
 import { startPty, type PtySession } from './pty'
+import type { RunTrace } from './trace'
 
 const systemPath = '/usr/bin:/bin:/usr/sbin:/sbin'
 const interactiveLimits = { ...defaultRunLimits, programMs: 5 * 60_000 }
@@ -68,12 +69,15 @@ export class InteractiveRunner {
   run(
     plan: RunPlan, emit: (event: RunUpdate) => void, signal: AbortSignal,
     sourceStillCurrent?: () => Promise<boolean>,
+    trace?: RunTrace,
   ): Promise<RunResult> {
     if (this.active) return Promise.resolve(rejectedRun('A program is already compiling or running.'))
     const active: ActiveRun = {}
     this.active = active
-    return this.executePlan(plan, active, signal, emit, sourceStillCurrent).finally(() => {
+    trace?.('engine', 'start')
+    return this.executePlan(plan, active, signal, emit, sourceStillCurrent, trace).finally(() => {
       this.active = undefined
+      trace?.('engine', 'cleanup')
     })
   }
 
@@ -91,6 +95,7 @@ export class InteractiveRunner {
   private async executePlan(
     plan: RunPlan, active: ActiveRun, signal: AbortSignal, emit: (event: RunUpdate) => void,
     sourceStillCurrent?: () => Promise<boolean>,
+    trace?: RunTrace,
   ): Promise<RunResult> {
     const start = performance.now()
     const budget = { remaining: this.limits.outputBytes }
@@ -101,6 +106,7 @@ export class InteractiveRunner {
     let stage = plan.compile ? 'Compilation' : 'Program'
 
     function result(status: RunStatus, message: string, detail: Partial<RunResult> = {}): RunResult {
+      trace?.('result', status)
       return {
         status, message, compiler: plan.toolchain, compileOutput, compileMs, compileVerified, programOutput: '', exitCode: null,
         durationMs: Math.round(performance.now() - start), ...detail,
@@ -116,7 +122,10 @@ export class InteractiveRunner {
 
     try {
       if (signal.aborted) return result('cancelled', 'Run stopped.')
-      if (sourceStillCurrent && !await sourceStillCurrent()) {
+      trace?.('source-check-before-compile', 'start')
+      const sourceBeforeCompile = !sourceStillCurrent || await sourceStillCurrent()
+      trace?.('source-check-before-compile', 'end', sourceBeforeCompile)
+      if (!sourceBeforeCompile) {
         return signal.aborted ? result('cancelled', 'Run stopped.')
           : result('rejected', 'The source or workspace changed. Review it and run again.')
       }
@@ -124,6 +133,7 @@ export class InteractiveRunner {
       if (plan.compile) {
         publish.phase('compiling', plan.label)
         const compileStart = performance.now()
+        trace?.('compile', 'start')
         const compiled = await execute(plan.compile.executable, plan.compile.args, {
           cwd: plan.compile.cwd ?? plan.cwd,
           input: plan.compile.input ?? '',
@@ -132,7 +142,9 @@ export class InteractiveRunner {
           budget,
           environment: commandEnvironment(plan.compile, 'C'),
           onOutput: (text) => publish.output('compiler', text),
+          trace,
         })
+        trace?.('compile', 'end', compiled.state)
         compileMs = Math.round(performance.now() - compileStart)
         compileOutput = compiled.output
         const detail = { exitCode: compiled.exitCode, outputComplete: compiled.outputComplete }
@@ -146,8 +158,13 @@ export class InteractiveRunner {
       }
 
       if (signal.aborted) return result('cancelled', 'Run stopped.')
+      trace?.('resolve-program', 'start')
       const command = plan.resolveRun ? await plan.resolveRun() : plan.run
-      if (sourceStillCurrent && !await sourceStillCurrent()) {
+      trace?.('resolve-program', 'end')
+      trace?.('source-check-before-program', 'start')
+      const sourceBeforeProgram = !sourceStillCurrent || await sourceStillCurrent()
+      trace?.('source-check-before-program', 'end', sourceBeforeProgram)
+      if (!sourceBeforeProgram) {
         return signal.aborted ? result('cancelled', 'Run stopped.')
           : result('rejected', 'The source or workspace changed. Review it and run again.')
       }
@@ -168,12 +185,14 @@ export class InteractiveRunner {
         signal,
         timeoutMs: Math.min(this.limits.programMs, command.timeoutMs ?? this.limits.programMs),
         budget,
-        ready: () => publish.phase('running', plan.label),
+        ready: () => { trace?.('program', 'ready'); publish.phase('running', plan.label) },
         onOutput: (text: string) => publish.output('terminal', text),
+        trace,
       }
       let terminal = startPty(terminalOptions)
       active.terminal = terminal
       let ran = await terminal.result
+      trace?.('program', 'end', ran.state)
       if (ran.unavailable && !signal.aborted) {
         const remaining = Math.floor(terminalOptions.timeoutMs - (performance.now() - programStart))
         if (remaining <= 0) return failed('timeout', 'The program could not start within its time limit.')
@@ -197,6 +216,7 @@ export class InteractiveRunner {
         error instanceof Error ? error.message : 'Unable to start the process.')
     } finally {
       publish.flush()
+      trace?.('output', 'flushed')
     }
   }
 }

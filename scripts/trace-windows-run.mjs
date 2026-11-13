@@ -18,9 +18,9 @@ const scratch = await temporaryDirectory('windows-run-diagnostic')
 const report = { complete: false, classification: 'Diagnostic-only; no retries or performance aggregation.',
   source: { commit: process.env.GITHUB_SHA ?? null, run: process.env.GITHUB_RUN_ID ?? null },
   mainSha256: createHash('sha256').update(await readFile(target.args[0])).digest('hex'),
-  observer: { boundedRecords: 1024, boundedPending: 256, noArgumentsPathsContentsOrEnvironment: true,
+  observer: { boundedRecords: 1024, boundedPending: 256, boundedLifecycleEvents: 2049, noArgumentsPathsContentsOrEnvironment: true,
     timingChanged: 'Diagnostic promise boundaries return derived promises with original values/errors; not performance samples.',
-    mechanism: 'AsyncLocalStorage IPC owner, child spawn/status/exit/close, fs promise completion and long timer lifecycle.' } }
+    mechanism: 'AsyncLocalStorage IPC owner, child spawn/status/exit/close, fs promise completion, long timers and main-only correlated internal lifecycle spans.' } }
 await mkdir(dirname(output), { recursive: true })
 await writeFile(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' })
 const persist = () => writeFile(output, JSON.stringify(report, null, 2) + '\n')
@@ -63,16 +63,31 @@ try {
   await app.evaluate(() => globalThis.ionRunTrace.start())
   report.phase = 'run-program'
   await persist()
-  // Same unchanged15-second successful-run assertion; no retry or timeout bump.
-  await runProgram(page)
+  // Current outcome-driven, IPC-correlated stage watchdog. No retry; this new
+  // diagnostic is not pooled with historical 15-second success-only samples.
+  report.runMs = await runProgram(page)
   report.runSucceeded = true
 } catch (error) {
   failure = error
   report.error = { name: error.name, message: String(error.message).slice(0, 1000) }
 } finally {
   if (session) {
-    try { report.trace = await session.app.evaluate(() => globalThis.ionRunTrace.snapshot()) }
-    catch (error) { report.traceUnavailable = String(error.message).slice(0, 500) }
+    try {
+      report.trace = await session.app.evaluate(() => globalThis.ionRunTrace.snapshot())
+      assert.ok(report.trace.lifecycle.length > 0, 'Expected correlated internal lifecycle evidence')
+      assert.equal(report.trace.lifecycleOverflow, false, 'Internal lifecycle evidence was truncated')
+      if (report.runSucceeded) {
+        const groups = Map.groupBy(report.trace.lifecycle, event => event.id)
+        assert.equal(groups.size, 1)
+        for (const events of groups.values()) {
+          assert.ok(events.every((event, n) => !n || event.ms >= events[n - 1].ms))
+          assert.equal(events.at(-1).stage, 'request')
+          assert.equal(events.at(-1).event, 'end')
+          assert.ok(events.some(event => event.stage === 'engine-result' && event.value === 'success'))
+        }
+        report.internalTraceVerified = true
+      }
+    } catch (error) { report.traceUnavailable = String(error.message).slice(0, 500); failure ??= error }
     try {
       report.ui = await session.page.evaluate(() => {
         const node = document.querySelector('[data-testid="output"]')
@@ -81,7 +96,8 @@ try {
       report.nativeBeforeCleanup = await windowsProcessTree(session)
     } catch (error) { report.nativeUnavailable = String(error.message).slice(0, 500) }
     await persist()
-    try { await session.app.evaluate(() => globalThis.ionRunTrace.dispose()) } catch {}
+    try { await session.app.evaluate(() => globalThis.ionRunTrace.dispose()); report.traceDisposed = true }
+    catch (error) { report.traceDisposeError = String(error.message).slice(0, 500); failure ??= error }
     try {
       await close(session)
       report.exit = { code: session.appProcess.exitCode, signal: session.appProcess.signalCode }

@@ -9,6 +9,7 @@ import { windowsEnvironment, workspaceSafeWindowsToolPaths } from '../windows-pr
 import { findMainClass } from './java-classes'
 import type { NativeProject } from './project-build'
 import { installedWindowsJavaBuild, windowsJdkHomes } from './windows-java-build'
+import type { RunTrace } from './trace'
 
 export interface CommandPlan {
   executable: string
@@ -347,6 +348,7 @@ interface PrepareOptions {
   scratch: string
   signal: AbortSignal
   nativeProject?: NativeProject
+  trace?: RunTrace
 }
 
 async function prepareJava(options: PrepareOptions, paths: string[], environment: NodeJS.ProcessEnv): Promise<RunPlan> {
@@ -437,18 +439,21 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
 }
 
 export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
-  const { path, root, scratch, signal } = options
+  const { path, root, scratch, signal, trace } = options
   const language = runLanguage(basename(path))
   if (!language) throw new Error('Open a C, C++, Java, Python, or JavaScript source file to run it.')
   signal.throwIfAborted()
   const cwd = root && inside(root, path) ? root : dirname(path)
+  trace?.('tool-paths', 'start')
   const paths = await commandPaths(cwd)
+  trace?.('tool-paths', 'end', paths.length)
   const environment = envFor(paths, scratch)
   const label = basename(path)
   if (language === 'java') return prepareJava({ ...options, root: root && inside(root, path) ? root : null }, paths, environment)
   if (language === 'c' || language === 'cpp') {
     const project = options.nativeProject
     let executablePath: string | null
+    trace?.('compiler-discovery', 'start')
     if (windows) {
       executablePath = await findWindowsCompiler(paths, cwd, language === 'cpp')
     } else {
@@ -456,6 +461,7 @@ export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
       const cpp = compiler?.replace(/(?:clang|gcc)(?=-\d+$|$)/, (name) => name === 'clang' ? 'clang++' : 'g++')
       executablePath = language === 'cpp' ? (cpp && await executable(cpp, cwd) ? cpp : null) : compiler
     }
+    trace?.('compiler-discovery', 'end', !!executablePath)
     signal.throwIfAborted()
     if (!executablePath) throw new MissingToolchainError(compilerSetupMessage(language === 'cpp' ? 'C++' : 'C'))
     const program = join(scratch, nativeExecutable('program'))

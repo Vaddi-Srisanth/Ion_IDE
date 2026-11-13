@@ -49,6 +49,16 @@ jobs:
       - run: node scripts/test-update-preferences.mjs
       - run: node scripts/test-mac-updater.mjs
       - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
+      - name: Verify locked and corrupted image publication
+        run: node scripts/test-mac-image-publication.mjs "$RUNNER_TEMP/ion-image-publication"
+      - name: Preserve image publication regression evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: mac-image-publication-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-image-publication
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run package:dmg
       - run: node scripts/verify-mac-release.mjs
       - run: node scripts/release-evidence.mjs record mac-arm64
@@ -266,7 +276,17 @@ jobs:
       - run: npm run build
         id: attribution-build
       - run: node --test scripts/windows/run-trace-prelude.test.cjs
+      - run: node --test scripts/test-run-completion.mjs
       - run: node scripts/trace-windows-run.mjs
+      - name: Verify native C lifecycle and correlated trace contracts
+        if: ${{ !cancelled() && steps.attribution-build.outcome == 'success' }}
+        env:
+          ION_C_TRACE_REPORT: performance-results/windows-c-lifecycle.json
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force performance-results | Out-Null
+          npm test -- run-trace c-run-lifecycle
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify isolated standalone controls
         if: ${{ !cancelled() && steps.attribution-build.outcome == 'success' }}
         env:
@@ -282,6 +302,7 @@ jobs:
           name: windows-run-attribution-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             performance-results/windows-run-diagnostic.json
+            performance-results/windows-c-lifecycle.json
             performance-results/windows-standalone-undo.json
             performance-results/windows-standalone-git-refresh.json
           if-no-files-found: warn

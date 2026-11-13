@@ -6,6 +6,20 @@ const { basename } = require('node:path')
 const { ipcMain } = require('electron')
 
 exports.install = function install() {
+  const lifecycleKey = Symbol.for('ion.main.run-trace.v1')
+  const previousLifecycle = Object.getOwnPropertyDescriptor(globalThis, lifecycleKey)
+  const lifecycle = []
+  let lifecycleOverflow = false
+  const lifecycleSink = event => {
+    if (!active) return
+    if (lifecycle.length >= 2049) { lifecycleOverflow = true; return }
+    // The production hook emits static stage labels and scalar metadata only.
+    // Copy records so a caller cannot mutate retained diagnostic evidence.
+    lifecycle.push({ id: event.id, ms: event.ms, stage: event.stage, event: event.event, value: event.value })
+  }
+  // Install before modifying any other API, so a non-configurable conflicting
+  // owner fails without leaving partially installed diagnostic wrappers.
+  Object.defineProperty(globalThis, lifecycleKey, { value: lifecycleSink, configurable: true, writable: true })
   const scope = new AsyncLocalStorage()
   const records = [], pending = new Map(), timers = new Map(), listeners = []
   const original = { spawn: processes.spawn, handle: ipcMain.handle, setTimeout, clearTimeout }
@@ -109,7 +123,9 @@ exports.install = function install() {
     },
     snapshot() {
       return { started, overflow, clock: 'main performance.now relative to diagnostic start only',
-        records: records.slice(), pending: [...pending.values()], resources: process.getActiveResourcesInfo() }
+        records: records.slice(), pending: [...pending.values()], resources: process.getActiveResourcesInfo(),
+        lifecycle: lifecycle.map(event => ({ ...event })), lifecycleOverflow,
+        lifecycleClock: 'Per-request main performance.now relative to createRunTrace; correlate by id.' }
     },
     dispose() {
       active = false
@@ -118,6 +134,11 @@ exports.install = function install() {
       for (const name of fileMethods) fs[name] = original[name]
       for (const remove of listeners) remove()
       scope.disable()
+      // Do not overwrite a subsequent owner's hook during cleanup.
+      if (Object.getOwnPropertyDescriptor(globalThis, lifecycleKey)?.value === lifecycleSink) {
+        if (previousLifecycle) Object.defineProperty(globalThis, lifecycleKey, previousLifecycle)
+        else delete globalThis[lifecycleKey]
+      }
     },
   }
 }

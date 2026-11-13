@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { StringDecoder } from 'node:string_decoder'
+import type { RunTrace } from './trace'
 
 const maxFrameBytes = 16 * 1024
 const maxPendingBytes = 64 * 1024
@@ -26,6 +27,7 @@ interface PtyLaunchOptions {
   signal: AbortSignal
   ready(): void
   onOutput(text: string): void
+  trace?: RunTrace
 }
 
 export interface PtyOptions extends PtyLaunchOptions {
@@ -66,6 +68,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
   const shell = 'shell' in options
   const windows = process.platform === 'win32'
   const mode = shell ? ['--shell'] : []
+  options.trace?.('pty', 'spawn-request')
   const child = spawn(options.helper, [String(options.columns), String(options.rows), ...mode, options.executable, ...options.args], {
     cwd: options.cwd,
     env: { ...options.environment, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
@@ -73,6 +76,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   })
+  if (options.trace) child.once('spawn', () => options.trace?.('pty', 'spawned', child.pid))
   const decoder = new StringDecoder()
   let state: PtyState = 'exited'
   let programPid: number | undefined
@@ -89,7 +93,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
   function collect(text: string) {
     if (!text) return
     // The status and terminal pipes are independently scheduled.
-    if (started) options.onOutput(text)
+    if (started) { options.trace?.('program-output', 'forwarded', text.length); options.onOutput(text) }
     else {
       earlyOutput += text
       if (shell) child.stdout.pause()
@@ -99,6 +103,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
   function stop(reason: PtyState) {
     if (state !== 'exited' || finished) return
     state = reason
+    options.trace?.('pty', 'stop', reason)
     if (reason === 'output-limit') outputComplete = false
     if (windows) child.stdin.end(Buffer.from([0x53, 0, 0]))
     else child.kill('SIGTERM')
@@ -127,12 +132,14 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
     frame.writeUInt16BE(bytes.length, 1)
     bytes.copy(frame, 3)
     child.stdin.write(frame, written)
+    if (opcode === 0x44) options.trace?.('stdin', 'queued-bytes', bytes.length)
     return true
   }
 
   child.stdin.on('error', () => {})
   child.stdout.on('data', (bytes: Buffer) => {
     if (finished) return
+    options.trace?.('program-output', 'received-bytes', bytes.length)
     if (shell) {
       if (state === 'exited') collect(decoder.write(bytes))
       return
@@ -162,6 +169,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
       if (ready && !started) {
         programPid = Number(ready[1])
         started = true
+        options.trace?.('pty', 'ready', programPid)
         if (state === 'exited') {
           options.ready()
           if (lastSize[0] !== options.columns || lastSize[1] !== options.rows) resize(lastSize[0], lastSize[1])
@@ -178,12 +186,14 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
   const result = new Promise<PtyResult>((resolve) => {
     child.on('error', (error) => {
       if (state === 'exited') state = 'error'
+      options.trace?.('pty', 'spawn-error')
       if (windows && !started && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         unavailable = true
         detail = 'The Windows terminal helper is missing. Reinstall Ion from the Windows installer.'
       } else detail = error.message
     })
     child.once('close', (exitCode, signal) => {
+      options.trace?.('pty', 'close', exitCode)
       finished = true
       clearTimeout(timer)
       clearTimeout(guard)
@@ -196,6 +206,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
           : shell ? 'The terminal could not open a pseudoterminal.' : 'The Run Console could not open a pseudoterminal.'
       }
       // A forced helper signal is not evidence of a signal from the program.
+      options.trace?.('pty', 'cleanup', outputComplete)
       resolve({ state, exitCode, signal: state === 'exited' ? signal ?? undefined : undefined,
         outputComplete, detail, unavailable: unavailable && !started && state === 'error' })
     })
@@ -215,7 +226,10 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
       if (data.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
       const bytes = Buffer.from(data)
       if (bytes.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
-      if (bytes.length && !send(0x44, bytes)) throw new Error('Input was not sent: the program input buffer is busy.')
+      if (bytes.length && !send(0x44, bytes, options.trace
+        ? (error) => options.trace?.('stdin', error ? 'write-error' : 'written-bytes', bytes.length) : undefined)) {
+        throw new Error('Input was not sent: the program input buffer is busy.')
+      }
     },
     writeInput(data) {
       const bytes = Buffer.from(data)

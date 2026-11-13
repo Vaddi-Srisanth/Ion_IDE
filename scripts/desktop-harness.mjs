@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright-core'
 import { nativePsEnvironment, parseIdentities } from './live-runtime-metrics.mjs'
 import { familyFor, identityCpuPercent, parseMacFamilyRows, rememberLaunchMetrics } from './process-family.mjs'
+import { installBenchmarkRun } from './run-completion.mjs'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -270,30 +271,20 @@ export function editorShows(page, expected) {
 
 export async function runProgram(page) {
   const run = page.getByTestId('run')
-  await page.evaluate(() => {
-    window.ionBenchmarkRunStarted = false
-    const observer = new MutationObserver(() => {
-      const output = document.querySelector('[data-testid="output"]')
-      if (['preparing', 'compiling', 'running'].includes(output?.getAttribute('data-phase'))) {
-        window.ionBenchmarkRunStarted = true
-      }
-    })
-    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-phase'] })
-    window.ionBenchmarkRunCleanup = () => {
-      observer.disconnect()
-      delete window.ionBenchmarkRunStarted
-      delete window.ionBenchmarkRunCleanup
-    }
-  })
+  // This fixture is a single C source without a native-project build config.
+  // Compilation has its own 15s application limit followed by up to 4s verified
+  // Windows helper cleanup. The interactive program has its existing 5min limit
+  // and 3.5s helper guard. A 15s overall success-only wait raced the compiler's
+  // own deadline and also hid terminal failures until that deadline expired.
+  await page.evaluate(installBenchmarkRun, { preparing: 15_000, compiling: 15_000 + 4_000, running: 300_000 + 3_500,
+    expectedMarker: runnerMarker })
   try {
     const start = performance.now()
     await run.click()
-    await page.waitForFunction(() => {
-      const button = document.querySelector('[data-testid="run"]')
-      const output = document.querySelector('[data-testid="output"]')
-      return window.ionBenchmarkRunStarted && button && !button.disabled && output?.dataset.status === 'success'
-        && output.textContent?.includes('ION-DESKTOP-RUN-OK')
-    }, undefined, { timeout: 15_000 })
+    const result = await page.evaluate(() => window.ionBenchmarkRunCompletion)
+    assert.ok(!result.failure, JSON.stringify(result))
+    assert.equal(result.status, 'success', JSON.stringify(result))
+    assert.ok(result.text?.includes('ION-DESKTOP-RUN-OK'), JSON.stringify(result))
     return performance.now() - start
   } finally {
     await page.evaluate(() => window.ionBenchmarkRunCleanup?.()).catch(() => {})

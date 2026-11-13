@@ -24,6 +24,7 @@ import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
 import { configureWindowsProcessHelper } from './windows-process'
 import type { InteractiveRunner, NativeProject } from './run-console'
+import { createRunTrace } from './run-console/trace'
 import type { TerminalService } from './terminal/service'
 import type { SourceControlService } from './source-control'
 import type { SourceControlStatus } from '../shared/source-control'
@@ -737,6 +738,10 @@ function startInteractive(target: BrowserWindow, id: string, value: unknown, lea
 
 async function runInteractive(record: ActiveRun, value: unknown, learn: boolean, expectedRevision?: string): Promise<RunResult> {
   const { owner: target, id, controller: { signal } } = record
+  const trace = createRunTrace(id)
+  trace?.('request', 'begin')
+  const onAbort = trace ? () => trace('cancellation', 'requested') : undefined
+  if (onAbort) signal.addEventListener('abort', onAbort, { once: true })
   const scope = files
   const workspaceRoot = scope.rootPath
   let scratch: string | undefined
@@ -744,13 +749,17 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
   let nativeProject: NativeProject | undefined
   let runtimeExcerpt = ''
   const emit = (update: RunUpdate) => {
+    if (update.kind === 'phase') trace?.('renderer-phase', update.phase)
+    else if (update.kind === 'data') trace?.('forward-output', update.stream, update.text.length)
     if (sourceHash && update.kind === 'data' && update.stream === 'terminal') {
       runtimeExcerpt = (runtimeExcerpt + update.text).slice(-8192)
     }
     if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id, update })
   }
   try {
+    trace?.('source-inspection', 'begin')
     const { path, stats } = await scope.inspect(value, 'file')
+    trace?.('source-inspection', 'end')
     if (!runLanguage(path)) return rejectedRun('Open a saved C, C++, Java, Python, or JavaScript file to run.')
     if (stats.size > BigInt(maxFileBytes)) return rejectedRun('The source exceeds the 2 MiB file limit.')
     const token = revision(stats)
@@ -758,33 +767,44 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
       return { ...rejectedRun('The source changed on disk. Reload it before running.'), sourceChanged: true }
     }
     const stillCurrent = async () => {
-      const current = await scope.inspect(path, 'file').catch(() => undefined)
-      if (target !== window || signal.aborted || scope.rootPath !== workspaceRoot || !current || revision(current.stats) !== token) return false
-      if (!nativeProject) return true
-      const checks = await Promise.all([
-        ...nativeProject.inputs.filter((input) => input.path !== path).map(async (input) => {
-          const file = await scope.inspect(input.path, 'file').catch(() => undefined)
-          return !!file && revision(file.stats) === input.revision
-        }),
-        ...nativeProject.includeDirectories.map((directory) => scope.inspect(directory, 'folder').then(() => true, () => false)),
-      ])
-      return target === window && !signal.aborted && scope.rootPath === workspaceRoot && checks.every(Boolean)
+      trace?.('source-validation', 'begin')
+      try {
+        const current = await scope.inspect(path, 'file').catch(() => undefined)
+        if (target !== window || signal.aborted || scope.rootPath !== workspaceRoot || !current || revision(current.stats) !== token) return false
+        if (!nativeProject) return true
+        const checks = await Promise.all([
+          ...nativeProject.inputs.filter((input) => input.path !== path).map(async (input) => {
+            const file = await scope.inspect(input.path, 'file').catch(() => undefined)
+            return !!file && revision(file.stats) === input.revision
+          }),
+          ...nativeProject.includeDirectories.map((directory) => scope.inspect(directory, 'folder').then(() => true, () => false)),
+        ])
+        return target === window && !signal.aborted && scope.rootPath === workspaceRoot && checks.every(Boolean)
+      } finally { trace?.('source-validation', 'end') }
     }
     emit({ kind: 'phase', phase: 'preparing' })
     signal.throwIfAborted()
+    trace?.('run-module', 'begin')
     const module = await import('./run-console')
+    trace?.('run-module', 'end')
+    trace?.('scratch-create', 'begin')
     scratch = await mkdtemp(join(await realpath(tmpdir()), 'ion-live-run-'))
+    trace?.('scratch-create', 'end')
     const root = workspaceRoot && isWithin(workspaceRoot, path) ? workspaceRoot : null
     let plan: Awaited<ReturnType<typeof module.prepareRun>>
     try {
+      trace?.('project-discovery', 'begin')
       if (root) nativeProject = await module.readNativeProject(scope, root, path)
-      plan = await module.prepareRun({ path, root, scratch, signal, nativeProject })
+      trace?.('project-discovery', 'end')
+      plan = await module.prepareRun({ path, root, scratch, signal, nativeProject, trace })
     } catch (error) {
       if (error instanceof module.MissingToolchainError) return { ...rejectedRun(error.message), status: 'missing-toolchain' }
       throw error
     }
     if (!await stillCurrent()) return signal.aborted ? cancelledRun() : rejectedRun('The source or workspace changed before the run.')
+    trace?.('authorization', 'begin')
     const denied = await approveRunSource(target, scope, path, token, plan.build, signal, nativeProject)
+    trace?.('authorization', 'end', !denied)
     if (signal.aborted) return cancelledRun()
     if (denied) return rejectedRun(denied)
     if (!await stillCurrent()) return rejectedRun('The source or workspace changed before the run.')
@@ -796,9 +816,10 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     }
     const engine = interactiveRunner ??= new module.InteractiveRunner(ptyHelper())
     record.engine = engine
-    const job = engine.run(plan, emit, signal, stillCurrent)
+    const job = engine.run(plan, emit, signal, stillCurrent, trace)
     if (record.size) engine.resize(...record.size)
     const result = await job
+    trace?.('engine-result', 'received', result.status)
     const hasCompilerReport = Boolean(result.compileOutput || result.status === 'compile-error')
     const current = (sourceHash || hasCompilerReport) && await stillCurrent()
     if (sourceHash && current && await observesLearning(plan.language, generation, selection)) {
@@ -817,11 +838,17 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     }
     const problems = hasCompilerReport ? result.learning?.diagnostics.filter(({ phase }) => phase === 'compile')
       ?? (await import('./learning')).compilerProblems(result, plan.language) : undefined
+    trace?.('request', 'result', result.status)
     return { ...result, compileOutput: '', problems, sourceRevision: current ? token : undefined }
   } catch (error) {
+    trace?.('request', 'error', signal.aborted ? 'cancelled' : 'rejected')
     return signal.aborted ? cancelledRun() : rejectedRun(error instanceof Error ? error.message : 'Unable to start the run.')
   } finally {
+    trace?.('scratch-cleanup', 'begin')
     if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
+    trace?.('scratch-cleanup', 'end')
+    if (onAbort) signal.removeEventListener('abort', onAbort)
+    trace?.('request', 'end')
   }
 }
 

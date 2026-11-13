@@ -88,7 +88,7 @@ await withScratch('release-check', async (scratch) => {
       cells: [{ cell_type: 'markdown', id: 'study', metadata: {}, source: '# Local study notebook' }] })),
     writeFile(markdown, '# Local Markdown preview\n\nAn **offline** study note.\n'),
     writeFile(join(profile, 'preferences.json'), JSON.stringify({
-      version: 1, settings: {},
+      version: 1, settings: { openFullScreen: false },
       recents: [{ path: project, name: 'Packaged study files', kind: 'folder', lastOpened: 1 }],
     })),
   ])
@@ -242,7 +242,16 @@ await withScratch('release-check', async (scratch) => {
     await restored.getByRole('button', { name: 'Discard', exact: true }).click()
     await restored.getByTestId('tab').waitFor({ state: 'detached' })
     await waitForCheckpoint(restored, null)
+    // Minimal mode exits after the last window closes. Exercise the real
+    // renderer close/recovery-drain path, not a SIGTERM cleanup substitute.
+    const gracefullyExited = once(child, 'exit')
+    await restored.evaluate(() => window.close()).catch(() => {})
+    const cleanExit = await Promise.race([gracefullyExited, sleep(8000).then(() => {
+      throw new Error('Packaged app did not exit after normal window close.')
+    })])
+    assert.deepEqual(cleanExit, [0, null], 'The packaged app exits normally after draining owned resources.')
     console.log('PASS mounted installer, ad-hoc signature, bundled PTY and search, offline workspaces, previews, themes and crash session recovery')
+    console.log('PASS normal packaged window close and exit 0')
     console.log(JSON.stringify({ appBytes: await bytes(copy), installerBytes: (await lstat(image)).size }))
   } finally {
     if (child && child.exitCode === null && child.signalCode === null) {

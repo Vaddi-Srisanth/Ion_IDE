@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import type { RunResult, RunStatus } from '../shared/contracts'
 import { processTempEnvironment, windowsEnvironment, windowsPipeCommand, monitorWindowsPipeProcess, workspaceSafeWindowsToolPaths } from './windows-process'
+import type { RunTrace } from './run-console/trace'
 
 const systemPath = '/usr/bin:/bin:/usr/sbin:/sbin'
 const maxInputBytes = 64 * 1024
@@ -38,6 +39,7 @@ interface ProcessOptions {
   collectOutput?: boolean
   onOutput?: (text: string) => void
   interactive?: (write: (text: string | null) => boolean) => void
+  trace?: RunTrace
 }
 
 export function execute(executable: string, args: string[], options: ProcessOptions): Promise<ProcessResult> {
@@ -49,6 +51,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       resolve({ state: 'error', exitCode: null, output: '', detail: error instanceof Error ? error.message : 'Windows process helper unavailable.' })
       return
     }
+    options.trace?.('compiler-process', 'spawn-request')
     const child = spawn(command?.executable ?? executable, command?.args ?? args, {
       cwd: options.cwd,
       env: options.environment,
@@ -57,6 +60,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       shell: false,
       windowsHide: true,
     }) as ChildProcessWithoutNullStreams
+    if (options.trace) child.once('spawn', () => options.trace?.('compiler-process', 'spawned', child.pid))
     const stdout = new StringDecoder()
     const stderr = new StringDecoder()
     const chunks: string[] = []
@@ -103,12 +107,14 @@ export function execute(executable: string, args: string[], options: ProcessOpti
         stdout: stdoutChunks?.join(''), stderr: stderrChunks?.join(''),
         outputComplete: outputComplete && state !== 'output-limit', signal: signal ?? exitSignal ?? undefined,
       }
+      options.trace?.('compiler-process', 'cleanup', result.outputComplete)
       resolve(result)
     }
 
     function stop(reason: ProcessState) {
       if (state !== 'exited') return
       state = reason
+      options.trace?.('compiler-process', 'stop', reason)
       killGroup()
       if (ownership) {
         // Wait for native Stop/Job-drain/reader cleanup acknowledgement. A
@@ -134,6 +140,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
     function collect(data: Buffer, decoder: StringDecoder, stream?: string[]) {
       if (state !== 'exited') return
       const count = Math.min(data.length, options.budget.remaining)
+      options.trace?.('compiler-output', 'bytes', count)
       if (count > 0) append(decoder.write(data.subarray(0, count)), stream)
       options.budget.remaining -= count
       if (count < data.length) stop('output-limit')
@@ -154,6 +161,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       finish(null)
     })
     child.once('exit', (code, signal) => {
+      options.trace?.('compiler-process', 'exit', code)
       exitSignal = signal
       killGroup()
       if (guard) return
@@ -162,7 +170,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       // Drain what is available, then release Electron's pipe handles promptly.
       guard = setTimeout(() => finish(code, signal, false), 250)
     })
-    child.once('close', finish)
+    child.once('close', (code, signal) => { options.trace?.('compiler-process', 'close', code); finish(code, signal) })
     if (options.interactive) {
       child.once('spawn', () => {
         if (state !== 'exited' || finished) return
