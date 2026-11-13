@@ -13,7 +13,7 @@ try {
   await withScratch('git-refresh-gate', async scratch => {
     const entry = join(scratch, 'entry.tsx')
     await writeFile(entry, `import React,{useState} from 'react';import{createRoot}from'react-dom/client';
-      import Panel from ${JSON.stringify(join(result.source, 'src/renderer/source-control/SourceControlPanel.tsx'))};
+      import Panel from ${JSON.stringify(join(result.source, 'src/renderer/source-control/SourceControlPanel.tsx').replaceAll('\\', '/'))};
       let count=0,release;const status=()=>Promise.resolve({kind:'repository',branch:'main',entries:[{path:count++?'new.txt':'old.txt',absolutePath:'/fixture/old.txt',index:'',worktree:'M'}]});
       const bridge={status,diff:()=>new Promise(resolve=>{release=()=>resolve({})})};
       function App(){const[revision,setRevision]=useState(0);return <><button id="save" onClick={()=>setRevision(r=>r+1)}>Save source</button>
@@ -23,7 +23,9 @@ try {
       nodePaths: [resolve('node_modules')], logLevel: 'silent' })
     await writeFile(join(scratch, 'index.html'), '<link rel="stylesheet" href="bundle.css"><div id="root"></div><script src="bundle.js"></script>')
     await writeFile(join(scratch, 'main.cjs'), `const{app,BrowserWindow}=require('electron');app.whenReady().then(()=>new BrowserWindow({show:false,webPreferences:{backgroundThrottling:false}}).loadFile(${JSON.stringify(join(scratch, 'index.html'))}));app.on('window-all-closed',()=>app.quit());`)
-    const app = await _electron.launch({ executablePath: electron, args: [join(scratch, 'main.cjs')], env: { ...process.env, ELECTRON_RUN_AS_NODE: '' } })
+    const environment = { ...process.env }
+    delete environment.ELECTRON_RUN_AS_NODE
+    const app = await _electron.launch({ executablePath: electron, args: [join(scratch, 'main.cjs')], env: environment })
     try {
       const page = await app.firstWindow()
       await page.getByTestId('git-open-diff').filter({ hasText: 'old.txt' }).click()

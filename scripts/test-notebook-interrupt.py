@@ -1,5 +1,6 @@
 """Portable broker contract checks; actual Windows Jupyter runs are separate."""
 import runpy
+import _thread
 import signal
 import sys
 import types
@@ -48,6 +49,39 @@ class InterruptContract(unittest.TestCase):
             with self.assertRaisesRegex(OSError, 'first close failed'):
                 self.broker['close_windows_kernel_handles'](process, {'JPY_PARENT_PID': '456'})
         self.assertEqual([call.args[0] for call in closed.call_args_list], [123, 456])
+
+    def test_unknown_parentpoller_is_refused_before_launch(self):
+        poller = types.ModuleType('ipykernel.parentpoller')
+        poller.interrupt_main = lambda: None
+        package = types.ModuleType('ipykernel')
+        package.parentpoller = poller
+        with patch.dict(sys.modules, {'ipykernel': package}):
+            with self.assertRaisesRegex(RuntimeError, 'unsupported Windows interrupt mechanism'):
+                self.broker['validate_windows_interrupt']()
+            with patch.object(sys, 'platform', 'win32'):
+                with self.assertRaisesRegex(RuntimeError, 'unsupported Windows interrupt mechanism'):
+                    exec(self.broker['KERNEL_BOOT'].split('from ipykernel.kernelapp import IPKernelApp')[0], {})
+
+    def test_known_callback_uses_public_signal_in_authorized_windows_kernel(self):
+        poller = types.ModuleType('ipykernel.parentpoller')
+        poller.interrupt_main = _thread.interrupt_main
+        package = types.ModuleType('ipykernel')
+        package.parentpoller = poller
+        with patch.dict(sys.modules, {'ipykernel': package}), patch.object(signal, 'raise_signal') as native:
+            self.broker['validate_windows_interrupt']()
+            with patch.object(sys, 'platform', 'win32'):
+                exec(self.broker['KERNEL_BOOT'].split('from ipykernel.kernelapp import IPKernelApp')[0], {})
+                poller.interrupt_main()
+            native.assert_called_once_with(signal.SIGINT)
+
+    def test_posix_kernel_boot_leaves_jupyter_callback_unchanged(self):
+        poller = types.ModuleType('ipykernel.parentpoller')
+        poller.interrupt_main = _thread.interrupt_main
+        package = types.ModuleType('ipykernel')
+        package.parentpoller = poller
+        with patch.dict(sys.modules, {'ipykernel': package}), patch.object(sys, 'platform', 'darwin'):
+            exec(self.broker['KERNEL_BOOT'].split('from ipykernel.kernelapp import IPKernelApp')[0], {})
+        self.assertIs(poller.interrupt_main, _thread.interrupt_main)
 
 
 if __name__ == '__main__':

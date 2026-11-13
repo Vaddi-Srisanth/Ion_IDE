@@ -130,12 +130,17 @@ await withScratch('format-code', async (scratch) => {
       await shortcut(app, 'F', ['alt', 'shift'])
       await buffer(page, '   int answer = 1;')
       await shortcut(app, 'S', [process.platform === 'darwin' ? 'meta' : 'control'])
+      // Save is asynchronous; Windows publishes through two safe moves. Wait
+      // for the actual save acknowledgment before reading the committed path.
+      await atPath(page, 'tab', project.program).locator('.tab-dirty').waitFor({ state: 'detached' })
       await eventually(async () => (await readFile(project.program, 'utf8')).includes('\r\n   int answer = 1;'), 'Saved text did not preserve CRLF.')
       const disk = await readFile(project.program, 'utf8')
       assert.ok(disk.startsWith('\uFEFF') && !/(?<!\r)\n/.test(disk), 'Saved UTF-8 BOM and CRLF preserved')
       await openFromExplorer(page, auto, 'autosaved(void){')
       await preferences(page, (dialog) => dialog.getByRole('checkbox', { name: /^Autosave/ }).check())
       await format(page).click()
+      await buffer(page, 'int autosaved(void) {')
+      await atPath(page, 'tab', auto).locator('.tab-dirty').waitFor({ state: 'detached' })
       await eventually(async () => (await readFile(auto, 'utf8')).includes('autosaved(void) {'),
         'Formatting did not resume the existing Autosave policy.')
       await preferences(page, (dialog) => dialog.getByRole('checkbox', { name: /^Autosave/ }).uncheck())
@@ -175,6 +180,7 @@ await withScratch('format-code', async (scratch) => {
       await page.keyboard.press(mod + '+Shift+z')
       await buffer(page, 'int item0(void) {')
       await shortcut(app, 'S', [process.platform === 'darwin' ? 'meta' : 'control'])
+      await atPath(page, 'tab', repeated).locator('.tab-dirty').waitFor({ state: 'detached' })
       await eventually(async () => (await readFile(repeated, 'utf8')) === repeatedExpected,
         'Redo did not restore the exact 5,000-line formatted source.')
       console.log('PASS repeated large edits preserve the editor and exact full-file UTF-8 content through Undo and Redo')
@@ -219,6 +225,7 @@ await withScratch('format-code', async (scratch) => {
         if (name === 'web.ts') assert.ok(!(await viewLine(page).textContent()).trimEnd().endsWith(';'))
         if (name === 'web.css') {
           await shortcut(app, 'S', [process.platform === 'darwin' ? 'meta' : 'control'])
+          await atPath(page, 'tab', paths.get(name)).locator('.tab-dirty').waitFor({ state: 'detached' })
           await eventually(async () => (await readFile(paths.get(name), 'utf8')).includes('\n\tcolor: red;'),
             'Prettier did not use the project EditorConfig indentation.')
         }

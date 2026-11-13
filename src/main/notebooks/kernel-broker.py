@@ -13,6 +13,17 @@ import time
 
 KERNEL_BOOT = """
 import os, sys
+if sys.platform == 'win32':
+    import signal
+    from _thread import interrupt_main as queued_interrupt
+    from ipykernel import parentpoller
+    if (getattr(parentpoller, 'interrupt_main', None) is not queued_interrupt
+            or not callable(getattr(signal, 'raise_signal', None))):
+        raise RuntimeError('This local ipykernel uses an unsupported Windows interrupt mechanism. '
+                           'Install a compatible local ipykernel before running notebooks.')
+    # Jupyter's queued _thread interrupt does not wake Windows time.sleep.
+    # Public raise_signal also wakes CPython's native SIGINT wait event.
+    parentpoller.interrupt_main = lambda: signal.raise_signal(signal.SIGINT)
 from ipykernel.kernelapp import IPKernelApp
 connection, directory = sys.argv[1:3]
 sys.path[:] = [entry for entry in sys.path if entry and os.path.abspath(entry) != os.getcwd()]
@@ -84,6 +95,15 @@ def signal_kernel(process, sig):
                 process.send_signal(sig)
     except ProcessLookupError:
         pass
+
+
+def validate_windows_interrupt():
+    from _thread import interrupt_main
+    from ipykernel import parentpoller
+    if (getattr(parentpoller, 'interrupt_main', None) is not interrupt_main
+            or not callable(getattr(signal, 'raise_signal', None))):
+        raise RuntimeError('This local ipykernel uses an unsupported Windows interrupt mechanism. '
+                           'Install a compatible local ipykernel before running notebooks.')
 
 
 def close_windows_kernel_handles(process, environment):
@@ -199,6 +219,8 @@ def main():
     import zmq
     from jupyter_client import BlockingKernelClient, write_connection_file
 
+    if sys.platform == 'win32':
+        validate_windows_interrupt()
     scratch = os.getcwd()
     connection = os.path.join(scratch, 'connection.json')
     write_connection_file(connection, ip='127.0.0.1', key=secrets.token_hex(32).encode('ascii'))
