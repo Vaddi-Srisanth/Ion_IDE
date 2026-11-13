@@ -107,9 +107,25 @@ await withScratch('java-tools', async (scratch) => {
     // actual visible squiggle in the revealed source viewport. Its decoration
     // sits below the rendered text, so move a real pointer to that source
     // position instead of asking the decorative overlay to receive events.
-    const marker = sourceEditor(page).locator('.view-overlays .squiggly-error:visible').first()
-    await marker.waitFor({ state: 'visible' })
-    const markerBox = await marker.boundingBox()
+    // Read visibility and geometry atomically: Monaco can replace decorations
+    // between separate waitFor() and boundingBox() protocol calls.
+    const visibleMarker = await page.waitForFunction(() => {
+      const editor = document.querySelector('[data-testid="editor"] .monaco-editor')
+      if (!editor) return null
+      const viewport = editor.getBoundingClientRect()
+      for (const marker of editor.querySelectorAll('.view-overlays .squiggly-error')) {
+        const rect = marker.getBoundingClientRect(), style = getComputedStyle(marker)
+        const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2
+        if (rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+          && x >= viewport.left && x < viewport.right && y >= viewport.top && y < viewport.bottom
+          && editor.contains(document.elementFromPoint(x, y))) {
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+      }
+      return null
+    }, undefined, { timeout: 8000 })
+    let markerBox
+    try { markerBox = await visibleMarker.jsonValue() } finally { await visibleMarker.dispose() }
     assert.ok(markerBox && markerBox.width > 0 && markerBox.height > 0, 'The diagnostic squiggle must occupy visible source pixels.')
     await page.mouse.move(markerBox.x + markerBox.width / 2, markerBox.y + markerBox.height / 2)
     const hover = sourceEditor(page).locator('.monaco-hover').filter({ hasText: 'cannot find symbol' }).first()
