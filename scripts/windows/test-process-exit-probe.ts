@@ -102,6 +102,11 @@ public static class IonTestExitProbe {
   }
 }`
 
+// Windows PowerShell5 returns a JSON array as one pipeline object. Wrapping
+// that pipeline in @() nests it; direct typed assignment converts its members.
+export const nativeExitProbeInput = `[uint32[]]$ids=ConvertFrom-Json -InputObject $env:ION_TEST_EXIT_PIDS\n`
+  + `if($ids.Count -lt 1 -or $ids.Count -gt 512){throw 'Invalid bounded PID count.'}\n`
+
 export async function probeWindowsExitTargets(targets: ExpectedExitTarget[]) {
   assert.equal(process.platform, 'win32', 'The native exit probe requires Windows.')
   assert.ok(targets.length > 0 && targets.length <= 512)
@@ -109,7 +114,7 @@ export async function probeWindowsExitTargets(targets: ExpectedExitTarget[]) {
   assert.ok(targets.every(target => Number.isInteger(target.pid) && target.pid > 0 && target.pid <= 0xffffffff))
   const script = `$ErrorActionPreference='Stop'\n[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)\n`
     + `Add-Type -TypeDefinition @'\n${nativeExitProbeSource}\n'@\n`
-    + `$ids=@($env:ION_TEST_EXIT_PIDS | ConvertFrom-Json)\nif($ids.Count -lt 1 -or $ids.Count -gt 512){throw 'Invalid bounded PID count.'}\n`
+    + nativeExitProbeInput
     + `$rows=@(foreach($processId in $ids){if($processId -lt 1 -or $processId -gt 4294967295){throw 'Invalid PID.'};[IonTestExitProbe]::Read([uint32]$processId)})\n`
     + `ConvertTo-Json -Compress -Depth 4 -InputObject $rows\n`
   const { stdout } = await promisify(execFile)(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),

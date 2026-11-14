@@ -8,13 +8,13 @@
   "files": [
     {
       "path": ".github/workflows/desktop-build.yml",
-      "bytes": 1219,
-      "sha256": "7d0911762a9a9fa1e6c046d9199e5af4f1999ec7cf92b0be361bb36f9b9aa965"
+      "bytes": 1351,
+      "sha256": "1ed622ce32ce2a32240a51e40ef7d2bfe92ce75051e2276abec7f2286f08cb7d"
     },
     {
       "path": ".github/workflows/ion-release-verification.yml",
-      "bytes": 27590,
-      "sha256": "8c7cee1792fed819e23b74ba71205ed47ca68aa6f260449409034d1a83cef7f0"
+      "bytes": 28185,
+      "sha256": "9d9c76ac76f9142e05ea160a363911b5f768925af0d754d7125e2a1fdf212ec0"
     },
     {
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
@@ -188,8 +188,8 @@
     },
     {
       "path": "scripts/benchmark-development-workflows.mjs",
-      "bytes": 15321,
-      "sha256": "8063864db64801acf7bcfdf1ffd17f42110a09fe08222c51f59876ec1540dca0"
+      "bytes": 15712,
+      "sha256": "e47c75b8464d2c65a99062bbf63592c35918765a5f149f31c26d7fe7f4f39871"
     },
     {
       "path": "scripts/benchmark-integrated-terminal.mjs",
@@ -228,8 +228,8 @@
     },
     {
       "path": "scripts/windows/test-process-exit-probe.ts",
-      "bytes": 7284,
-      "sha256": "898859a06ffc362c326fafe5ff9de535d13b330cd9334879494a0179f121dffe"
+      "bytes": 7524,
+      "sha256": "91b1fd50caec40aa4f8c501742bab34119c4641f174e78f15bb0a7881cf2f784"
     },
     {
       "path": "src/main/files.ts",
@@ -293,8 +293,8 @@
     },
     {
       "path": "test/windows-process-exit-probe.test.ts",
-      "bytes": 3004,
-      "sha256": "960f0167c1f2a47b9ef01c5b52d0f49bed36f4fcb104aed797a931ed06c08f33"
+      "bytes": 4890,
+      "sha256": "8c65fde009622b980edcfd7143193d7aa240b79e5360603175ee72e03fc770f9"
     }
   ]
 }

@@ -7,13 +7,16 @@ on:
       performance_only:
         type: boolean
         default: false
+      follow_up_only:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   macos:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
     name: macOS Apple silicon
     runs-on: macos-15
     timeout-minutes: 35
@@ -83,7 +86,7 @@ jobs:
           retention-days: 14
 
   windows:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
     name: Windows x64
     runs-on: windows-2025
     timeout-minutes: 50
@@ -313,6 +316,8 @@ jobs:
         run: |
           $gcc = 'C:\mingw64\bin'
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          & (Join-Path $gcc 'gcc.exe') --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $gcc >> $env:GITHUB_PATH
       - run: npm ci
       - run: node node_modules/electron/install.js
@@ -352,7 +357,7 @@ jobs:
           retention-days: 14
 
   windows-installer:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
     name: Windows x64 installer and upgrade
     runs-on: windows-2025
     timeout-minutes: 25
@@ -422,6 +427,8 @@ jobs:
         run: |
           $gcc = 'C:\mingw64\bin'
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          & (Join-Path $gcc 'gcc.exe') --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $gcc >> $env:GITHUB_PATH
       - run: npm ci
       - run: node node_modules/electron/install.js
@@ -466,7 +473,7 @@ jobs:
 
 
   security-audit:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
     name: Dependency security review
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -545,6 +552,10 @@ jobs:
       - name: Select installed toolchains
         shell: pwsh
         run: |
+          & 'C:\mingw64\bin\gcc.exe' --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & 'C:\mingw64\bin\g++.exe' --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           'C:\mingw64\bin' >> $env:GITHUB_PATH
           "JAVA_HOME=$env:JAVA_HOME_21_X64" >> $env:GITHUB_ENV
           Join-Path $env:JAVA_HOME_21_X64 'bin' >> $env:GITHUB_PATH

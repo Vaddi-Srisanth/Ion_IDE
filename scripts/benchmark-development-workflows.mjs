@@ -235,7 +235,15 @@ await withScratch('development-bench', async (scratch) => {
       throw error
     } finally {
       try {
-        if (session) { await close(session); result.cleanupVerified = true }
+        if (session) {
+          await close(session)
+          result.cleanupExitCode = session.appProcess.exitCode
+          result.cleanupSignal = session.appProcess.signalCode
+          result.cleanupScope = 'main-process-exit'
+          assert.equal(result.cleanupExitCode, 0, 'Benchmark app did not exit normally.')
+          assert.equal(result.cleanupSignal, null, 'Benchmark app was terminated by a signal.')
+          result.cleanupVerified = true
+        }
       } catch (cleanupError) {
         result.complete = false; result.cleanupVerified = false
         result.cleanupError = String(cleanupError).slice(0, 1000)
