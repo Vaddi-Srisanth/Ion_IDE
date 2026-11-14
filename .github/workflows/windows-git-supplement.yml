@@ -1,0 +1,60 @@
+name: Windows Git LFS and shutdown supplement (no publication)
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  windows-git-shutdown:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+        id: native-build
+      - name: Locate installed Git LFS without executing workspace programs
+        id: lfs-tool
+        shell: pwsh
+        run: |
+          $git = (Get-Command git.exe -ErrorAction Stop).Source
+          $gitRoot = Split-Path (Split-Path $git)
+          $candidates = @(
+            (Join-Path $gitRoot 'mingw64\bin\git-lfs.exe'),
+            (Join-Path $gitRoot 'cmd\git-lfs.exe'),
+            (Join-Path $gitRoot 'mingw64\libexec\git-core\git-lfs.exe')
+          )
+          $found = @($candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+          if (!$found.Count) { throw 'No installed Git LFS binary was found in the selected Git distribution.' }
+          $tool = (Resolve-Path -LiteralPath $found[0]).Path
+          "ION_TEST_LFS=$tool" >> $env:GITHUB_ENV
+          Get-FileHash -Algorithm SHA256 -LiteralPath $tool
+      - name: Default Git LFS route (original deadline, all failures retained)
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-git-lfs.mjs --out performance-results/windows-git-lfs-default.json
+      - name: Explicit installed Git LFS route (independent comparison)
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' && steps.lfs-tool.outcome == 'success' }}
+        run: node scripts/test-git-lfs.mjs --toolpath "$env:ION_TEST_LFS" --out performance-results/windows-git-lfs-direct.json
+      - name: Verify the configuration race and complete shutdown independently
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:git-security
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:shutdown
+      - name: Collect bounded sanitized evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-git-safe"
+      - name: Preserve both successful and failed comparisons
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: windows-git-supplement-${{ github.run_id }}
+          path: ${{ runner.temp }}/ion-git-safe/**
+          if-no-files-found: error
+          retention-days: 14

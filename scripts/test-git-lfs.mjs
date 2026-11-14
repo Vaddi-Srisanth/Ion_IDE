@@ -44,15 +44,20 @@ async function absent(path) {
 
 async function main() {
   const tool = values.toolpath ? resolve(values.toolpath) : undefined
+  const preflightStarted = performance.now()
   try {
     const result = tool
       ? await execute(tool, ['version'], { env: environment, windowsHide: true, timeout: 5000 })
       : await execute('git', ['lfs', 'version'], { env: environment, windowsHide: true, timeout: 5000 })
+    report.preflight = { elapsedMs: performance.now() - preflightStarted, state: 'success', directTool: !!tool }
     report.toolVersion = result.stdout.trim()
     assert.match(report.toolVersion, /^git-lfs\//, 'The executable must be genuine Git LFS.')
     report.toolSha256 = tool ? createHash('sha256').update(await readFile(tool)).digest('hex') : undefined
   } catch (error) {
-    report.unavailable = 'A local Git LFS executable is required. Pass --toolpath /absolute/path/to/git-lfs.'
+    report.preflight = { elapsedMs: performance.now() - preflightStarted, state: 'failed', directTool: !!tool,
+      code: typeof error.code === 'number' ? error.code : ['ENOENT', 'EACCES', 'EPERM', 'ETIMEDOUT'].includes(error.code) ? error.code : null,
+      killed: error.killed === true, signal: ['SIGTERM', 'SIGKILL'].includes(error.signal) ? error.signal : null }
+    report.unavailable = 'Git LFS preflight failed or its executable is unavailable. Review the structured preflight result; --toolpath can select an installed executable.'
     console.error('UNAVAILABLE genuine Git LFS integration test. ' + report.unavailable)
     process.exitCode = 2
     return

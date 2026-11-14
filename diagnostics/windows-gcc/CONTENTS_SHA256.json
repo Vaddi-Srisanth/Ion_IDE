@@ -8,8 +8,8 @@
   "files": [
     {
       "path": ".github/workflows/desktop-build.yml",
-      "bytes": 1351,
-      "sha256": "1ed622ce32ce2a32240a51e40ef7d2bfe92ce75051e2276abec7f2286f08cb7d"
+      "bytes": 1519,
+      "sha256": "58be6b0906ce9cdebd42f12daa434aff717262b15a7cb13086d48998738b8b4b"
     },
     {
       "path": ".github/workflows/ion-release-verification.yml",
@@ -20,6 +20,11 @@
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
       "bytes": 6120,
       "sha256": "46acc7f5a310561aff269df61af64066e4c3cea43d5e09a1cdf562baeff77bae"
+    },
+    {
+      "path": ".github/workflows/windows-git-supplement.yml",
+      "bytes": 2860,
+      "sha256": "10cc2e84671967ef6f722395ffe16cb9b2d93d5a8288b59394fd8b20106d4c14"
     },
     {
       "path": "diagnostics/windows-gcc/.gitattributes",
@@ -215,6 +220,11 @@
       "path": "scripts/test-editor-session.mjs",
       "bytes": 10480,
       "sha256": "dd446ee0c962fe567ccb58a02aabf867fb05cca65eaaff9d39e52d1256dd8599"
+    },
+    {
+      "path": "scripts/test-git-lfs.mjs",
+      "bytes": 12137,
+      "sha256": "7ef8827ebf367a1e79dfb48e62853fd280bcd1a310ec613195a9f3ca83ebfd10"
     },
     {
       "path": "scripts/test-onboarding.mjs",
