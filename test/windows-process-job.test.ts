@@ -339,7 +339,7 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
   })
 
 test('Windows selected compiler and GCC driver/frontend diagnostics survive detached CRT descriptor inheritance',
-  { skip: !windows, timeout: 260000 }, async t => {
+  { skip: !windows, timeout: 380000 }, async t => {
     const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
     const detachedControl = process.env.ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER
     assert.ok(baseline && detachedControl, 'Build both exact historical helper controls with scripts/test.mjs.')
@@ -356,6 +356,7 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
     if (!compilers[0].selectedByApplication) compilers.push({ path: selected, selectedByApplication: true })
     assert.ok(compilers.length <= 2)
     const source = join(cwd, 'invalid.c'), sibling = join(cwd, 'untouched.c')
+    const output = join(cwd, 'error-program.exe')
     const sourceText = '#error ION-COMPILER-FRONTEND-DIAGNOSTIC\nint main(void) { return 0; }\n'
     const siblingText = '/* unrelated source must remain byte-for-byte unchanged */\n'
     await writeFile(source, sourceText)
@@ -369,6 +370,10 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
       { name: 'driver-option', marker: '--ion-compiler-invalid-option', args: ['--ion-compiler-invalid-option'] },
       { name: 'source-diagnostic', marker: 'ION-COMPILER-FRONTEND-DIAGNOSTIC',
         args: ['-x', 'c', '-std=c17', '-fdiagnostics-color=never', '-fsyntax-only', source] },
+      // Clang/GCC may use a different driver/frontend process path for a full
+      // compile than for -fsyntax-only. Match Ion's real invocation as well.
+      { name: 'application-compile-link', marker: 'ION-COMPILER-FRONTEND-DIAGNOSTIC',
+        args: ['-x', 'c', '-std=c17', '-Wall', '-Wextra', '-fdiagnostics-color=never', source, '-o', output] },
     ]
     type Observation = { compiler: string; selectedByApplication: boolean; variant: string; scenario: string; marker: string; helperSha256?: string;
       elapsedMs?: number; result?: Awaited<ReturnType<typeof execute>>; error?: string; markerInStderr?: boolean }
@@ -380,7 +385,7 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
       observations, candidatePassed: false, unrelatedFilesUnchanged: false }
     let primaryError: unknown
     try {
-      // Observe each configured execution once (at most twelve), preserving
+      // Observe each configured execution once (at most eighteen), preserving
       // the unchanged 15s per-command limit. The matrix-level test budget also
       // covers each command's bounded cleanup; it does not alter product limits.
       for (const compiler of compilers) for (const variant of variants) for (const scenario of cases) {
