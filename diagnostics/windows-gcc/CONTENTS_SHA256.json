@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+  "scope": "diagnostic workflows and fixture only",
+  "nativeWindowsStatus": "pending approval and execution",
+  "releaseStatus": "held",
+  "excludes": "this manifest itself",
+  "files": [
+    {
+      "path": ".github/workflows/desktop-build.yml",
+      "bytes": 568,
+      "sha256": "796920c4666edd407feecb0e5f76e00e251369bd689cc13d84b92f8eea938941"
+    },
+    {
+      "path": ".github/workflows/windows-gcc-diagnostic.yml",
+      "bytes": 5717,
+      "sha256": "e43228f3c3a138ee2ecca95472119024e7365c078f1df2238af644d8a63c6f42"
+    },
+    {
+      "path": "diagnostics/windows-gcc/ACTIONS_GUIDE.md",
+      "bytes": 7389,
+      "sha256": "eb496f93754c1557d503e703163fe2ad2ffcedd25620fd78b76f1c5655a0325a"
+    },
+    {
+      "path": "diagnostics/windows-gcc/EVIDENCE_SUMMARY.md",
+      "bytes": 5375,
+      "sha256": "d8c4324c97013c947bd9f2d0883208a774d1fa3e3a08e8140eab41cc7775f85a"
+    },
+    {
+      "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
+      "bytes": 6128,
+      "sha256": "d132bef53e3f7bc7632dc662ac3bc7da144640043baabff41c955ecd71c4c692"
+    },
+    {
+      "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
+      "bytes": 3635,
+      "sha256": "12b63107eda18b4510eb421ec56ac773678a6a3c2d4ffe1d9aab1aa67322df08"
+    },
+    {
+      "path": "diagnostics/windows-gcc/WINDOWS_DIAGNOSTIC_GUIDE.md",
+      "bytes": 10877,
+      "sha256": "c7475092a7b27c3e090dd0383b867798aea0e10f0e53abb1846bfa3d823fe299"
+    },
+    {
+      "path": "diagnostics/windows-gcc/build-helper.mjs",
+      "bytes": 473,
+      "sha256": "a6348f141fc4237c3fbefcfb001c2e5e9397391f410a631b4b393a365cf15287"
+    },
+    {
+      "path": "diagnostics/windows-gcc/evidence/optional-production-tracing.patch",
+      "bytes": 12240,
+      "sha256": "0733ea3a0001feb227659973414b9e6fd03f408036c6138698fcb7d98888dcb5"
+    },
+    {
+      "path": "diagnostics/windows-gcc/sanitized-results/README.md",
+      "bytes": 515,
+      "sha256": "8c9441961d6a0448664d47e35a449dde2d3595b1cc34da9679cdf2380f5a91fa"
+    },
+    {
+      "path": "diagnostics/windows-gcc/sanitized-results/historical-evidence.json",
+      "bytes": 4149,
+      "sha256": "44a3b689d9725c88a6a5acec03ed8a148d65d5fe00a36723bc8cb115867d5d09"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/build-pty.mjs",
+      "bytes": 5770,
+      "sha256": "49913a0cfcef2be8d64529e03729c89a8bf37d4064a92b989dbdff67ce324b37"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/compare-gcc-latency.mjs",
+      "bytes": 26007,
+      "sha256": "027917ca2f81a5574ed284bedf38fe5e754d5f1856c7e6a8d5bd67321a4a683b"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/compare-gcc-latency.test.mjs",
+      "bytes": 14044,
+      "sha256": "24165b369b4d5d204b0c6c40843fc27f1950b1ab958b2f37348ee0a912d1f861"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.mjs",
+      "bytes": 24007,
+      "sha256": "fb0a0577371b0c54bc638bcfd9ba5a10a8f0aa7ce7d65bba4542e9269186e2c4"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.test.mjs",
+      "bytes": 10541,
+      "sha256": "bc54a33e2896fd56e329c0006ce12f070df870c50495e08e3d1fe9c8feae5310"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic-host.cjs",
+      "bytes": 8767,
+      "sha256": "4059d74ef4aae37f1f2afe65d94c2d560475e4b3eb63f1cffb9f6deea87e355a"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.mjs",
+      "bytes": 37473,
+      "sha256": "aa073c3f0ff62734b3a6a464d6e9e609437ef1d7889d3c8d902786f83874a914"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.test.mjs",
+      "bytes": 10511,
+      "sha256": "b05ba06d9be8ab72776ee9565099f45eb2f30f3aad91f282a755ddd1fe3b41e1"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.ps1",
+      "bytes": 27680,
+      "sha256": "d1ebf6b8638f98d43d9210f41f33f52eb45d6c0df346c9009a55a05957f973ea"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.test.mjs",
+      "bytes": 7115,
+      "sha256": "c420d73ffd7b0341cfd2769ac6681356b5d5ff8b63e0e6f4fc729905d2bf70b6"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-package.json",
+      "bytes": 1350,
+      "sha256": "2d0dcf807aeab24fab2e311456c68cea1c1ef86be9afb3a04c62ec4f4669fb44"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-production-adapter.cjs",
+      "bytes": 33836,
+      "sha256": "1965754cbc02b9bf16fca4ca604d11d60ce91430ff8cb2efe19e513304b688c2"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/run-console/engine.ts",
+      "bytes": 9598,
+      "sha256": "ec4710c8e829ff42cc2e72fbefa2132cd56eb4a6ba4654cdfe24693f256ee0dd"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/run-console/line-console.ts",
+      "bytes": 3443,
+      "sha256": "49908107449f4e2dcaac46ab0b885be8372b10e85eedcb4eaee6e09effb4e87e"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/run-console/pty-windows.cpp",
+      "bytes": 20824,
+      "sha256": "59abec767310c91e343c9555e627cbff1c07c73d6dbced3d7fb6151f0fffcca5"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/run-console/pty.ts",
+      "bytes": 9300,
+      "sha256": "00c2b717de19e9a822d053ef781fc8c0a3857d3f720a38b7efc51083cfd50132"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/run-console/trace.ts",
+      "bytes": 1070,
+      "sha256": "dff05b5ce6ab989af69c6afbbdc1201f3b7af5431cf43a0fdc4d7bd870eac938"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/runner.ts",
+      "bytes": 21645,
+      "sha256": "95e30363e3c5544291d48e3d4ab24ccadfe297331f3baa17ac6235a3cd4018a1"
+    },
+    {
+      "path": "diagnostics/windows-gcc/src/main/windows-process.ts",
+      "bytes": 8510,
+      "sha256": "4af1b8651f878bffcb78bc0d7f1c74d1ebddb5250547439e4687ee8d6662f197"
+    }
+  ]
+}

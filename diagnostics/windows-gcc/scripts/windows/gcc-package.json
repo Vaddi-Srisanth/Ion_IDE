@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "nativeStatus": "UNVERIFIED — prepared on macOS, not executed on Windows",
+  "releaseStatus": "held",
+  "compileMs": 15000,
+  "sourceSha256": "c1508a9865d19d0432e48a78ec222d095b76acdfe718823a6768345e7d9d65d6",
+  "adapterSha256": "1965754cbc02b9bf16fca4ca604d11d60ce91430ff8cb2efe19e513304b688c2",
+  "sourceFiles": [
+    {
+      "path": "src/main/runner.ts",
+      "sha256": "95e30363e3c5544291d48e3d4ab24ccadfe297331f3baa17ac6235a3cd4018a1"
+    },
+    {
+      "path": "src/main/windows-process.ts",
+      "sha256": "4af1b8651f878bffcb78bc0d7f1c74d1ebddb5250547439e4687ee8d6662f197"
+    },
+    {
+      "path": "src/main/run-console/engine.ts",
+      "sha256": "ec4710c8e829ff42cc2e72fbefa2132cd56eb4a6ba4654cdfe24693f256ee0dd"
+    },
+    {
+      "path": "src/main/run-console/trace.ts",
+      "sha256": "dff05b5ce6ab989af69c6afbbdc1201f3b7af5431cf43a0fdc4d7bd870eac938"
+    },
+    {
+      "path": "src/main/run-console/pty.ts",
+      "sha256": "00c2b717de19e9a822d053ef781fc8c0a3857d3f720a38b7efc51083cfd50132"
+    },
+    {
+      "path": "src/main/run-console/line-console.ts",
+      "sha256": "49908107449f4e2dcaac46ab0b885be8372b10e85eedcb4eaee6e09effb4e87e"
+    },
+    {
+      "path": "src/main/run-console/pty-windows.cpp",
+      "sha256": "59abec767310c91e343c9555e627cbff1c07c73d6dbced3d7fb6151f0fffcca5"
+    }
+  ]
+}

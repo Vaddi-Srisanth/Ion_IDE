@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "provenance": "sanitized extraction of retained native Windows receipts; no new Windows execution",
+  "releaseStatus": "held",
+  "issueFixed": false,
+  "samples": [
+    {
+      "sourceCommit": "1cf4ec51d388d3036f0e38245725944473a4bd3d",
+      "receiptSha256": "c1398db47ac46cb487a8cde221cca62243fab702d872f7424b75a4e4cbd00b91",
+      "successful": false,
+      "compileSpanMs": 15107.063199999997,
+      "readyToCleanReceiptMs": 14979.260699999999,
+      "cleanToSupervisorExitCallbackMs": 1.9277000000001863,
+      "supervisorExitCallbackToCloseMs": 95.02270000000135,
+      "clockRule": "Intervals only within same monotonic origin; no cross-clock subtraction.",
+      "nativeKernelCompilerExit": "not captured",
+      "rootCause": "unconfirmed"
+    },
+    {
+      "sourceCommit": "d5a2e47f4a685ebbc472eefe5aaa7804f29f7e19",
+      "receiptSha256": "1f7f16b016a89f5cf12024ddae14d32989642d070bbb0b25a445a9a95e080ded",
+      "successful": false,
+      "compileSpanMs": 15140.519300000004,
+      "readyToCleanReceiptMs": 14516.6322,
+      "cleanToSupervisorExitCallbackMs": 1.4031000000031781,
+      "supervisorExitCallbackToCloseMs": 132.70219999999972,
+      "clockRule": "Intervals only within same monotonic origin; no cross-clock subtraction.",
+      "nativeKernelCompilerExit": "not captured",
+      "rootCause": "unconfirmed"
+    },
+    {
+      "sourceCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+      "receiptSha256": "292b72472b0471f014810a10915628454603cf4ad2620af7193fdaf46294b451",
+      "successful": true,
+      "compileSpanMs": 12673.6767,
+      "readyToCleanReceiptMs": 12622.259300000002,
+      "cleanToSupervisorExitCallbackMs": 1.8500999999960186,
+      "supervisorExitCallbackToCloseMs": 0.1794000000008964,
+      "clockRule": "Intervals only within same monotonic origin; no cross-clock subtraction.",
+      "nativeKernelCompilerExit": "not captured",
+      "rootCause": "unconfirmed"
+    },
+    {
+      "sourceCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+      "receiptSha256": "f8c6f02cdbbfa0e6ee5a8fd9a212634583fa2cfb0ff4169401060e53261c27c5",
+      "successful": true,
+      "compileSpanMs": 3371.007300000001,
+      "readyToCleanReceiptMs": 3345.8356999999996,
+      "cleanToSupervisorExitCallbackMs": 1.472300000001269,
+      "supervisorExitCallbackToCloseMs": 0.15289999999731663,
+      "clockRule": "Intervals only within same monotonic origin; no cross-clock subtraction.",
+      "nativeKernelCompilerExit": "not captured",
+      "rootCause": "unconfirmed"
+    },
+    {
+      "sourceCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+      "receiptSha256": "d5bd5e7cb612746d3bad4fde18d97786e7e77c5ba75b3ad8b4dfec41bb6d7879",
+      "successful": true,
+      "compileSpanMs": 2317.840400000001,
+      "readyToCleanReceiptMs": 2299.7153,
+      "cleanToSupervisorExitCallbackMs": 1.1667000000015832,
+      "supervisorExitCallbackToCloseMs": 0.13839999999981956,
+      "clockRule": "Intervals only within same monotonic origin; no cross-clock subtraction.",
+      "nativeKernelCompilerExit": "not captured",
+      "rootCause": "unconfirmed"
+    }
+  ],
+  "previousCheckpointTests": {
+    "unitPassed": 246,
+    "unitSkipped": 25,
+    "diagnosticToolsPassed": 17
+  },
+  "previousTestLogHashes": [
+    {
+      "file": "unit-full-authorized.log",
+      "sha256": "ba37ecef9678d03b1979fec883fb7c8f5683e51e1bcd3e535baa52562bf71c46"
+    },
+    {
+      "file": "lifecycle-final.log",
+      "sha256": "d20f732a823f36052b66fabfb4c50a79e71d55d11f79e47917f391c5a3f42043"
+    },
+    {
+      "file": "diagnostic-tests.log",
+      "sha256": "82605b364fca375c6f811f1d89233e289eef19166e78c1fa0a077cbba27d6a21"
+    },
+    {
+      "file": "typecheck-final.log",
+      "sha256": "5aa3847c1010ece1c184188aaf28b0324e7fd1e3b5c048b67c48032a6bba9b3d"
+    },
+    {
+      "file": "build.log",
+      "sha256": "ef7daab276e8a6b3541bc72e59a187c60739bff9057990cff40af9d0d7c9a044"
+    },
+    {
+      "file": "unit-full.log",
+      "sha256": "64911f51401ab60467076c502b75e6f8fce9e8fbf3f58d7e3ec8bc2fd47d078e"
+    }
+  ],
+  "privacy": "Raw paths, profiles, error messages, output and arbitrary metadata excluded."
+}

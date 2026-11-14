@@ -1,0 +1,112 @@
+name: Windows GCC lifecycle diagnostic
+
+# Deliberately no push, pull_request, tag or release triggers.
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: Warm attempts per lane per isolated runner (no retries)
+        type: choice
+        options: ['100', '30']
+        default: '100'
+  workflow_call:
+    inputs:
+      samples:
+        description: Warm attempts per lane per isolated runner
+        type: string
+        default: '100'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ion-gcc-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gcc-lifecycle:
+    name: Windows x64 / first lane ${{ matrix.first-lane }}
+    runs-on: windows-2022
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        first-lane: [A, B, C]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DIAGNOSTIC_PACKAGE: ${{ github.workspace }}/diagnostics/windows-gcc
+      GCC_PATH: C:\mingw64\bin\gcc.exe
+      SAMPLE_COUNT: ${{ inputs.samples || '100' }}
+      FIRST_LANE: ${{ matrix.first-lane }}
+    steps:
+      - name: Checkout reviewed diagnostics only
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: diagnostics/windows-gcc
+      - name: Reserve isolated diagnostic paths
+        run: |
+          "DIAGNOSTIC_WORKSPACE=$env:RUNNER_TEMP/ion-gcc-attempt-$env:FIRST_LANE" >> $env:GITHUB_ENV
+          "DIAGNOSTIC_ARTIFACTS=$env:RUNNER_TEMP/ion-gcc-artifacts-$env:FIRST_LANE" >> $env:GITHUB_ENV
+          "DIAGNOSTIC_TOOLS=$env:RUNNER_TEMP/ion-gcc-tools-$env:FIRST_LANE" >> $env:GITHUB_ENV
+      - name: Select pinned Node runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+      - name: Validate bounded inputs and native architecture
+        run: |
+          if ($env:SAMPLE_COUNT -notin @('30', '100')) { throw 'Choose 30 or 100 samples.' }
+          if ($env:FIRST_LANE -notin @('A', 'B', 'C')) { throw 'Invalid lane.' }
+          if ($env:RUNNER_ARCH -ne 'X64') { throw 'Native Windows x64 required.' }
+          if (-not (Test-Path -LiteralPath $env:GCC_PATH -PathType Leaf)) { throw 'Expected runner-image GCC is missing; do not fall back to PATH.' }
+          New-Item -ItemType Directory -Path $env:DIAGNOSTIC_ARTIFACTS -ErrorAction Stop | Out-Null
+      - name: Verify diagnostic contracts before native experiments
+        timeout-minutes: 2
+        working-directory: diagnostics/windows-gcc
+        run: |
+          node --test scripts/windows/gcc-actions.test.mjs scripts/windows/gcc-diagnostic.test.mjs scripts/windows/compare-gcc-latency.test.mjs scripts/windows/gcc-direct-powershell.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install isolated, pinned Electron test runtime
+        timeout-minutes: 4
+        run: |
+          npm install --prefix "$env:DIAGNOSTIC_TOOLS" --no-save --package-lock=false --no-audit --no-fund electron@45.2.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build unchanged Windows ownership helper from fixture source
+        timeout-minutes: 3
+        working-directory: diagnostics/windows-gcc
+        run: |
+          node build-helper.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record trusted toolchain identity (explicit pre-exposure)
+        timeout-minutes: 2
+        run: |
+          node "$env:DIAGNOSTIC_PACKAGE/scripts/windows/gcc-actions.mjs" metadata --package "$env:DIAGNOSTIC_PACKAGE" --helper "$env:DIAGNOSTIC_PACKAGE/native/ion-pty.exe" --gcc "$env:GCC_PATH" --electron-package "$env:DIAGNOSTIC_TOOLS/node_modules/electron/package.json" --pwsh-version "$($PSVersionTable.PSVersion)" --out "$env:DIAGNOSTIC_ARTIFACTS/environment.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compare direct PowerShell, Ion Node runner and Electron engine
+        timeout-minutes: 12
+        run: |
+          node "$env:DIAGNOSTIC_PACKAGE/scripts/windows/gcc-diagnostic.mjs" --run --workspace "$env:DIAGNOSTIC_WORKSPACE" --gcc "$env:GCC_PATH" --pwsh "$PSHOME/pwsh.exe" --helper "$env:DIAGNOSTIC_PACKAGE/native/ion-pty.exe" --electron "$env:DIAGNOSTIC_TOOLS/node_modules/electron/dist/electron.exe" --allow-electron-test --samples "$env:SAMPLE_COUNT" --first-lane "$env:FIRST_LANE" --max-duration-ms 600000
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve sanitized results, including partial and failed attempts
+        if: always()
+        timeout-minutes: 2
+        run: |
+          if (-not (Test-Path -LiteralPath "$env:DIAGNOSTIC_PACKAGE/scripts/windows/gcc-actions.mjs")) { throw 'Collector unavailable; no unsafe raw fallback upload.' }
+          node "$env:DIAGNOSTIC_PACKAGE/scripts/windows/gcc-actions.mjs" collect --package "$env:DIAGNOSTIC_PACKAGE" --workspace "$env:DIAGNOSTIC_WORKSPACE" --out "$env:DIAGNOSTIC_ARTIFACTS/collection" --samples "$env:SAMPLE_COUNT" --first-lane "$env:FIRST_LANE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload only allowlisted sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-gcc-${{ matrix.first-lane }}-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ env.DIAGNOSTIC_ARTIFACTS }}/environment.json
+            ${{ env.DIAGNOSTIC_ARTIFACTS }}/collection/**
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 14
+          compression-level: 6

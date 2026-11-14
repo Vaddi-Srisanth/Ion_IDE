@@ -1,0 +1,258 @@
+--- approved38/src/main/index.ts
++++ local/src/main/index.ts
+@@ -24,7 +24,7 @@
+ import { CRunner, rejectedRun, validStdin } from './runner'
+ import { configureWindowsProcessHelper } from './windows-process'
+ import type { InteractiveRunner, NativeProject } from './run-console'
+-import { createRunTrace } from './run-console/trace'
++import { createRunTrace, type RunTrace } from './run-console/trace'
+ import type { TerminalService } from './terminal/service'
+ import type { SourceControlService } from './source-control'
+ import type { SourceControlStatus } from '../shared/source-control'
+@@ -112,6 +112,7 @@
+   job: Promise<RunResult>
+   engine?: InteractiveRunner
+   size?: [number, number]
++  trace?: RunTrace
+ }
+ let activeRun: ActiveRun | null = null
+ let interactiveRunner: InteractiveRunner | undefined
+@@ -719,15 +720,19 @@
+ }
+ 
+ function startInteractive(target: BrowserWindow, id: string, value: unknown, learn: boolean, expectedRevision: unknown): Promise<RunResult> {
++  const trace = createRunTrace(id)
++  trace?.('request', 'received')
+   if (expectedRevision !== undefined && (typeof expectedRevision !== 'string' || !expectedRevision.length || expectedRevision.length > 256)) {
++    trace?.('request', 'rejected-before-engine', 'revision')
+     return Promise.resolve(rejectedRun('Invalid source revision.'))
+   }
+   if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
++    trace?.('request', 'rejected-before-engine', 'busy')
+     return Promise.resolve(rejectedRun('A program or test is already running.'))
+   }
+   const controller = new AbortController()
+   const record: ActiveRun = {
+-    id, owner: target, controller, job: Promise.resolve(cancelledRun()),
++    id, owner: target, controller, job: Promise.resolve(cancelledRun()), trace,
+   }
+   activeRun = record
+   record.job = runInteractive(record, value, learn, expectedRevision).finally(() => {
+@@ -738,7 +743,8 @@
+ 
+ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean, expectedRevision?: string): Promise<RunResult> {
+   const { owner: target, id, controller: { signal } } = record
+-  const trace = createRunTrace(id)
++  // Reuse the request's original clock and correlation ID through execution.
++  const trace = record.trace
+   trace?.('request', 'begin')
+   const onAbort = trace ? () => trace('cancellation', 'requested') : undefined
+   if (onAbort) signal.addEventListener('abort', onAbort, { once: true })
+@@ -754,7 +760,13 @@
+     if (sourceHash && update.kind === 'data' && update.stream === 'terminal') {
+       runtimeExcerpt = (runtimeExcerpt + update.text).slice(-8192)
+     }
+-    if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id, update })
++    if (target === window && !target.isDestroyed()) {
++      // This timestamps enqueueing in main, not delivery or terminal paint.
++      // The disposable renderer observer supplies those separate boundaries.
++      trace?.('run-console-ipc', 'send-start', update.kind)
++      target.webContents.send('ion:live-run-update', { id, update })
++      trace?.('run-console-ipc', 'send-return', update.kind)
++    }
+   }
+   try {
+     trace?.('source-inspection', 'begin')
+--- approved38/src/main/runner.ts
++++ local/src/main/runner.ts
+@@ -47,10 +47,13 @@
+   return new Promise((resolve) => {
+     const grouped = process.platform !== 'win32'
+     let command: ReturnType<typeof windowsPipeCommand> | undefined
++    options.trace?.('compiler-command', 'construct-start')
+     try { if (!grouped) command = windowsPipeCommand(executable, args) } catch (error) {
++      options.trace?.('compiler-command', 'construct-error')
+       resolve({ state: 'error', exitCode: null, output: '', detail: error instanceof Error ? error.message : 'Windows process helper unavailable.' })
+       return
+     }
++    options.trace?.('compiler-command', 'constructed', !!command)
+     options.trace?.('compiler-process', 'spawn-request')
+     const child = spawn(command?.executable ?? executable, command?.args ?? args, {
+       cwd: options.cwd,
+@@ -72,6 +75,23 @@
+     let detail: string | undefined
+     let exitSignal: NodeJS.Signals | null = null
+     let termination: Promise<boolean> | undefined
++    // Only diagnostic runs retain two scalar callback timestamps. Values use
++    // this main process's performance.now() clock, not an OS exit timestamp.
++    const streamTrace = options.trace ? { stdout: undefined as number | undefined, stderr: undefined as number | undefined, ended: 0 } : undefined
++
++    function dataReceived(stream: 'stdout' | 'stderr') {
++      if (!streamTrace) return
++      const enteredAt = performance.now()
++      if (streamTrace[stream] === undefined) options.trace?.('compiler-' + stream, 'first-callback', enteredAt)
++      streamTrace[stream] = enteredAt
++    }
++
++    function streamEnded(stream: 'stdout' | 'stderr') {
++      if (!streamTrace) return
++      if (streamTrace[stream] !== undefined) options.trace?.('compiler-' + stream, 'last-callback', streamTrace[stream])
++      streamTrace.ended |= stream === 'stdout' ? 1 : 2
++      options.trace?.('compiler-' + stream, 'end')
++    }
+ 
+     function killGroup() {
+       if (!child.pid) return
+@@ -97,6 +117,12 @@
+       clearTimeout(timer)
+       clearTimeout(guard)
+       options.signal.removeEventListener('abort', cancel)
++      if (streamTrace) for (const stream of ['stdout', 'stderr'] as const) {
++        if (!(streamTrace.ended & (stream === 'stdout' ? 1 : 2))) {
++          if (streamTrace[stream] !== undefined) options.trace?.('compiler-' + stream, 'last-callback', streamTrace[stream])
++          options.trace?.('compiler-' + stream, 'destroy-before-end')
++        }
++      }
+       child.stdin.destroy()
+       child.stdout.destroy()
+       child.stderr.destroy()
+@@ -108,6 +134,7 @@
+         outputComplete: outputComplete && state !== 'output-limit', signal: signal ?? exitSignal ?? undefined,
+       }
+       options.trace?.('compiler-process', 'cleanup', result.outputComplete)
++      options.trace?.('compiler-process', 'result-finalized', result.state)
+       resolve(result)
+     }
+ 
+@@ -149,19 +176,27 @@
+     const ownership = command ? monitorWindowsPipeProcess(child, (message) => {
+       detail = message
+       stop('error')
+-    }) : undefined
++    }, options.trace) : undefined
+     const timer = setTimeout(() => stop('timeout'), options.timeoutMs)
+     options.signal.addEventListener('abort', cancel, { once: true })
+-    child.stdout.on('data', (chunk: Buffer) => collect(chunk, stdout, stdoutChunks))
+-    child.stderr.on('data', (chunk: Buffer) => collect(chunk, stderr, stderrChunks))
++    child.stdout.on('data', (chunk: Buffer) => { if (streamTrace) dataReceived('stdout'); collect(chunk, stdout, stdoutChunks) })
++    child.stderr.on('data', (chunk: Buffer) => { if (streamTrace) dataReceived('stderr'); collect(chunk, stderr, stderrChunks) })
++    if (options.trace) {
++      child.stdout.once('end', () => streamEnded('stdout'))
++      child.stderr.once('end', () => streamEnded('stderr'))
++    }
+     child.stdin.on('error', () => undefined)
+     child.once('error', (error) => {
++      options.trace?.('compiler-process', 'error-callback')
+       if (state === 'exited') state = 'error'
+       detail = error.message
+       finish(null)
+     })
+     child.once('exit', (code, signal) => {
++      // Node's callback delivery time; the payload/helper may have exited
++      // earlier. Independent native evidence is needed to measure that gap.
+       options.trace?.('compiler-process', 'exit', code)
++      options.trace?.('compiler-process', 'exit-callback', code)
+       exitSignal = signal
+       killGroup()
+       if (guard) return
+--- approved38/src/main/run-console/engine.ts
++++ local/src/main/run-console/engine.ts
+@@ -21,13 +21,15 @@
+   return { ...defaults, ...command.environment }
+ }
+ 
+-function publisher(emit: (update: RunUpdate) => void) {
++function publisher(emit: (update: RunUpdate) => void, trace?: RunTrace) {
+   let batch = ''
+   let stream: RunStream = 'compiler'
+   let timer: NodeJS.Timeout | undefined
+ 
+   function send(update: RunUpdate) {
++    trace?.('publish-run-console', 'dispatch-start', update.kind)
+     try { emit(update) } catch { /* The window can close while a child writes output. */ }
++    finally { trace?.('publish-run-console', 'dispatch-end', update.kind) }
+   }
+ 
+   function flush() {
+@@ -99,7 +101,7 @@
+   ): Promise<RunResult> {
+     const start = performance.now()
+     const budget = { remaining: this.limits.outputBytes }
+-    const publish = publisher(emit)
++    const publish = publisher(emit, trace)
+     let compileOutput = ''
+     let compileMs: number | undefined
+     let compileVerified: true | undefined
+@@ -189,6 +191,7 @@
+         onOutput: (text: string) => publish.output('terminal', text),
+         trace,
+       }
++      trace?.('program', 'launch-requested')
+       let terminal = startPty(terminalOptions)
+       active.terminal = terminal
+       let ran = await terminal.result
+@@ -197,6 +200,7 @@
+         const remaining = Math.floor(terminalOptions.timeoutMs - (performance.now() - programStart))
+         if (remaining <= 0) return failed('timeout', 'The program could not start within its time limit.')
+         publish.output('terminal', 'Windows pseudoconsole unavailable. Using line input.\r\n')
++        trace?.('program', 'line-launch-requested')
+         terminal = startLineConsole({ ...terminalOptions, timeoutMs: remaining })
+         active.terminal = terminal
+         ran = await terminal.result
+--- approved38/src/main/run-console/plans.ts
++++ local/src/main/run-console/plans.ts
+@@ -465,7 +465,7 @@
+     signal.throwIfAborted()
+     if (!executablePath) throw new MissingToolchainError(compilerSetupMessage(language === 'cpp' ? 'C++' : 'C'))
+     const program = join(scratch, nativeExecutable('program'))
+-    return {
++    const plan: RunPlan = {
+       language, cwd, label, toolchain: executablePath,
+       compile: {
+         executable: executablePath, environment,
+@@ -476,6 +476,8 @@
+       },
+       run: { executable: program, args: [], environment },
+     }
++    trace?.('compiler-command-plan', 'constructed', language)
++    return plan
+   }
+   if (language === 'python') {
+     const framework = '/Library/Frameworks/Python.framework/Versions/Current/bin/python3'
+--- approved38/src/main/windows-process.ts
++++ local/src/main/windows-process.ts
+@@ -3,6 +3,7 @@
+ import { delimiter, isAbsolute, join, relative, sep } from 'node:path'
+ import { homedir } from 'node:os'
+ import type { Readable, Writable } from 'node:stream'
++import type { RunTrace } from './run-console/trace'
+ 
+ const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+ export const windowsSystemDirectory = join(systemRoot, 'System32')
+@@ -73,7 +74,7 @@
+ 
+ 
+ /** Observe only the private native status pipe. Never consume program output. */
+-export function monitorWindowsPipeProcess(child: ChildProcessWithoutNullStreams, onFailure: (detail: string) => void) {
++export function monitorWindowsPipeProcess(child: ChildProcessWithoutNullStreams, onFailure: (detail: string) => void, trace?: RunTrace) {
+   const status = child.stdio[3] as Readable | undefined
+   if (!status) return {
+     finished: Promise.resolve(false), verified: false,
+@@ -105,8 +106,15 @@
+       if (newline < 0) return
+       const line = buffered.slice(0, newline).replace(/\r$/, '')
+       buffered = buffered.slice(newline + 1)
+-      if (!ready && /^READY [1-9][0-9]{0,9}$/.test(line)) ready = true
+-      else if (ready && !cleaned && line === 'CLEAN') cleaned = true
++      if (!ready && /^READY [1-9][0-9]{0,9}$/.test(line)) {
++        ready = true
++        // Receipt time in Node, not the native payload creation timestamp.
++        // child.pid identifies the supervisor; READY identifies its payload.
++        trace?.('compiler-payload', 'ready-observed', Number(line.slice(6)))
++      } else if (ready && !cleaned && line === 'CLEAN') {
++        cleaned = true
++        trace?.('compiler-job', 'clean-observed')
++      }
+       else return fail(/^ERROR [0-9]{1,10}$/.test(line)
+         ? 'The Windows process supervisor failed (' + line.slice(6) + ').'
+         : 'The Windows process supervisor returned invalid status.')
