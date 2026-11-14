@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "baseCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
   "scope": "diagnostic workflows and fixture only",
-  "nativeWindowsStatus": "Actual hosted execution complete; 907 successful / 2 observer failures; original delay unresolved",
+  "nativeWindowsStatus": "Structured observer instrumentation pending new native verification; prior cohorts preserved",
   "releaseStatus": "held",
   "excludes": "this manifest itself",
   "files": [
     {
       "path": ".github/workflows/desktop-build.yml",
-      "bytes": 568,
-      "sha256": "796920c4666edd407feecb0e5f76e00e251369bd689cc13d84b92f8eea938941"
+      "bytes": 908,
+      "sha256": "b900f6f799250f04d7244057ad6a86d9fd57d0fa2d7b264823eba3c8c18bd45d"
     },
     {
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
@@ -88,8 +88,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.mjs",
-      "bytes": 24769,
-      "sha256": "83d3e30dcdcc9200a1dfd25c42b4e6908f2f28cbb102b60a2828dd3e99896b76"
+      "bytes": 25111,
+      "sha256": "5441da62f4460ab9d04fed8e8e8611b8177d9dde7f34b427dab0edff11066c04"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.test.mjs",
@@ -108,23 +108,23 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.mjs",
-      "bytes": 40089,
-      "sha256": "2c4fec7ae1c9dd1d143759abf3a09bc0bb64c2f1333f0647f9928ca5ce663e81"
+      "bytes": 42926,
+      "sha256": "2a40745b3cd833f438a2b4facff08087341739ce80e532750b7ebcb97812c070"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.test.mjs",
-      "bytes": 11800,
-      "sha256": "47ebde9cfb4ccab05c2a4ca316e6922a87f11631294e50c647ecfb09142674a3"
+      "bytes": 12827,
+      "sha256": "8189d019397a0b251ec2e39eb07c69c0b5f2572603e4ad63913c870771fc1c09"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.ps1",
-      "bytes": 27680,
-      "sha256": "d1ebf6b8638f98d43d9210f41f33f52eb45d6c0df346c9009a55a05957f973ea"
+      "bytes": 37252,
+      "sha256": "4e10ccd62d917cb7e2a95c0435e6b15ba3e0e1fd1128f180e467c82c7ed198c0"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.test.mjs",
-      "bytes": 7704,
-      "sha256": "c8909d11d8df31dad92fce8f7f27bc0d719856cc1038bb43844412fae547ada0"
+      "bytes": 11275,
+      "sha256": "912476ee7c7259d2b0c49d66fa6be017cfa0ba1dbadba7811d87cab3781b8d7c"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-package.json",

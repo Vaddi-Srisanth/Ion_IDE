@@ -168,3 +168,13 @@ test('one-shot result transport works when child stdin is already closed and fin
   const closed = await host.close()
   assert.equal(closed.normal, true); assert.equal(closed.code, 0)
 })
+
+test('observer failure exports strict structured fields and never becomes successful despite valid compiler exit', () => {
+ const secret='PRIVATE_PATH_OR_TOKEN'
+ const raw=row('A',{observerFailure:{category:'membership-invariant',managedType:'System.InvalidOperationException',nativeErrorCode:87,operation:'job-member-counts',lifecycleStage:'cleanup',ownedProcessAlreadyExited:true,cleanupCompleted:true,compilerResultValid:true,detail:secret},observerFailureCount:1,compilerResultValid:true})
+ const result=sanitizeReport({samples:[raw]}).samples[0]
+ assert.equal(result.success,false);assert.equal(result.observerFailure.operation,'job-member-counts');assert.equal(result.compilerResultValid,true)
+ assert.ok(!JSON.stringify(result).includes(secret));assert.equal(validateSample(raw,{id:raw.runId,lane:'A'}).success,false)
+ raw.observerFailure={category:secret,managedType:secret,operation:secret,lifecycleStage:secret,nativeErrorCode:secret}
+ assert.ok(!JSON.stringify(sanitizeReport({samples:[raw]})).includes(secret))
+})

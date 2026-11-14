@@ -43,7 +43,7 @@ test('A lane establishes and verifies noninheritable kill-on-close ownership bef
   const order = ['CreateJobObjectW(IntPtr.Zero,null)', 'KILL_ON_JOB_CLOSE|ACTIVE_PROCESS',
     'AssignProcessToJobObject(job,GetCurrentProcess())',
     'IsProcessInJob(GetCurrentProcess(),job,out owned)',
-    'Members(job).Count!=1', 's.Event("ownership","controller-job-verified"', 'child.Start()',
+    'initialMembers!=1', 's.Event("ownership","controller-job-verified"', 'child.Start()',
     'IsProcessInJob(child.Handle,job,out owned)']
   let previous = -1
   for (const boundary of order) {
@@ -99,7 +99,7 @@ test('one-shot deadline covers synchronous spawn and cannot terminate a released
   assert.doesNotMatch(timer, /Thread\.Sleep|\.Wait\(|\.Join\(|\.Result|await /)
 })
 
-test('fixed native adapter C# compiles when an existing .NET SDK is available; no Windows code runs', async t => {
+test('fixed adapter compiles and pure failure classification preserves privacy, strict counts and failed observer state without Windows calls', async t => {
   let installed
   const environment = { ...process.env, DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1', DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' }
   try { installed = await exec('dotnet', ['--list-sdks'], { timeout: 10000, env: environment, maxBuffer: 32768 }) }
@@ -117,9 +117,52 @@ test('fixed native adapter C# compiles when an existing .NET SDK is available; n
   const scratch = await mkdtemp(join(tmpdir(), 'ion-gcc-direct-csharp-'))
   t.after(() => rm(scratch, { recursive: true, force: true }))
   const input = join(scratch, 'Adapter.cs')
-  await writeFile(input, csharp, { flag: 'wx' })
-  const args = [join(sdk[2], sdk[1], 'Roslyn', 'bincore', 'csc.dll'), '/nologo', '/target:library',
+  const pureClassifier = `
+public sealed class PrivateDiagnosticException : System.Exception { public PrivateDiagnosticException(string value):base(value){} }
+public static class ClassificationMain {
+  public static void Main() {
+    const string secret="DO_NOT_EXPORT_PRIVATE_PATH_TOKEN_OR_EXCEPTION_TEXT";
+    var native=IonGccDirect.DescribeFailure(new System.ComponentModel.Win32Exception(6,secret),"job-check-child-membership","cleanup",true,true,true);
+    var count=IonGccDirect.DescribeFailure(new System.InvalidOperationException(secret),"job-member-counts","cleanup",true,true,true);
+    var disposed=IonGccDirect.DescribeFailure(new System.ObjectDisposedException(secret),secret,secret,null,false,false);
+    var unknown=IonGccDirect.DescribeFailure(new PrivateDiagnosticException(secret),secret,secret,null,false,false);
+    var nested=IonGccDirect.DescribeFailure(new System.AggregateException(new System.ComponentModel.Win32Exception(87,secret)),"stream-reader-wait","stream-shutdown",true,false,false);
+    int rejected=0;
+    foreach(int[] pair in new[]{new[]{-1,0},new[]{1,-1},new[]{65,65},new[]{2,1}}) {
+      try { IonGccDirect.ValidateMemberCounts(pair[0],pair[1]); }catch(System.InvalidOperationException){rejected++;}
+    }
+    IonGccDirect.ValidateMemberCounts(0,0);IonGccDirect.ValidateMemberCounts(64,64);
+    var result=new IonGccDirectResult { state="exited",exitCode=0,outputComplete=true,cleanupVerified=true };
+    typeof(IonGccDirect).GetMethod("Failure",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)
+      .Invoke(null,new object[]{result,new System.InvalidOperationException(secret),null});
+    IonGccDirect.CompleteObservation(result,true);
+    System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new {native,count,disposed,unknown,nested,rejected,
+      observerState=result.state,result.compilerResultValid,result.observerFailureCount,cleanup=result.observerFailure.cleanupCompleted}));
+  }
+}`
+  await writeFile(input, csharp + pureClassifier, { flag: 'wx' })
+  const args = [join(sdk[2], sdk[1], 'Roslyn', 'bincore', 'csc.dll'), '/nologo', '/target:exe',
     '/out:' + join(scratch, 'Adapter.dll'),
     ...(await readdir(refs)).filter(name => name.endsWith('.dll')).map(name => '/reference:' + join(refs, name)), input]
   await exec('dotnet', args, { timeout: 20000, env: environment, maxBuffer: 65536 })
+  const tfm = frameworks.at(-1)
+  await writeFile(join(scratch, 'Adapter.runtimeconfig.json'), JSON.stringify({ runtimeOptions: { tfm,
+    framework: { name: 'Microsoft.NETCore.App', version: tfm.replace(/^net/, '') + '.0' }, rollForward: 'LatestPatch' } }), { flag: 'wx' })
+  const execution = await exec('dotnet', [join(scratch, 'Adapter.dll')], { timeout: 10000, env: environment, maxBuffer: 65536 })
+  assert.ok(!execution.stdout.includes('DO_NOT_EXPORT_PRIVATE_PATH_TOKEN_OR_EXCEPTION_TEXT'))
+  assert.ok(!execution.stdout.includes('PrivateDiagnosticException'))
+  const result = JSON.parse(execution.stdout)
+  assert.equal(result.native.category, 'native-api-failure')
+  assert.equal(result.native.nativeErrorCode, 6)
+  assert.equal(result.native.operation, 'job-check-child-membership')
+  assert.equal(result.native.ownedProcessAlreadyExited, true)
+  assert.equal(result.count.category, 'membership-invariant')
+  assert.equal(result.count.nativeErrorCode, null)
+  assert.equal(result.disposed.managedType, 'System.ObjectDisposedException')
+  assert.equal(result.disposed.operation, 'unknown'); assert.equal(result.disposed.lifecycleStage, 'unknown')
+  assert.equal(result.unknown.managedType, 'other')
+  assert.equal(result.nested.managedType, 'System.AggregateException'); assert.equal(result.nested.nativeErrorCode, 87)
+  assert.equal(result.rejected, 4)
+  assert.equal(result.observerState, 'error'); assert.equal(result.compilerResultValid, true)
+  assert.equal(result.observerFailureCount, 1); assert.equal(result.cleanup, true)
 })

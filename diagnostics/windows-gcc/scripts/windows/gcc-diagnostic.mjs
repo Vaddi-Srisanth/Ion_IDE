@@ -88,7 +88,7 @@ export function validateSample(row, expected) {
   assert.equal(typeof row.cleanupVerified, 'boolean')
   assert.equal(typeof row.outputComplete, 'boolean')
   // Success is derived, never accepted from an adapter's cosmetic label.
-  return { ...row, success: row.state === 'exited' && row.exitCode === 0 && row.outputComplete && row.cleanupVerified && !row.overflow,
+  return { ...row, success: row.state === 'exited' && row.exitCode === 0 && row.outputComplete && row.cleanupVerified && !row.overflow && !row.observerFailure && !(row.observerFailureCount > 0),
     metrics: stageDurations(row) }
 }
 export function summarize(samples, planned) {
@@ -115,6 +115,21 @@ export function summarize(samples, planned) {
     issueFixed: false, releaseStatus: 'held' }
 }
 
+
+export function sanitizeObserverFailure(value) {
+  if (!value || typeof value !== 'object') return null
+  const categories = new Set(['native-api-failure','membership-invariant','handle-lifetime','stream-observer-failure','evidence-capacity','synchronization-failure','managed-observer-failure','unknown'])
+  const types = new Set(['System.ComponentModel.Win32Exception','System.InvalidOperationException','System.ObjectDisposedException','System.IO.IOException','System.AggregateException','System.OperationCanceledException','System.ArgumentException','other'])
+  const operations = new Set(['job-create', 'job-set-limits', 'job-assign-controller', 'job-verify-controller', 'job-pre-spawn-snapshot', 'job-member-query', 'job-member-counts', 'job-member-pid', 'job-member-set', 'job-sample', 'job-sample-controller', 'job-drain', 'job-open-child-handle', 'job-check-child-membership', 'job-stop-owned-child', 'job-drain-deadline', 'process-start-info', 'process-start', 'process-verify-inherited-job', 'process-close-stdin', 'process-wait', 'process-has-exited', 'process-read-exit-code', 'process-wait-after-stop', 'process-exact-stop', 'stream-read-stdout', 'stream-read-stderr', 'stream-reader-wait', 'stream-reader-close', 'stream-reader-status', 'job-release-limits', 'job-close-handle', 'process-dispose', 'trace-event', 'unknown'])
+  const stages = new Set(['ownership-setup','compiler-start','compiler-execution','cleanup','stream-shutdown','observer-snapshot','result-delivery','unknown'])
+  return { category: categories.has(value.category) ? value.category : 'unknown', managedType: types.has(value.managedType) ? value.managedType : 'other',
+    nativeErrorCode: Number.isInteger(value.nativeErrorCode) && value.nativeErrorCode >= -2147483648 && value.nativeErrorCode <= 4294967295 ? value.nativeErrorCode : null,
+    operation: operations.has(value.operation) ? value.operation : 'unknown', lifecycleStage: stages.has(value.lifecycleStage) ? value.lifecycleStage : 'unknown',
+    ownedProcessAlreadyExited: typeof value.ownedProcessAlreadyExited === 'boolean' ? value.ownedProcessAlreadyExited : null,
+    cleanupCompleted: value.cleanupCompleted === true, compilerResultValid: value.compilerResultValid === true,
+    snapshotAssigned: Number.isInteger(value.snapshotAssigned) ? value.snapshotAssigned : null, snapshotListed: Number.isInteger(value.snapshotListed) ? value.snapshotListed : null }
+}
+
 // Whitelist reconstruction. No raw output, errors, argv, paths, environment,
 // process command lines or unconstrained strings enter a shareable result.
 export function sanitizeReport(report) {
@@ -127,13 +142,16 @@ export function sanitizeReport(report) {
     for (const key of Object.keys(stageDurations({ lane: row.lane }))) {
       if (key.endsWith('Ms')) metrics[key] = finite(row.metrics?.[key])
     }
-    return { runId: row.runId, lane: row.lane, phase, elapsedMs: finite(row.elapsedMs),
+    return { observerFailure: sanitizeObserverFailure(row.observerFailure),
+      observerFailureCount: Number.isInteger(row.observerFailureCount) ? Math.min(16, Math.max(0,row.observerFailureCount)) : 0,
+      compilerResultValid: typeof row.compilerResultValid === 'boolean' ? row.compilerResultValid : null,
+      runId: row.runId, lane: row.lane, phase, elapsedMs: finite(row.elapsedMs),
       stdinClosedBeforeResult: row.stdinClosedBeforeResult === true, hostClosedBeforeResult: row.hostClosedBeforeResult === true,
       diagnosticFailure: ['host-closed-before-result', 'EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED', 'cancelled', 'diagnostic-observation-failed'].includes(row.diagnosticFailure) ? row.diagnosticFailure : null,
       state: states.has(row.state) ? row.state : 'error', exitCode: Number.isInteger(row.exitCode) ? row.exitCode : null,
       cleanupVerified: row.cleanupVerified === true, outputComplete: row.outputComplete === true,
       adapterResultUnavailable: row.adapterResultUnavailable === true, observerWallMs: finite(row.observerWallMs),
-      success: row.state === 'exited' && row.exitCode === 0 && row.cleanupVerified === true && row.outputComplete === true && row.overflow !== true,
+      success: row.state === 'exited' && row.exitCode === 0 && row.cleanupVerified === true && row.outputComplete === true && row.overflow !== true && !row.observerFailure && !(row.observerFailureCount > 0),
       controllerPid: Number.isInteger(row.controllerPid) ? row.controllerPid : null,
       hostExit: row.hostExit ? { normal: row.hostExit.normal === true, exited: row.hostExit.exited === true, code: Number.isInteger(row.hostExit.code) ? row.hostExit.code : null, pid: Number.isInteger(row.hostExit.pid) ? row.hostExit.pid : null } : null,
       overflow: row.overflow === true, payloadPid: Number.isInteger(row.payloadPid) ? row.payloadPid : null,

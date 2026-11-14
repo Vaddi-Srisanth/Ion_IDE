@@ -254,7 +254,7 @@ export async function collect(options) {
             gap('invalid-result-retained')
           } else {
             let malformedLines = 0, resultSeen = false, records = 0
-            const events = [], liveResults = [], hostErrors = []
+            const events = [], liveResults = [], hostErrors = [], preflightFailures = []
             for (const line of bytes.toString('utf8').split('\n')) {
               if (!line.trim()) continue
               if (++records > 258) { malformedLines++; break }
@@ -278,12 +278,16 @@ export async function collect(options) {
                   if (recovered.has(id)) gap('duplicate-live-result-message')
                   else recovered.set(id, result)
                 }
-                else if (item.kind !== 'preflight-error') malformedLines++
+                else if (item.kind === 'preflight-error') {
+                  assert.ok(preflightFailures.length < 2)
+                  preflightFailures.push({ executionStarted: item.executionStarted === true, observerFailure: core.sanitizeObserverFailure(item.observerFailure) })
+                  gap('preflight-failure-retained')
+                } else malformedLines++
               } catch { malformedLines++ }
             }
             assert.ok(events.length <= 256)
             partial.set(id, events)
-            await write('samples/' + id + '.timeline.json', { runId: id, events, resultSeen, liveResults, hostErrors, malformedLines,
+            await write('samples/' + id + '.timeline.json', { runId: id, events, resultSeen, liveResults, hostErrors, preflightFailures, malformedLines,
               originalSha256: hash(bytes), clock: 'per-attempt local monotonic; no cross-process subtraction' })
             if (malformedLines) gap('partial-trace-malformed-or-truncated')
           }
