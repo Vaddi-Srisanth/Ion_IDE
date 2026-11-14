@@ -12,6 +12,7 @@ import { _electron } from 'playwright-core'
 import { nativePsEnvironment, parseIdentities } from './live-runtime-metrics.mjs'
 import { familyFor, identityCpuPercent, parseMacFamilyRows, rememberLaunchMetrics } from './process-family.mjs'
 import { installBenchmarkRun } from './run-completion.mjs'
+import { observeInspectorShutdown } from './inspector-shutdown-observer.mjs'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -121,6 +122,9 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
       mainCreationTime: identity.processes.find(p => p.pid === identity.pid)?.creationTime,
       executablePath: await realpath(executablePath) }
     rememberLaunchMetrics(session, identity.processes)
+    if (process.env.ION_INSPECTOR_SHUTDOWN_DIAGNOSTICS === '1') {
+      session.inspectorShutdownObserver = observeInspectorShutdown(session)
+    }
     return session
   } catch (error) {
     await close({ app, appProcess }).catch(() => {})
@@ -130,7 +134,11 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
 
 export async function close(session) {
   const proc = session.appProcess ?? session.app.process()
-  if (proc.exitCode !== null || proc.signalCode !== null) return
+  if (proc.exitCode !== null || proc.signalCode !== null) {
+    session.inspectorShutdownObserver?.dispose()
+    return
+  }
+  session.inspectorShutdownObserver?.setClosing()
   const exited = once(proc, 'exit')
   const output = []
   const observeConsole = (message) => {
@@ -204,7 +212,8 @@ export async function close(session) {
     if (quitError) console.error('Failed to request desktop shutdown:', quitError.message)
     if (output.length) console.error('Recent desktop console messages:', output)
     error.desktopShutdown = { error: error.message, lifecycle, dialogs, console: output, setupDiagnosticError,
-      quitRequest: { state: quitState, message: quitError && String(quitError.message).slice(0, 1000) } }
+      quitRequest: { state: quitState, message: quitError && String(quitError.message).slice(0, 1000) },
+      inspector: session.inspectorShutdownObserver?.snapshot() }
     if (session.onShutdownFailure) await session.onShutdownFailure(error.desktopShutdown).catch(reason =>
       console.error('Shutdown failure receipt unavailable:', reason?.message ?? reason))
     if (proc.exitCode === null && proc.signalCode === null) {
@@ -225,6 +234,7 @@ export async function close(session) {
   } finally {
     clearTimeout(timer)
     session.app.removeListener('console', observeConsole)
+    session.inspectorShutdownObserver?.dispose()
     if (proc.exitCode === null && proc.signalCode === null) {
       await session.app.evaluate(() => globalThis.ionShutdownDiagnostics?.cleanup()).catch(() => {})
     }

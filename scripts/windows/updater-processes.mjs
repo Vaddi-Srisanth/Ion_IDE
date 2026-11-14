@@ -17,8 +17,48 @@ export function updaterProcessFilter(target) {
 
 export function updaterQueryStages(stderr) {
   return String(stderr ?? '').split(/\r?\n/).slice(0, 64).flatMap(line => {
-    const match = /^ION_CIM_PHASE (boot|query-start|query-end|json-end) (\d+(?:\.\d+)?)$/.exec(line)
+    const match = /^ION_CIM_PHASE (boot|query-start|query-end|json-end|serialization-end) (\d+(?:\.\d+)?)$/.exec(line)
     return match ? [{ phase: match[1], ms: Number(match[2]) }] : []
+  })
+}
+
+// Test-only process snapshot wire format. PowerShell emits this using Console
+// and .NET primitives instead of general-purpose ConvertTo-Json serialization.
+// Complete framing is mandatory: partial output can never mean an empty tree.
+export function parseUpdaterProcessSnapshot(stdout) {
+  const invalid = () => { throw new Error('Malformed or incomplete updater process snapshot.') }
+  if (typeof stdout !== 'string' || !stdout.endsWith('\n') || Buffer.byteLength(stdout, 'utf8') > 512 * 1024) invalid()
+  const lines = stdout.replace(/^\uFEFF/, '').split(/\r?\n/)
+  lines.pop()
+  if (lines.length < 2 || lines.length > 66 || lines[0] !== 'ION_PROCESS_SNAPSHOT\t1') invalid()
+  const end = /^END\t(0|[1-9]\d?)$/.exec(lines.at(-1))
+  if (!end || Number(end[1]) > 64 || lines.length - 2 !== Number(end[1])) invalid()
+  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+  function field(encoded) {
+    if (encoded.length > 131072 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) invalid()
+    const bytes = Buffer.from(encoded, 'base64')
+    if (bytes.toString('base64') !== encoded) invalid()
+    let value
+    try { value = decoder.decode(bytes) } catch { invalid() }
+    if (value.length > 32768 || value.includes('\0')) invalid()
+    return value
+  }
+  function pid(value, allowZero) {
+    if (!/^(0|[1-9]\d{0,9})$/.test(value)) invalid()
+    const number = Number(value)
+    if (number > 0xffffffff || (!allowZero && number === 0)) invalid()
+    return number
+  }
+  const seen = new Set()
+  return lines.slice(1, -1).map(line => {
+    const parts = line.split('\t')
+    if (parts.length !== 6 || parts[0] !== 'P' || !/^\d{1,20}$/.test(parts[3])) invalid()
+    const processId = pid(parts[1], false), parent = pid(parts[2], true)
+    if (seen.has(processId)) invalid()
+    seen.add(processId)
+    const executablePath = field(parts[4]), command = field(parts[5])
+    if (!win32.isAbsolute(executablePath) || /[\x00-\x1f]/.test(executablePath)) invalid()
+    return { pid: processId, parent, created: parts[3], executablePath, command }
   })
 }
 

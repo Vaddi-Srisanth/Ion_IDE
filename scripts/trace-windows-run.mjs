@@ -9,6 +9,7 @@ import { artifact, atPath, close, createProject, launch, openFolder, openFromExp
   runProgram, sleep, stubDialogs, temporaryDirectory } from './desktop-harness.mjs'
 import { windowsProcessTree } from './windows/process-tree.mjs'
 import { pdfFixture } from './viewer-fixtures.mjs'
+import { captureCompilerProbe } from './windows/compiler-probe.mjs'
 
 assert.equal(process.platform, 'win32')
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' },
@@ -24,7 +25,8 @@ const report = { complete: false, classification: 'Diagnostic-only; no retries o
 await mkdir(dirname(output), { recursive: true })
 await writeFile(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' })
 const persist = () => writeFile(output, JSON.stringify(report, null, 2) + '\n')
-let session, failure
+let session, failure, probeTimer, probeTask
+const probeAbort = new AbortController()
 try {
   const project = await createProject(join(scratch, 'benchmark workspace'), { medium: true })
   const pdf = join(project.directory, 'local study.pdf')
@@ -63,6 +65,25 @@ try {
   await app.evaluate(() => globalThis.ionRunTrace.start())
   report.phase = 'run-program'
   await persist()
+  // Exactly one diagnostic, only if this single compilation remains pending
+  // for five seconds. Successful short runs start no PowerShell probe. This
+  // is separate from ordinary benchmarks and does not change runner limits.
+  report.liveCompilerProbe = { state: 'scheduled', afterMs: 5000 }
+  probeTimer = setTimeout(() => {
+    probeTask = (async () => {
+      let timer
+      try {
+        const trace = await Promise.race([
+          app.evaluate(() => globalThis.ionRunTrace.snapshot()),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Live trace snapshot unavailable.')), 1500) }),
+        ])
+        report.liveCompilerProbe = await captureCompilerProbe(trace, probeAbort.signal)
+      } catch (error) {
+        report.liveCompilerProbe = { state: probeAbort.signal.aborted ? 'cancelled' : 'error',
+          error: String(error.message).slice(0, 500) }
+      } finally { clearTimeout(timer) }
+    })()
+  }, 5000)
   // Current outcome-driven, IPC-correlated stage watchdog. No retry; this new
   // diagnostic is not pooled with historical 15-second success-only samples.
   report.runMs = await runProgram(page)
@@ -71,6 +92,10 @@ try {
   failure = error
   report.error = { name: error.name, message: String(error.message).slice(0, 1000) }
 } finally {
+  clearTimeout(probeTimer)
+  probeAbort.abort()
+  if (probeTask) await probeTask
+  else if (report.liveCompilerProbe?.state === 'scheduled') report.liveCompilerProbe = { state: 'not-needed', reason: 'Run finished before the diagnostic threshold.' }
   if (session) {
     try {
       report.trace = await session.app.evaluate(() => globalThis.ionRunTrace.snapshot())

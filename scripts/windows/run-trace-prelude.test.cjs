@@ -70,6 +70,7 @@ test('diagnostic preserves IPC receiver, async error identity, ownership and dis
   assert.equal(snapshot.records.find(row => row.operation === 'spawn').owner, ipc.id)
   assert.equal(snapshot.pending.length, 0)
   assert.equal(snapshot.records.filter(row => row.kind === 'native-status').length, 2)
+  assert.equal(snapshot.records.find(row => row.kind === 'native-status' && row.status === 'READY').payloadPid, 124)
   assert.doesNotMatch(JSON.stringify(snapshot), /NEVER_CAPTURE|private\/no-log/)
 
   rejectRead = true

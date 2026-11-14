@@ -33,6 +33,20 @@ export function shutdownPids(session) {
     .filter(pid => Number.isSafeInteger(pid) && pid > 0 && pid <= 0xffffffff)
 }
 
+// Successful exit verification needs only liveness, not a cold PowerShell/CIM
+// process-table query. libuv uses the OS process API. Unknown errors fail closed;
+// a reused PID also remains alive rather than authorizing termination.
+export function knownShutdownLiveness(session) {
+  const pids = shutdownPids(session)
+  if (!pids.length) throw new Error('No validated shutdown PIDs.')
+  const alive = []
+  for (const pid of pids) {
+    try { process.kill(pid, 0); alive.push(pid) }
+    catch (error) { if (error.code !== 'ESRCH') throw error }
+  }
+  return { method: 'OS process liveness for exact known PIDs; no process-table service or termination', pids, alive }
+}
+
 export function appendShutdownTail(tail, bytes) {
   const chunk = Buffer.from(bytes)
   if (chunk.length >= 8192) return Buffer.from(chunk.subarray(-8192))

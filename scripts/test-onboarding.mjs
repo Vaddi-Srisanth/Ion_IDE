@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
 import { observeInspectorShutdown } from './inspector-shutdown-observer.mjs'
-import { nativeShutdownSnapshot, observeUpdateShutdown } from './update-preferences-support.mjs'
+import { knownShutdownLiveness, observeUpdateShutdown } from './update-preferences-support.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' },
@@ -42,7 +42,7 @@ async function withProfile(scratch, name, check, options = {}) {
   const session = await launch(build, join(scratch, name), { firstRun: true, ...startup })
   let inspector, dispose, failure
   try {
-    inspector = observeInspectorShutdown(session)
+    inspector = session.inspectorShutdownObserver ?? observeInspectorShutdown(session)
     dispose = observeUpdateShutdown(session, diagnostic => saveShutdown({ name, failure: diagnostic, inspector: inspector.snapshot() }))
     await session.page.context().setOffline(true)
     await check(session)
@@ -56,10 +56,9 @@ async function withProfile(scratch, name, check, options = {}) {
       await close(session)
       assert.equal(session.appProcess.exitCode, 0, 'The owned desktop launcher exited normally.')
       assert.equal(session.appProcess.signalCode, null)
-      const native = await nativeShutdownSnapshot(session)
+      const native = knownShutdownLiveness(session)
       if (process.platform === 'win32') {
-        assert.equal(native.state, 'available', JSON.stringify(native))
-        assert.deepEqual(native.rows, [], 'The owned Windows launcher and actual Electron process exited.')
+        assert.deepEqual(native.alive, [], 'The owned Windows launcher and actual Electron process exited.')
       }
       await saveShutdown({ name, inspector: inspector?.snapshot(), exitCode: session.appProcess.exitCode, native })
     } catch (error) {

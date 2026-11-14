@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { EventEmitter } from 'node:events'
+import { EventEmitter, once } from 'node:events'
+import { spawn } from 'node:child_process'
 import vm from 'node:vm'
 import { test } from 'node:test'
-import { appendShutdownTail, dismissPreferences, disposeUpdateShutdown, installCloseConfirmationProbe, observeUpdateShutdown, shutdownPids } from './update-preferences-support.mjs'
+import { appendShutdownTail, dismissPreferences, disposeUpdateShutdown, installCloseConfirmationProbe, knownShutdownLiveness, observeUpdateShutdown, shutdownPids } from './update-preferences-support.mjs'
 
 test('Done click acknowledgement does not replace the detached-dialog boundary', async () => {
   const events = []
@@ -30,6 +31,23 @@ test('known shutdown PID selection distinguishes wrapper and Electron without ac
   assert.deepEqual(shutdownPids({ appProcess: { pid: 100 }, pid: 200 }), [100, 200])
   assert.deepEqual(shutdownPids({ appProcess: { pid: 100 }, pid: 100 }), [100])
   assert.deepEqual(shutdownPids({ appProcess: { pid: '1 OR 1=1' }, pid: -1 }), [])
+})
+
+test('known-PID native liveness distinguishes a real owned live process from its verified exit without PowerShell', async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore', windowsHide: true })
+  const exited = once(child, 'exit')
+  try {
+    await once(child, 'spawn')
+    const session = { appProcess: child, pid: child.pid }
+    assert.deepEqual(knownShutdownLiveness(session).alive, [child.pid])
+    child.kill()
+    await exited
+    assert.deepEqual(knownShutdownLiveness(session).alive, [])
+    assert.throws(() => knownShutdownLiveness({ pid: 'unsafe' }), /validated shutdown PIDs/)
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill()
+    await exited
+  }
 })
 
 test('the opt-in stderr tail retains at most 8192 bytes, including Unicode and oversized chunks', () => {

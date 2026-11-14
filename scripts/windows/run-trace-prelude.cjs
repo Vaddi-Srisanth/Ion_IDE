@@ -95,7 +95,8 @@ exports.install = function install() {
           const line = buffer.slice(0, next).replace(/\r$/, '')
           buffer = buffer.slice(next + 1)
           record({ kind: 'native-status', id: row.id,
-            status: /^READY \d+$/.test(line) ? 'READY' : line === 'CLEAN' ? 'CLEAN' : /^ERROR \d+$/.test(line) ? 'ERROR' : 'invalid' })
+            status: /^READY \d+$/.test(line) ? 'READY' : line === 'CLEAN' ? 'CLEAN' : /^ERROR \d+$/.test(line) ? 'ERROR' : 'invalid',
+            ...(/^READY [1-9][0-9]{0,9}$/.test(line) ? { payloadPid: Number(line.slice(6)) } : {}) })
         }
       })
     }

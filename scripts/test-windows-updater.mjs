@@ -10,7 +10,7 @@ import { promisify } from 'node:util'
 import { chromium } from 'playwright-core'
 import { eventually, requireVisibleDesktop } from './desktop-harness.mjs'
 import { buildWindowsUpdater } from './windows/build-updater.mjs'
-import { assertUpdaterProcessesDrained, inspectUpdaterProcesses, rememberUpdaterProcesses, updaterProcessFilter, updaterQueryStages } from './windows/updater-processes.mjs'
+import { assertUpdaterProcessesDrained, inspectUpdaterProcesses, parseUpdaterProcessSnapshot, rememberUpdaterProcesses, updaterProcessFilter, updaterQueryStages } from './windows/updater-processes.mjs'
 
 assert.equal(process.platform, 'win32', 'Run this installed-app test on a disposable Windows machine.')
 requireVisibleDesktop()
@@ -70,12 +70,32 @@ async function processCandidates(purpose) {
           created = $_.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) }
       })
     [Console]::Error.WriteLine('ION_CIM_PHASE query-end ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
-    ConvertTo-Json -Compress -InputObject $rows
-    [Console]::Error.WriteLine('ION_CIM_PHASE json-end ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
+    if ($rows.Count -gt 64) { throw 'The updater process snapshot exceeded its bound.' }
+    $wireEncoding = [Text.UTF8Encoding]::new($false, $true)
+    $tab = [string][char]9
+    [Console]::Out.WriteLine('ION_PROCESS_SNAPSHOT' + $tab + '1')
+    foreach ($row in $rows) {
+      if ($row.executablePath.Length -gt 32768 -or $row.command.Length -gt 32768) {
+        throw 'The updater process field exceeded its bound.'
+      }
+      $pathBytes = $wireEncoding.GetBytes([string]$row.executablePath)
+      $commandBytes = $wireEncoding.GetBytes([string]$row.command)
+      $fields = [string[]]@(
+        'P'
+        [string]$row.pid
+        [string]$row.parent
+        [string]$row.created
+        [Convert]::ToBase64String($pathBytes)
+        [Convert]::ToBase64String($commandBytes)
+      )
+      [Console]::Out.WriteLine([string]::Join($tab, $fields))
+    }
+    [Console]::Out.WriteLine('END' + $tab + $rows.Count.ToString([Globalization.CultureInfo]::InvariantCulture))
+    [Console]::Out.Flush()
+    [Console]::Error.WriteLine('ION_CIM_PHASE serialization-end ' + $watch.Elapsed.TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))
   `], { ...quiet, timeout: 10000, maxBuffer: 512 * 1024,
       env: { ...process.env, ION_UPDATE_FILTER: updaterProcessFilter(target) } })
-    const value = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''))
-    const rows = Array.isArray(value) ? value : value ? [value] : []
+    const rows = parseUpdaterProcessSnapshot(stdout)
     observation.rows = rows.length
     observation.stages = updaterQueryStages(stderr)
     return rows
