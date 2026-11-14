@@ -316,21 +316,6 @@ int pipeProcess(int argc, wchar_t** argv) {
   startup.StartupInfo.hStdInput = input.get();
   startup.StartupInfo.hStdOutput = output.get();
   startup.StartupInfo.hStdError = error.get();
-  // CRT_STDIO_INHERITANCE_BEGIN
-  // Win32 standard handles and CRT descriptors are separate inheritance
-  // contracts. Match the packed layout used by libuv for detached children,
-  // forwarding ONLY the three allow-listed standard handles, never fd3/fd4.
-  constexpr int descriptorCount = 3;
-  std::array<BYTE, sizeof(int) + descriptorCount + descriptorCount * sizeof(HANDLE)> descriptors{};
-  std::memcpy(descriptors.data(), &descriptorCount, sizeof(descriptorCount));
-  for (int index = 0; index < descriptorCount; ++index) {
-    const DWORD kind = GetFileType(inherited[index]);
-    descriptors[sizeof(int) + index] = static_cast<BYTE>(0x01 | (kind == FILE_TYPE_PIPE ? 0x08 : kind == FILE_TYPE_CHAR ? 0x40 : 0));
-    std::memcpy(descriptors.data() + sizeof(int) + descriptorCount + index * sizeof(HANDLE), &inherited[index], sizeof(HANDLE));
-  }
-  startup.StartupInfo.cbReserved2 = static_cast<WORD>(descriptors.size());
-  startup.StartupInfo.lpReserved2 = descriptors.data();
-  // CRT_STDIO_INHERITANCE_END
   SIZE_T attributeBytes = 0;
   InitializeProcThreadAttributeList(nullptr, 2, 0, &attributeBytes);
   if (!attributeBytes) return failure(GetLastError());
@@ -352,11 +337,12 @@ int pipeProcess(int argc, wchar_t** argv) {
   std::wstring command;
   for (int index = 3; index < argc; ++index) appendArgument(command, argv[index]);
   PROCESS_INFORMATION process{};
-  // Pipe commands need no console session. CREATE_NO_WINDOW still starts a
-  // headless console host; detaching avoids that startup boundary while the
-  // explicit stdio handles and atomic Job assignment retain IO and ownership.
+  // Preserve console inheritance for compiler drivers that launch their own
+  // frontend. Detaching loses Clang child diagnostics on Windows. JOB_LIST
+  // assigns ownership before the initial thread runs, so a separate suspended
+  // creation/resume handshake is unnecessary. The ConPTY path is independent.
   const BOOL created = CreateProcessW(argv[3], command.data(), nullptr, nullptr, TRUE,
-      CREATE_SUSPENDED | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT,
+      CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
       nullptr, nullptr, &startup.StartupInfo, &process);
   const DWORD launchError = created ? ERROR_SUCCESS : GetLastError();
   DeleteProcThreadAttributeList(startup.lpAttributeList);
@@ -371,7 +357,6 @@ int pipeProcess(int argc, wchar_t** argv) {
   char ready[64];
   std::snprintf(ready, sizeof(ready), "READY %lu\n", static_cast<unsigned long>(process.dwProcessId));
   if (!report(ready)) return failure(ERROR_BROKEN_PIPE);
-  if (ResumeThread(thread.get()) == static_cast<DWORD>(-1)) return failure(GetLastError());
   thread.reset();
   input.reset(); output.reset(); error.reset();
   PipeStopReader stopReader;

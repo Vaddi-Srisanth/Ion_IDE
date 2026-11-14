@@ -20,6 +20,8 @@ try {
   if (processHelper) await buildWindowsPty(processHelper, process.arch)
   if (processHelper && files.includes('windows-process-job.test.ts')) {
     const source = await readFile('src/main/run-console/pty-windows.cpp', 'utf8')
+    // Controls preserve the historical suspended launch/resume sequence; the
+    // application helper remains the runnable, creation-time-owned candidate.
     const controls = pipeFixtureSources(source)
     const control = join(directory, 'baseline-pipe.cpp'), detachedControl = join(directory, 'detached-control-pipe.cpp')
     await writeFile(control, controls.baseline)

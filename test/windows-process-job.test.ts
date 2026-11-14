@@ -248,7 +248,7 @@ test('fixture owning hook awaits LIFO resource closure before removing scratch u
   assert.deepEqual(events, ['dependent-owner-closed', 'file-closed', 'scratch-removed'])
 })
 
-test('Windows pipe commands avoid a console session while preserving stdin, separate output, exit status and Job ownership',
+test('Windows runnable pipe commands keep the console hidden while preserving stdin, output, exit status and Job ownership',
   { skip: !windows, timeout: 45000 }, async t => {
     const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
     const probe = process.env.ION_WINDOWS_CONSOLE_PROBE
@@ -257,8 +257,8 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
     let inputHash = 2166136261
     for (const byte of bytes) inputHash = Math.imul(inputHash ^ byte, 16777619) >>> 0
     const receipt: Record<string, unknown> = { platform: process.platform, architecture: process.arch,
-      inputBytes: bytes.length, inputHash, baselineIoContractPassed: false, baselineDetachedContractPassed: false,
-      candidateIoContractPassed: false, candidateDetachedContractPassed: false }
+      inputBytes: bytes.length, inputHash, candidatePolicy: 'CREATE_NO_WINDOW without CREATE_SUSPENDED',
+      baselineIoContractPassed: false, candidateIoContractPassed: false, candidateHiddenWindowPassed: false }
     type ConsoleSnapshot = { consoleCodePage: number; consoleProcesses: number; consoleWindow: boolean;
       stdioTypes: number[]; inJob: boolean; jobQuery: boolean; inputBytes: number; inputHash: number;
       crtBytes: number; crtDescriptorCount: number }
@@ -296,27 +296,23 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
       const after = await capture(helper)
       receipt.after = after
       validateIo(after)
-      assert.equal(after.snapshot!.consoleCodePage, 0)
-      assert.equal(after.snapshot!.consoleProcesses, 0)
       assert.equal(after.snapshot!.consoleWindow, false)
-      assert.equal(after.snapshot!.crtDescriptorCount, 3, 'Only standard descriptors may be inherited; status and Stop are private.')
-      assert.equal(after.snapshot!.crtBytes, 31, 'The x64 CRT table must have no struct padding or extra descriptors.')
+      assert.equal(after.snapshot!.crtDescriptorCount, 0, 'The runnable policy does not introduce a CRT descriptor packet.')
+      assert.equal(after.snapshot!.crtBytes, 0)
       receipt.candidateIoContractPassed = true
-      receipt.candidateDetachedContractPassed = true
+      receipt.candidateHiddenWindowPassed = true
       if (before.result.state === 'timeout') {
         assert.equal(before.result.outputComplete, true, 'A timed-out control must still prove native cleanup.')
         assert.equal(before.result.exitCode, 125)
         assert.equal(before.result.stdout, '', 'A control that reached user output is not an unobserved startup timeout.')
         assert.equal(before.result.stderr, '')
         receipt.comparison = 'baseline startup timeout; console APIs unavailable'
-        receipt.comparisonVerified = false
+        receipt.ioComparisonObserved = false
       } else {
         validateIo(before)
-        assert.ok(before.snapshot!.consoleCodePage !== 0 || before.snapshot!.consoleProcesses !== 0
-          || before.snapshot!.consoleWindow, 'The control did not expose a distinguishable console session; retain evidence rather than assuming the policy changed.')
         receipt.baselineIoContractPassed = true
-        receipt.comparison = 'both payloads observed; console APIs distinguish the launch policies'
-        receipt.comparisonVerified = true
+        receipt.comparison = 'both payloads observed; both use NO_WINDOW, while only the control starts suspended'
+        receipt.ioComparisonObserved = true
       }
     } catch (error) {
       primaryError = error
@@ -338,7 +334,70 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
     }
   })
 
-test('Windows selected compiler and GCC driver/frontend diagnostics survive detached CRT descriptor inheritance',
+test('Windows runnable pipe handles fast native exits without losing READY, output or cleanup acknowledgement',
+  { skip: !windows, timeout: 60000 }, async t => {
+    native()
+    const probe = process.env.ION_WINDOWS_CONSOLE_PROBE
+    assert.ok(probe, 'Build the native EOF/exit probe with scripts/test.mjs.')
+    const cwd = await scratch(t), observations: Record<string, unknown>[] = []
+    try {
+      for (let index = 0; index < 30; index++) {
+        const controller = new AbortController(), began = performance.now()
+        const job = execute(probe, [], options(cwd, controller.signal, 15000))
+        ownCleanup(t, async () => { controller.abort(); await job })
+        const result = await job
+        const row = { index, elapsedMs: performance.now() - began, state: result.state,
+          exitCode: result.exitCode, outputComplete: result.outputComplete }
+        observations.push(row)
+        assert.equal(result.state, 'exited', JSON.stringify({ row, result }))
+        assert.equal(result.exitCode, 125)
+        assert.equal(result.outputComplete, true)
+        const value = JSON.parse(result.stdout ?? '')
+        assert.equal(value.inJob, true)
+        assert.equal(value.jobQuery, true)
+        assert.equal(value.consoleWindow, false)
+        assert.equal(value.inputBytes, 0)
+        assert.equal(result.stderr?.replaceAll('\r\n', '\n'), 'ION-PIPE-STDERR\n')
+      }
+    } finally { t.diagnostic(JSON.stringify({ scenario: 'fast-native-exit', observations })) }
+  })
+
+test('Windows pipe Stop queued before READY observation drains the owned runnable command',
+  { skip: !windows, timeout: 15000 }, async t => {
+    const helper = native(), cwd = await scratch(t), fixture = await program(t, cwd)
+    const child = spawn(helper, ['--pipe', String(process.pid), process.execPath, fixture.file], {
+      cwd, windowsHide: true, env: windowsEnvironment(windowsToolPaths(), cwd),
+      stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'],
+    }) as import('node:child_process').ChildProcessWithoutNullStreams
+    const failures: string[] = [], payloads: number[] = []
+    let status = ''
+    child.stdio[3]!.on('data', chunk => {
+      status = (status + chunk.toString()).slice(-4096)
+      const ready = /^READY ([1-9][0-9]*)\r?\n/.exec(status)
+      if (ready && !payloads.includes(Number(ready[1]))) payloads.push(Number(ready[1]))
+    })
+    const ownership = monitorWindowsPipeProcess(child, message => failures.push(message))
+    child.stdout.resume(); child.stderr.resume(); child.stdin.end()
+    const closed = new Promise(resolve => child.once('close', resolve))
+    ownCleanup(t, async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await closed
+      ownership.dispose()
+    })
+    // This is a synchronous request before Node can deliver a READY data event;
+    // do not wait/retry until the application has already reached user code.
+    assert.deepEqual(payloads, [])
+    const stopped = ownership.requestStop()
+    assert.equal(await stopped, true)
+    await closed
+    assert.equal(ownership.verified, true)
+    assert.deepEqual(failures, [])
+    assert.equal(payloads.length, 1)
+    const descendants = await readFile(fixture.pidfile, 'utf8').then(JSON.parse, () => null)
+    await gone([child.pid!, ...payloads, ...(descendants ? [descendants.root, descendants.worker] : [])])
+  })
+
+test('Windows selected compiler and GCC diagnostics survive creation-time-owned runnable pipe launch',
   { skip: !windows, timeout: 380000 }, async t => {
     const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
     const detachedControl = process.env.ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER
@@ -349,7 +408,7 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
       const found = await findWindowsCompiler([directory], cwd)
       if (found && basename(found).toLowerCase() === 'gcc.exe') { gcc = found; break }
     }
-    assert.ok(gcc, 'An actual installed GCC is required for the CRT child-diagnostic regression.')
+    assert.ok(gcc, 'An actual installed GCC is required for the driver/frontend diagnostic regression.')
     const selected = await findWindowsCompiler(await workspaceSafeWindowsToolPaths(cwd), cwd)
     assert.ok(selected, 'The application compiler selection must resolve in the same environment.')
     const compilers = [{ path: gcc, selectedByApplication: gcc.toLowerCase() === selected.toLowerCase() }]
@@ -364,7 +423,7 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
     const variants = [
       { name: 'no-window-no-crt', path: baseline },
       { name: 'detached-no-crt', path: detachedControl },
-      { name: 'detached-with-crt', path: helper },
+      { name: 'no-window-runnable', path: helper },
     ]
     const cases = [
       { name: 'driver-option', marker: '--ion-compiler-invalid-option', args: ['--ion-compiler-invalid-option'] },
@@ -412,7 +471,7 @@ test('Windows selected compiler and GCC driver/frontend diagnostics survive deta
         assert.equal(row.error, undefined, 'The configured diagnostic could not execute: ' + JSON.stringify(row))
         assert.equal(row.result?.outputComplete, true, 'Every observed control/candidate must prove native cleanup: ' + JSON.stringify(row))
       }
-      const candidates = observations.filter(row => row.variant === 'detached-with-crt')
+      const candidates = observations.filter(row => row.variant === 'no-window-runnable')
       assert.equal(candidates.length, compilers.length * cases.length)
       for (const row of candidates) {
         assert.equal(row.result?.state, 'exited', JSON.stringify(row))

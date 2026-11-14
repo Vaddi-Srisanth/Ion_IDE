@@ -53,7 +53,13 @@ try {
         export {configureWindowsProcessHelper,windowsEnvironment,workspaceSafeWindowsToolPaths} from './src/main/windows-process.ts';
         export const compare=${compareCompiler.toString()};`, resolveDir: process.cwd() },
       outfile: comparisonBundle, bundle: true, platform: 'node', format: 'cjs', logLevel: 'silent' })
-      session = await launch(target, join(scratch, 'profile'))
+      // Inspector-evaluated functions have no dynamic-import callback. Load
+      // the private adapter from this disposable CJS entry, just as the other
+      // main-process probes do, without changing production module exports.
+      const comparisonKey = 'ion.test.compiler-parent-comparison'
+      const probeEntry = join(scratch, 'compiler-bridge-entry.cjs')
+      await writeFile(probeEntry, `globalThis[Symbol.for(${JSON.stringify(comparisonKey)})]=require(${JSON.stringify(comparisonBundle)});require(${JSON.stringify(resolve(target.args[0]))});`)
+      session = await launch({ ...target, args: [probeEntry, ...target.args.slice(1)] }, join(scratch, 'profile'))
       report.sessionLaunched = true
       report.pid = session.pid
       const { app, page } = session
@@ -135,11 +141,11 @@ try {
           report.comparisons.node = await tools.compare(tools, data)
         } catch (error) { report.comparisons.node = { error: String(error?.stack ?? error).slice(0, 2000) } }
         try {
-          report.comparisons.electron = await app.evaluate(async (_, { bundle, data }) => {
-            const { createRequire } = await import('node:module')
-            const tools = createRequire(bundle)(bundle)
+          report.comparisons.electron = await app.evaluate(async (_, { key, data }) => {
+            const tools = Reflect.get(globalThis, Symbol.for(key))
+            if (!tools) throw new Error('The private compiler comparison adapter was not installed.')
             return tools.compare(tools, data)
-          }, { bundle: comparisonBundle, data })
+          }, { key: comparisonKey, data })
         } catch (error) { report.comparisons.electron = { error: String(error?.stack ?? error).slice(0, 2000) } }
       } else report.comparisons.unavailable = 'The actual run did not select a compiler.'
       assert.equal(report.result.status, 'compile-error')
@@ -174,6 +180,7 @@ try {
         await capture('main-snapshot', async () => { report.main ??= await session.app.evaluate(() => globalThis.__ionCompilerBridgeMain?.snapshot()) })
         await capture('renderer-listener', () => session.page.evaluate(() => globalThis.__ionCompilerBridgeRenderer?.dispose()))
         await capture('main-hook', () => session.app.evaluate(() => globalThis.__ionCompilerBridgeMain?.restore()))
+        await capture('comparison-hook', () => session.app.evaluate(() => { delete globalThis[Symbol.for('ion.test.compiler-parent-comparison')] }))
         await capture('normal-close', () => close(session))
         report.exit = { code: session.appProcess.exitCode, signal: session.appProcess.signalCode }
         await capture('exit-zero', async () => { assert.equal(session.appProcess.exitCode, 0); assert.equal(session.appProcess.signalCode, null) })
