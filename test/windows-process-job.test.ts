@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
-import { once } from 'node:events'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
@@ -12,6 +11,13 @@ import { configureWindowsProcessHelper, monitorWindowsPipeProcess, windowsEnviro
 
 const windows = process.platform === 'win32'
 const run = promisify(execFile)
+type FixtureCleanup = () => void | Promise<void>
+const fixtureOwners = new Map<TestContext, FixtureCleanup[]>()
+function ownCleanup(t: TestContext, cleanup: FixtureCleanup) {
+  const owners = fixtureOwners.get(t)
+  assert.ok(owners, 'Register fixture resources only after acquiring scratch ownership.')
+  owners.push(cleanup)
+}
 const native = () => {
   const path = process.env.ION_WINDOWS_PROCESS_TEST_HELPER
   assert.ok(path, 'Use scripts/test.mjs so a fresh native helper is built.')
@@ -20,7 +26,23 @@ const native = () => {
 }
 async function scratch(t: TestContext) {
   const path = await mkdtemp(join(tmpdir(), 'ion-job-café-学习-'))
-  t.after(() => rm(path, { recursive: true, force: true }))
+  const owners: FixtureCleanup[] = []
+  fixtureOwners.set(t, owners)
+  // TestContext.after hooks run FIFO, not like a resource stack. One owning
+  // hook must await dependent process/pipe cleanup before removing their cwd.
+  t.after(async () => {
+    const failures: unknown[] = []
+    try {
+      for (const cleanup of owners.reverse()) {
+        try { await cleanup() } catch (error) { failures.push(error) }
+      }
+      if (failures.length) {
+        console.error('Owned fixture cleanup failed; preserving scratch:', path)
+        throw new AggregateError(failures, 'Owned process resources did not clean up before directory removal.')
+      }
+      await rm(path, { recursive: true, force: true })
+    } finally { fixtureOwners.delete(t) }
+  })
   return path
 }
 const alive = (pid: number) => {
@@ -61,9 +83,10 @@ async function program(t: TestContext, cwd: string, end: 'natural' | 'wait' | 'n
     worker.once('spawn',()=>{fs.writeFileSync(${JSON.stringify(pidfile)},JSON.stringify({root:process.pid,worker:worker.pid}));
       ${end === 'natural' ? 'process.exit(0);' : end === 'noisy' ? "process.stdout.write('x'.repeat(1024*1024));setInterval(()=>{},1000);" : 'setInterval(()=>{},1000);'}});`
   await writeFile(file, code)
-  t.after(async () => {
+  ownCleanup(t, async () => {
     const pids = await readFile(pidfile, 'utf8').then(JSON.parse, () => null)
     if (pids) for (const pid of [pids.root, pids.worker]) await cleanup(pid, process.execPath, cwd)
+    if (pids) await gone([pids.root, pids.worker])
   })
   return { file, pidfile }
 }
@@ -107,6 +130,7 @@ for (const reason of ['cancelled', 'timeout', 'output-limit'] as const) {
     const settings = options(cwd, controller.signal, reason === 'timeout' ? 1800 : 5000)
     if (reason === 'output-limit') settings.budget.remaining = 16
     const running = execute(process.execPath, [fixture.file], settings)
+    ownCleanup(t, async () => { controller.abort(); await running })
     const pids = await marker(fixture.pidfile)
     if (reason === 'cancelled') controller.abort()
     assert.equal((await running).state, reason)
@@ -121,9 +145,12 @@ test('Windows pipe Job kills descendants when the native supervisor is terminate
       cwd, windowsHide: true, env: windowsEnvironment(windowsToolPaths(), cwd), stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'],
     })
     child.stdout!.resume(); child.stderr!.resume(); child.stdio[3]!.on('data', () => {})
-    t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL') })
+    const closed = new Promise(resolve => child.once('close', resolve))
+    ownCleanup(t, async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await closed
+    })
     const pids = await marker(fixture.pidfile)
-    const closed = once(child, 'close')
     assert.equal(child.kill('SIGKILL'), true)
     await closed
     await gone([pids.root, pids.worker])
@@ -139,11 +166,15 @@ test('Windows pipe Job observes owner death without a persistent monitoring serv
       helper.stdio[3].on('data',()=>{});fs.writeFileSync(${JSON.stringify(supervisorPid)},String(helper.pid));
       setInterval(()=>{if(fs.existsSync(${JSON.stringify(fixture.pidfile)}))process.exit(0)},10);`)
     const owner = spawn(process.execPath, [ownerFile], { cwd, windowsHide: true, stdio: 'ignore' })
-    t.after(() => { if (owner.exitCode === null && owner.signalCode === null) owner.kill('SIGKILL') })
-    await once(owner, 'close')
+    const closed = new Promise(resolve => owner.once('close', resolve))
+    ownCleanup(t, async () => {
+      if (owner.exitCode === null && owner.signalCode === null) owner.kill('SIGKILL')
+      await closed
+    })
+    await closed
     const pids = await marker(fixture.pidfile)
     const pid = Number(await readFile(supervisorPid, 'utf8'))
-    t.after(() => cleanup(pid, helper, cwd))
+    ownCleanup(t, async () => { await cleanup(pid, helper, cwd); await gone([pid]) })
     await gone([pid, pids.root, pids.worker])
   })
 
@@ -177,7 +208,7 @@ test('Windows pipe Stop waits for native Job drain and CLEAN acknowledgement',
     const ownership = monitorWindowsPipeProcess(child, message => failures.push(message))
     child.stdout.resume(); child.stderr.resume()
     const closed = new Promise(resolve => child.once('close', resolve))
-    t.after(async () => {
+    ownCleanup(t, async () => {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
       await closed
       ownership.dispose()
@@ -191,3 +222,27 @@ test('Windows pipe Stop waits for native Job drain and CLEAN acknowledgement',
     assert.deepEqual(failures, [])
     await gone([pids.root, pids.worker])
   })
+
+test('fixture owning hook awaits LIFO resource closure before removing scratch under real TestContext FIFO hooks', async t => {
+  const events: string[] = []
+  await t.test('disposable resources', async scope => {
+    const cwd = await scratch(scope)
+    const handle = await open(join(cwd, 'owned-handle'), 'w')
+    ownCleanup(scope, async () => {
+      await access(cwd)
+      await handle.close()
+      events.push('file-closed')
+    })
+    ownCleanup(scope, async () => {
+      await Promise.resolve()
+      await access(cwd)
+      events.push('dependent-owner-closed')
+    })
+    scope.after(async () => {
+      assert.deepEqual(events, ['dependent-owner-closed', 'file-closed'])
+      await assert.rejects(access(cwd), { code: 'ENOENT' })
+      events.push('scratch-removed')
+    })
+  })
+  assert.deepEqual(events, ['dependent-owner-closed', 'file-closed', 'scratch-removed'])
+})

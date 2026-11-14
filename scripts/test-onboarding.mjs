@@ -1,14 +1,27 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { observeInspectorShutdown } from './inspector-shutdown-observer.mjs'
+import { nativeShutdownSnapshot, observeUpdateShutdown } from './update-preferences-support.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' },
   screenshots: { type: 'boolean' },
+  'shutdown-cycles': { type: 'string', default: '0' },
 } })
+const shutdownCycles = Number(values['shutdown-cycles'])
+assert.ok(Number.isSafeInteger(shutdownCycles) && shutdownCycles >= 0 && shutdownCycles <= 20)
+const shutdownReport = resolve('performance-results/onboarding-shutdown.json')
+const shutdownReceipts = []
+async function saveShutdown(receipt) {
+  shutdownReceipts.push(receipt)
+  if (shutdownReceipts.length > 64) shutdownReceipts.shift()
+  await mkdir(dirname(shutdownReport), { recursive: true })
+  await writeFile(shutdownReport, JSON.stringify({ diagnostic: true, receipts: shutdownReceipts }, null, 2) + '\n')
+}
 const target = await artifact(values.target)
 assert.ok(!target.path.endsWith('.app'), 'Use the production build directory for the Electron startup fixtures.')
 const entry = target.path.endsWith('.cjs') ? target.path : join(target.path, 'main', 'index.cjs')
@@ -27,18 +40,37 @@ async function capture(page, name) {
 async function withProfile(scratch, name, check, options = {}) {
   const { build = target, ...startup } = options
   const session = await launch(build, join(scratch, name), { firstRun: true, ...startup })
-  let passed = false
+  let inspector, dispose, failure
   try {
+    inspector = observeInspectorShutdown(session)
+    dispose = observeUpdateShutdown(session, diagnostic => saveShutdown({ name, failure: diagnostic, inspector: inspector.snapshot() }))
     await session.page.context().setOffline(true)
     await check(session)
     assert.deepEqual(session.requests, [], 'Onboarding works without remote requests.')
     assert.deepEqual(session.errors, [], 'Onboarding produced no uncaught renderer errors.')
-    passed = true
+  } catch (error) {
+    failure = error
   } finally {
-    await close(session).catch((error) => {
-      if (passed) throw new Error(`Onboarding profile ${name} did not shut down cleanly.`, { cause: error })
-    })
+    try {
+      inspector?.setClosing()
+      await close(session)
+      assert.equal(session.appProcess.exitCode, 0, 'The owned desktop launcher exited normally.')
+      assert.equal(session.appProcess.signalCode, null)
+      const native = await nativeShutdownSnapshot(session)
+      if (process.platform === 'win32') {
+        assert.equal(native.state, 'available', JSON.stringify(native))
+        assert.deepEqual(native.rows, [], 'The owned Windows launcher and actual Electron process exited.')
+      }
+      await saveShutdown({ name, inspector: inspector?.snapshot(), exitCode: session.appProcess.exitCode, native })
+    } catch (error) {
+      await saveShutdown({ name, inspector: inspector?.snapshot(), error: String(error), detail: error.desktopShutdown })
+      failure = failure ? new AggregateError([failure, error], `Onboarding ${name} and shutdown failed.`) : error
+    } finally {
+      dispose?.()
+      inspector?.dispose()
+    }
   }
+  if (failure) throw failure
 }
 
 function playbackAssets(page) {
@@ -96,6 +128,21 @@ app.on('browser-window-created', (_event, window) => {
 require(${JSON.stringify(entry)});
 `)
   const reducedTarget = await artifact(reducedShim)
+
+  // Independent cold profiles, all required to pass. This is a diagnostic
+  // stress workload, never a retry or a production performance sample.
+  for (let cycle = 0; cycle < shutdownCycles; cycle++) {
+    await withProfile(scratch, `shutdown-${cycle}`, async ({ app, page }) => {
+      await intro(page).waitFor()
+      await skipIntro(page).click()
+      await intro(page).waitFor({ state: 'detached' })
+      await skipSetup(page).click()
+      await onboarding(page).waitFor({ state: 'detached' })
+      await stubDialogs(app, { file: project.program })
+      await page.getByTestId('welcome').getByTestId('open-file').click()
+      await (await editorShows(page, 'ION-DESKTOP-RUN-OK')).dispose()
+    })
+  }
 
   await withProfile(scratch, 'skip', async ({ page }) => {
     await intro(page).waitFor()
