@@ -8,13 +8,18 @@
   "files": [
     {
       "path": ".github/workflows/desktop-build.yml",
-      "bytes": 1519,
-      "sha256": "58be6b0906ce9cdebd42f12daa434aff717262b15a7cb13086d48998738b8b4b"
+      "bytes": 1686,
+      "sha256": "9fae6a72d17528660f103bc8096a1dc0f851d2f96934cadf7b16a0825f58a3a3"
     },
     {
       "path": ".github/workflows/ion-release-verification.yml",
       "bytes": 28185,
       "sha256": "9d9c76ac76f9142e05ea160a363911b5f768925af0d754d7125e2a1fdf212ec0"
+    },
+    {
+      "path": ".github/workflows/paired-startup-verification.yml",
+      "bytes": 3224,
+      "sha256": "f18c56d58c3661e8353b467e8101ed0097597b2adceaa96b29ee4e2a5f6bcb19"
     },
     {
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
@@ -207,9 +212,14 @@
       "sha256": "77ac405c1ae21c1f9664775f5e40df94330bf520d3e0d06a76aff40a90aaedcc"
     },
     {
+      "path": "scripts/benchmark-stabilization-startup.mjs",
+      "bytes": 3642,
+      "sha256": "be8e16167938e6909f6d308eba6ccfbf1ce56c16e7c0f7a0f57008e6755f6902"
+    },
+    {
       "path": "scripts/collect-release-gate-evidence.mjs",
-      "bytes": 14447,
-      "sha256": "fed239010db3e4683023ba2d0cb35ec6d7a849d40785e7576727918933117618"
+      "bytes": 14632,
+      "sha256": "1d86ac848ee5ec6c0cd6fe37a327d866963075fc263b74fe63d2711dacf08dea"
     },
     {
       "path": "scripts/collect-release-gate-evidence.test.mjs",

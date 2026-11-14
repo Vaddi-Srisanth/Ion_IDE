@@ -8,7 +8,7 @@ on:
       suite:
         description: Diagnostic repetition or full application release gates
         type: choice
-        options: ['diagnostic', 'release', 'all', 'performance', 'follow-up', 'git-checks']
+        options: ['diagnostic', 'release', 'all', 'performance', 'follow-up', 'git-checks', 'startup']
         default: 'diagnostic'
       samples:
         description: Warm attempts per lane per isolated runner
@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   windows-gcc-diagnostics:
-    if: inputs.suite != 'release' && inputs.suite != 'performance' && inputs.suite != 'follow-up' && inputs.suite != 'git-checks'
+    if: inputs.suite != 'release' && inputs.suite != 'performance' && inputs.suite != 'follow-up' && inputs.suite != 'git-checks' && inputs.suite != 'startup'
     uses: ./.github/workflows/windows-gcc-diagnostic.yml
     with:
       samples: ${{ inputs.samples || '100' }}
@@ -35,3 +35,6 @@ jobs:
   windows-git-verification:
     if: inputs.suite == 'git-checks'
     uses: ./.github/workflows/windows-git-supplement.yml
+  paired-startup-verification:
+    if: inputs.suite == 'startup'
+    uses: ./.github/workflows/paired-startup-verification.yml

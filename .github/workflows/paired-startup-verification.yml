@@ -1,0 +1,72 @@
+name: Balanced startup control (no publication)
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  paired-startup:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+      - name: Build the exact ordinary-production control on the same Mac VM
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git worktree add --detach "$RUNNER_TEMP/startup-baseline" 38cf7ff333d02be298a71c4b5315d317d57157c6
+          cd "$RUNNER_TEMP/startup-baseline"
+          npm ci
+          node node_modules/electron/install.js
+          npm run build
+      - name: Build the exact ordinary-production control on the same Windows VM
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'startup-baseline'
+          git fetch --depth=1 origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git worktree add --detach $baseline 38cf7ff333d02be298a71c4b5315d317d57157c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location $baseline
+          try {
+            npm ci
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            node node_modules/electron/install.js
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+      - name: Twenty balanced Mac fresh and warm pairs, retaining every attempt
+        if: runner.os == 'macOS'
+        shell: bash
+        run: node scripts/benchmark-stabilization-startup.mjs --target dist --baseline "$RUNNER_TEMP/startup-baseline/dist" --trials 20 --out performance-results/paired-startup.json
+      - name: Twenty balanced Windows fresh and warm pairs, retaining every attempt
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: node scripts/benchmark-stabilization-startup.mjs --target dist --baseline (Join-Path $env:RUNNER_TEMP 'startup-baseline/dist') --trials 20 --out performance-results/paired-startup.json
+      - name: Collect bounded sanitized evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-startup-safe"
+      - name: Preserve completed and incomplete startup cohorts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: paired-startup-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ion-startup-safe/**
+          if-no-files-found: error
+          retention-days: 14
