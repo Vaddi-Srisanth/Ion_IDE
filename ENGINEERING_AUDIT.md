@@ -1,5 +1,9 @@
 # Ion IDE engineering audit
 
+## Final native remediation evidence — 14 November 2026
+
+Native tracing reproduced a valid partialJob PID list being rejected by the diagnostic observer. Partial lists now cannot establish absence/drain; independent current accounting and controller membership are required. A separate genuine Windows gate caught a pre-save metadata/hash collision: current bytes are now validated before mutation even with equal metadata. Deterministic fail-before/pass-after and native Mac/Windows evidence are recorded in the [final engineering matrix](diagnostics/windows-gcc/RELEASE_VERIFICATION.md). The historical 12.67 second GCC cause remains OPEN, not “fixed.” Earlier failing cohorts remain failed. Later scoped verification shares exact production tree 374 fea 171 ef 92 bf 6 a 7 a 7 e 0045 e 0 bd 5816 f 631 c 17. No new runtime dependency/service, weakened deadline or security boundary. Conditional preview recommendation only; no release.
+
 ## Stabilization follow-up from 9adcdea
 
 The Git race reproduced against the exact checkpoint source. `SourceControlService.change` called `checkRepositoryFilters`, then a separate Git process ran `add`. The fixture inserted `filter.late.clean` between validation and the real spawn. `.gitattributes` selected that name and Git executed the new command, writing a marker in the disposable repository. This crosses a configuration-to-execution boundary. Workspace path validation and repository trust do not make those separate reads atomic.

@@ -1,5 +1,9 @@
 # Ion Windows GCC hosted diagnostic report
 
+## Final observer and application gates — 14 November 2026
+
+The structured cohort at `6df9d48` reproduced assigned 2/listed 1 during cleanup after GCC exit 0. Corrected cohort at `2fdd3da` passed 909/909 with zero observer errors/timeouts and complete cleanup; no partial snapshot happened in that cohort, so its exceptional branch has deterministic compiled regression coverage. Original two failures below remain historical, without invented exception details. Full release gates then found a separate save preflight defect, now corrected and verified. [Final report and release matrix](RELEASE_VERIFICATION.md) · [All actual performance deltas](FINAL_PERFORMANCE.md) · [Preserved failure rows](sanitized-results/observer-failures.json). Historical GCC latency remains OPEN. No release or installed-app change.
+
 **14 November 2026 — genuine Windows execution obtained. Original GCC delay NOT resolved. Release held.**
 
 Measured diagnostic commit: `05dde34a4a0773d788282681d5e249d46eee861a`. [Final Windows Actions run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43600747226). The workflow concluded **failure**, because two PowerShell observer attempts failed; one VM job passed and two failed. No unsuccessful samples were replaced or omitted.

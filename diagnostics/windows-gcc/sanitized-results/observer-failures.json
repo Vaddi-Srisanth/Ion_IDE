@@ -1,0 +1,142 @@
+{
+  "historical12sIssueFixed": false,
+  "samples": [
+    {
+      "runId": 43600747226,
+      "commit": "05dde34a4a0773d788282681d5e249d46eee861a",
+      "artifactId": "14115664833",
+      "sample": {
+        "runId": "warm-18-A",
+        "lane": "A",
+        "phase": "warm",
+        "elapsedMs": 95.8482,
+        "stdinClosedBeforeResult": false,
+        "hostClosedBeforeResult": false,
+        "diagnosticFailure": null,
+        "state": "error",
+        "exitCode": 0,
+        "cleanupVerified": true,
+        "outputComplete": true,
+        "adapterResultUnavailable": false,
+        "observerWallMs": 1165.1622999999963,
+        "success": false,
+        "controllerPid": 2492,
+        "hostExit": {
+          "normal": true,
+          "exited": true,
+          "code": 1,
+          "pid": 2492
+        },
+        "overflow": false,
+        "payloadPid": 3892,
+        "metrics": {
+          "compilerRequestToFinalizedMs": 91.5095,
+          "spawnRequestToObservedStartMs": 3.5344999999999995,
+          "readyReceiptToCleanReceiptMs": null,
+          "exitCallbackToStdoutEndMs": null,
+          "exitCallbackToStderrEndMs": null,
+          "exitCallbackToFinalizedMs": 2.0353999999999957,
+          "adapterResultAfterFinalizedMs": 0.02949999999999875,
+          "cleanupInitiatedToCompletedMs": 1.5489000000000033,
+          "kernelCompilerExitMs": null
+        }
+      }
+    },
+    {
+      "runId": 43600747226,
+      "commit": "05dde34a4a0773d788282681d5e249d46eee861a",
+      "artifactId": "14115874522",
+      "sample": {
+        "runId": "warm-33-A",
+        "lane": "A",
+        "phase": "warm",
+        "elapsedMs": 97.6277,
+        "stdinClosedBeforeResult": false,
+        "hostClosedBeforeResult": false,
+        "diagnosticFailure": null,
+        "state": "error",
+        "exitCode": 0,
+        "cleanupVerified": true,
+        "outputComplete": true,
+        "adapterResultUnavailable": false,
+        "observerWallMs": 1197.2815999999948,
+        "success": false,
+        "controllerPid": 3888,
+        "hostExit": {
+          "normal": true,
+          "exited": true,
+          "code": 1,
+          "pid": 3888
+        },
+        "overflow": false,
+        "payloadPid": 7176,
+        "metrics": {
+          "compilerRequestToFinalizedMs": 93.7992,
+          "spawnRequestToObservedStartMs": 3.7034,
+          "readyReceiptToCleanReceiptMs": null,
+          "exitCallbackToStdoutEndMs": null,
+          "exitCallbackToStderrEndMs": null,
+          "exitCallbackToFinalizedMs": 2.1041000000000025,
+          "adapterResultAfterFinalizedMs": 0.030299999999996885,
+          "cleanupInitiatedToCompletedMs": 1.6093000000000046,
+          "kernelCompilerExitMs": null
+        }
+      }
+    },
+    {
+      "runId": 43604680641,
+      "commit": "6df9d483b4b5a2f157c04c3d24e8daf3ea7d52a5",
+      "artifactId": "14117407913",
+      "sample": {
+        "observerFailure": {
+          "category": "membership-invariant",
+          "managedType": "System.InvalidOperationException",
+          "nativeErrorCode": null,
+          "operation": "job-member-counts",
+          "lifecycleStage": "cleanup",
+          "ownedProcessAlreadyExited": true,
+          "cleanupCompleted": true,
+          "compilerResultValid": true,
+          "snapshotAssigned": 2,
+          "snapshotListed": 1
+        },
+        "observerFailureCount": 1,
+        "compilerResultValid": true,
+        "runId": "warm-77-A",
+        "lane": "A",
+        "phase": "warm",
+        "elapsedMs": 66.6395,
+        "stdinClosedBeforeResult": false,
+        "hostClosedBeforeResult": false,
+        "diagnosticFailure": null,
+        "state": "error",
+        "exitCode": 0,
+        "cleanupVerified": true,
+        "outputComplete": true,
+        "adapterResultUnavailable": false,
+        "observerWallMs": 790.9236999999994,
+        "success": false,
+        "controllerPid": 1224,
+        "hostExit": {
+          "normal": true,
+          "exited": true,
+          "code": 1,
+          "pid": 1224
+        },
+        "overflow": false,
+        "payloadPid": 6640,
+        "metrics": {
+          "compilerRequestToFinalizedMs": 63.68429999999999,
+          "spawnRequestToObservedStartMs": 2.5851,
+          "readyReceiptToCleanReceiptMs": null,
+          "exitCallbackToStdoutEndMs": null,
+          "exitCallbackToStderrEndMs": null,
+          "exitCallbackToFinalizedMs": 2.201599999999999,
+          "adapterResultAfterFinalizedMs": 0.01820000000000732,
+          "cleanupInitiatedToCompletedMs": 1.8178999999999945,
+          "kernelCompilerExitMs": null
+        }
+      }
+    }
+  ]
+}

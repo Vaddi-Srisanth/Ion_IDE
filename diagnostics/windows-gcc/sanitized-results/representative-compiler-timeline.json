@@ -1,0 +1,130 @@
+{
+  "runId": "first-B",
+  "events": [
+    {
+      "ms": 0.11120000000000374,
+      "stage": "adapter",
+      "event": "request"
+    },
+    {
+      "ms": 0.5942000000000007,
+      "stage": "compiler-command",
+      "event": "construct-start"
+    },
+    {
+      "ms": 0.7216999999999985,
+      "stage": "compiler-command",
+      "event": "constructed"
+    },
+    {
+      "ms": 0.7481000000000009,
+      "stage": "compiler-process",
+      "event": "spawn-request"
+    },
+    {
+      "ms": 3.576900000000002,
+      "stage": "compiler-process",
+      "event": "spawned",
+      "value": 6984
+    },
+    {
+      "ms": 5.456800000000001,
+      "stage": "compiler-payload",
+      "event": "ready-observed",
+      "value": 3156
+    },
+    {
+      "ms": 2212.6919,
+      "stage": "compiler-job",
+      "event": "clean-observed"
+    },
+    {
+      "ms": 2213.6994,
+      "stage": "compiler-stdout",
+      "event": "end"
+    },
+    {
+      "ms": 2213.8574,
+      "stage": "compiler-stderr",
+      "event": "end"
+    },
+    {
+      "ms": 2214.2313,
+      "stage": "compiler-process",
+      "event": "exit",
+      "value": 0
+    },
+    {
+      "ms": 2214.2646,
+      "stage": "compiler-process",
+      "event": "exit-callback",
+      "value": 0
+    },
+    {
+      "ms": 2214.5483999999997,
+      "stage": "compiler-process",
+      "event": "close",
+      "value": 0
+    },
+    {
+      "ms": 2214.7414,
+      "stage": "compiler-process",
+      "event": "cleanup"
+    },
+    {
+      "ms": 2214.7619999999997,
+      "stage": "compiler-process",
+      "event": "result-finalized"
+    },
+    {
+      "ms": 2214.7787999999996,
+      "stage": "adapter",
+      "event": "result-delivered"
+    }
+  ],
+  "resultSeen": true,
+  "liveResults": [
+    {
+      "partialSnapshotCount": null,
+      "lastPartialAssigned": null,
+      "lastPartialListed": null,
+      "observerFailure": null,
+      "observerFailureCount": 0,
+      "compilerResultValid": null,
+      "runId": "first-B",
+      "lane": "B",
+      "phase": "first-compile-exposure",
+      "elapsedMs": 2214.8403999999996,
+      "stdinClosedBeforeResult": false,
+      "hostClosedBeforeResult": false,
+      "diagnosticFailure": null,
+      "state": "exited",
+      "exitCode": 0,
+      "cleanupVerified": true,
+      "outputComplete": true,
+      "adapterResultUnavailable": false,
+      "observerWallMs": null,
+      "success": true,
+      "controllerPid": 4052,
+      "hostExit": null,
+      "overflow": false,
+      "payloadPid": 3156,
+      "metrics": {
+        "compilerRequestToFinalizedMs": 2214.0139,
+        "spawnRequestToObservedStartMs": 2.828800000000001,
+        "readyReceiptToCleanReceiptMs": 2207.2351,
+        "exitCallbackToStdoutEndMs": null,
+        "exitCallbackToStderrEndMs": null,
+        "exitCallbackToFinalizedMs": 0.49739999999974316,
+        "adapterResultAfterFinalizedMs": 0.01679999999987558,
+        "cleanupInitiatedToCompletedMs": null,
+        "kernelCompilerExitMs": null
+      }
+    }
+  ],
+  "hostErrors": [],
+  "preflightFailures": [],
+  "malformedLines": 0,
+  "originalSha256": "536e352edee25381e1248d7bd5092f16264d710edc20a01261bfcf9700212e89",
+  "clock": "per-attempt local monotonic; no cross-process subtraction"
+}

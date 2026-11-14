@@ -1,5 +1,9 @@
 # Windows verification and known limits
 
+## Current diagnostic checkpoint — 14 November 2026
+
+The historical 12.67 second GCC wait remains unexplained. A new 909 attempt Windows 2022/GCC 14.2 cohort has zero timeouts/observer errors; native Windows 2025/GCC 15.2 app units, C/ConPTY lifecycle, recovery and installer upgrade/rollback have separate evidence. Neither is retail-laptop certification or proof of no intermittent delay. The observer partial-list and pre-save hash-preflight defects are corrected; the earlier PID-access, PS5-array and crash-reopen fixtures are now verified with explicit native checks. One older intro-phase miss and one LFS preflight failure remain unclassified historical events; new diagnostic fields preserve a recurrence. [Final matrix, all skipped cases and known limits](../../diagnostics/windows-gcc/RELEASE_VERIFICATION.md). Unsigned preview, macOS 27 local registration conditions and physical-device/signing limits remain explicit. No installer was published by this work.
+
 Windows x64 is a preview target. Packaging on macOS does not exercise Windows dialogs, file semantics, process cleanup, or toolchains.
 
 - The setup is unsigned. A publisher warning may appear on download or launch. Administrator-managed policies can prevent installation.

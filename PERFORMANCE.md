@@ -1,5 +1,9 @@
 # Performance
 
+## Final native diagnostic/performance gate — 14 November 2026
+
+The observer policy is corrected and verified by 909 successful native attempts. The discovered same-metadata save conflict now rejects before mutation. Final ordinary cohorts remain memory-flat within variation: Mac one-file footprint/RSS 194.11/469.17→189.45/461.77 MiB; Windows standalone working set/private 359.67/186.35→359.82/185.21 MiB. These are different OS metrics and not a claimed RAM optimization. n=20 startup retains Mac warm 890.89→945.29 ms (+54.40 ms); ranges overlap and source causality is unproven. [Full environment, every signed delta, ranges, resources and limits](diagnostics/windows-gcc/FINAL_PERFORMANCE.md) · [Release matrix](diagnostics/windows-gcc/RELEASE_VERIFICATION.md). No localGUI, installed-app change or publication.
+
 Paths under `performance-results/` refer to local benchmark outputs and logs. Reproduction commands are listed with the relevant workloads.
 
 ## Stabilization from 9adcdea

@@ -1,5 +1,21 @@
 # Release checklist
 
+## Current verified checkpoint — 14 November 2026
+
+Authorization covers the diagnostic branch and hosted verification only. Historical no-push notes below describe earlier checkpoints; main/tags/installers/update feed/installed Ion remain unchanged.
+
+- [x] Reproduce partial-list observer failure; compiled deterministic regression and 909 post-fix native attempts pass.
+- [x] Reproduce and fix matching-metadata pre-save conflict before mutation; native Mac/Windows regressions pass.
+- [x] Complete native editor/recovery/Undo/interactive code/terminal/Git/LFS/notebook and disposable installer gates with exact revision limits.
+- [x] Preserve failed predecessors, correctPS 5/liveness/crash-test/benchmark boundaries and record exact skips.
+- [x] Complete matched n=3 process-tree resources and n=20 balanced startup on bothOS. Mac warm median cost remains documented.
+- [x] Review intended source/tests for credentials and scope; no runtime dependencies or unrequested features added.
+- [ ] Explain historical 12.67 second GCC/READY→CLEAN delay; remains tracked, not automatically an indefinite release ban.
+- [ ] Physical low-memory hardware, four-hour sessions and authenticated signing/notarization.
+- [ ] Run a complete future final-tag publication gate and obtain explicit release authorization. Two earlier combined workflows remain FAIL; later scoped jobs do not relabel them.
+
+[Exact gate matrix and conditional recommendation](diagnostics/windows-gcc/RELEASE_VERIFICATION.md) · [Measurements](diagnostics/windows-gcc/FINAL_PERFORMANCE.md).
+
 ## Current release procedure
 
 For a source-only update, run the native CI gates from the intended branch. Confirm the exact commit in the macOS, Windows desktop, Windows installer, and Windows performance jobs. Keep installer and updater publication separate. The Git and saved test workflows require `npm run test:source-control` and `npm run test:project-suites` on both platforms. Review [the capability and skip audit](TEST_COVERAGE_AUDIT.md) and [the parity matrix](docs/windows/FEATURE_PARITY.md) before updating release claims.

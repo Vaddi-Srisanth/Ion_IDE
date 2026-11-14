@@ -1,5 +1,9 @@
 # Test coverage audit
 
+## Final revision-qualified verification — 14 November 2026
+
+Final local non-GUI Mac:276 total,250 pass,26 skip,0 fail. Hosted Mac complete workbench at `62b4140`:274 unit cases,249 pass/25 skip; actual Jupyter and packagedDMG checks pass. Complete nativeWindows at `bc90d00`:268 total,253 pass/15 skip/0 fail; three cold C cohorts and independent Git/LFS/shutdown supplement also pass. [Every skipped case and remaining gap](diagnostics/windows-gcc/TEST_VERIFICATION_MATRIX.md) · [Actual failed and passing workflow matrix](diagnostics/windows-gcc/RELEASE_VERIFICATION.md). No skipped or unavailable test is promoted to passing, and no installed-profile or physical 8 GiB claim is made.
+
 The final stabilization suite records 195 unit cases, 183 passes, 12 skips and zero failures on macOS. Native Windows separately passed all ten scoped filesystem/conflict cases, 55 of 57 selected portable/Windows cases with two documented skips, four signing/evidence checks, five ConPTY cases and its production desktop suites. The Git suite has twenty cases, including deterministic racy-index and Windows source-path regressions. All skipped platform/tool requirements below remain explicit. The macOS fullscreen desktop test is deliberately skipped under background automation. The genuine Git LFS fixture was executed with a verified local 3.8.1 tool, and the native Windows workflow requires its installed Git LFS fixture. Missing tools fail that fixture with `UNAVAILABLE` rather than passing a substitute. [Stabilization evidence](ENGINEERING_AUDIT.md#stabilization-follow-up-from-9adcdea)
 
 ## Twelve skipped tests

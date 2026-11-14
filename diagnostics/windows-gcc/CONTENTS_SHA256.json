@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "baseCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
   "scope": "reviewed diagnostics, optional dormant production tracing, and hosted release verification",
-  "nativeWindowsStatus": "909/909 post-observer-fix native attempts passed at2fdd3da; expanded production gates found follow-up corrections awaiting exact-candidate verification",
+  "nativeWindowsStatus": "Observer 909/909 pass; production-matched Mac/Windows gates, scoped verification and n=20 startup completed with original combined failures preserved. Conditional preview recommendation; historical GCC delay unresolved.",
   "releaseStatus": "held",
   "excludes": "this manifest itself",
   "files": [
@@ -32,6 +32,26 @@
       "sha256": "10cc2e84671967ef6f722395ffe16cb9b2d93d5a8288b59394fd8b20106d4c14"
     },
     {
+      "path": "ENGINEERING_AUDIT.md",
+      "bytes": 50541,
+      "sha256": "8a41273ec8c395590e6059a79f0478a668723c3d311e16e4c40744e02b639b56"
+    },
+    {
+      "path": "PERFORMANCE.md",
+      "bytes": 160441,
+      "sha256": "d500fa8753b34633e5a6c3272a627254e876e7034634b08f4baa3746b299ec1e"
+    },
+    {
+      "path": "RELEASE_CHECKLIST.md",
+      "bytes": 9690,
+      "sha256": "7e5086987ae26d7ae6a09b40212ba6852c8a36d1acbcc7da20365dbfb7f98586"
+    },
+    {
+      "path": "TEST_COVERAGE_AUDIT.md",
+      "bytes": 14310,
+      "sha256": "c10ae7d5645b4967fd00fff9cb7244258d4e94f36711a1b0b345d7dec575b59d"
+    },
+    {
       "path": "diagnostics/windows-gcc/.gitattributes",
       "bytes": 92,
       "sha256": "4f8d00a23f9bf5359db5196feda933d4fc15d8b33249c840d09c0eab3630df72"
@@ -47,9 +67,14 @@
       "sha256": "cf4bf00434672b972cd522692a60acf030434a1b8dddc0cf458e7dd35bd0288a"
     },
     {
+      "path": "diagnostics/windows-gcc/FINAL_PERFORMANCE.md",
+      "bytes": 10979,
+      "sha256": "9589ef71104359d5c59df9539aae4d9f4f2ff661eb0a4e9708aad3d7d0bcff30"
+    },
+    {
       "path": "diagnostics/windows-gcc/HOSTED_RESULTS.md",
-      "bytes": 12154,
-      "sha256": "21a462d008edd8fad3182982fff9195facf2ae2ae7cfda6ad921724406ad7d0f"
+      "bytes": 12972,
+      "sha256": "c76bd890607d7979f14c3b3f9d4c3f3bc064ddfb15aafc9ab8ae71ac309f2de0"
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
@@ -67,9 +92,19 @@
       "sha256": "dbc513472f3ce0e984a6ce32fa7684b20ea83aeda3e385fc02c32f8a5cdd4536"
     },
     {
+      "path": "diagnostics/windows-gcc/RELEASE_VERIFICATION.md",
+      "bytes": 18907,
+      "sha256": "476c4619fea281d36f8be60bf8e982da5f42b53f790451232b25c4e61bcb8c6f"
+    },
+    {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
       "bytes": 1602,
       "sha256": "5f1c0e1538184493701fb44115fffd0ad794e9ac94a24a1e295534fb6c3d652c"
+    },
+    {
+      "path": "diagnostics/windows-gcc/TEST_VERIFICATION_MATRIX.md",
+      "bytes": 6547,
+      "sha256": "4bce75166f64506145bfb36c86cb93bdb3b0944d3d764e3e3b5c67d00cf5a42b"
     },
     {
       "path": "diagnostics/windows-gcc/WINDOWS_DIAGNOSTIC_GUIDE.md",
@@ -92,9 +127,29 @@
       "sha256": "8c9441961d6a0448664d47e35a449dde2d3595b1cc34da9679cdf2380f5a91fa"
     },
     {
+      "path": "diagnostics/windows-gcc/sanitized-results/artifact-registry.json",
+      "bytes": 7078,
+      "sha256": "a9db45bf200da7d73451862c387bfeb0f2608dd380fc1cd171381e63eaa5251d"
+    },
+    {
+      "path": "diagnostics/windows-gcc/sanitized-results/final-measurements.json",
+      "bytes": 60696,
+      "sha256": "ce2e3ca3943a412a729f057a4762963996024447f4b7058a9feb73b0aca2e498"
+    },
+    {
       "path": "diagnostics/windows-gcc/sanitized-results/historical-evidence.json",
       "bytes": 4149,
       "sha256": "44a3b689d9725c88a6a5acec03ed8a148d65d5fe00a36723bc8cb115867d5d09"
+    },
+    {
+      "path": "diagnostics/windows-gcc/sanitized-results/observer-failures.json",
+      "bytes": 4574,
+      "sha256": "230655e214e5d6d9b8541e1018e00edb0c09ec5f62285d9fd27315aac8974153"
+    },
+    {
+      "path": "diagnostics/windows-gcc/sanitized-results/representative-compiler-timeline.json",
+      "bytes": 3190,
+      "sha256": "a30db779203ede95cbd5d2f5e9bee4006289faa2e0cc487f2f7a38af134ad434"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/build-pty.mjs",
@@ -195,6 +250,11 @@
       "path": "diagnostics/windows-gcc/src/main/windows-process.ts",
       "bytes": 8510,
       "sha256": "4af1b8651f878bffcb78bc0d7f1c74d1ebddb5250547439e4687ee8d6662f197"
+    },
+    {
+      "path": "docs/windows/KNOWN_ISSUES.md",
+      "bytes": 3061,
+      "sha256": "0aadedf21f3e9805c5e8d8c0c7069eb319bbaccf550c52505c5701eadacad107"
     },
     {
       "path": "scripts/benchmark-development-workflows.mjs",

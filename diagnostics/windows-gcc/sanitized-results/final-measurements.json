@@ -1,0 +1,2190 @@
+{
+  "runs": [
+    {
+      "id": 43606392000,
+      "commit": "2fdd3da64c45e1fb603e8c1cec2b595e0b4f4cbf",
+      "attempt": 1,
+      "status": "completed",
+      "result": "failure",
+      "url": "https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43606392000"
+    },
+    {
+      "id": 43608465391,
+      "commit": "62b41407443c10a0f1d63649b8340e07734a7d0c",
+      "attempt": 1,
+      "status": "completed",
+      "result": "failure",
+      "url": "https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43608465391"
+    },
+    {
+      "id": 43609270122,
+      "commit": "bc90d002e9e686d4ef4d51d434b47869d5f546ec",
+      "attempt": 1,
+      "status": "completed",
+      "result": "success",
+      "url": "https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43609270122"
+    },
+    {
+      "id": 43609912778,
+      "commit": "0020e92f386025e5679b920dcdef8b7b40d6818a",
+      "attempt": 1,
+      "status": "completed",
+      "result": "success",
+      "url": "https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43609912778"
+    },
+    {
+      "id": 43610901658,
+      "commit": "d0d61a51354f69fd18ec042ee8bc64f333aa3b58",
+      "attempt": 1,
+      "status": "completed",
+      "result": "success",
+      "url": "https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43610901658"
+    }
+  ],
+  "sourceTree": "374fea171ef92bf6a7a7e0045e0bd5816f631c17",
+  "baselineCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+  "productionCommit": "62b41407443c10a0f1d63649b8340e07734a7d0c",
+  "protocol": "Settled process-tree snapshots, three trials per ordinary workload; twenty balanced fresh/warm startup pairs per platform; OS caches retained. No outlier exclusions.",
+  "platforms": {
+    "macOS": {
+      "host": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "release": "24.6.0",
+        "ramBytes": 7516192768
+      },
+      "builds": {
+        "candidate": "20541e080b94762f6b6215ebe32d890a9fc7e99a741d4faaa274f66b7ce9f265",
+        "baseline": "93a8b5523236a9f4bd88833347d9cf26feec1236fadabcba3f6f2103c12921b6"
+      },
+      "ordinary": {
+        "freshMs": {
+          "baseline": {
+            "n": 3,
+            "median": 783.0037080000038,
+            "min": 773.0980829999899,
+            "max": 3036.2136659999996
+          },
+          "candidate": {
+            "n": 3,
+            "median": 948.1492500000022,
+            "min": 791.7510830000101,
+            "max": 1040.8029169999936
+          },
+          "delta": 165.1455419999984,
+          "percent": 21.091284793762124,
+          "pairedDelta": {
+            "n": 3,
+            "median": 18.653000000020256,
+            "min": -2088.0644159999974,
+            "max": 257.7992089999898
+          }
+        },
+        "warmMs": {
+          "baseline": {
+            "n": 3,
+            "median": 630.7571250000001,
+            "min": 392.9437500000058,
+            "max": 705.3193749999919
+          },
+          "candidate": {
+            "n": 3,
+            "median": 627.0946660000045,
+            "min": 620.1451249999955,
+            "max": 744.1990410000144
+          },
+          "delta": -3.662458999995579,
+          "percent": -0.5806448876809086,
+          "pairedDelta": {
+            "n": 3,
+            "median": -10.612000000004628,
+            "min": -78.22470899998734,
+            "max": 351.2552910000086
+          }
+        },
+        "openSourceMs": {
+          "baseline": {
+            "n": 3,
+            "median": 512.6252499999973,
+            "min": 454.1441249999916,
+            "max": 951.677416999999
+          },
+          "candidate": {
+            "n": 3,
+            "median": 413.64241700000275,
+            "min": 398.9878750000207,
+            "max": 437.3614169999928
+          },
+          "delta": -98.98283299999457,
+          "percent": -19.30900457985538,
+          "pairedDelta": {
+            "n": 3,
+            "median": -75.26383300000452,
+            "min": -538.0349999999962,
+            "max": -55.156249999970896
+          }
+        },
+        "input.typingMs": {
+          "baseline": {
+            "n": 3,
+            "median": 46.59999999997672,
+            "min": 29.599999999976717,
+            "max": 62.59999999997672
+          },
+          "candidate": {
+            "n": 3,
+            "median": 24.599999999976717,
+            "min": 24.300000000046566,
+            "max": 33.20000000001164
+          },
+          "delta": -22.0,
+          "percent": -47.21030042920814,
+          "pairedDelta": {
+            "n": 3,
+            "median": -13.399999999965075,
+            "min": -38.0,
+            "max": -5.299999999930151
+          }
+        },
+        "input.scrollMs": {
+          "baseline": {
+            "n": 3,
+            "median": 33.754375000004075,
+            "min": 31.722457999974722,
+            "max": 50.00354199999856
+          },
+          "candidate": {
+            "n": 3,
+            "median": 40.237541000009514,
+            "min": 35.69183300001896,
+            "max": 54.80608300000313
+          },
+          "delta": 6.48316600000544,
+          "percent": 19.20689095859324,
+          "pairedDelta": {
+            "n": 3,
+            "median": 4.802541000004567,
+            "min": 3.969375000044238,
+            "max": 6.48316600000544
+          }
+        },
+        "welcome.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0.9726392456215609,
+            "min": 0.540666961210278,
+            "max": 1.9031515838409563
+          },
+          "candidate": {
+            "n": 3,
+            "median": 1.0268255905090584,
+            "min": 0.9883582617306301,
+            "max": 1.5795499093706147
+          },
+          "delta": 0.05418634488749752,
+          "percent": 5.5710629744196645,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.015719016109069228,
+            "min": -0.8763259933318979,
+            "max": 1.0388829481603366
+          }
+        },
+        "oneFile.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 1.3774273133574078,
+            "min": 1.0484912948678553,
+            "max": 2.7175014682353686
+          },
+          "candidate": {
+            "n": 3,
+            "median": 1.8532839787801298,
+            "min": 1.1496839770865686,
+            "max": 2.5835889028960097
+          },
+          "delta": 0.4758566654227221,
+          "percent": 34.54677142003567,
+          "pairedDelta": {
+            "n": 3,
+            "median": -0.2277433362708392,
+            "min": -0.8642174894552388,
+            "max": 1.5350976080281544
+          }
+        },
+        "tenTabs.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 1.070338951635316,
+            "min": 0.917929259810345,
+            "max": 2.7567595525545787
+          },
+          "candidate": {
+            "n": 3,
+            "median": 1.2873018914284986,
+            "min": 1.0864498853581277,
+            "max": 1.9211180898234903
+          },
+          "delta": 0.2169629397931827,
+          "percent": 20.27048903169376,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.2169629397931827,
+            "min": -1.670309667196451,
+            "max": 1.0031888300131453
+          }
+        },
+        "repoClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0.4861315667636021,
+            "min": 0.2646347665307563,
+            "max": 0.5042542364081777
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0.382390492775119,
+            "min": 0.23160461105471414,
+            "max": 1.2071496937057271
+          },
+          "delta": -0.10374107398848309,
+          "percent": -21.340122938144994,
+          "pairedDelta": {
+            "n": 3,
+            "median": -0.033030155476042156,
+            "min": -0.12186374363305869,
+            "max": 0.721018126942125
+          }
+        },
+        "gitClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 4.164205889252296,
+            "min": 3.8279055026868023,
+            "max": 7.024167436976285
+          },
+          "candidate": {
+            "n": 3,
+            "median": 4.723101717863111,
+            "min": 4.025715978231943,
+            "max": 6.976133439009841
+          },
+          "delta": 0.5588958286108152,
+          "percent": 13.42142640096904,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.19781047554514108,
+            "min": -0.04803399796644392,
+            "max": 0.5588958286108152
+          }
+        },
+        "suiteClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 2.9979853404104952,
+            "min": 0.10280366588911612,
+            "max": 3.9735775049173596
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0.3413682292940513,
+            "min": 0.18388653026590548,
+            "max": 0.36483583790426316
+          },
+          "delta": -2.656617111116444,
+          "percent": -88.61341232418067,
+          "pairedDelta": {
+            "n": 3,
+            "median": -2.8140988101445896,
+            "min": -3.6087416670130965,
+            "max": 0.2385645634049352
+          }
+        },
+        "welcome.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 377.640625,
+            "min": 370.078125,
+            "max": 383.09375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 372.59375,
+            "min": 370.09375,
+            "max": 373.390625
+          },
+          "delta": -5.046875,
+          "percent": -1.336422690223013,
+          "pairedDelta": {
+            "n": 3,
+            "median": -7.546875,
+            "min": -9.703125,
+            "max": 2.515625
+          }
+        },
+        "welcome.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 127.9488525390625,
+            "min": 124.93310546875,
+            "max": 129.04254150390625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 125.19891357421875,
+            "min": 122.47979736328125,
+            "max": 128.77655029296875
+          },
+          "delta": -2.74993896484375,
+          "percent": -2.1492486335539427,
+          "pairedDelta": {
+            "n": 3,
+            "median": -2.45330810546875,
+            "min": -3.8436279296875,
+            "max": 0.82769775390625
+          }
+        },
+        "oneFile.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 469.171875,
+            "min": 463.625,
+            "max": 473.9375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 461.765625,
+            "min": 461.609375,
+            "max": 468.65625
+          },
+          "delta": -7.40625,
+          "percent": -1.5785792786492157,
+          "pairedDelta": {
+            "n": 3,
+            "median": -7.5625,
+            "min": -12.171875,
+            "max": 5.03125
+          }
+        },
+        "oneFile.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 194.10565185546875,
+            "min": 187.05877685546875,
+            "max": 195.7933349609375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 189.44927978515625,
+            "min": 184.37152099609375,
+            "max": 189.964599609375
+          },
+          "delta": -4.6563720703125,
+          "percent": -2.3988853625857525,
+          "pairedDelta": {
+            "n": 3,
+            "median": -4.6563720703125,
+            "min": -5.8287353515625,
+            "max": -2.687255859375
+          }
+        },
+        "tenTabs.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 477.9375,
+            "min": 469.765625,
+            "max": 482.484375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 475.640625,
+            "min": 475.09375,
+            "max": 477.28125
+          },
+          "delta": -2.296875,
+          "percent": -0.48058061985092193,
+          "pairedDelta": {
+            "n": 3,
+            "median": -2.84375,
+            "min": -6.84375,
+            "max": 7.515625
+          }
+        },
+        "tenTabs.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 196.35565185546875,
+            "min": 195.13690185546875,
+            "max": 204.4808349609375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 198.636474609375,
+            "min": 195.62152099609375,
+            "max": 198.79302978515625
+          },
+          "delta": 2.28082275390625,
+          "percent": 1.1615773380361327,
+          "pairedDelta": {
+            "n": 3,
+            "median": -0.734130859375,
+            "min": -5.8443603515625,
+            "max": 3.6561279296875
+          }
+        },
+        "repoClosed.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 494.140625,
+            "min": 488.703125,
+            "max": 501.5625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 494.671875,
+            "min": 494.5625,
+            "max": 500.75
+          },
+          "delta": 0.53125,
+          "percent": 0.1075098814229249,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.53125,
+            "min": -7.0,
+            "max": 12.046875
+          }
+        },
+        "repoClosed.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 215.23065185546875,
+            "min": 210.57440185546875,
+            "max": 219.4495849609375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 213.71490478515625,
+            "min": 213.04339599609375,
+            "max": 214.60528564453125
+          },
+          "delta": -1.5157470703125,
+          "percent": -0.7042431258027093,
+          "pairedDelta": {
+            "n": 3,
+            "median": -2.187255859375,
+            "min": -4.84429931640625,
+            "max": 3.1405029296875
+          }
+        },
+        "gitOpen.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 524.8125,
+            "min": 507.84375,
+            "max": 529.296875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 516.40625,
+            "min": 514.015625,
+            "max": 519.609375
+          },
+          "delta": -8.40625,
+          "percent": -1.6017625342384185,
+          "pairedDelta": {
+            "n": 3,
+            "median": -9.6875,
+            "min": -10.796875,
+            "max": 8.5625
+          }
+        },
+        "gitOpen.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 233.48077392578125,
+            "min": 226.3402099609375,
+            "max": 238.57452392578125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 223.05841064453125,
+            "min": 222.66802978515625,
+            "max": 231.52783203125
+          },
+          "delta": -10.42236328125,
+          "percent": -4.463906430498237,
+          "pairedDelta": {
+            "n": 3,
+            "median": -7.04669189453125,
+            "min": -10.812744140625,
+            "max": -3.28179931640625
+          }
+        },
+        "largeDiff.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 553.203125,
+            "min": 539.84375,
+            "max": 555.75
+          },
+          "candidate": {
+            "n": 3,
+            "median": 546.875,
+            "min": 542.375,
+            "max": 548.90625
+          },
+          "delta": -6.328125,
+          "percent": -1.1439062279339076,
+          "pairedDelta": {
+            "n": 3,
+            "median": -6.328125,
+            "min": -13.375,
+            "max": 9.0625
+          }
+        },
+        "largeDiff.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 271.02789306640625,
+            "min": 267.778076171875,
+            "max": 271.52789306640625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 266.0120849609375,
+            "min": 258.043701171875,
+            "max": 269.52740478515625
+          },
+          "delta": -5.01580810546875,
+          "percent": -1.85066121745624,
+          "pairedDelta": {
+            "n": 3,
+            "median": -5.51580810546875,
+            "min": -12.98419189453125,
+            "max": 1.74932861328125
+          }
+        },
+        "gitClosed.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 548.96875,
+            "min": 541.234375,
+            "max": 551.296875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 547.421875,
+            "min": 542.75,
+            "max": 549.5
+          },
+          "delta": -1.546875,
+          "percent": -0.2817783343769568,
+          "pairedDelta": {
+            "n": 3,
+            "median": -3.875,
+            "min": -6.21875,
+            "max": 8.265625
+          }
+        },
+        "gitClosed.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 262.76226806640625,
+            "min": 261.71539306640625,
+            "max": 269.87188720703125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 267.731201171875,
+            "min": 257.6683349609375,
+            "max": 270.04302978515625
+          },
+          "delta": 4.96893310546875,
+          "percent": 1.8910375306293912,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.171142578125,
+            "min": -5.09393310546875,
+            "max": 6.01580810546875
+          }
+        },
+        "gitRepeatedClosed.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 561.65625,
+            "min": 557.375,
+            "max": 570.1875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 553.421875,
+            "min": 552.671875,
+            "max": 564.328125
+          },
+          "delta": -8.234375,
+          "percent": -1.4660880209202694,
+          "pairedDelta": {
+            "n": 3,
+            "median": -5.859375,
+            "min": -8.234375,
+            "max": -4.703125
+          }
+        },
+        "gitRepeatedClosed.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 272.48101806640625,
+            "min": 269.48101806640625,
+            "max": 294.0750732421875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 268.90277099609375,
+            "min": 268.856201171875,
+            "max": 279.65252685546875
+          },
+          "delta": -3.5782470703125,
+          "percent": -1.3132096671190676,
+          "pairedDelta": {
+            "n": 3,
+            "median": -3.62481689453125,
+            "min": -14.42254638671875,
+            "max": -0.5782470703125
+          }
+        },
+        "suiteActive.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 560.46875,
+            "min": 558.671875,
+            "max": 564.625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 558.765625,
+            "min": 557.484375,
+            "max": 569.59375
+          },
+          "delta": -1.703125,
+          "percent": -0.30387510454418737,
+          "pairedDelta": {
+            "n": 3,
+            "median": -2.984375,
+            "min": -5.859375,
+            "max": 10.921875
+          }
+        },
+        "suiteActive.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 275.606689453125,
+            "min": 274.325439453125,
+            "max": 303.38824462890625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 272.73162841796875,
+            "min": 272.55999755859375,
+            "max": 283.2469482421875
+          },
+          "delta": -2.87506103515625,
+          "percent": -1.0431753455843598,
+          "pairedDelta": {
+            "n": 3,
+            "median": -3.04669189453125,
+            "min": -20.14129638671875,
+            "max": -1.59381103515625
+          }
+        },
+        "suiteClosed.rssMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 533.265625,
+            "min": 522.328125,
+            "max": 559.078125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 523.609375,
+            "min": 523.328125,
+            "max": 526.453125
+          },
+          "delta": -9.65625,
+          "percent": -1.810776758768203,
+          "pairedDelta": {
+            "n": 3,
+            "median": -9.65625,
+            "min": -32.625,
+            "max": 1.0
+          }
+        },
+        "suiteClosed.footprintMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 232.57476806640625,
+            "min": 231.8248291015625,
+            "max": 298.3875732421875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 222.29345703125,
+            "min": 219.99627685546875,
+            "max": 224.98126220703125
+          },
+          "delta": -10.28131103515625,
+          "percent": -4.42064765693786,
+          "pairedDelta": {
+            "n": 3,
+            "median": -10.28131103515625,
+            "min": -78.39129638671875,
+            "max": -6.84356689453125
+          }
+        }
+      },
+      "tabSwitchMs": {
+        "baseline": {
+          "n": 3,
+          "median": 72.78527100000065,
+          "min": 58.294895500002895,
+          "max": 81.06716649999726
+        },
+        "candidate": {
+          "n": 3,
+          "median": 75.31870850000996,
+          "min": 66.07843750000029,
+          "max": 114.21645849999913
+        },
+        "delta": 2.5334375000093132,
+        "percent": 3.480700786302342,
+        "pairedDelta": {
+          "n": 3,
+          "median": 17.023813000007067,
+          "min": -14.988728999996965,
+          "max": 41.43118749999849
+        }
+      },
+      "roles": {
+        "baseline": {
+          "main": {
+            "rssMiB": {
+              "n": 3,
+              "median": 164.34375,
+              "min": 164.328125,
+              "max": 164.90625
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 53.83221435546875,
+              "min": 53.31658935546875,
+              "max": 54.2071533203125
+            }
+          },
+          "gpu-process": {
+            "rssMiB": {
+              "n": 3,
+              "median": 79.515625,
+              "min": 72.875,
+              "max": 83.75
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 43.25238037109375,
+              "min": 39.33038330078125,
+              "max": 46.25225830078125
+            }
+          },
+          "utility": {
+            "rssMiB": {
+              "n": 3,
+              "median": 36.578125,
+              "min": 36.15625,
+              "max": 36.578125
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 7.080078125,
+              "min": 6.673828125,
+              "max": 7.080078125
+            }
+          },
+          "renderer": {
+            "rssMiB": {
+              "n": 3,
+              "median": 189.125,
+              "min": 188.75,
+              "max": 189.828125
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 87.45672607421875,
+              "min": 86.847412109375,
+              "max": 91.628662109375
+            }
+          }
+        },
+        "candidate": {
+          "main": {
+            "rssMiB": {
+              "n": 3,
+              "median": 164.65625,
+              "min": 164.328125,
+              "max": 165.609375
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 54.48834228515625,
+              "min": 53.613525390625,
+              "max": 54.98822021484375
+            }
+          },
+          "gpu-process": {
+            "rssMiB": {
+              "n": 3,
+              "median": 72.234375,
+              "min": 71.828125,
+              "max": 77.515625
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 40.5648193359375,
+              "min": 36.62725830078125,
+              "max": 40.92413330078125
+            }
+          },
+          "utility": {
+            "rssMiB": {
+              "n": 3,
+              "median": 36.640625,
+              "min": 36.546875,
+              "max": 36.65625
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 7.1268310546875,
+              "min": 7.048828125,
+              "max": 7.14251708984375
+            }
+          },
+          "renderer": {
+            "rssMiB": {
+              "n": 3,
+              "median": 188.65625,
+              "min": 188.484375,
+              "max": 188.875
+            },
+            "footprintMiB": {
+              "n": 3,
+              "median": 87.0819091796875,
+              "min": 86.894287109375,
+              "max": 87.28472900390625
+            }
+          }
+        }
+      },
+      "startup20": {
+        "freshMs": {
+          "baseline": {
+            "n": 20,
+            "median": 931.1259585000043,
+            "min": 615.3871250000084,
+            "max": 3444.877875
+          },
+          "candidate": {
+            "n": 20,
+            "median": 892.4994159999969,
+            "min": 730.7336250000008,
+            "max": 1351.823458999992
+          },
+          "delta": -38.62654250000742,
+          "percent": -4.148369202619244,
+          "pairedDelta": {
+            "n": 20,
+            "median": -42.189854000000196,
+            "min": -2539.3843340000003,
+            "max": 736.4363339999836
+          }
+        },
+        "warmMs": {
+          "baseline": {
+            "n": 20,
+            "median": 890.8893125000031,
+            "min": 664.7280829999945,
+            "max": 1316.7924579999963
+          },
+          "candidate": {
+            "n": 20,
+            "median": 945.2882295000018,
+            "min": 699.2862079999977,
+            "max": 1279.6126249999943
+          },
+          "delta": 54.39891699999862,
+          "percent": 6.106136445541704,
+          "pairedDelta": {
+            "n": 20,
+            "median": 30.700791499995375,
+            "min": -497.59766699999454,
+            "max": 322.67137500000536
+          }
+        },
+        "host": {
+          "platform": "darwin",
+          "arch": "arm64",
+          "release": "24.6.0",
+          "ramBytes": 7516192768
+        },
+        "allNormalExitsVerified": true
+      }
+    },
+    "Windows": {
+      "host": {
+        "platform": "win32",
+        "arch": "x64",
+        "release": "10.0.26100",
+        "ramBytes": 17174360064
+      },
+      "builds": {
+        "candidate": "20541e080b94762f6b6215ebe32d890a9fc7e99a741d4faaa274f66b7ce9f265",
+        "baseline": "93a8b5523236a9f4bd88833347d9cf26feec1236fadabcba3f6f2103c12921b6"
+      },
+      "ordinary": {
+        "freshMs": {
+          "baseline": {
+            "n": 3,
+            "median": 479.11170000000857,
+            "min": 456.4380000000001,
+            "max": 519.4116000000067
+          },
+          "candidate": {
+            "n": 3,
+            "median": 487.2874999999767,
+            "min": 454.940300000002,
+            "max": 516.4690999999875
+          },
+          "delta": 8.175799999968149,
+          "percent": 1.7064496650714234,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.4976999999980762,
+            "min": -2.9425000000192085,
+            "max": 8.175799999968149
+          }
+        },
+        "warmMs": {
+          "baseline": {
+            "n": 3,
+            "median": 407.835699999996,
+            "min": 402.70320000000356,
+            "max": 439.1136000000006
+          },
+          "candidate": {
+            "n": 3,
+            "median": 393.5893000000069,
+            "min": 386.27860000001965,
+            "max": 396.1396000000241
+          },
+          "delta": -14.24639999998908,
+          "percent": -3.493171392300679,
+          "pairedDelta": {
+            "n": 3,
+            "median": -21.557099999976344,
+            "min": -45.52429999999367,
+            "max": -6.563599999979488
+          }
+        },
+        "openSourceMs": {
+          "baseline": {
+            "n": 3,
+            "median": 378.11780000000726,
+            "min": 375.95900000000256,
+            "max": 429.8250000000007
+          },
+          "candidate": {
+            "n": 3,
+            "median": 384.4948000000004,
+            "min": 380.68880000000354,
+            "max": 410.04670000000624
+          },
+          "delta": 6.3769999999931315,
+          "percent": 1.686511452249275,
+          "pairedDelta": {
+            "n": 3,
+            "median": 4.729800000000978,
+            "min": -45.33020000000033,
+            "max": 31.928899999998976
+          }
+        },
+        "input.typingMs": {
+          "baseline": {
+            "n": 3,
+            "median": 19.199999999953434,
+            "min": 19.099999999976717,
+            "max": 30.600000000093132
+          },
+          "candidate": {
+            "n": 3,
+            "median": 19.099999999976717,
+            "min": 18.5,
+            "max": 19.400000000023283
+          },
+          "delta": -0.09999999997671694,
+          "percent": -0.5208333332133306,
+          "pairedDelta": {
+            "n": 3,
+            "median": -0.6999999999534339,
+            "min": -11.500000000116415,
+            "max": 0.30000000004656613
+          }
+        },
+        "input.scrollMs": {
+          "baseline": {
+            "n": 3,
+            "median": 35.58389999999781,
+            "min": 35.19580000000133,
+            "max": 35.765299999999115
+          },
+          "candidate": {
+            "n": 3,
+            "median": 35.064400000002934,
+            "min": 34.22500000000582,
+            "max": 36.23959999997169
+          },
+          "delta": -0.5194999999948777,
+          "percent": -1.4599299121088742,
+          "pairedDelta": {
+            "n": 3,
+            "median": -0.7008999999961816,
+            "min": -0.9707999999955064,
+            "max": 0.6556999999738764
+          }
+        },
+        "welcome.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "delta": 0,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "oneFile.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0.846899075646929,
+            "min": 0,
+            "max": 0.8473184026521525
+          },
+          "delta": 0.846899075646929,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.846899075646929,
+            "min": 0,
+            "max": 0.8473184026521525
+          }
+        },
+        "tenTabs.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 2.5314268885166875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 1.683976145198069,
+            "min": 1.67962449938456,
+            "max": 1.6865072779670212
+          },
+          "delta": 1.683976145198069,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 1.67962449938456,
+            "min": -0.8474507433186185,
+            "max": 1.6865072779670212
+          }
+        },
+        "repoClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "delta": 0,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "gitClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "delta": 0,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "suiteClosed.cpuPercent": {
+          "baseline": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "candidate": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "delta": 0,
+          "percent": null,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "welcome.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 302.44921875,
+            "min": 299.46875,
+            "max": 305.9140625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 301.015625,
+            "min": 300.3359375,
+            "max": 302.04296875
+          },
+          "delta": -1.43359375,
+          "percent": -0.47399485967427385,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.43359375,
+            "min": -5.578125,
+            "max": 2.57421875
+          }
+        },
+        "welcome.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 139.39453125,
+            "min": 137.09765625,
+            "max": 142.19140625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 137.69140625,
+            "min": 135.8359375,
+            "max": 138.74609375
+          },
+          "delta": -1.703125,
+          "percent": -1.2218018775395825,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.703125,
+            "min": -6.35546875,
+            "max": 1.6484375
+          }
+        },
+        "oneFile.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 363.2109375,
+            "min": 360.73828125,
+            "max": 366.62109375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 361.453125,
+            "min": 361.453125,
+            "max": 363.03125
+          },
+          "delta": -1.7578125,
+          "percent": -0.48396463831709363,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.7578125,
+            "min": -5.16796875,
+            "max": 2.29296875
+          }
+        },
+        "oneFile.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 187.453125,
+            "min": 185.90625,
+            "max": 190.71484375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 186.265625,
+            "min": 185.01171875,
+            "max": 187.76171875
+          },
+          "delta": -1.1875,
+          "percent": -0.6334917062598983,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.1875,
+            "min": -5.703125,
+            "max": 1.85546875
+          }
+        },
+        "tenTabs.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 381.8203125,
+            "min": 378.7734375,
+            "max": 385.1796875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 380.14453125,
+            "min": 379.97265625,
+            "max": 381.8046875
+          },
+          "delta": -1.67578125,
+          "percent": -0.43889264010803514,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.84765625,
+            "min": -5.03515625,
+            "max": 3.03125
+          }
+        },
+        "tenTabs.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 204.3671875,
+            "min": 202.4140625,
+            "max": 207.921875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 202.89453125,
+            "min": 202.17578125,
+            "max": 205.2890625
+          },
+          "delta": -1.47265625,
+          "percent": -0.7205932948507205,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.47265625,
+            "min": -5.74609375,
+            "max": 2.875
+          }
+        },
+        "repoClosed.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 391.15625,
+            "min": 389.62109375,
+            "max": 394.8671875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 391.37890625,
+            "min": 389.3046875,
+            "max": 397.2265625
+          },
+          "delta": 0.22265625,
+          "percent": 0.05692258528401374,
+          "pairedDelta": {
+            "n": 3,
+            "median": 1.7578125,
+            "min": -5.5625,
+            "max": 6.0703125
+          }
+        },
+        "repoClosed.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 211.484375,
+            "min": 210.7890625,
+            "max": 214.66796875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 212.3203125,
+            "min": 208.6015625,
+            "max": 218.62109375
+          },
+          "delta": 0.8359375,
+          "percent": 0.3952715182859254,
+          "pairedDelta": {
+            "n": 3,
+            "median": 1.53125,
+            "min": -6.06640625,
+            "max": 7.13671875
+          }
+        },
+        "gitOpen.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 418.17578125,
+            "min": 413.05078125,
+            "max": 422.16796875
+          },
+          "candidate": {
+            "n": 3,
+            "median": 413.98828125,
+            "min": 413.37890625,
+            "max": 421.3515625
+          },
+          "delta": -4.1875,
+          "percent": -1.001373151616489,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.9375,
+            "min": -8.7890625,
+            "max": 3.17578125
+          }
+        },
+        "gitOpen.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 232.3125,
+            "min": 228.0390625,
+            "max": 236.53515625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 228.48046875,
+            "min": 226.46484375,
+            "max": 234.7265625
+          },
+          "delta": -3.83203125,
+          "percent": -1.6495157384987893,
+          "pairedDelta": {
+            "n": 3,
+            "median": 0.44140625,
+            "min": -10.0703125,
+            "max": 2.4140625
+          }
+        },
+        "largeDiff.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 451.2734375,
+            "min": 438.64453125,
+            "max": 453.59375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 444.328125,
+            "min": 442.65234375,
+            "max": 449.49609375
+          },
+          "delta": -6.9453125,
+          "percent": -1.5390474871457507,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.77734375,
+            "min": -10.94140625,
+            "max": 5.68359375
+          }
+        },
+        "largeDiff.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 265.05078125,
+            "min": 251.453125,
+            "max": 265.34375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 256.7265625,
+            "min": 254.73046875,
+            "max": 261.5
+          },
+          "delta": -8.32421875,
+          "percent": -3.140612795307503,
+          "pairedDelta": {
+            "n": 3,
+            "median": -3.55078125,
+            "min": -10.61328125,
+            "max": 5.2734375
+          }
+        },
+        "gitClosed.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 451.4921875,
+            "min": 438.94921875,
+            "max": 453.80859375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 444.51953125,
+            "min": 442.796875,
+            "max": 449.78515625
+          },
+          "delta": -6.97265625,
+          "percent": -1.5443581180460626,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.70703125,
+            "min": -11.01171875,
+            "max": 5.5703125
+          }
+        },
+        "gitClosed.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 265.66015625,
+            "min": 253.015625,
+            "max": 266.1328125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 257.5625,
+            "min": 255.4140625,
+            "max": 262.2734375
+          },
+          "delta": -8.09765625,
+          "percent": -3.048125983325736,
+          "pairedDelta": {
+            "n": 3,
+            "median": -3.38671875,
+            "min": -10.71875,
+            "max": 4.546875
+          }
+        },
+        "gitRepeatedClosed.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 448.875,
+            "min": 441.05078125,
+            "max": 453.86328125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 445.97265625,
+            "min": 443.51171875,
+            "max": 450.87890625
+          },
+          "delta": -2.90234375,
+          "percent": -0.6465817321080479,
+          "pairedDelta": {
+            "n": 3,
+            "median": 2.00390625,
+            "min": -10.3515625,
+            "max": 4.921875
+          }
+        },
+        "gitRepeatedClosed.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 264.3203125,
+            "min": 258.5625,
+            "max": 269.21484375
+          },
+          "candidate": {
+            "n": 3,
+            "median": 262.50390625,
+            "min": 257.88671875,
+            "max": 265.671875
+          },
+          "delta": -1.81640625,
+          "percent": -0.6871988886590016,
+          "pairedDelta": {
+            "n": 3,
+            "median": 1.3515625,
+            "min": -11.328125,
+            "max": 3.94140625
+          }
+        },
+        "suiteActive.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 438.921875,
+            "min": 432.734375,
+            "max": 440.625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 433.98046875,
+            "min": 433.7890625,
+            "max": 437.421875
+          },
+          "delta": -4.94140625,
+          "percent": -1.125805418105443,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.5,
+            "min": -6.64453125,
+            "max": 1.0546875
+          }
+        },
+        "suiteActive.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 237.171875,
+            "min": 232.63671875,
+            "max": 239.34765625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 233.14453125,
+            "min": 232.40625,
+            "max": 235.37109375
+          },
+          "delta": -4.02734375,
+          "percent": -1.6980697015613677,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.80078125,
+            "min": -6.94140625,
+            "max": 0.5078125
+          }
+        },
+        "suiteClosed.workingSetMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 424.265625,
+            "min": 417.62109375,
+            "max": 425.203125
+          },
+          "candidate": {
+            "n": 3,
+            "median": 419.6328125,
+            "min": 418.80859375,
+            "max": 422.40625
+          },
+          "delta": -4.6328125,
+          "percent": -1.0919603727028322,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.859375,
+            "min": -5.5703125,
+            "max": 1.1875
+          }
+        },
+        "suiteClosed.privateMiB": {
+          "baseline": {
+            "n": 3,
+            "median": 237.21875,
+            "min": 233.07421875,
+            "max": 239.03515625
+          },
+          "candidate": {
+            "n": 3,
+            "median": 233.02734375,
+            "min": 232.7265625,
+            "max": 235.2734375
+          },
+          "delta": -4.19140625,
+          "percent": -1.7668950072454221,
+          "pairedDelta": {
+            "n": 3,
+            "median": -1.9453125,
+            "min": -6.30859375,
+            "max": -0.046875
+          }
+        }
+      },
+      "tabSwitchMs": {
+        "baseline": {
+          "n": 3,
+          "median": 61.06449999999313,
+          "min": 60.77279999999155,
+          "max": 61.21150000000125
+        },
+        "candidate": {
+          "n": 3,
+          "median": 62.67504999999073,
+          "min": 61.48049999999057,
+          "max": 63.7216000000044
+        },
+        "delta": 1.6105499999976018,
+        "percent": 2.6374571150140964,
+        "pairedDelta": {
+          "n": 3,
+          "median": 1.6105499999976018,
+          "min": 0.7076999999990221,
+          "max": 2.510100000003149
+        }
+      },
+      "roles": {
+        "baseline": {
+          "main": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 109.4375,
+              "min": 109.38671875,
+              "max": 112.51171875
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 76.62109375,
+              "min": 76.265625,
+              "max": 79.484375
+            }
+          },
+          "utility": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 44.5625,
+              "min": 44.5,
+              "max": 44.5625
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 10.80859375,
+              "min": 10.7890625,
+              "max": 10.828125
+            }
+          },
+          "gpu-process": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 66.04296875,
+              "min": 66.01171875,
+              "max": 66.0703125
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 17.71484375,
+              "min": 17.703125,
+              "max": 17.72265625
+            }
+          },
+          "renderer": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 143.21875,
+              "min": 140.73046875,
+              "max": 143.53515625
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 82.63671875,
+              "min": 80.78125,
+              "max": 82.71875
+            }
+          }
+        },
+        "candidate": {
+          "main": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 109.48828125,
+              "min": 109.15234375,
+              "max": 111.91796875
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 76.75390625,
+              "min": 76.16796875,
+              "max": 78.88671875
+            }
+          },
+          "gpu-process": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 66.28515625,
+              "min": 66.265625,
+              "max": 66.7109375
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 17.734375,
+              "min": 17.70703125,
+              "max": 17.7578125
+            }
+          },
+          "utility": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 44.5234375,
+              "min": 44.50390625,
+              "max": 44.60546875
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 10.7890625,
+              "min": 10.7890625,
+              "max": 10.84765625
+            }
+          },
+          "renderer": {
+            "workingSetMiB": {
+              "n": 3,
+              "median": 141.06640625,
+              "min": 140.2421875,
+              "max": 141.17578125
+            },
+            "privateMiB": {
+              "n": 3,
+              "median": 80.3203125,
+              "min": 80.3203125,
+              "max": 80.96484375
+            }
+          }
+        }
+      },
+      "startup20": {
+        "freshMs": {
+          "baseline": {
+            "n": 20,
+            "median": 602.0814999999993,
+            "min": 400.6422999999995,
+            "max": 1588.2746999999945
+          },
+          "candidate": {
+            "n": 20,
+            "median": 550.131599999997,
+            "min": 416.4354999999996,
+            "max": 643.624600000001
+          },
+          "delta": -51.949900000002344,
+          "percent": -8.628383366704076,
+          "pairedDelta": {
+            "n": 20,
+            "median": -52.03824999999938,
+            "min": -1036.1183999999994,
+            "max": 146.73949999999604
+          }
+        },
+        "warmMs": {
+          "baseline": {
+            "n": 20,
+            "median": 404.6141000000025,
+            "min": 391.2558999999965,
+            "max": 458.6955999999991
+          },
+          "candidate": {
+            "n": 20,
+            "median": 411.7177499999998,
+            "min": 394.4357000000018,
+            "max": 466.27599999999893
+          },
+          "delta": 7.1036499999972875,
+          "percent": 1.7556605170203519,
+          "pairedDelta": {
+            "n": 20,
+            "median": 5.092749999999796,
+            "min": -45.32809999999881,
+            "max": 29.001500000005763
+          }
+        },
+        "host": {
+          "platform": "win32",
+          "arch": "x64",
+          "release": "10.0.26100",
+          "ramBytes": 17174360064
+        },
+        "allNormalExitsVerified": true
+      }
+    }
+  },
+  "windowsStandalone": {
+    "baseline": {
+      "summary": {
+        "freshMs": 567.9960999999967,
+        "warmMs": 404.4158000000002,
+        "firstSourceMs": 370.1210000000001,
+        "runMs": 316.2283000000025,
+        "welcome": {
+          "workingSetMiB": 300.9921875,
+          "privateMiB": 137.640625,
+          "cpuPercent": 0
+        },
+        "oneFile": {
+          "workingSetMiB": 359.671875,
+          "privateMiB": 186.34765625,
+          "cpuPercent": 0.4454718379261415
+        },
+        "tenTabs": {
+          "workingSetMiB": 368.33984375,
+          "privateMiB": 191.171875,
+          "cpuPercent": 0
+        },
+        "medium": {
+          "workingSetMiB": 384.41015625,
+          "privateMiB": 209.546875,
+          "cpuPercent": 0
+        },
+        "pdf": {
+          "workingSetMiB": 437.91796875,
+          "privateMiB": 241.09765625,
+          "cpuPercent": 0
+        },
+        "running": {
+          "workingSetMiB": 477.83203125,
+          "privateMiB": 254.5390625,
+          "cpuPercent": 1.338436877617934
+        },
+        "terminal": {
+          "workingSetMiB": 415.953125,
+          "privateMiB": 218.95703125,
+          "cpuPercent": 5.419340942820228
+        },
+        "terminalClosed": {
+          "workingSetMiB": 395.828125,
+          "privateMiB": 213.4921875,
+          "cpuPercent": 0
+        }
+      },
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26100",
+        "arch": "x64",
+        "memoryBytes": 17174360064
+      },
+      "source": {
+        "commit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
+        "runId": {
+          "redacted": true,
+          "sha256": "640edc56d09d8913b68cb920b288262b27469cb3b5985185d2f988c8950bb384"
+        },
+        "runAttempt": {
+          "redacted": true,
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        }
+      }
+    },
+    "candidate": {
+      "summary": {
+        "freshMs": 651.0872999999992,
+        "warmMs": 394.2769000000044,
+        "firstSourceMs": 377.47179999999935,
+        "runMs": 303.11960000000545,
+        "welcome": {
+          "workingSetMiB": 301.24609375,
+          "privateMiB": 137.265625,
+          "cpuPercent": 0
+        },
+        "oneFile": {
+          "workingSetMiB": 359.8203125,
+          "privateMiB": 185.20703125,
+          "cpuPercent": 0.4501264307916784
+        },
+        "tenTabs": {
+          "workingSetMiB": 370.16796875,
+          "privateMiB": 192.98046875,
+          "cpuPercent": 0
+        },
+        "medium": {
+          "workingSetMiB": 385.203125,
+          "privateMiB": 209.82421875,
+          "cpuPercent": 0
+        },
+        "pdf": {
+          "workingSetMiB": 436.0703125,
+          "privateMiB": 239.71875,
+          "cpuPercent": 0
+        },
+        "running": {
+          "workingSetMiB": 476.4921875,
+          "privateMiB": 255.4140625,
+          "cpuPercent": 0
+        },
+        "terminal": {
+          "workingSetMiB": 412.61328125,
+          "privateMiB": 217.90234375,
+          "cpuPercent": 5.891629746753752
+        },
+        "terminalClosed": {
+          "workingSetMiB": 393.38671875,
+          "privateMiB": 210.88671875,
+          "cpuPercent": 0
+        }
+      },
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26100",
+        "arch": "x64",
+        "memoryBytes": 17174360064
+      },
+      "source": {
+        "commit": "bc90d002e9e686d4ef4d51d434b47869d5f546ec",
+        "runId": {
+          "redacted": true,
+          "sha256": "640edc56d09d8913b68cb920b288262b27469cb3b5985185d2f988c8950bb384"
+        },
+        "runAttempt": {
+          "redacted": true,
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        }
+      }
+    }
+  },
+  "macTerminal": {
+    "baseline": {
+      "medians": {
+        "startupMs": 917.4169169999986,
+        "firstPromptMs": 227.1435000000056,
+        "editor": {
+          "rssMiB": 456.65625,
+          "footprintMiB": 176.93365478515625,
+          "cpuPercent": 2.2637579895253057
+        },
+        "open": {
+          "rssMiB": 472.25,
+          "footprintMiB": 184.89620971679688,
+          "cpuPercent": 3.0086516217664534
+        },
+        "two": {
+          "rssMiB": 473.96875,
+          "footprintMiB": 172.89004516601562,
+          "cpuPercent": 1.4465318237766107
+        },
+        "hidden": {
+          "rssMiB": 475.25,
+          "footprintMiB": 175.06207275390625,
+          "cpuPercent": 0.16021732314952777
+        },
+        "closed": {
+          "rssMiB": 470.6640625,
+          "footprintMiB": 172.62899780273438,
+          "cpuPercent": 0.15292424689552056
+        },
+        "afterCycles": {
+          "rssMiB": 477.3046875,
+          "footprintMiB": 180.38681030273438,
+          "cpuPercent": 0.1389392835314031
+        }
+      },
+      "trials": 3,
+      "artifact": {
+        "field_a0af9f865bf637e6736817f4ce552e4cdf7b8c36ea75bc254c1d1f0af744b5bf": {
+          "redacted": true,
+          "sha256": "f0cbfc5b24d43c18df6385066b14fdad04b757c3e9257f1bdec027b498c76108"
+        },
+        "mainSha256": "93a8b5523236a9f4bd88833347d9cf26feec1236fadabcba3f6f2103c12921b6",
+        "rendererHtmlSha256": "f6058380087a48f8bfb10f8b6681310a9b3d8ef805bdda2ba85ce2784894d43b"
+      },
+      "allTrialsComplete": true
+    },
+    "candidate": {
+      "medians": {
+        "startupMs": 631.4401670000007,
+        "firstPromptMs": 136.2687919999953,
+        "editor": {
+          "rssMiB": 458.4375,
+          "footprintMiB": 177.73046875,
+          "cpuPercent": 1.3625407740377895
+        },
+        "open": {
+          "rssMiB": 472.78125,
+          "footprintMiB": 185.74761962890625,
+          "cpuPercent": 1.421581133298379
+        },
+        "two": {
+          "rssMiB": 474.484375,
+          "footprintMiB": 171.18673706054688,
+          "cpuPercent": 1.0650770709079433
+        },
+        "hidden": {
+          "rssMiB": 475.4375,
+          "footprintMiB": 174.960205078125,
+          "cpuPercent": 0.11739045166140435
+        },
+        "closed": {
+          "rssMiB": 470.859375,
+          "footprintMiB": 172.20703125,
+          "cpuPercent": 0.1344543121547488
+        },
+        "afterCycles": {
+          "rssMiB": 477.2734375,
+          "footprintMiB": 178.87890625,
+          "cpuPercent": 0.20869047949703803
+        }
+      },
+      "trials": 3,
+      "artifact": {
+        "field_a0af9f865bf637e6736817f4ce552e4cdf7b8c36ea75bc254c1d1f0af744b5bf": {
+          "redacted": true,
+          "sha256": "bcae0416621b3db43d8cba1e4454a792c7af9e4b7287e51056efc5a215d95839"
+        },
+        "mainSha256": "20541e080b94762f6b6215ebe32d890a9fc7e99a741d4faaa274f66b7ce9f265",
+        "rendererHtmlSha256": "f6058380087a48f8bfb10f8b6681310a9b3d8ef805bdda2ba85ce2784894d43b"
+      },
+      "allTrialsComplete": true
+    }
+  },
+  "cleanupColdWindows": [
+    {
+      "artifactId": "14118868460",
+      "runs": 17,
+      "observations": 64,
+      "statuses": {
+        "gone": 63,
+        "pid-reused": 1
+      }
+    },
+    {
+      "artifactId": "14119089647",
+      "runs": 17,
+      "observations": 65,
+      "statuses": {
+        "gone": 65
+      }
+    },
+    {
+      "artifactId": "14119646858",
+      "runs": 17,
+      "observations": 65,
+      "statuses": {
+        "gone": 65
+      }
+    }
+  ],
+  "gccObserver": {
+    "runId": 43606392000,
+    "candidate": "2fdd3da64c45e1fb603e8c1cec2b595e0b4f4cbf",
+    "attempted": 909,
+    "successful": 909,
+    "timeouts": 0,
+    "observerFailures": 0,
+    "samplesWithPartialSnapshot": 0,
+    "hosts": [
+      {
+        "artifactId": "14117594589",
+        "declaredFirstLane": "B",
+        "attempted": 303,
+        "cleanupVerified": true,
+        "statsWarm": {
+          "A": {
+            "count": 100,
+            "medianMs": 68.29580000000001,
+            "p95Ms": 74.8931,
+            "p99Ms": 100.27720000000001,
+            "maxMs": 100.8176
+          },
+          "B": {
+            "count": 100,
+            "medianMs": 67.10494999999719,
+            "p95Ms": 73.01889999999548,
+            "p99Ms": 77.1001000000033,
+            "maxMs": 99.84980000001087
+          },
+          "C": {
+            "count": 100,
+            "medianMs": 77.82505,
+            "p95Ms": 86.3484,
+            "p99Ms": 95.44789999999999,
+            "maxMs": 104.588
+          }
+        }
+      },
+      {
+        "artifactId": "14118204318",
+        "declaredFirstLane": "C",
+        "attempted": 303,
+        "cleanupVerified": true,
+        "statsWarm": {
+          "A": {
+            "count": 100,
+            "medianMs": 69.6229,
+            "p95Ms": 76.67500000000001,
+            "p99Ms": 80.7547,
+            "maxMs": 119.1128
+          },
+          "B": {
+            "count": 100,
+            "medianMs": 69.90479999999661,
+            "p95Ms": 78.39389999999548,
+            "p99Ms": 81.16279999999097,
+            "maxMs": 83.841499999995
+          },
+          "C": {
+            "count": 100,
+            "medianMs": 80.34960000000001,
+            "p95Ms": 88.61539999999998,
+            "p99Ms": 97.65769999999999,
+            "maxMs": 112.49090000000001
+          }
+        }
+      },
+      {
+        "artifactId": "14118755709",
+        "declaredFirstLane": "A",
+        "attempted": 303,
+        "cleanupVerified": true,
+        "statsWarm": {
+          "A": {
+            "count": 100,
+            "medianMs": 94.0309,
+            "p95Ms": 103.6113,
+            "p99Ms": 107.3237,
+            "maxMs": 107.449
+          },
+          "B": {
+            "count": 100,
+            "medianMs": 93.07775000000038,
+            "p95Ms": 105.19959999999264,
+            "p99Ms": 108.20140000000538,
+            "maxMs": 113.18510000000242
+          },
+          "C": {
+            "count": 100,
+            "medianMs": 111.56965,
+            "p95Ms": 127.0915,
+            "p99Ms": 137.69570000000002,
+            "maxMs": 142.9498
+          }
+        }
+      }
+    ],
+    "maxCompilerMs": 2861.0980999999997,
+    "historicalDelayFixed": false
+  },
+  "limitations": [
+    "No installed macOS app or live profile was measured or modified.",
+    "Hosted macOS VM has 7 GiB RAM; Windows VMs about16 GiB. No physical 8 GiB laptop test.",
+    "No OS-cache purge, physical typing/display measurement, VRAM utilization, continuous peak tracing or four-hour soak.",
+    "Reported CPU is short-window fraction of a logical core, not whole-system usage. Zero Windows samples are quantized, not proof of zero activity.",
+    "Historical 12.67-second GCC delay remains unexplained.",
+    "Normal benchmark app exits are verified; independent full-tree cleanup uses native lifecycle and shutdown fixtures.",
+    "No source-level RAM optimization is established by small differences with overlapping ranges."
+  ]
+}
