@@ -4,8 +4,22 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { arch, platform } from 'node:os'
 import { join } from 'node:path'
 import { artifact, close, eventually, launch, withScratch } from './desktop-harness.mjs'
+import { dismissPreferences, disposeUpdateShutdown, observeUpdateShutdown } from './update-preferences-support.mjs'
 
 const target = await artifact('dist')
+let lastSession
+let receiptWritten = false
+async function saveFailure(value) {
+  await mkdir('performance-results', { recursive: true })
+  await writeFile('performance-results/update-preferences-failure.json', JSON.stringify(value, null, 2) + '\n')
+  receiptWritten = true
+}
+async function start(target, profile) {
+  const session = await launch(target, profile)
+  lastSession = session
+  session.disposeShutdownObserver = observeUpdateShutdown(session, saveFailure)
+  return session
+}
 const prefs = (path) => join(path, 'preferences.json')
 async function openUpdates(page) {
   await page.getByTestId('settings').first().click()
@@ -16,18 +30,25 @@ async function openUpdates(page) {
 }
 
 async function closeUpdates(session) {
-  const dialog = session.page.getByRole('dialog', { name: 'Preferences' })
-  if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Done', exact: true }).click()
-  await close(session)
+  try {
+    try { await dismissPreferences(session.page) }
+    catch (error) {
+      await close(session).catch(cleanup => { error.cleanupError = String(cleanup.message).slice(0, 1000) })
+      throw error
+    }
+    await close(session)
+  }
+  finally { disposeUpdateShutdown(session) }
 }
 
+try {
 await withScratch('update-preferences', async (scratch) => {
   const healthy = join(scratch, 'healthy')
   const unsupported = join(scratch, 'unsupported')
   await Promise.all([mkdir(healthy), mkdir(unsupported)])
   const existing = '{"version":999,"settings":{"checkUpdatesOnLaunch":false}}\n'
   await writeFile(prefs(unsupported), existing)
-  const good = await launch(target, healthy)
+  const good = await start(target, healthy)
   try {
     await good.page.context().setOffline(true)
     const { checkbox } = await openUpdates(good.page)
@@ -43,7 +64,7 @@ await withScratch('update-preferences', async (scratch) => {
   } finally {
     await closeUpdates(good)
   }
-  const broken = await launch(target, unsupported)
+  const broken = await start(target, unsupported)
   try {
     await broken.page.context().setOffline(true)
     const { checkbox, dialog } = await openUpdates(broken.page)
@@ -98,7 +119,7 @@ await withScratch('title-update', async (scratch) => {
   const optedIn = join(scratch, 'automatic')
   await mkdir(optedIn)
   await writeFile(prefs(optedIn), '{"version":1,"settings":{"checkUpdatesOnLaunch":true},"recents":[]}\n')
-  const automatic = await launch(appTarget, optedIn)
+  const automatic = await start(appTarget, optedIn)
   try {
     const badge = automatic.page.getByRole('button', { name: 'Update available', exact: true })
     await badge.waitFor()
@@ -107,10 +128,10 @@ await withScratch('title-update', async (scratch) => {
     assert.deepEqual(await readdir(downloads), [])
     console.log('PASS the opted-in launch shows a quiet update button without downloading')
   } finally {
-    await close(automatic)
+    try { await close(automatic) } finally { disposeUpdateShutdown(automatic) }
   }
 
-  const manual = await launch(appTarget, join(scratch, 'manual'))
+  const manual = await start(appTarget, join(scratch, 'manual'))
   try {
     const { app, page } = manual
     const badge = page.getByTestId('title-update')
@@ -153,3 +174,13 @@ await withScratch('title-update', async (scratch) => {
     await closeUpdates(manual)
   }
 })
+} catch (error) {
+  // This path survives withScratch's deletion of disposable profiles. A richer
+  // close receipt is written before forced cleanup by the opt-in observer.
+  if (!receiptWritten) await saveFailure({
+    error: { name: error.name, message: String(error.message).slice(0, 2000) },
+    wrapper: { pid: lastSession?.appProcess?.pid, exitCode: lastSession?.appProcess?.exitCode, signalCode: lastSession?.appProcess?.signalCode },
+    electron: { pid: lastSession?.pid }, receipt: error.desktopShutdown ?? null,
+  }).catch(reason => console.error('Update preference failure receipt unavailable:', String(reason.message).slice(0, 1000)))
+  throw error
+}

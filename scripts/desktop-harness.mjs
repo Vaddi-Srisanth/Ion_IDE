@@ -138,6 +138,7 @@ export async function close(session) {
     if (output.length > 12) output.shift()
   }
   session.app.on('console', observeConsole)
+  let setupDiagnosticError
   await session.app.evaluate(({ app, BrowserWindow }) => {
     const events = []
     const record = (name, prevented) => {
@@ -164,11 +165,12 @@ export async function close(session) {
       }
       delete globalThis.ionShutdownDiagnostics
     } }
-  }).catch(() => {})
+  }).catch(reason => { setupDiagnosticError = String(reason.message).slice(0, 1000) })
   // Keep the inspector attached while the renderer confirms the window close.
   // Wait for the actual app process, including the asynchronous runner drain.
   let quitError
-  void session.app.evaluate(({ app }) => app.quit()).catch((error) => { quitError = error })
+  let quitState = 'pending'
+  void session.app.evaluate(({ app }) => app.quit()).then(() => { quitState = 'resolved' }, error => { quitError = error; quitState = 'rejected' })
   let timer
   try {
     await Promise.race([
@@ -181,24 +183,28 @@ export async function close(session) {
     const lifecycle = await Promise.race([
       session.app.evaluate(({ BrowserWindow }) => ({
         events: globalThis.ionShutdownDiagnostics?.events,
-        windows: BrowserWindow.getAllWindows().map(window => ({
+        windows: BrowserWindow.getAllWindows().slice(0, 16).map(window => ({
           destroyed: window.isDestroyed(), loading: window.webContents.isLoadingMainFrame(),
           crashed: window.webContents.isCrashed(),
         })),
-        handles: process._getActiveHandles().map(handle => handle.constructor.name),
-        requests: process._getActiveRequests().map(request => request.constructor.name),
-      })).catch(() => undefined),
-      sleep(300, undefined, { ref: false }),
+        handles: process._getActiveHandles().slice(0, 64).map(handle => handle.constructor.name),
+        requests: process._getActiveRequests().slice(0, 64).map(request => request.constructor.name),
+      })).then(value => ({ state: 'available', value }), reason => ({ state: 'error', error: String(reason.message).slice(0, 1000) })),
+      sleep(300, { state: 'timeout' }, { ref: false }),
     ])
     if (lifecycle) console.error('Desktop shutdown lifecycle:', lifecycle)
     const dialogs = session.page && await Promise.race([
       session.page.locator('dialog[open]').evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')))
-        .catch(() => undefined),
-      sleep(300, undefined, { ref: false }),
+        .then(value => ({ state: 'available', value }), reason => ({ state: 'error', error: String(reason.message).slice(0, 1000) })),
+      sleep(300, { state: 'timeout' }, { ref: false }),
     ])
-    if (dialogs?.length) console.error('Open dialogs at shutdown:', dialogs)
+    if (dialogs) console.error('Dialog diagnostic at shutdown:', dialogs)
     if (quitError) console.error('Failed to request desktop shutdown:', quitError.message)
     if (output.length) console.error('Recent desktop console messages:', output)
+    error.desktopShutdown = { error: error.message, lifecycle, dialogs, console: output, setupDiagnosticError,
+      quitRequest: { state: quitState, message: quitError && String(quitError.message).slice(0, 1000) } }
+    if (session.onShutdownFailure) await session.onShutdownFailure(error.desktopShutdown).catch(reason =>
+      console.error('Shutdown failure receipt unavailable:', reason?.message ?? reason))
     if (proc.exitCode === null && proc.signalCode === null) {
       if (process.platform === 'win32') {
         // A failed disposable test may leave a close-confirmation open. Killing
