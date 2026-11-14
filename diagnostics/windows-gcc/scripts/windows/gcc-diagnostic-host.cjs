@@ -17,8 +17,6 @@ async function main() {
   if (lane === 'C') {
     assert.ok(process.versions.electron, 'C requires actual Electron, not ELECTRON_RUN_AS_NODE.')
     electron = require('electron')
-    // A windowless diagnostic stays alive until the explicit quit command.
-    electron.app.on('window-all-closed', () => {})
     electron.app.setPath('userData', path.join(root, 'profile'))
     electron.app.setPath('sessionData', path.join(root, 'profile', 'session'))
     electron.app.setPath('logs', path.join(root, 'profile', 'logs'))
@@ -26,7 +24,7 @@ async function main() {
   } else assert.ok(!process.versions.electron, 'B requires standalone Node.')
   const tools = require(path.join(__dirname, 'gcc-production-adapter.cjs'))
   tools.configureWindowsProcessHelper(helper)
-  const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })
+  let input
   let controller, running = false, closing = false
   const send = value => process.stdout.write(JSON.stringify(value) + '\n')
   const tail = value => {
@@ -40,6 +38,19 @@ async function main() {
     if (electron) electron.app.quit()
     else { process.stdin.destroy(); process.exitCode = 0 }
   }
+  // Windows GUI Electron can expose stdin as already ended. A reviewed
+  // manifest argument makes C independent of that transport, without a server.
+  const oneShotManifest = argument('manifest')
+  if (lane === 'C' && oneShotManifest) {
+    controller = new AbortController()
+    send({ kind: 'host-ready', lane, pid: process.pid, node: process.versions.node, electron: process.versions.electron, guiWindows: 0 })
+    const sendAndDrain = value => new Promise((resolve, reject) => process.stdout.write(JSON.stringify(value) + '\n', error => error ? reject(error) : resolve()))
+    try { await sendAndDrain(await attempt(oneShotManifest, controller.signal)) }
+    catch (error) { process.exitCode = 1; await sendAndDrain({ kind: 'host-error', lane, error: safeHostError(error), message: String(error.message).slice(0, 512) }) }
+    finally { controller.abort(); electron.app.quit() }
+    return
+  }
+  input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })
   input.on('line', line => {
     if (line.length > 1024) { controller?.abort(); return }
     let command

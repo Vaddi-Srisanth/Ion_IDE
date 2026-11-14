@@ -134,6 +134,8 @@ export function sanitizeReport(report) {
       cleanupVerified: row.cleanupVerified === true, outputComplete: row.outputComplete === true,
       adapterResultUnavailable: row.adapterResultUnavailable === true, observerWallMs: finite(row.observerWallMs),
       success: row.state === 'exited' && row.exitCode === 0 && row.cleanupVerified === true && row.outputComplete === true && row.overflow !== true,
+      controllerPid: Number.isInteger(row.controllerPid) ? row.controllerPid : null,
+      hostExit: row.hostExit ? { normal: row.hostExit.normal === true, exited: row.hostExit.exited === true, code: Number.isInteger(row.hostExit.code) ? row.hostExit.code : null, pid: Number.isInteger(row.hostExit.pid) ? row.hostExit.pid : null } : null,
       overflow: row.overflow === true, payloadPid: Number.isInteger(row.payloadPid) ? row.payloadPid : null,
       metrics }
   })
@@ -299,7 +301,7 @@ export async function nativeRun(options) {
     identity: { compilerPath: compiler, compilerSha256: await hashFile(compiler), helperSha256: await hashFile(helper),
       adapterSha256: await hashFile(join(here, 'gcc-production-adapter.cjs')), sourceSha256: sha(sourceText), environmentSha256,
       pwshSha256: await hashFile(pwsh), electronSha256: await hashFile(electron), node: process.versions.node },
-    exposure: 'Executable hashes and runtime initialization precede the first compile. No cache purge; first exposures are not OS-cold. PowerShell host starts per attempt, B/C hosts persist.',
+    exposure: 'Executable hashes and runtime initialization precede the first compile. No cache purge; first exposures are not OS-cold. PowerShell and Electron hosts start per attempt; B persists. Electron startup is included only in outer-observer time, not the primary compiler interval.',
     ownership: 'A pre-owned PowerShell self-Job; B/C existing production atomic Job helper. Native behavior unverified until these scripts run.' }
   assert.equal(report.identity.adapterSha256, settings.adapterSha256, 'Prepared adapter differs from manifest.')
   const journal = await open(join(root, 'attempts.jsonl'), 'wx', 0o600)
@@ -317,7 +319,7 @@ export async function nativeRun(options) {
   const hosts = new Map()
   let direct, allClosed = true
   try {
-    for (const lane of ['B', 'C']) {
+    for (const lane of ['B']) {
       const hostEnvironment = { ...environment }
       const host = new JsonHost(lane === 'B' ? process.execPath : electron,
         [...(lane === 'C' ? ['--user-data-dir=' + join(root, 'profile')] : []), join(here, 'gcc-diagnostic-host.cjs'),
@@ -366,10 +368,21 @@ export async function nativeRun(options) {
             { cwd: root, env: { ...environment }, oneShot: true })
           row = await receive(direct)
           assert.ok(row, 'No final direct-shell result.')
-          const closed = await direct.close(); direct = undefined
+          const closed = await direct.close(); row.hostExit = { normal: closed.normal, exited: closed.exited, code: closed.code, pid: closed.pid }; direct = undefined
           invalidResult = row
           assert.ok(closed.normal && closed.exited && closed.code === (row.state === 'exited' && row.exitCode === 0 && row.outputComplete && row.cleanupVerified ? 0 : 1),
             'Direct-shell host exit is unverified.')
+        } else if (sample.lane === 'C') {
+          direct = new JsonHost(electron, ['--user-data-dir=' + join(root, 'profile'), join(here, 'gcc-diagnostic-host.cjs'),
+            '--ion-gcc-root=' + root, '--ion-gcc-helper=' + helper, '--ion-gcc-lane=C', '--ion-gcc-manifest=' + manifestPath],
+            { cwd: root, env: { ...environment }, oneShot: true })
+          const ready = await direct.next(20000, controller.signal)
+          assert.equal(ready.kind, 'host-ready'); assert.equal(ready.lane, 'C')
+          await append({ kind: 'host-ready', lane: 'C', ...ready })
+          row = await receive(direct)
+          invalidResult = row
+          const closed = await direct.close(); row.hostExit = { normal: closed.normal, exited: closed.exited, code: closed.code, pid: closed.pid }; direct = undefined
+          assert.ok(closed.normal && closed.exited && closed.code === 0, 'One-shot Electron result/host exit is unverified.')
         } else {
           hosts.get(sample.lane).send({ kind: 'run', manifest: manifestPath })
           row = await receive(hosts.get(sample.lane))
@@ -439,8 +452,8 @@ export async function nativeRun(options) {
     controller.abort()
     for (const host of hosts.values()) host.send({ kind: 'cancel' })
     if (direct) {
-      direct.kill(); report.directShellForced = true; allClosed = false
-      try { await direct.close() } catch (error) { report.directShellCloseError = String(error.message).slice(0, 512) }
+      direct.kill(); report.oneShotHostForced = true; allClosed = false
+      try { await direct.close() } catch (error) { report.oneShotHostCloseError = String(error.message).slice(0, 512) }
     }
     report.hostShutdown = []
     const lateEvidence = []

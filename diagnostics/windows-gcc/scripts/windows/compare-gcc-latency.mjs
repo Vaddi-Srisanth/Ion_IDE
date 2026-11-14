@@ -136,7 +136,7 @@ export function comparisonPlan({ sampleCount = 100, compileMs, firstLane = 'A' }
         pending: 'Verify a noninheritable kill-on-close self-Job and exact membership BEFORE GCC starts. Post-spawn assignment is forbidden.',
         ownership: 'powershell-self-job-before-start' },
       B: { scope: 'Production execute adapter under standalone Node with the installation-owned Ion helper', ownership: 'atomic-job-list' },
-      C: { scope: 'Production InteractiveRunner in a real disposable Electron main process; engine-only, not a UI paint test',
+      C: { scope: 'Production InteractiveRunner in a real disposable Electron main process; engine-only, not a UI paint test; fresh Electron host per attempt',
         pending: 'Use the existing desktop harness only on an explicitly approved native Windows GUI session; never launch on macOS.', ownership: 'atomic-job-list' },
     },
     constraints: ['No compiler download, PATH mutation, workspace executable, shell command string, retry, timeout increase, push, release or installed-app modification.',

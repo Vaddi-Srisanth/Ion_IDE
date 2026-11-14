@@ -33,7 +33,7 @@ Do not dispatch against `main`. No push, dispatch, merge or release has occurred
 - C: the bundled Ion `InteractiveRunner` inside a real, private Electron main process. It compiles and runs the fixed fixture. No window or user's installed app/profile is opened. This is engine execution, **not full editor UI/harness parity**.
 - Each host schedules one first exposure and 100 warm compilations per lane: **303 attempts per host, 909 total planned**. Optional 30-sample setting schedules 93 per host / 279 total. Incomplete attempts are counted, never replaced or retried.
 - One fixed C fixture, absolute compiler, arguments, working directory and cleared environment per host. Hashes document identity. No personal source or secrets are needed.
-- Tool identity probing and runtime initialization happen before trials. These are **first compile exposures, not independent OS-cold launches**. No cache purge or antivirus changes. PowerShell starts per A attempt; B/C hosts persist. Compare compiler intervals separately from host/controller overhead and C's additional program run.
+- Tool identity probing and runtime initialization happen before trials. These are **first compile exposures, not independent OS-cold launches**. No cache purge or antivirus changes. PowerShell starts per A attempt; B persists; C starts a fresh Electron host per attempt because Windows GUI stdin closed before requests in the native control experiment. C receives its fixed approved manifest through argv and exits after its result; no server or polling is introduced. Electron startup is included only in outer observer time, not the primary compiler interval. Compare compiler intervals separately from host/controller overhead and C's additional program run.
 
 ## Bounds and failures
 

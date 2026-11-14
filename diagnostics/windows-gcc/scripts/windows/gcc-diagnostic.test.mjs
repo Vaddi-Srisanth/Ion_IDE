@@ -156,3 +156,15 @@ test('persistent host premature exit cannot be counted as a normal requested shu
     assert.equal(result.normal, oneShot)
   }
 })
+
+test('one-shot result transport works when child stdin is already closed and final output is flushed', async t => {
+  const script = `process.stdin.destroy();process.stdout.write(JSON.stringify({kind:'host-ready'})+'\\n');
+    process.stdout.write(JSON.stringify({kind:'result',runId:'first-C',padding:'x'.repeat(50000)})+'\\n',()=>{});`
+  const host = new JsonHost(process.execPath, ['-e', script], { oneShot: true })
+  t.after(() => host.kill())
+  assert.equal((await host.next(3000)).kind, 'host-ready')
+  const result = await host.next(3000)
+  assert.equal(result.kind, 'result'); assert.equal(result.padding.length, 50000)
+  const closed = await host.close()
+  assert.equal(closed.normal, true); assert.equal(closed.code, 0)
+})
