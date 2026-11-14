@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, launch, openFolder, openFromExplorer, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { installCloseConfirmationProbe, observeUpdateShutdown } from './update-preferences-support.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
@@ -35,9 +36,20 @@ const samples = [
 await withScratch('language-capabilities', async (scratch) => {
   const project = await createProject(join(scratch, 'language examples'), { fileCount: 0 })
   await Promise.all(samples.map(([, , name, content]) => writeFile(join(project.directory, name), content + '\n')))
-  const session = await launch(target, join(scratch, 'profile'))
+  assert.equal(target.args.length, 1, 'The language diagnostic needs an unpackaged production entry.')
+  const entry = join(scratch, 'language-close-probe.cjs')
+  await writeFile(entry, `(${installCloseConfirmationProbe.toString()})(require('electron').ipcMain,globalThis,()=>performance.now());require(${JSON.stringify(target.args[0])});`)
+  const session = await launch({ ...target, args: [entry] }, join(scratch, 'profile'))
   const { app, page } = session
   const dialog = page.getByRole('dialog', { name: 'Language Support' })
+  let primaryError
+  const dispose = observeUpdateShutdown(session, async diagnostic => {
+    await mkdir('performance-results', { recursive: true })
+    await writeFile('performance-results/language-capabilities-failure.json', JSON.stringify({
+      ...diagnostic, commit: process.env.GITHUB_SHA ?? null,
+      primary: primaryError ? { name: primaryError.name, message: String(primaryError.message).slice(0, 2000) } : null,
+    }, null, 2) + '\n')
+  })
   try {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory })
@@ -78,11 +90,32 @@ await withScratch('language-capabilities', async (scratch) => {
     assert.match(await detail('Format Document').textContent(), /\.json$/)
     assert.doesNotMatch(await detail('Format Document').textContent(), /\.ipynb/)
     await dialog.getByRole('button', { name: 'Done' }).click()
+    await dialog.waitFor({ state: 'detached' })
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
     console.log(`PASS rendered syntax and capability labels for ${samples.length} languages offline`)
+  } catch (error) {
+    primaryError = error
+    await session.onShutdownFailure({ error: 'Language capability fixture failed before close.' })
+      .catch(reason => console.error('Language failure receipt unavailable:', String(reason.message).slice(0, 1000)))
+    throw error
   } finally {
-    if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Close dialog' }).click({ timeout: 1000 }).catch(() => {})
-    await close(session)
+    let cleanupError
+    try {
+      if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Close dialog' }).click({ timeout: 1000 })
+      await dialog.waitFor({ state: 'detached' })
+    } catch (error) {
+      cleanupError = error
+      await session.onShutdownFailure({ error: 'Language dialog dismissal failed.', message: String(error.message).slice(0, 2000) })
+        .catch(reason => console.error('Language dismissal receipt unavailable:', String(reason.message).slice(0, 1000)))
+    }
+    try { await close(session) } catch (error) { cleanupError ??= error }
+    finally { dispose() }
+    if (cleanupError) {
+      if (primaryError) {
+        primaryError.cleanupError = String(cleanupError.message).slice(0, 1000)
+        console.error('Language fixture cleanup also failed:', primaryError.cleanupError)
+      } else throw cleanupError
+    }
   }
 })

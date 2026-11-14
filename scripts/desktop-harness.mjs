@@ -189,6 +189,8 @@ export async function close(session) {
         })),
         handles: process._getActiveHandles().slice(0, 64).map(handle => handle.constructor.name),
         requests: process._getActiveRequests().slice(0, 64).map(request => request.constructor.name),
+        closeConfirmations: Array.isArray(globalThis.ionCloseConfirmations)
+          ? globalThis.ionCloseConfirmations.slice(-16) : undefined,
       })).then(value => ({ state: 'available', value }), reason => ({ state: 'error', error: String(reason.message).slice(0, 1000) })),
       sleep(300, { state: 'timeout' }, { ref: false }),
     ])

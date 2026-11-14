@@ -27,6 +27,7 @@ await withScratch('project-navigation', async (scratch) => {
   const clangd = async () => (await snapshot(session, { details: true })).members
     .filter(({ name }) => /^clangd(?:[.-].*)?$/i.test(name ?? ''))
   let completed = false
+  let primaryError
   try {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory })
@@ -38,6 +39,7 @@ await withScratch('project-navigation', async (scratch) => {
     await settings.getByRole('checkbox', { name: /^Smart C\/C\+\+/ }).check()
     await page.waitForFunction(async () => (await window.ion.getPreferences()).settings.smartLanguages.includes('c'))
     await settings.getByRole('button', { name: 'Done', exact: true }).click()
+    await settings.waitFor({ state: 'detached' })
     assert.deepEqual(await clangd(), [], 'Opening a source with Smart C/C++ enabled must not start clangd')
 
     const symbol = page.locator('.monaco-editor .view-lines').getByText('increment', { exact: true }).first()
@@ -88,6 +90,7 @@ await withScratch('project-navigation', async (scratch) => {
     completed = true
     console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
   } catch (error) {
+    primaryError = error
     const text = await readFile(project.program, 'utf8')
     const location = await page.evaluate(async ({ path, text }) => window.ion.languageTools.query({
       language: 'c', path, text, version: 999, operation: 'definition', offset: text.indexOf('increment(41)') + 3,
@@ -97,10 +100,21 @@ await withScratch('project-navigation', async (scratch) => {
       status: await page.locator('.java-tool-status, .notification, [role="status"]').allTextContents() })
     throw error
   } finally {
-    if (!completed) {
-      const dismiss = page.getByRole('dialog').first().getByRole('button', { name: 'Close dialog', exact: true })
-      if (await dismiss.isVisible()) await dismiss.click().catch(() => {})
+    let cleanupError
+    try {
+      if (!completed) {
+        const dialog = page.getByRole('dialog').first()
+        const dismiss = dialog.getByRole('button', { name: 'Close dialog', exact: true })
+        if (await dismiss.isVisible()) {
+          await dismiss.click()
+          await dialog.waitFor({ state: 'detached' })
+        }
+      }
+    } catch (error) { cleanupError = error }
+    try { await close(session) } catch (error) { cleanupError ??= error }
+    if (cleanupError) {
+      if (!primaryError) throw cleanupError
+      console.error('Project navigation cleanup also failed:', String(cleanupError.message).slice(0, 1000))
     }
-    await close(session)
   }
 })

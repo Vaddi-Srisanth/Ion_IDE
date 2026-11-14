@@ -2,6 +2,25 @@ import { execFile } from 'node:child_process'
 import { win32 } from 'node:path'
 import { promisify } from 'node:util'
 
+// Serialized only into the disposable language fixture's main entry. This
+// records renderer replies, never changes or fabricates a close decision.
+export function installCloseConfirmationProbe(ipcMain, host, now) {
+  const original = ipcMain.handle, records = []
+  host.ionCloseConfirmations = records
+  function handle(channel, handler) {
+    if (channel !== 'ion:confirm-window-close') return Reflect.apply(original, this, [channel, handler])
+    return Reflect.apply(original, this, [channel, function (...args) {
+      if (typeof args[1] === 'boolean') {
+        records.push({ allow: args[1], ms: now() })
+        if (records.length > 16) records.shift()
+      }
+      return Reflect.apply(handler, this, args)
+    }])
+  }
+  ipcMain.handle = handle
+  return () => { if (ipcMain.handle === handle) ipcMain.handle = original }
+}
+
 export async function dismissPreferences(page) {
   const dialog = page.getByRole('dialog', { name: 'Preferences' })
   if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Done', exact: true }).click()

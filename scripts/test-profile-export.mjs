@@ -71,6 +71,7 @@ await withScratch('profile-export', async (scratch) => {
     assert.equal(manifest.learning, true)
     assert.equal(manifest.learningPacks, 1)
     await dialog.getByRole('button', { name: 'Done' }).click()
+    await dialog.waitFor({ state: 'detached' })
     assert.deepEqual(source.requests, [])
     assert.deepEqual(source.errors, [])
   } finally {

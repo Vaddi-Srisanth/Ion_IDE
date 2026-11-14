@@ -255,6 +255,7 @@ jobs:
             performance-results/windows-notebook-environment.json
             performance-results/windows-notebook-environment.freeze.txt
             performance-results/update-preferences-failure.json
+            performance-results/language-capabilities-failure.json
           if-no-files-found: warn
           retention-days: 14
   windows-run-diagnostic:

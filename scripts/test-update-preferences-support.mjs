@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import vm from 'node:vm'
 import { test } from 'node:test'
-import { appendShutdownTail, dismissPreferences, disposeUpdateShutdown, observeUpdateShutdown, shutdownPids } from './update-preferences-support.mjs'
+import { appendShutdownTail, dismissPreferences, disposeUpdateShutdown, installCloseConfirmationProbe, observeUpdateShutdown, shutdownPids } from './update-preferences-support.mjs'
 
 test('Done click acknowledgement does not replace the detached-dialog boundary', async () => {
   const events = []
@@ -52,4 +53,24 @@ test('the opt-in observer removes its actual stderr listener and disposer proper
   assert.equal(session.onShutdownFailure, prior)
   disposeUpdateShutdown(session)
   assert.equal(stderr.listenerCount('data'), 0)
+})
+
+test('the serialized close probe preserves receivers, exact returns/errors and bounds without affecting other channels', () => {
+  const handlers = new Map(), ipcMain = { handle(channel, handler) {
+    assert.equal(this, ipcMain); handlers.set(channel, handler); return 'registered'
+  } }, host = {}, receiver = {}, failure = new Error('exact failure'), result = Promise.resolve('exact promise')
+  const context = { ipcMain, host, now: () => 123 }
+  const dispose = vm.runInNewContext(`(${installCloseConfirmationProbe.toString()})(ipcMain,host,now)`, context)
+  const handler = function (event, allow) { assert.equal(this, receiver); assert.equal(event, 'event');
+    if (!allow) throw failure; return result }
+  assert.equal(ipcMain.handle('ion:confirm-window-close', handler), 'registered')
+  const wrapped = handlers.get('ion:confirm-window-close')
+  assert.equal(wrapped.call(receiver, 'event', true), result)
+  assert.throws(() => wrapped.call(receiver, 'event', false), error => error === failure)
+  for (let index = 0; index < 30; index++) wrapped.call(receiver, 'event', true)
+  assert.equal(host.ionCloseConfirmations.length, 16)
+  assert.ok(host.ionCloseConfirmations.every(row => row.allow === true && row.ms === 123))
+  ipcMain.handle('unrelated', handler)
+  assert.equal(handlers.get('unrelated'), handler)
+  dispose()
 })
