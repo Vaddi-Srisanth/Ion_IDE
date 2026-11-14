@@ -129,6 +129,7 @@ jobs:
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         env:
           ION_PIPE_CONSOLE_REPORT: performance-results/windows-pipe-console.json
+          ION_PIPE_COMPILER_REPORT: performance-results/windows-pipe-compiler.json
         run: npm test -- windows-process-job windows-pipe-protocol
       - name: Prepare disposable real Jupyter fixture with direct pins and resolved receipt
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
@@ -265,6 +266,7 @@ jobs:
             performance-results/language-capabilities-failure.json
             performance-results/onboarding-shutdown.json
             performance-results/windows-pipe-console.json
+            performance-results/windows-pipe-compiler.json
           if-no-files-found: warn
           retention-days: 14
   windows-run-diagnostic:

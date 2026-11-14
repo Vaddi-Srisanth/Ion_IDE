@@ -2,10 +2,17 @@
 #include <windows.h>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <fcntl.h>
 #include <io.h>
 
 int main() {
+  STARTUPINFOW startup{};
+  GetStartupInfoW(&startup);
+  int crtDescriptorCount = 0;
+  if (startup.lpReserved2 && startup.cbReserved2 >= sizeof(int)) {
+    std::memcpy(&crtDescriptorCount, startup.lpReserved2, sizeof(int));
+  }
   DWORD members[8]{};
   const DWORD consoleProcesses = GetConsoleProcessList(members, 8);
   const UINT consoleCodePage = GetConsoleCP();
@@ -26,10 +33,11 @@ int main() {
   }
   if (std::ferror(stdin)) return 126;
   std::printf("{\"consoleCodePage\":%u,\"consoleProcesses\":%lu,\"consoleWindow\":%s,"
-    "\"stdioTypes\":[%lu,%lu,%lu],\"inJob\":%s,\"jobQuery\":%s,\"inputBytes\":%zu,\"inputHash\":%u}\n",
+    "\"stdioTypes\":[%lu,%lu,%lu],\"inJob\":%s,\"jobQuery\":%s,\"inputBytes\":%zu,\"inputHash\":%u,\"crtBytes\":%u,\"crtDescriptorCount\":%d}\n",
     consoleCodePage, static_cast<unsigned long>(consoleProcesses), consoleWindow ? "true" : "false",
     static_cast<unsigned long>(inputType), static_cast<unsigned long>(outputType), static_cast<unsigned long>(errorType),
-    inJob ? "true" : "false", jobQuery ? "true" : "false", total, hash);
+    inJob ? "true" : "false", jobQuery ? "true" : "false", total, hash,
+    static_cast<unsigned int>(startup.cbReserved2), crtDescriptorCount);
   std::fputs("ION-PIPE-STDERR\n", stderr);
   return 125;
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
   artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, openFromExplorer,
@@ -13,6 +13,60 @@ const snapshot = process.platform === 'win32' ? windowsProcessTree : resourceSna
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
 
+// Installed only in this fixture's disposable main entry. Observe stderr and
+// lifecycle boundaries without changing commands, input, protocol or ownership.
+function installClangdFailureProbe(childProcess, basename, syncExports, errorMonitor) {
+  const original = childProcess.spawn, subscriptions = new Set(), events = []
+  let stderr = Buffer.alloc(0), sequence = 0, spawns = 0, omitted = 0, disposed = false
+  const began = performance.now()
+  function record(kind, values = {}) {
+    const event = { sequence: ++sequence, elapsedMs: performance.now() - began, kind, ...values }
+    if (events.length === 32) events.shift()
+    events.push(event)
+  }
+  function listen(emitter, kind, listener) {
+    if (!emitter) return
+    emitter.on(kind, listener)
+    subscriptions.add(() => emitter.removeListener(kind, listener))
+  }
+  function spawn(...args) {
+    if (!/^clangd(?:\.exe)?$/i.test(basename(String(args[0])))) return Reflect.apply(original, this, args)
+    const id = ++spawns
+    record('spawn-request', { id })
+    let child
+    try { child = Reflect.apply(original, this, args) }
+    catch (error) { record('spawn-throw', { id, code: String(error?.code ?? '').slice(0, 80) }); throw error }
+    if (id > 32) { omitted++; return child }
+    listen(child, 'spawn', () => record('spawn', { id, pid: child.pid ?? null }))
+    listen(child, 'exit', (code, signal) => record('exit', { id, code, signal }))
+    listen(child, 'close', (code, signal) => record('close', { id, code, signal }))
+    listen(child.stdout, 'end', () => record('stdout-end', { id }))
+    const stdinError = error => {
+      record('stdin-error', { id, code: String(error?.code ?? '').slice(0, 80) })
+    }
+    // Node's monitor observes without handling or reordering normal errors.
+    listen(child.stdin, errorMonitor, stdinError)
+    listen(child.stderr, 'data', chunk => {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      stderr = bytes.length >= 8192 ? Buffer.from(bytes.subarray(bytes.length - 8192))
+        : Buffer.concat([stderr.subarray(Math.max(0, stderr.length + bytes.length - 8192)), bytes])
+    })
+    return child
+  }
+  childProcess.spawn = spawn
+  syncExports()
+  globalThis.__ionClangdFailureProbe = {
+    snapshot: () => ({ spawns, omitted, events: events.slice(), stderr: stderr.toString('utf8'), disposed }),
+    dispose() {
+      if (disposed) return
+      disposed = true
+      for (const remove of subscriptions) remove()
+      subscriptions.clear()
+      if (childProcess.spawn === spawn) { childProcess.spawn = original; syncExports() }
+    },
+  }
+}
+
 await withScratch('project-navigation', async (scratch) => {
   const project = await createProject(join(scratch, 'project'), { fileCount: 0 })
   const headers = join(project.directory, 'include')
@@ -22,7 +76,10 @@ await withScratch('project-navigation', async (scratch) => {
   await writeFile(header, 'static inline int increment(int value) { return value + 1; }\n')
   await writeFile(project.program, '#include "include/arithmetic.h"\nint main(void) { return increment(41) + increment(0); }\n')
   await writeFile(cpp, '#include "include/arithmetic.h"\nint main() { return increment(5); }\n')
-  const session = await launch(target, join(scratch, 'profile'))
+  assert.ok(target.args[0], 'The navigation fixture requires a disposable source entry.')
+  const probeEntry = join(scratch, 'navigation-clangd-observer.cjs')
+  await writeFile(probeEntry, `(${installClangdFailureProbe.toString()})(require('node:child_process'),require('node:path').basename,require('node:module').syncBuiltinESMExports,require('node:events').errorMonitor);require(${JSON.stringify(resolve(target.args[0]))});`)
+  const session = await launch({ ...target, path: probeEntry, args: [probeEntry, ...target.args.slice(1)] }, join(scratch, 'profile'))
   const { page, app } = session
   const clangd = async () => (await snapshot(session, { details: true })).members
     .filter(({ name }) => /^clangd(?:[.-].*)?$/i.test(name ?? ''))
@@ -91,6 +148,10 @@ await withScratch('project-navigation', async (scratch) => {
     console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
   } catch (error) {
     primaryError = error
+    const probe = await app.evaluate(() => globalThis.__ionClangdFailureProbe?.snapshot()
+      ?? { unavailable: 'Clangd observation was not installed.' })
+      .catch(error => ({ unavailable: String(error).slice(0, 1000) }))
+    console.error('Clangd process evidence:', JSON.stringify(probe))
     const text = await readFile(project.program, 'utf8')
     const location = await page.evaluate(async ({ path, text }) => window.ion.languageTools.query({
       language: 'c', path, text, version: 999, operation: 'definition', offset: text.indexOf('increment(41)') + 3,
@@ -101,6 +162,11 @@ await withScratch('project-navigation', async (scratch) => {
     throw error
   } finally {
     let cleanupError
+    try {
+      await app.evaluate(() => globalThis.__ionClangdFailureProbe?.dispose())
+    } catch (error) {
+      cleanupError = error
+    }
     try {
       if (!completed) {
         const dialog = page.getByRole('dialog').first()

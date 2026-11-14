@@ -15,17 +15,23 @@ try {
   if (!files.length) throw new Error('No unit tests found')
   const native = join(directory, process.platform === 'win32' ? 'ion-file-ops.exe' : 'ion-file-ops')
   const processHelper = process.platform === 'win32' ? join(directory, 'ion-pty.exe') : undefined
-  let baselineHelper, consoleProbe
+  let baselineHelper, detachedControlHelper, consoleProbe
   if (processHelper) await buildWindowsPty(processHelper, process.arch)
   if (processHelper && files.includes('windows-process-job.test.ts')) {
     const source = await readFile('src/main/run-console/pty-windows.cpp', 'utf8')
     const candidate = 'CREATE_SUSPENDED | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT'
     if (source.split(candidate).length !== 2) throw new Error('Expected exactly one pipe-only detached launch flag.')
-    const control = join(directory, 'baseline-pipe.cpp')
-    await writeFile(control, source.replace(candidate, 'CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT'))
+    const packet = /  \/\/ CRT_STDIO_INHERITANCE_BEGIN\n[\s\S]*?  \/\/ CRT_STDIO_INHERITANCE_END\n/g
+    if ([...source.matchAll(packet)].length !== 1) throw new Error('Expected one bounded standard-descriptor inheritance packet.')
+    const withoutPacket = source.replace(packet, '')
+    const control = join(directory, 'baseline-pipe.cpp'), detachedControl = join(directory, 'detached-control-pipe.cpp')
+    await writeFile(control, withoutPacket.replace(candidate, 'CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT'))
+    await writeFile(detachedControl, withoutPacket)
     baselineHelper = join(directory, 'baseline-ion-pty.exe')
+    detachedControlHelper = join(directory, 'detached-control-ion-pty.exe')
     consoleProbe = join(directory, 'console-probe.exe')
     await buildWindowsPty(baselineHelper, process.arch, control)
+    await buildWindowsPty(detachedControlHelper, process.arch, detachedControl)
     await buildWindowsConsoleProbe(consoleProbe)
   }
   if (files.some((name) => /^(backend|editor-session|file-mutation-races|file-metadata|workspace-files-windows)\.test\.ts$/.test(name))) {
@@ -48,7 +54,8 @@ try {
     ...(process.platform === 'win32' ? ['--test-concurrency=1'] : []),
     ...files.map((file) => join(directory, file.replace(/\.ts$/, '.cjs')))], {
     stdio: 'inherit', env: { ...process.env, ION_FILE_MUTATIONS_TEST_HELPER: native, ION_WINDOWS_PROCESS_TEST_HELPER: processHelper,
-      ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER: baselineHelper, ION_WINDOWS_CONSOLE_PROBE: consoleProbe },
+      ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER: baselineHelper, ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER: detachedControlHelper,
+      ION_WINDOWS_CONSOLE_PROBE: consoleProbe },
   })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1

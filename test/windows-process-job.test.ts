@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { access, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
-import { execute } from '../src/main/runner'
+import { execute, findWindowsCompiler } from '../src/main/runner'
 import { configureWindowsProcessHelper, monitorWindowsPipeProcess, windowsEnvironment, windowsToolPaths } from '../src/main/windows-process'
 
 const windows = process.platform === 'win32'
@@ -260,7 +260,8 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
       inputBytes: bytes.length, inputHash, baselineIoContractPassed: false, baselineDetachedContractPassed: false,
       candidateIoContractPassed: false, candidateDetachedContractPassed: false }
     type ConsoleSnapshot = { consoleCodePage: number; consoleProcesses: number; consoleWindow: boolean;
-      stdioTypes: number[]; inJob: boolean; jobQuery: boolean; inputBytes: number; inputHash: number }
+      stdioTypes: number[]; inJob: boolean; jobQuery: boolean; inputBytes: number; inputHash: number;
+      crtBytes: number; crtDescriptorCount: number }
     let primaryError: unknown
     async function capture(path: string) {
       configureWindowsProcessHelper(path)
@@ -298,6 +299,8 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
       assert.equal(after.snapshot!.consoleCodePage, 0)
       assert.equal(after.snapshot!.consoleProcesses, 0)
       assert.equal(after.snapshot!.consoleWindow, false)
+      assert.equal(after.snapshot!.crtDescriptorCount, 3, 'Only standard descriptors may be inherited; status and Stop are private.')
+      assert.equal(after.snapshot!.crtBytes, 31, 'The x64 CRT table must have no struct padding or extra descriptors.')
       receipt.candidateIoContractPassed = true
       receipt.candidateDetachedContractPassed = true
       if (before.result.state === 'timeout') {
@@ -323,10 +326,100 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
       configureWindowsProcessHelper(helper)
       t.diagnostic(JSON.stringify(receipt))
       if (process.env.ION_PIPE_CONSOLE_REPORT) {
-        try { await writeFile(process.env.ION_PIPE_CONSOLE_REPORT, JSON.stringify(receipt, null, 2) + '\n') }
+        try {
+          await mkdir(dirname(process.env.ION_PIPE_CONSOLE_REPORT), { recursive: true })
+          await writeFile(process.env.ION_PIPE_CONSOLE_REPORT, JSON.stringify(receipt, null, 2) + '\n')
+        }
         catch (error) {
           if (!primaryError) throw error
           t.diagnostic('The console receipt could not be saved: ' + String(error).slice(0, 1000))
+        }
+      }
+    }
+  })
+
+test('Windows GCC driver and child diagnostics survive detached CRT descriptor inheritance',
+  { skip: !windows, timeout: 130000 }, async t => {
+    const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
+    const detachedControl = process.env.ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER
+    assert.ok(baseline && detachedControl, 'Build both exact historical helper controls with scripts/test.mjs.')
+    const cwd = await scratch(t)
+    let gcc: string | null = null
+    for (const directory of windowsToolPaths()) {
+      const found = await findWindowsCompiler([directory], cwd)
+      if (found && basename(found).toLowerCase() === 'gcc.exe') { gcc = found; break }
+    }
+    assert.ok(gcc, 'An actual installed GCC is required for the CRT child-diagnostic regression.')
+    const source = join(cwd, 'invalid.c'), sibling = join(cwd, 'untouched.c')
+    const sourceText = '#error ION-GCC-CHILD-DIAGNOSTIC\nint main(void) { return 0; }\n'
+    const siblingText = '/* unrelated source must remain byte-for-byte unchanged */\n'
+    await writeFile(source, sourceText)
+    await writeFile(sibling, siblingText)
+    const variants = [
+      { name: 'no-window-no-crt', path: baseline },
+      { name: 'detached-no-crt', path: detachedControl },
+      { name: 'detached-with-crt', path: helper },
+    ]
+    const cases = [
+      { name: 'driver-option', marker: '--ion-gcc-invalid-option', args: ['--ion-gcc-invalid-option'] },
+      { name: 'compiler-child', marker: 'ION-GCC-CHILD-DIAGNOSTIC',
+        args: ['-x', 'c', '-std=c17', '-fdiagnostics-color=never', '-fsyntax-only', source] },
+    ]
+    type Observation = { variant: string; scenario: string; marker: string; helperSha256?: string;
+      elapsedMs?: number; result?: Awaited<ReturnType<typeof execute>>; error?: string; markerInStderr?: boolean }
+    const observations: Observation[] = []
+    const receipt: Record<string, unknown> = { platform: process.platform, architecture: process.arch,
+      compiler: basename(gcc), observations, candidatePassed: false, unrelatedFilesUnchanged: false }
+    let primaryError: unknown
+    try {
+      // Observe all six configured executions once. Do not erase an earlier
+      // control timeout or assume the historical controls must lose stderr.
+      for (const variant of variants) for (const scenario of cases) {
+        const row: Observation = { variant: variant.name, scenario: scenario.name, marker: scenario.marker }
+        observations.push(row)
+        const began = performance.now()
+        try {
+          row.helperSha256 = createHash('sha256').update(await readFile(variant.path)).digest('hex')
+          configureWindowsProcessHelper(variant.path)
+          const controller = new AbortController()
+          const job = execute(gcc, scenario.args, options(cwd, controller.signal, 15000))
+          ownCleanup(t, async () => { controller.abort(); await job })
+          row.result = await job
+          row.markerInStderr = row.result.stderr?.includes(scenario.marker) ?? false
+        } catch (error) { row.error = String(error) }
+        finally { row.elapsedMs = performance.now() - began }
+      }
+      assert.equal(await readFile(source, 'utf8'), sourceText)
+      assert.equal(await readFile(sibling, 'utf8'), siblingText)
+      receipt.unrelatedFilesUnchanged = true
+      for (const row of observations) {
+        assert.equal(row.error, undefined, 'The configured diagnostic could not execute: ' + JSON.stringify(row))
+        assert.equal(row.result?.outputComplete, true, 'Every observed control/candidate must prove native cleanup: ' + JSON.stringify(row))
+      }
+      for (const row of observations.filter(row => row.variant === 'detached-with-crt')) {
+        assert.equal(row.result?.state, 'exited', JSON.stringify(row))
+        assert.ok(Number.isInteger(row.result.exitCode) && row.result.exitCode !== 0, JSON.stringify(row))
+        assert.equal(row.markerInStderr, true, 'Candidate lost the actual GCC diagnostic: ' + JSON.stringify(row))
+        assert.ok(row.result.output.includes(row.marker), JSON.stringify(row))
+      }
+      receipt.candidatePassed = true
+      receipt.detachedNoCrtObservations = observations.filter(row => row.variant === 'detached-no-crt')
+        .map(row => ({ scenario: row.scenario, state: row.result?.state, exitCode: row.result?.exitCode,
+          markerInStderr: row.markerInStderr }))
+    } catch (error) {
+      primaryError = error
+      receipt.failure = String(error).slice(0, 2000)
+      throw error
+    } finally {
+      configureWindowsProcessHelper(helper)
+      t.diagnostic(JSON.stringify(receipt))
+      if (process.env.ION_PIPE_COMPILER_REPORT) {
+        try {
+          await mkdir(dirname(process.env.ION_PIPE_COMPILER_REPORT), { recursive: true })
+          await writeFile(process.env.ION_PIPE_COMPILER_REPORT, JSON.stringify(receipt, null, 2) + '\n')
+        } catch (error) {
+          if (!primaryError) throw error
+          t.diagnostic('The GCC receipt could not be saved: ' + String(error).slice(0, 1000))
         }
       }
     }
