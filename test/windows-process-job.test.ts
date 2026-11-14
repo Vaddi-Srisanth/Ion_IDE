@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { access, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -246,3 +247,87 @@ test('fixture owning hook awaits LIFO resource closure before removing scratch u
   })
   assert.deepEqual(events, ['dependent-owner-closed', 'file-closed', 'scratch-removed'])
 })
+
+test('Windows pipe commands avoid a console session while preserving stdin, separate output, exit status and Job ownership',
+  { skip: !windows, timeout: 45000 }, async t => {
+    const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
+    const probe = process.env.ION_WINDOWS_CONSOLE_PROBE
+    assert.ok(baseline && probe, 'Build the exact NO_WINDOW control and native console probe with scripts/test.mjs.')
+    const cwd = await scratch(t), input = 'offline λ\n', bytes = Buffer.from(input, 'utf8')
+    let inputHash = 2166136261
+    for (const byte of bytes) inputHash = Math.imul(inputHash ^ byte, 16777619) >>> 0
+    const receipt: Record<string, unknown> = { platform: process.platform, architecture: process.arch,
+      inputBytes: bytes.length, inputHash, baselineIoContractPassed: false, baselineDetachedContractPassed: false,
+      candidateIoContractPassed: false, candidateDetachedContractPassed: false }
+    type ConsoleSnapshot = { consoleCodePage: number; consoleProcesses: number; consoleWindow: boolean;
+      stdioTypes: number[]; inJob: boolean; jobQuery: boolean; inputBytes: number; inputHash: number }
+    let primaryError: unknown
+    async function capture(path: string) {
+      configureWindowsProcessHelper(path)
+      const controller = new AbortController()
+      const began = performance.now()
+      const job = execute(probe!, [], { ...options(cwd, controller.signal, 15000), input })
+      ownCleanup(t, async () => { controller.abort(); await job })
+      const result = await job
+      let snapshot: ConsoleSnapshot | undefined, parseError: string | undefined
+      try { snapshot = JSON.parse(result.stdout ?? '') as ConsoleSnapshot }
+      catch (error) { parseError = String(error) }
+      return { helperSha256: createHash('sha256').update(await readFile(path)).digest('hex'),
+        elapsedMs: performance.now() - began, result, snapshot, parseError }
+    }
+    function validateIo(value: Awaited<ReturnType<typeof capture>>) {
+      assert.equal(value.result.state, 'exited', JSON.stringify(value))
+      assert.equal(value.result.exitCode, 125, JSON.stringify(value))
+      assert.equal(value.result.outputComplete, true, JSON.stringify(value))
+      assert.ok(value.snapshot, JSON.stringify(value))
+      assert.deepEqual(value.snapshot.stdioTypes, [3, 3, 3])
+      assert.equal(value.snapshot.jobQuery, true)
+      assert.equal(value.snapshot.inJob, true)
+      assert.equal(value.snapshot.inputBytes, bytes.length)
+      assert.equal(value.snapshot.inputHash, inputHash)
+      assert.equal(value.result.stderr?.replaceAll('\r\n', '\n'), 'ION-PIPE-STDERR\n')
+    }
+    try {
+      // Keep actual control failures distinct. Candidate execution still runs
+      // so the receipt does not hide it behind a failing control assertion.
+      const before = await capture(baseline)
+      receipt.before = before
+      const after = await capture(helper)
+      receipt.after = after
+      validateIo(after)
+      assert.equal(after.snapshot!.consoleCodePage, 0)
+      assert.equal(after.snapshot!.consoleProcesses, 0)
+      assert.equal(after.snapshot!.consoleWindow, false)
+      receipt.candidateIoContractPassed = true
+      receipt.candidateDetachedContractPassed = true
+      if (before.result.state === 'timeout') {
+        assert.equal(before.result.outputComplete, true, 'A timed-out control must still prove native cleanup.')
+        assert.equal(before.result.exitCode, 125)
+        assert.equal(before.result.stdout, '', 'A control that reached user output is not an unobserved startup timeout.')
+        assert.equal(before.result.stderr, '')
+        receipt.comparison = 'baseline startup timeout; console APIs unavailable'
+        receipt.comparisonVerified = false
+      } else {
+        validateIo(before)
+        assert.ok(before.snapshot!.consoleCodePage !== 0 || before.snapshot!.consoleProcesses !== 0
+          || before.snapshot!.consoleWindow, 'The control did not expose a distinguishable console session; retain evidence rather than assuming the policy changed.')
+        receipt.baselineIoContractPassed = true
+        receipt.comparison = 'both payloads observed; console APIs distinguish the launch policies'
+        receipt.comparisonVerified = true
+      }
+    } catch (error) {
+      primaryError = error
+      receipt.failure = { message: String(error).slice(0, 2000) }
+      throw error
+    } finally {
+      configureWindowsProcessHelper(helper)
+      t.diagnostic(JSON.stringify(receipt))
+      if (process.env.ION_PIPE_CONSOLE_REPORT) {
+        try { await writeFile(process.env.ION_PIPE_CONSOLE_REPORT, JSON.stringify(receipt, null, 2) + '\n') }
+        catch (error) {
+          if (!primaryError) throw error
+          t.diagnostic('The console receipt could not be saved: ' + String(error).slice(0, 1000))
+        }
+      }
+    }
+  })

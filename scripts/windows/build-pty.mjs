@@ -45,9 +45,10 @@ async function requireX64Executable(path) {
   }
 }
 
-export async function buildWindowsPty(destination, arch) {
+export async function buildWindowsPty(destination, arch, fixtureSource) {
   if (arch !== 'x64') throw new Error('The Windows PTY helper currently targets x64.')
   if (process.platform !== 'win32') {
+    if (fixtureSource) throw new Error('Private helper controls must be compiled on native Windows.')
     const prebuilt = process.env.ION_WINDOWS_PTY_EXE
     if (!prebuilt) {
       throw new Error('A Windows build requires the verified pipe/PTY helper. Build natively on Windows or supply ION_WINDOWS_PTY_EXE.')
@@ -62,7 +63,7 @@ export async function buildWindowsPty(destination, arch) {
   try {
     await mkdir(dirname(destination), { recursive: true })
     await run('cl.exe', ['/nologo', '/std:c++17', '/O2', '/W4', '/EHsc', '/MT', '/DUNICODE', '/D_UNICODE',
-      resolve('src/main/run-console/pty-windows.cpp'), '/Fe:' + resolve(destination),
+      resolve(fixtureSource ?? 'src/main/run-console/pty-windows.cpp'), '/Fe:' + resolve(destination),
       // The parent supplies the three transport pipes. The helper itself needs no console host.
       '/link', '/SUBSYSTEM:WINDOWS', '/ENTRY:wmainCRTStartup'], {
       ...quiet, cwd: scratch, env,
@@ -77,6 +78,18 @@ export async function buildWindowsPty(destination, arch) {
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }
+}
+
+export async function buildWindowsConsoleProbe(destination) {
+  if (process.platform !== 'win32') throw new Error('Run the native console fixture on Windows.')
+  const env = await compilerEnvironment()
+  const scratch = await mkdtemp(join(tmpdir(), 'ion-console-probe-build-'))
+  try {
+    await run('cl.exe', ['/nologo', '/std:c++17', '/O2', '/W4', '/EHsc', '/MT',
+      resolve('test/fixtures/windows-console-probe.cpp'), '/Fe:' + resolve(destination),
+      '/link', '/SUBSYSTEM:CONSOLE'], { ...quiet, cwd: scratch, env })
+    await requireX64Executable(destination)
+  } finally { await rm(scratch, { recursive: true, force: true }) }
 }
 
 export async function buildWindowsFileMutations(destination, arch) {

@@ -1,10 +1,10 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'esbuild'
 import { buildFileMutations } from './build-file-mutations.mjs'
-import { buildWindowsPty } from './windows/build-pty.mjs'
+import { buildWindowsConsoleProbe, buildWindowsPty } from './windows/build-pty.mjs'
 
 const directory = await mkdtemp(join(tmpdir(), 'ion-tests-'))
 try {
@@ -15,7 +15,19 @@ try {
   if (!files.length) throw new Error('No unit tests found')
   const native = join(directory, process.platform === 'win32' ? 'ion-file-ops.exe' : 'ion-file-ops')
   const processHelper = process.platform === 'win32' ? join(directory, 'ion-pty.exe') : undefined
+  let baselineHelper, consoleProbe
   if (processHelper) await buildWindowsPty(processHelper, process.arch)
+  if (processHelper && files.includes('windows-process-job.test.ts')) {
+    const source = await readFile('src/main/run-console/pty-windows.cpp', 'utf8')
+    const candidate = 'CREATE_SUSPENDED | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT'
+    if (source.split(candidate).length !== 2) throw new Error('Expected exactly one pipe-only detached launch flag.')
+    const control = join(directory, 'baseline-pipe.cpp')
+    await writeFile(control, source.replace(candidate, 'CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT'))
+    baselineHelper = join(directory, 'baseline-ion-pty.exe')
+    consoleProbe = join(directory, 'console-probe.exe')
+    await buildWindowsPty(baselineHelper, process.arch, control)
+    await buildWindowsConsoleProbe(consoleProbe)
+  }
   if (files.some((name) => /^(backend|editor-session|file-mutation-races|file-metadata|workspace-files-windows)\.test\.ts$/.test(name))) {
     await buildFileMutations(native)
   }
@@ -35,7 +47,8 @@ try {
   const result = spawnSync(process.execPath, ['--enable-source-maps', '--test',
     ...(process.platform === 'win32' ? ['--test-concurrency=1'] : []),
     ...files.map((file) => join(directory, file.replace(/\.ts$/, '.cjs')))], {
-    stdio: 'inherit', env: { ...process.env, ION_FILE_MUTATIONS_TEST_HELPER: native, ION_WINDOWS_PROCESS_TEST_HELPER: processHelper },
+    stdio: 'inherit', env: { ...process.env, ION_FILE_MUTATIONS_TEST_HELPER: native, ION_WINDOWS_PROCESS_TEST_HELPER: processHelper,
+      ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER: baselineHelper, ION_WINDOWS_CONSOLE_PROBE: consoleProbe },
   })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1

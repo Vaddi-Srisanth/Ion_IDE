@@ -337,8 +337,11 @@ int pipeProcess(int argc, wchar_t** argv) {
   std::wstring command;
   for (int index = 3; index < argc; ++index) appendArgument(command, argv[index]);
   PROCESS_INFORMATION process{};
+  // Pipe commands need no console session. CREATE_NO_WINDOW still starts a
+  // headless console host; detaching avoids that startup boundary while the
+  // explicit stdio handles and atomic Job assignment retain IO and ownership.
   const BOOL created = CreateProcessW(argv[3], command.data(), nullptr, nullptr, TRUE,
-      CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
+      CREATE_SUSPENDED | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT,
       nullptr, nullptr, &startup.StartupInfo, &process);
   const DWORD launchError = created ? ERROR_SUCCESS : GetLastError();
   DeleteProcThreadAttributeList(startup.lpAttributeList);
