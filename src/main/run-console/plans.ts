@@ -465,7 +465,7 @@ export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
     signal.throwIfAborted()
     if (!executablePath) throw new MissingToolchainError(compilerSetupMessage(language === 'cpp' ? 'C++' : 'C'))
     const program = join(scratch, nativeExecutable('program'))
-    return {
+    const plan: RunPlan = {
       language, cwd, label, toolchain: executablePath,
       compile: {
         executable: executablePath, environment,
@@ -476,6 +476,8 @@ export async function prepareRun(options: PrepareOptions): Promise<RunPlan> {
       },
       run: { executable: program, args: [], environment },
     }
+    trace?.('compiler-command-plan', 'constructed', language)
+    return plan
   }
   if (language === 'python') {
     const framework = '/Library/Frameworks/Python.framework/Versions/Current/bin/python3'

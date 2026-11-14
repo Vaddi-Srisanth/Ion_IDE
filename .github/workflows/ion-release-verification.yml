@@ -1,0 +1,520 @@
+name: Ion isolated release verification (no publication)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS Apple silicon
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Install optional formatter for desktop fixtures
+        run: |
+          tools="$RUNNER_TEMP/ion-test-tools"
+          npm install --global --prefix "$tools" --ignore-scripts --no-audit --no-fund prettier@3.6.2
+          printf '%s\n' "$tools/bin" >> "$GITHUB_PATH"
+      - name: Configure zsh for the terminal integration fixture
+        run: |
+          if [ "$(node -p "require('node:os').userInfo().shell")" != /bin/zsh ]; then
+            sudo -n chsh -s /bin/zsh "$(id -un)"
+          fi
+          test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
+      - run: npm run test:regression
+      - name: Verify configuration isolation and shutdown cleanup
+        run: |
+          npm run test:git-security
+          node scripts/test-git-lfs.mjs
+          npm run test:shutdown
+      - name: Verify rendered syntax, capability labels, and clangd navigation
+        run: |
+          xcrun --find clangd
+          node scripts/test-language-capabilities.mjs
+          npm run test:navigation
+      - run: node --test scripts/test-update-preferences-support.mjs
+      - run: node scripts/test-update-preferences.mjs
+      - run: node scripts/test-mac-updater.mjs
+      - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
+      - name: Verify locked and corrupted image publication
+        run: node scripts/test-mac-image-publication.mjs "$RUNNER_TEMP/ion-image-publication"
+      - name: Verify real macOS notebook kernel in a disposable environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ion-notebook-fixture"
+          "$RUNNER_TEMP/ion-notebook-fixture/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: ipykernel==6.31.0 jupyter_client==8.6.3 pandas==2.3.3 matplotlib==3.10.6
+          "$RUNNER_TEMP/ion-notebook-fixture/bin/python" scripts/test-notebook-interrupt.py
+          node scripts/test-notebook.mjs --edit --kernel-python "$RUNNER_TEMP/ion-notebook-fixture/bin/python"
+      - run: npm run package:dmg
+      - run: node scripts/verify-mac-release.mjs
+      - run: node scripts/release-evidence.mjs record mac-arm64
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-macos" --image-receipts "${{ runner.temp }}/ion-image-publication"
+      - name: Upload evidence only (no installers)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-gate-macos-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-release-safe-macos/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 50
+    env:
+      ION_INSPECTOR_SHUTDOWN_DIAGNOSTICS: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run typecheck
+      - name: Select installed Windows toolchains
+        shell: pwsh
+        run: |
+          $gcc = 'C:\mingw64\bin'
+          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          if (!(Test-Path (Join-Path $gcc 'g++.exe'))) { throw 'MinGW-w64 G++ is unavailable.' }
+          $gcc >> $env:GITHUB_PATH
+          $jdk = $env:JAVA_HOME_21_X64
+          if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 is unavailable.' }
+          "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
+          Join-Path $jdk 'bin' >> $env:GITHUB_PATH
+          $llvm = Join-Path $env:ProgramFiles 'LLVM\bin'
+          if (Test-Path (Join-Path $llvm 'clangd.exe')) { $llvm >> $env:GITHUB_PATH }
+          elseif (!(Get-Command clangd -ErrorAction SilentlyContinue)) { throw 'clangd is unavailable.' }
+          Get-Command java, javac, python, mvn, gradle, git
+      - name: Install optional formatter for desktop fixtures
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'ion-test-tools'
+          npm install --global --prefix $tools --ignore-scripts --no-audit --no-fund prettier@3.6.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tools >> $env:GITHUB_PATH
+      - name: Verify native filesystem conflicts and scoped mutation
+        run: npm test -- workspace-files-windows file-mutation-races
+      - name: Run portable and Windows-specific unit tests
+        env:
+          ION_TEST_WINDOWS_JAVA_BUILDS: '1'
+          ION_TEST_PRIME_MAVEN: '1'
+        run: npm test -- languages line-console run-plans windows-java-build workspace-search shortcuts updates update-install run-trust preferences-windows source-control projects recovery learning-diagnostics learning-packs terminal-input windows-helper-bootstrap compiler-lifecycle-trace
+      - run: node --test scripts/test-release-evidence.mjs scripts/windows/signing.test.mjs scripts/windows/updater-processes.test.mjs
+      - run: npm run build
+        id: native-build
+      - name: Verify native pseudoconsole and child ownership
+        run: npm test -- windows-conpty
+      - name: Verify current Windows pipe supervisor and parser
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        env:
+          ION_PIPE_CONSOLE_REPORT: performance-results/windows-pipe-console.json
+          ION_PIPE_COMPILER_REPORT: performance-results/windows-pipe-compiler.json
+        run: |
+          node --test scripts/windows/pipe-fixture-source.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test -- windows-process-job windows-pipe-protocol
+      - name: Prepare disposable real Jupyter fixture with direct pins and resolved receipt
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'ion-notebook-fixture'
+          New-Item -ItemType Directory -Force performance-results | Out-Null
+          python -m venv $fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = Join-Path $fixture 'Scripts\python.exe'
+          $pythonVersion = & $python -c 'import sys; print(sys.version)'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pipVersion = & $python -m pip --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pins = @('ipykernel==6.31.0', 'jupyter_client==8.6.3', 'pandas==2.3.3', 'matplotlib==3.10.6')
+          & $python -m pip install --disable-pip-version-check --only-binary=:all: $pins
+          $installStatus = $LASTEXITCODE
+          $resolved = & $python -m pip freeze --all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $resolved | Set-Content -Encoding utf8NoBOM performance-results/windows-notebook-environment.freeze.txt
+          [ordered]@{
+            scope = 'Disposable CI fixture: direct pins with resolved transitive receipt; not a prelocked Windows environment.'
+            python = $pythonVersion
+            pip = $pipVersion
+            directPins = $pins
+            pipInstallExitCode = $installStatus
+            resolvedPackages = @($resolved)
+          } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8NoBOM performance-results/windows-notebook-environment.json
+          if ($installStatus -ne 0) { exit $installStatus }
+          "ION_NOTEBOOK_PYTHON=$python" >> $env:GITHUB_ENV
+      - name: Verify real offline notebook execution and kernel ownership
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          if (!$env:ION_NOTEBOOK_PYTHON -or !(Test-Path $env:ION_NOTEBOOK_PYTHON)) { throw 'The disposable real Jupyter fixture is unavailable.' }
+          & $env:ION_NOTEBOOK_PYTHON scripts/test-notebook-interrupt.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-notebook.mjs --edit --kernel-python $env:ION_NOTEBOOK_PYTHON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify notebook authorization and injected cleanup failure propagation
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node scripts/test-notebook-trust.mjs --out performance-results/windows-notebook-trust.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-notebook-cleanup-ownership.mjs --output performance-results/windows-notebook-cleanup.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-shutdown-cleanup-failure.mjs --out performance-results/windows-shutdown-cleanup-failure.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Attribute compiler diagnostics before terminal rendering
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/trace-windows-compiler-diagnostics.mjs
+      - name: Verify interactive Run Console
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/verify-windows-run-console.mjs
+      - name: Verify Windows editing integrity
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:integrity
+      - name: Verify Windows crash recovery
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:recovery
+      - name: Verify queued recovery publication and final editor fixes
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node scripts/test-recovery-drain.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-undo-control.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-input-boundary.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-refresh.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify editor session restoration and Markdown
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:editor-session
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:markdown
+      - name: Verify Git and saved project test workflows
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:source-control
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:project-suites
+      - name: Verify configuration isolation and shutdown cleanup
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          npm run test:git-security
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-lfs.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:shutdown
+      - name: Verify rendered syntax and capability labels
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-language-capabilities.mjs
+      - name: Verify Smart C/C++ navigation
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:navigation
+      - name: Verify Smart Java editing
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:java-tools
+      - name: Verify offline source formatting
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:format
+      - name: Verify offline themes
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:themes
+      - name: Verify offline viewers and workspaces
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-windows-native.mjs
+      - name: Verify offline Learning Lens
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:learning-lens
+      - name: Verify offline onboarding
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node --test scripts/test-inspector-shutdown-observer.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:onboarding -- --shutdown-cycles 6
+      - name: Verify the update button and installer download
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: |
+          node --test scripts/test-update-preferences-support.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-update-preferences.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-update-lifecycle.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-run-trust.mjs
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows"
+      - name: Upload evidence only (no installers)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-gate-windows-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-release-safe-windows/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-run-diagnostic:
+    name: Windows cold C diagnostic ${{ matrix.cold }} (not a benchmark)
+    runs-on: windows-2025
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cold: [1, 2, 3]
+    env:
+      ION_COLD_TRIAL: ${{ matrix.cold }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Locate GCC
+        shell: pwsh
+        run: |
+          $gcc = 'C:\mingw64\bin'
+          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          $gcc >> $env:GITHUB_PATH
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+        id: attribution-build
+      - run: node --test scripts/windows/run-trace-prelude.test.cjs
+      - run: node --test scripts/windows/compiler-probe.test.mjs
+      - run: node --test scripts/test-run-completion.mjs
+      - run: node scripts/trace-windows-run.mjs
+      - name: Verify native C lifecycle and correlated trace contracts
+        if: ${{ !cancelled() && steps.attribution-build.outcome == 'success' }}
+        env:
+          ION_C_TRACE_REPORT: performance-results/windows-c-lifecycle.json
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force performance-results | Out-Null
+          npm test -- run-trace c-run-lifecycle
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify isolated standalone controls
+        if: ${{ !cancelled() && steps.attribution-build.outcome == 'success' }}
+        env:
+          ION_UNDO_REPORT: performance-results/windows-standalone-undo.json
+        run: |
+          node scripts/test-undo-control.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-git-refresh.mjs --out performance-results/windows-standalone-git-refresh.json
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows-run-diagnostic"
+      - name: Upload evidence only (no installers)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-gate-windows-run-diagnostic-${{ matrix.cold }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-release-safe-windows-run-diagnostic/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-installer:
+    name: Windows x64 installer and upgrade
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Locate NSIS
+        shell: pwsh
+        run: |
+          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+          if (!(Test-Path $nsis)) {
+            choco install nsis --version=3.13.0 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if (!(Test-Path $nsis)) { throw 'The NSIS compiler is unavailable.' }
+          "ION_MAKENSIS=$nsis" >> $env:GITHUB_ENV
+      - run: npm run package:win
+      - name: Fetch and verify the prior public Windows installer for upgrade
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'Ion-IDE-0.9.6-windows-x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.6/Ion-IDE-0.9.6-windows-x64-setup.exe' -OutFile $setup
+          $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash
+          if ($hash -ne '8d29adc4b3d7d0b0bf2857e39d990ff7e0031eb6e5c40f1943e3716fe20b10af') {
+            throw 'The previous public installer failed SHA-256 verification.'
+          }
+          "ION_PREVIOUS_WINDOWS_INSTALLER=$setup" >> $env:GITHUB_ENV
+      - run: node scripts/test-windows-updater.mjs
+      - run: npm run test:release:win
+      - run: node scripts/release-evidence.mjs record windows-x64
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows-installer"
+      - name: Upload evidence only (no installers)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-gate-windows-installer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-release-safe-windows-installer/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-performance:
+    name: Windows x64 process-tree benchmark
+    runs-on: windows-2025
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Locate GCC
+        shell: pwsh
+        run: |
+          $gcc = 'C:\mingw64\bin'
+          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
+          $gcc >> $env:GITHUB_PATH
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+      - run: node scripts/benchmark-windows.mjs --label candidate --terminal
+      - name: Matched production baseline versus optional-trace candidate
+        shell: pwsh
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'ion-performance-baseline'
+          git fetch --no-tags origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git worktree add --detach $baseline 38cf7ff333d02be298a71c4b5315d317d57157c6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location $baseline
+          try {
+            npm ci
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            node node_modules/electron/install.js
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+          node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows-performance"
+      - name: Upload evidence only (no installers)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-gate-windows-performance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-release-safe-windows-performance/**
+          if-no-files-found: error
+          retention-days: 14
+
+
+  security-audit:
+    name: Dependency security review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.22.2
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+
+  macos-performance:
+    name: macOS matched production performance
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.22.2
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+      - name: Build exact published control with identical dependencies
+        run: |
+          git fetch --depth=1 origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git worktree add --detach "$RUNNER_TEMP/ion-baseline" 38cf7ff333d02be298a71c4b5315d317d57157c6
+          cd "$RUNNER_TEMP/ion-baseline"
+          npm ci
+          node node_modules/electron/install.js
+          npm run build
+      - name: Measure matched production profiles and optional-panel recovery
+        run: |
+          node scripts/benchmark-development-workflows.mjs --target dist --baseline "$RUNNER_TEMP/ion-baseline/dist" --trials 3 --soak-seconds 60 --out performance-results/macos-development-workflows.json
+          node scripts/benchmark-integrated-terminal.mjs --target "$RUNNER_TEMP/ion-baseline/dist" --mode baseline --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
+          node scripts/benchmark-integrated-terminal.mjs --target dist --mode candidate --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
+      - name: Collect bounded sanitized release evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-macos-performance"
+      - name: Upload evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: release-gate-macos-performance-${{ github.run_id }}
+          path: ${{ runner.temp }}/ion-release-safe-macos-performance/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-unit:
+    name: Complete native Windows unit suite
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      ION_TEST_WINDOWS_JAVA_BUILDS: '1'
+      ION_TEST_PRIME_MAVEN: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.22.2
+      - name: Select installed toolchains
+        shell: pwsh
+        run: |
+          'C:\mingw64\bin' >> $env:GITHUB_PATH
+          "JAVA_HOME=$env:JAVA_HOME_21_X64" >> $env:GITHUB_ENV
+          Join-Path $env:JAVA_HOME_21_X64 'bin' >> $env:GITHUB_PATH
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run typecheck
+      - run: npm test

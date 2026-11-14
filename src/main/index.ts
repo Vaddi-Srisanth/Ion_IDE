@@ -24,7 +24,7 @@ import { EditorSessionStore } from './editor-session'
 import { CRunner, rejectedRun, validStdin } from './runner'
 import { configureWindowsProcessHelper } from './windows-process'
 import type { InteractiveRunner, NativeProject } from './run-console'
-import { createRunTrace } from './run-console/trace'
+import { createRunTrace, type RunTrace } from './run-console/trace'
 import type { TerminalService } from './terminal/service'
 import type { SourceControlService } from './source-control'
 import type { SourceControlStatus } from '../shared/source-control'
@@ -112,6 +112,7 @@ interface ActiveRun {
   job: Promise<RunResult>
   engine?: InteractiveRunner
   size?: [number, number]
+  trace?: RunTrace
 }
 let activeRun: ActiveRun | null = null
 let interactiveRunner: InteractiveRunner | undefined
@@ -719,15 +720,19 @@ async function approveRunSource(
 }
 
 function startInteractive(target: BrowserWindow, id: string, value: unknown, learn: boolean, expectedRevision: unknown): Promise<RunResult> {
+  const trace = createRunTrace(id)
+  trace?.('request', 'received')
   if (expectedRevision !== undefined && (typeof expectedRevision !== 'string' || !expectedRevision.length || expectedRevision.length > 256)) {
+    trace?.('request', 'rejected-before-engine', 'revision')
     return Promise.resolve(rejectedRun('Invalid source revision.'))
   }
   if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
+    trace?.('request', 'rejected-before-engine', 'busy')
     return Promise.resolve(rejectedRun('A program or test is already running.'))
   }
   const controller = new AbortController()
   const record: ActiveRun = {
-    id, owner: target, controller, job: Promise.resolve(cancelledRun()),
+    id, owner: target, controller, job: Promise.resolve(cancelledRun()), trace,
   }
   activeRun = record
   record.job = runInteractive(record, value, learn, expectedRevision).finally(() => {
@@ -738,7 +743,8 @@ function startInteractive(target: BrowserWindow, id: string, value: unknown, lea
 
 async function runInteractive(record: ActiveRun, value: unknown, learn: boolean, expectedRevision?: string): Promise<RunResult> {
   const { owner: target, id, controller: { signal } } = record
-  const trace = createRunTrace(id)
+  // Reuse the request's original clock and correlation ID through execution.
+  const trace = record.trace
   trace?.('request', 'begin')
   const onAbort = trace ? () => trace('cancellation', 'requested') : undefined
   if (onAbort) signal.addEventListener('abort', onAbort, { once: true })
@@ -754,7 +760,13 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     if (sourceHash && update.kind === 'data' && update.stream === 'terminal') {
       runtimeExcerpt = (runtimeExcerpt + update.text).slice(-8192)
     }
-    if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id, update })
+    if (target === window && !target.isDestroyed()) {
+      // This timestamps enqueueing in main, not delivery or terminal paint.
+      // The disposable renderer observer supplies those separate boundaries.
+      trace?.('run-console-ipc', 'send-start', update.kind)
+      target.webContents.send('ion:live-run-update', { id, update })
+      trace?.('run-console-ipc', 'send-return', update.kind)
+    }
   }
   try {
     trace?.('source-inspection', 'begin')

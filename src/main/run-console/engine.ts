@@ -21,13 +21,15 @@ function commandEnvironment(command: CommandPlan, locale: string): NodeJS.Proces
   return { ...defaults, ...command.environment }
 }
 
-function publisher(emit: (update: RunUpdate) => void) {
+function publisher(emit: (update: RunUpdate) => void, trace?: RunTrace) {
   let batch = ''
   let stream: RunStream = 'compiler'
   let timer: NodeJS.Timeout | undefined
 
   function send(update: RunUpdate) {
+    trace?.('publish-run-console', 'dispatch-start', update.kind)
     try { emit(update) } catch { /* The window can close while a child writes output. */ }
+    finally { trace?.('publish-run-console', 'dispatch-end', update.kind) }
   }
 
   function flush() {
@@ -99,7 +101,7 @@ export class InteractiveRunner {
   ): Promise<RunResult> {
     const start = performance.now()
     const budget = { remaining: this.limits.outputBytes }
-    const publish = publisher(emit)
+    const publish = publisher(emit, trace)
     let compileOutput = ''
     let compileMs: number | undefined
     let compileVerified: true | undefined
@@ -189,6 +191,7 @@ export class InteractiveRunner {
         onOutput: (text: string) => publish.output('terminal', text),
         trace,
       }
+      trace?.('program', 'launch-requested')
       let terminal = startPty(terminalOptions)
       active.terminal = terminal
       let ran = await terminal.result
@@ -197,6 +200,7 @@ export class InteractiveRunner {
         const remaining = Math.floor(terminalOptions.timeoutMs - (performance.now() - programStart))
         if (remaining <= 0) return failed('timeout', 'The program could not start within its time limit.')
         publish.output('terminal', 'Windows pseudoconsole unavailable. Using line input.\r\n')
+        trace?.('program', 'line-launch-requested')
         terminal = startLineConsole({ ...terminalOptions, timeoutMs: remaining })
         active.terminal = terminal
         ran = await terminal.result

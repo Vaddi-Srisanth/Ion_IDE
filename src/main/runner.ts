@@ -47,10 +47,13 @@ export function execute(executable: string, args: string[], options: ProcessOpti
   return new Promise((resolve) => {
     const grouped = process.platform !== 'win32'
     let command: ReturnType<typeof windowsPipeCommand> | undefined
+    options.trace?.('compiler-command', 'construct-start')
     try { if (!grouped) command = windowsPipeCommand(executable, args) } catch (error) {
+      options.trace?.('compiler-command', 'construct-error')
       resolve({ state: 'error', exitCode: null, output: '', detail: error instanceof Error ? error.message : 'Windows process helper unavailable.' })
       return
     }
+    options.trace?.('compiler-command', 'constructed', !!command)
     options.trace?.('compiler-process', 'spawn-request')
     const child = spawn(command?.executable ?? executable, command?.args ?? args, {
       cwd: options.cwd,
@@ -72,6 +75,23 @@ export function execute(executable: string, args: string[], options: ProcessOpti
     let detail: string | undefined
     let exitSignal: NodeJS.Signals | null = null
     let termination: Promise<boolean> | undefined
+    // Only diagnostic runs retain two scalar callback timestamps. Values use
+    // this main process's performance.now() clock, not an OS exit timestamp.
+    const streamTrace = options.trace ? { stdout: undefined as number | undefined, stderr: undefined as number | undefined, ended: 0 } : undefined
+
+    function dataReceived(stream: 'stdout' | 'stderr') {
+      if (!streamTrace) return
+      const enteredAt = performance.now()
+      if (streamTrace[stream] === undefined) options.trace?.('compiler-' + stream, 'first-callback', enteredAt)
+      streamTrace[stream] = enteredAt
+    }
+
+    function streamEnded(stream: 'stdout' | 'stderr') {
+      if (!streamTrace) return
+      if (streamTrace[stream] !== undefined) options.trace?.('compiler-' + stream, 'last-callback', streamTrace[stream])
+      streamTrace.ended |= stream === 'stdout' ? 1 : 2
+      options.trace?.('compiler-' + stream, 'end')
+    }
 
     function killGroup() {
       if (!child.pid) return
@@ -97,6 +117,12 @@ export function execute(executable: string, args: string[], options: ProcessOpti
       clearTimeout(timer)
       clearTimeout(guard)
       options.signal.removeEventListener('abort', cancel)
+      if (streamTrace) for (const stream of ['stdout', 'stderr'] as const) {
+        if (!(streamTrace.ended & (stream === 'stdout' ? 1 : 2))) {
+          if (streamTrace[stream] !== undefined) options.trace?.('compiler-' + stream, 'last-callback', streamTrace[stream])
+          options.trace?.('compiler-' + stream, 'destroy-before-end')
+        }
+      }
       child.stdin.destroy()
       child.stdout.destroy()
       child.stderr.destroy()
@@ -108,6 +134,7 @@ export function execute(executable: string, args: string[], options: ProcessOpti
         outputComplete: outputComplete && state !== 'output-limit', signal: signal ?? exitSignal ?? undefined,
       }
       options.trace?.('compiler-process', 'cleanup', result.outputComplete)
+      options.trace?.('compiler-process', 'result-finalized', result.state)
       resolve(result)
     }
 
@@ -149,19 +176,27 @@ export function execute(executable: string, args: string[], options: ProcessOpti
     const ownership = command ? monitorWindowsPipeProcess(child, (message) => {
       detail = message
       stop('error')
-    }) : undefined
+    }, options.trace) : undefined
     const timer = setTimeout(() => stop('timeout'), options.timeoutMs)
     options.signal.addEventListener('abort', cancel, { once: true })
-    child.stdout.on('data', (chunk: Buffer) => collect(chunk, stdout, stdoutChunks))
-    child.stderr.on('data', (chunk: Buffer) => collect(chunk, stderr, stderrChunks))
+    child.stdout.on('data', (chunk: Buffer) => { if (streamTrace) dataReceived('stdout'); collect(chunk, stdout, stdoutChunks) })
+    child.stderr.on('data', (chunk: Buffer) => { if (streamTrace) dataReceived('stderr'); collect(chunk, stderr, stderrChunks) })
+    if (options.trace) {
+      child.stdout.once('end', () => streamEnded('stdout'))
+      child.stderr.once('end', () => streamEnded('stderr'))
+    }
     child.stdin.on('error', () => undefined)
     child.once('error', (error) => {
+      options.trace?.('compiler-process', 'error-callback')
       if (state === 'exited') state = 'error'
       detail = error.message
       finish(null)
     })
     child.once('exit', (code, signal) => {
+      // Node's callback delivery time; the payload/helper may have exited
+      // earlier. Independent native evidence is needed to measure that gap.
       options.trace?.('compiler-process', 'exit', code)
+      options.trace?.('compiler-process', 'exit-callback', code)
       exitSignal = signal
       killGroup()
       if (guard) return

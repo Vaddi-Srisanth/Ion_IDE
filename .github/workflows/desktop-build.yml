@@ -5,6 +5,11 @@ name: Windows GCC diagnostics (manual verification branch)
 on:
   workflow_dispatch:
     inputs:
+      suite:
+        description: Diagnostic repetition or full application release gates
+        type: choice
+        options: ['diagnostic', 'release', 'all']
+        default: 'diagnostic'
       samples:
         description: Warm attempts per lane per isolated runner
         type: choice
@@ -16,6 +21,11 @@ permissions:
 
 jobs:
   windows-gcc-diagnostics:
+    if: inputs.suite != 'release'
     uses: ./.github/workflows/windows-gcc-diagnostic.yml
     with:
       samples: ${{ inputs.samples || '100' }}
+  full-release-verification:
+    needs: windows-gcc-diagnostics
+    if: ${{ always() && !cancelled() && (inputs.suite == 'release' || (inputs.suite == 'all' && needs.windows-gcc-diagnostics.result == 'success')) }}
+    uses: ./.github/workflows/ion-release-verification.yml

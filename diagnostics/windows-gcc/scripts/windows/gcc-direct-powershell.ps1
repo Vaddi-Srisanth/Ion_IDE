@@ -149,6 +149,9 @@ public sealed class IonGccDirectResult {
     public IonGccObserverFailure observerFailure { get; set; }
     public int observerFailureCount { get; set; }
     public bool compilerResultValid { get; set; }
+    public int partialSnapshotCount { get; set; }
+    public int? lastPartialAssigned { get; set; }
+    public int? lastPartialListed { get; set; }
     public string clock { get; set; } = "Stopwatch: native adapter origin; not Node performance.now or kernel exit time";
     public string childLifecycleScope { get; set; } = "100 ms bounded Job membership snapshots; short-lived children may be missed";
 }
@@ -170,7 +173,7 @@ public sealed class IonGccObserverFailure {
 
 public static class IonGccDirect {
     const uint KILL_ON_JOB_CLOSE = 0x2000, ACTIVE_PROCESS = 8;
-    const int BASIC_PID_LIST = 3, EXTENDED_LIMIT = 9;
+    const int BASIC_ACCOUNTING = 1, BASIC_PID_LIST = 3, EXTENDED_LIMIT = 9;
     const uint PROCESS_TERMINATE = 1, QUERY_LIMITED = 0x1000;
     const uint MAX_CHILDREN = 64;
     [StructLayout(LayoutKind.Sequential)] struct IO_COUNTERS { public ulong a,b,c,d,e,f; }
@@ -180,6 +183,12 @@ public static class IonGccDirect {
     }
     [StructLayout(LayoutKind.Sequential)] struct EXTENDED_LIMITS {
         public BASIC_LIMITS basic; public IO_COUNTERS io; public UIntPtr processMemory, jobMemory, peakProcess, peakJob;
+    }
+    // JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: four LARGE_INTEGER values,
+    // then four DWORD values; ActiveProcesses is at byte40, total size48.
+    [StructLayout(LayoutKind.Sequential)] public struct BASIC_ACCOUNTING_INFORMATION {
+        public long totalUserTime,totalKernelTime,periodUserTime,periodKernelTime;
+        public uint totalPageFaultCount,totalProcesses,activeProcesses,totalTerminatedProcesses;
     }
     [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll")] static extern uint GetCurrentProcessId();
@@ -199,7 +208,8 @@ public static class IonGccDirect {
         "process-start-info", "process-start", "process-verify-inherited-job", "process-close-stdin", "process-wait",
         "process-has-exited", "process-read-exit-code", "process-wait-after-stop", "process-exact-stop",
         "stream-read-stdout", "stream-read-stderr", "stream-reader-wait", "stream-reader-close", "stream-reader-status",
-        "job-release-limits", "job-close-handle", "process-dispose", "trace-event", "unknown"
+        "job-release-limits", "job-close-handle", "process-dispose", "trace-event", "unknown",
+        "job-accounting-query", "job-accounting-count", "job-drain-controller-proof"
     };
     static readonly HashSet<string> Stages = new HashSet<string>(StringComparer.Ordinal) {
         "ownership-setup", "compiler-start", "compiler-execution", "cleanup", "stream-shutdown", "observer-snapshot", "result-delivery", "unknown"
@@ -223,6 +233,9 @@ public static class IonGccDirect {
             case "IsProcessInJob child": return "job-check-child-membership";
             case "Verify compiler inherited Job": return "process-verify-inherited-job";
             case "Release empty controller-only Job": return "job-release-limits";
+            case "Query job active process accounting": return "job-accounting-query";
+            case "Verify drain controller Job": return "job-drain-controller-proof";
+            case "Verify sampled controller Job": return "job-sample-controller";
             default: return "unknown";
         }
     }
@@ -254,7 +267,8 @@ public static class IonGccDirect {
         string safeStage=Stages.Contains(stage??"")?stage:"unknown";
         string category=native!=null?"native-api-failure":error is ObjectDisposedException?"handle-lifetime":
             safeOperation=="job-member-counts"||safeOperation=="job-member-pid"||safeOperation=="job-sample-controller"||
-                safeOperation=="job-pre-spawn-snapshot"||safeOperation=="job-verify-controller"||safeOperation=="process-verify-inherited-job"?"membership-invariant":
+                safeOperation=="job-pre-spawn-snapshot"||safeOperation=="job-verify-controller"||safeOperation=="process-verify-inherited-job"||
+                safeOperation=="job-accounting-count"||safeOperation=="job-drain-controller-proof"?"membership-invariant":
             safeOperation.StartsWith("stream-",StringComparison.Ordinal)?"stream-observer-failure":
             safeOperation=="trace-event"?"evidence-capacity":error is AggregateException?"synchronization-failure":"managed-observer-failure";
         return new IonGccObserverFailure { category=category,managedType=type,nativeErrorCode=native,operation=safeOperation,
@@ -273,9 +287,14 @@ public static class IonGccDirect {
         result.detail=result.observerFailure.category;
         LastObserverFailure=result.observerFailure;
     }
-    public static void ValidateMemberCounts(int assigned,int count) {
-        if(assigned<0||count<0||count>64||count!=assigned)throw new InvalidOperationException("Incomplete Job membership snapshot.");
+    public static bool ValidateMemberCounts(int assigned,int count) {
+        // The documented API permits a valid returned prefix. A partial list
+        // is observation, never proof that an unlisted process is absent.
+        if(assigned<0||assigned>64||count<0||count>64||count>assigned)throw new InvalidOperationException("Invalid Job membership snapshot counts.");
+        return count==assigned;
     }
+    public static bool ControllerOnly(uint activeProcesses,bool controllerOwned) { return activeProcesses==1&&controllerOwned; }
+    public static bool CanReportAbsent(bool complete,bool listed) { return complete&&!listed; }
     public static void CompleteObservation(IonGccDirectResult result,bool ownedProcessVerified) {
         result.compilerResultValid=ownedProcessVerified&&result.exitCode.HasValue&&result.outputComplete&&result.cleanupVerified;
         if(result.observerFailure!=null) {
@@ -303,6 +322,7 @@ public static class IonGccDirect {
         public Stopwatch Clock=Stopwatch.StartNew(); public string RunId; public int EventCount;
         public List<IonGccDirectEvent> Events=new List<IonGccDirectEvent>(); public bool Overflow;
         public long TotalOutput; public int OverLimit;
+        public int PartialSnapshotCount; public int? LastPartialAssigned,LastPartialListed;
         readonly object gate=new object();
         public void Event(string stage, string ev, int? pid=null, double? value=null) {
             lock(gate) {
@@ -315,6 +335,11 @@ public static class IonGccDirect {
                 if(value!=null)msg+=",\"value\":"+value.Value.ToString("F4",CultureInfo.InvariantCulture);
                 Console.Out.WriteLine(msg+"}"); Console.Out.Flush();
             }
+        }
+        public void PartialSnapshot(int assigned,int listed) {
+            PartialSnapshotCount=Math.Min(10000,PartialSnapshotCount+1);
+            LastPartialAssigned=assigned;LastPartialListed=listed;
+            if(PartialSnapshotCount==1)Event("job-membership","snapshot-incomplete",null,assigned);
         }
     }
     // Process.Start is synchronous and can itself stall. A one-shot native
@@ -369,8 +394,12 @@ public static class IonGccDirect {
             s.Event("compiler-"+name,"end");
         } catch(Exception e) { capture.Error=e; s.Event("compiler-"+name,"stream-error"); }
     }
-    static HashSet<int> Members(IntPtr job) {
+    sealed class MemberSnapshot {
+        public HashSet<int> Ids; public bool Complete; public int Assigned,Listed;
+    }
+    static MemberSnapshot Members(IntPtr job,Session session) {
         // The Job has a 64-process limit including this PowerShell controller.
+        // Only the returned prefix is valid when listed < assigned.
         int capacity=8+IntPtr.Size*128;
         IntPtr buffer=Marshal.AllocHGlobal(capacity);
         snapshotAssigned=null;snapshotListed=null;
@@ -379,24 +408,45 @@ public static class IonGccDirect {
             Mark(currentStage,"job-member-counts");
             int assigned=Marshal.ReadInt32(buffer,0), count=Marshal.ReadInt32(buffer,4);
             snapshotAssigned=assigned;snapshotListed=count;
-            ValidateMemberCounts(assigned,count);
+            bool complete=ValidateMemberCounts(assigned,count);
             var set=new HashSet<int>();
             for(int i=0;i<count;i++) {
                 long id=IntPtr.Size==8?Marshal.ReadInt64(buffer,8+i*8):Marshal.ReadInt32(buffer,8+i*4);
                 Mark(currentStage,"job-member-pid");
                 if(id<=0 || id>Int32.MaxValue)throw new InvalidOperationException("Invalid Job process identifier.");
-                set.Add((int)id);
+                if(!set.Add((int)id))throw new InvalidOperationException("Duplicate Job process identifier.");
             }
-            return set;
+            if(!complete)session.PartialSnapshot(assigned,count);
+            return new MemberSnapshot { Ids=set,Complete=complete,Assigned=assigned,Listed=count };
+        } finally { Marshal.FreeHGlobal(buffer); }
+    }
+    static uint ActiveProcesses(IntPtr job) {
+        Mark("cleanup","job-accounting-query");
+        int bytes=Marshal.SizeOf<BASIC_ACCOUNTING_INFORMATION>();
+        if(bytes!=48||Marshal.OffsetOf<BASIC_ACCOUNTING_INFORMATION>("activeProcesses").ToInt32()!=40)
+            throw new InvalidOperationException("Unexpected Job accounting ABI.");
+        IntPtr buffer=Marshal.AllocHGlobal(bytes);
+        try {
+            Check(QueryInformationJobObject(job,BASIC_ACCOUNTING,buffer,(uint)bytes,IntPtr.Zero),"Query job active process accounting");
+            Mark("cleanup","job-accounting-count");
+            uint count=Marshal.PtrToStructure<BASIC_ACCOUNTING_INFORMATION>(buffer).activeProcesses;
+            if(count>64)throw new InvalidOperationException("Invalid Job accounting active count.");
+            return count;
         } finally { Marshal.FreeHGlobal(buffer); }
     }
     static void Sample(IntPtr job, int self, HashSet<int> previous, Session s) {
-        var current=Members(job);
+        var snapshot=Members(job,s);
         Mark(currentStage,"job-sample-controller");
-        if(!current.Contains(self))throw new InvalidOperationException("Controller lost its Job membership.");
-        foreach(int pid in current)if(pid!=self&&!previous.Contains(pid))s.Event("job-membership","child-observed",pid);
-        foreach(int pid in previous)if(pid!=self&&!current.Contains(pid))s.Event("job-membership","child-absent-observed",pid);
-        previous.Clear(); foreach(int pid in current)previous.Add(pid);
+        bool controllerOwned;
+        Check(IsProcessInJob(GetCurrentProcess(),job,out controllerOwned),"Verify sampled controller Job");
+        if(!controllerOwned || (snapshot.Complete&&!snapshot.Ids.Contains(self)))
+            throw new InvalidOperationException("Controller lost its Job membership.");
+        foreach(int pid in snapshot.Ids)if(pid!=self&&!previous.Contains(pid))s.Event("job-membership","child-observed",pid);
+        foreach(int pid in previous)if(pid!=self&&CanReportAbsent(snapshot.Complete,snapshot.Ids.Contains(pid)))
+            s.Event("job-membership","child-absent-observed",pid);
+        // A partial prefix cannot erase previously observed members.
+        if(snapshot.Complete)previous.Clear();
+        foreach(int pid in snapshot.Ids)previous.Add(pid);
     }
     static bool Drain(IntPtr job, int self, Session s) {
         // Open handles first, then verify actual Job membership before killing.
@@ -404,9 +454,20 @@ public static class IonGccDirect {
         Mark("cleanup","job-drain");
         Stopwatch drain=Stopwatch.StartNew();
         while(drain.ElapsedMilliseconds<2000) {
-            var members=Members(job); members.Remove(self);
-            if(members.Count==0)return true;
-            foreach(int pid in members) {
+            var snapshot=Members(job,s);
+            bool controllerOwned;
+            Check(IsProcessInJob(GetCurrentProcess(),job,out controllerOwned),"Verify drain controller Job");
+            if(!controllerOwned)throw new InvalidOperationException("Drain controller lost its owning Job.");
+            // List completeness/absence is never a drain proof. Query the
+            // independent active count while proving the live controller owns
+            // the sole remaining active slot. Children cannot be created after
+            // this succeeds because only this controller remains in the Job.
+            if(ControllerOnly(ActiveProcesses(job),controllerOwned)) {
+                s.Event("job-membership","controller-only-accounting",self,1);
+                return true;
+            }
+            foreach(int pid in snapshot.Ids) {
+                if(pid==self)continue;
                 Mark("cleanup","job-open-child-handle");
                 IntPtr handle=OpenProcess(PROCESS_TERMINATE|QUERY_LIMITED,false,pid);
                 if(handle==IntPtr.Zero)continue;
@@ -440,9 +501,10 @@ public static class IonGccDirect {
             assigned=true;
             bool owned; Check(IsProcessInJob(GetCurrentProcess(),job,out owned),"Verify controller Job");
             if(!owned)throw new InvalidOperationException("Controller is not in its owning Job.");
-            int initialMembers=Members(job).Count;
+            var initialMembers=Members(job,s);
             Mark("ownership-setup","job-pre-spawn-snapshot");
-            if(initialMembers!=1)throw new InvalidOperationException("Unexpected pre-spawn Job members.");
+            if(!initialMembers.Complete||initialMembers.Ids.Count!=1||!initialMembers.Ids.Contains(r.controllerPid))
+                throw new InvalidOperationException("Unexpected pre-spawn Job members.");
             s.Event("ownership","controller-job-verified",r.controllerPid);
             Mark("compiler-start","process-start-info");
             var info=new ProcessStartInfo { FileName=compiler,WorkingDirectory=cwd,UseShellExecute=false,
@@ -573,6 +635,7 @@ public static class IonGccDirect {
         s.Event("adapter","result-delivered");
         r.elapsedMs=s.Clock.Elapsed.TotalMilliseconds;
         r.events=s.Events.ToArray(); r.overflow=s.Overflow;
+        r.partialSnapshotCount=s.PartialSnapshotCount;r.lastPartialAssigned=s.LastPartialAssigned;r.lastPartialListed=s.LastPartialListed;
         return r;
     }
 }

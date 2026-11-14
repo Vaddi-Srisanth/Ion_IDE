@@ -80,6 +80,7 @@ const toolchainFixtures = {
   'native.c': '#include <stdio.h>\nint main(void) { puts("ION-C-OUTPUT"); return 0; }\n',
   'native.cpp': '#include <iostream>\nint main() { std::cout << "ION-CPP-OUTPUT" << std::endl; }\n',
   'invalid.c': '#error ION-C-DIAGNOSTIC\n',
+  'ScannerInput.java': 'import java.util.Scanner; public class ScannerInput { public static void main(String[] args) { System.out.println("ION-JAVA-INPUT>"); Scanner input = new Scanner(System.in); String value = input.nextLine(); System.out.println("ION-JAVA-ANSWER:" + value); } }',
   [pythonInputFilename]: 'print("ION-PYTHON-TTY" if __import__("sys").stdin.isatty() else "ION-PYTHON-PIPE")\nprint("ION-PYTHON-ANSWER:" + input())\n',
 }
 const javaFixtures = {
@@ -113,6 +114,14 @@ async function verifyToolchains(page) {
     await terminalShows(page, 'ION-JAVA-MULTI-FILE')
     await status('success')
     console.log('PASS Java compiles a package with multiple source files and runs its main class.')
+
+    await choose('ScannerInput.java')
+    await run()
+    await terminalShows(page, 'ION-JAVA-INPUT>')
+    await typeLine(page.getByTestId('run-console-input'), 'from Ion')
+    await terminalShows(page, 'ION-JAVA-ANSWER:from Ion')
+    await status('success')
+    console.log('PASS Java Scanner accepts real interactive input.')
 
     await choose(pythonInputFilename)
     await run()

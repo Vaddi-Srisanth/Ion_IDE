@@ -25,7 +25,7 @@ const publicEvents = new Set(['request', 'construct-start', 'constructed', 'cons
   'child-observed', 'child-absent-observed', 'controller-job-verified', 'terminate-owned-child', 'failed',
   'completion-unverified', 'stream-error', 'reader-cleanup-unverified', 'exact-payload-exit-unverified',
   'fail-closed-terminate-job', 'ready', 'success', 'compile-error', 'runtime-error', 'timeout', 'cancelled', 'output-limit',
-  'rejected', 'flushed', 'dispatch-start', 'dispatch-end', 'launch-requested', 'line-launch-requested', 'spawn-error'])
+  'rejected', 'flushed', 'dispatch-start', 'dispatch-end', 'launch-requested', 'line-launch-requested', 'spawn-error', 'snapshot-incomplete', 'controller-only-accounting'])
 export const unmeasured = Object.freeze(['Independent kernel GCC/cc1/linker create and exit times in lanes B/C',
   'Native Job/stdio-reader cleanup initiation in lanes B/C', 'Filesystem/antivirus attribution',
   'Full Ion workspace/UI load, renderer delivery and paint', 'Application RAM/CPU/startup regression'])
@@ -120,7 +120,7 @@ export function sanitizeObserverFailure(value) {
   if (!value || typeof value !== 'object') return null
   const categories = new Set(['native-api-failure','membership-invariant','handle-lifetime','stream-observer-failure','evidence-capacity','synchronization-failure','managed-observer-failure','unknown'])
   const types = new Set(['System.ComponentModel.Win32Exception','System.InvalidOperationException','System.ObjectDisposedException','System.IO.IOException','System.AggregateException','System.OperationCanceledException','System.ArgumentException','other'])
-  const operations = new Set(['job-create', 'job-set-limits', 'job-assign-controller', 'job-verify-controller', 'job-pre-spawn-snapshot', 'job-member-query', 'job-member-counts', 'job-member-pid', 'job-member-set', 'job-sample', 'job-sample-controller', 'job-drain', 'job-open-child-handle', 'job-check-child-membership', 'job-stop-owned-child', 'job-drain-deadline', 'process-start-info', 'process-start', 'process-verify-inherited-job', 'process-close-stdin', 'process-wait', 'process-has-exited', 'process-read-exit-code', 'process-wait-after-stop', 'process-exact-stop', 'stream-read-stdout', 'stream-read-stderr', 'stream-reader-wait', 'stream-reader-close', 'stream-reader-status', 'job-release-limits', 'job-close-handle', 'process-dispose', 'trace-event', 'unknown'])
+  const operations = new Set(['job-create', 'job-set-limits', 'job-assign-controller', 'job-verify-controller', 'job-pre-spawn-snapshot', 'job-member-query', 'job-member-counts', 'job-member-pid', 'job-member-set', 'job-sample', 'job-sample-controller', 'job-drain', 'job-open-child-handle', 'job-check-child-membership', 'job-stop-owned-child', 'job-drain-deadline', 'process-start-info', 'process-start', 'process-verify-inherited-job', 'process-close-stdin', 'process-wait', 'process-has-exited', 'process-read-exit-code', 'process-wait-after-stop', 'process-exact-stop', 'stream-read-stdout', 'stream-read-stderr', 'stream-reader-wait', 'stream-reader-close', 'stream-reader-status', 'job-release-limits', 'job-close-handle', 'process-dispose', 'trace-event', 'unknown', 'job-accounting-query', 'job-accounting-count', 'job-drain-controller-proof'])
   const stages = new Set(['ownership-setup','compiler-start','compiler-execution','cleanup','stream-shutdown','observer-snapshot','result-delivery','unknown'])
   return { category: categories.has(value.category) ? value.category : 'unknown', managedType: types.has(value.managedType) ? value.managedType : 'other',
     nativeErrorCode: Number.isInteger(value.nativeErrorCode) && value.nativeErrorCode >= -2147483648 && value.nativeErrorCode <= 4294967295 ? value.nativeErrorCode : null,
@@ -142,7 +142,9 @@ export function sanitizeReport(report) {
     for (const key of Object.keys(stageDurations({ lane: row.lane }))) {
       if (key.endsWith('Ms')) metrics[key] = finite(row.metrics?.[key])
     }
-    return { observerFailure: sanitizeObserverFailure(row.observerFailure),
+    return { partialSnapshotCount: Number.isInteger(row.partialSnapshotCount) ? Math.max(0,Math.min(10000,row.partialSnapshotCount)) : null,
+      lastPartialAssigned: Number.isInteger(row.lastPartialAssigned) ? row.lastPartialAssigned : null, lastPartialListed: Number.isInteger(row.lastPartialListed) ? row.lastPartialListed : null,
+      observerFailure: sanitizeObserverFailure(row.observerFailure),
       observerFailureCount: Number.isInteger(row.observerFailureCount) ? Math.min(16, Math.max(0,row.observerFailureCount)) : 0,
       compilerResultValid: typeof row.compilerResultValid === 'boolean' ? row.compilerResultValid : null,
       runId: row.runId, lane: row.lane, phase, elapsedMs: finite(row.elapsedMs),

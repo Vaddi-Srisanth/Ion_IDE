@@ -43,7 +43,7 @@ test('A lane establishes and verifies noninheritable kill-on-close ownership bef
   const order = ['CreateJobObjectW(IntPtr.Zero,null)', 'KILL_ON_JOB_CLOSE|ACTIVE_PROCESS',
     'AssignProcessToJobObject(job,GetCurrentProcess())',
     'IsProcessInJob(GetCurrentProcess(),job,out owned)',
-    'initialMembers!=1', 's.Event("ownership","controller-job-verified"', 'child.Start()',
+    '!initialMembers.Complete||initialMembers.Ids.Count!=1', 's.Event("ownership","controller-job-verified"', 'child.Start()',
     'IsProcessInJob(child.Handle,job,out owned)']
   let previous = -1
   for (const boundary of order) {
@@ -75,7 +75,7 @@ test('A lane bounds evidence and preserves output, exit, stream and owned cleanu
     assert.ok(csharp.includes('"' + marker + '"'), marker)
   const drain = csharp.slice(csharp.indexOf('static bool Drain('), csharp.indexOf('public static IonGccDirectResult Run('))
   assert.ok(drain.indexOf('IsProcessInJob(handle,job,out owned)') < drain.indexOf('TerminateProcess(handle,124)'))
-  assert.match(drain, /members\.Remove\(self\)/)
+  assert.match(drain, /if\(pid==self\)continue/)
   assert.match(csharp, /r\.events=s\.Events\.ToArray\(\)/)
   assert.match(csharp, /child\?\.Dispose\(\)/)
   assert.match(csharp, /TerminateJobObject\(job,125\)/)
@@ -99,7 +99,7 @@ test('one-shot deadline covers synchronous spawn and cannot terminate a released
   assert.doesNotMatch(timer, /Thread\.Sleep|\.Wait\(|\.Join\(|\.Result|await /)
 })
 
-test('fixed adapter compiles and pure failure classification preserves privacy, strict counts and failed observer state without Windows calls', async t => {
+test('fixed adapter compiles and pure regression proves valid partial prefix is neither absence nor drainage', async t => {
   let installed
   const environment = { ...process.env, DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1', DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' }
   try { installed = await exec('dotnet', ['--list-sdks'], { timeout: 10000, env: environment, maxBuffer: 32768 }) }
@@ -120,6 +120,9 @@ test('fixed adapter compiles and pure failure classification preserves privacy, 
   const pureClassifier = `
 public sealed class PrivateDiagnosticException : System.Exception { public PrivateDiagnosticException(string value):base(value){} }
 public static class ClassificationMain {
+  static void LegacyCompleteOnlyCounts(int assigned,int listed) {
+    if(assigned<0||listed<0||listed>64||listed!=assigned)throw new System.InvalidOperationException("Incomplete Job membership snapshot.");
+  }
   public static void Main() {
     const string secret="DO_NOT_EXPORT_PRIVATE_PATH_TOKEN_OR_EXCEPTION_TEXT";
     var native=IonGccDirect.DescribeFailure(new System.ComponentModel.Win32Exception(6,secret),"job-check-child-membership","cleanup",true,true,true);
@@ -128,15 +131,27 @@ public static class ClassificationMain {
     var unknown=IonGccDirect.DescribeFailure(new PrivateDiagnosticException(secret),secret,secret,null,false,false);
     var nested=IonGccDirect.DescribeFailure(new System.AggregateException(new System.ComponentModel.Win32Exception(87,secret)),"stream-reader-wait","stream-shutdown",true,false,false);
     int rejected=0;
-    foreach(int[] pair in new[]{new[]{-1,0},new[]{1,-1},new[]{65,65},new[]{2,1}}) {
+    foreach(int[] pair in new[]{new[]{-1,0},new[]{1,-1},new[]{65,65},new[]{1,2},new[]{64,65}}) {
       try { IonGccDirect.ValidateMemberCounts(pair[0],pair[1]); }catch(System.InvalidOperationException){rejected++;}
     }
     IonGccDirect.ValidateMemberCounts(0,0);IonGccDirect.ValidateMemberCounts(64,64);
+    bool oldPredicateWouldReject=false;
+    try { LegacyCompleteOnlyCounts(2,1); }catch(System.InvalidOperationException){oldPredicateWouldReject=true;}
+    bool partial=IonGccDirect.ValidateMemberCounts(2,1);
+    bool complete=IonGccDirect.ValidateMemberCounts(1,1);
+    bool missingFromPartial=IonGccDirect.CanReportAbsent(partial,false);
+    bool missingFromComplete=IonGccDirect.CanReportAbsent(complete,false);
+    bool activeTwoDrained=IonGccDirect.ControllerOnly(2,true);
+    bool activeOneUnownedDrained=IonGccDirect.ControllerOnly(1,false);
+    bool activeOneOwnedDrained=IonGccDirect.ControllerOnly(1,true);
+    int accountingSize=System.Runtime.InteropServices.Marshal.SizeOf<IonGccDirect.BASIC_ACCOUNTING_INFORMATION>();
+    int activeOffset=System.Runtime.InteropServices.Marshal.OffsetOf<IonGccDirect.BASIC_ACCOUNTING_INFORMATION>("activeProcesses").ToInt32();
     var result=new IonGccDirectResult { state="exited",exitCode=0,outputComplete=true,cleanupVerified=true };
     typeof(IonGccDirect).GetMethod("Failure",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)
       .Invoke(null,new object[]{result,new System.InvalidOperationException(secret),null});
     IonGccDirect.CompleteObservation(result,true);
     System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new {native,count,disposed,unknown,nested,rejected,
+      oldPredicateWouldReject,partial,complete,missingFromPartial,missingFromComplete,activeTwoDrained,activeOneUnownedDrained,activeOneOwnedDrained,accountingSize,activeOffset,
       observerState=result.state,result.compilerResultValid,result.observerFailureCount,cleanup=result.observerFailure.cleanupCompleted}));
   }
 }`
@@ -162,7 +177,13 @@ public static class ClassificationMain {
   assert.equal(result.disposed.operation, 'unknown'); assert.equal(result.disposed.lifecycleStage, 'unknown')
   assert.equal(result.unknown.managedType, 'other')
   assert.equal(result.nested.managedType, 'System.AggregateException'); assert.equal(result.nested.nativeErrorCode, 87)
-  assert.equal(result.rejected, 4)
+  assert.equal(result.rejected, 5)
+  assert.equal(result.oldPredicateWouldReject, true)
+  assert.equal(result.partial, false); assert.equal(result.complete, true)
+  assert.equal(result.missingFromPartial, false); assert.equal(result.missingFromComplete, true)
+  assert.equal(result.activeTwoDrained, false); assert.equal(result.activeOneUnownedDrained, false)
+  assert.equal(result.activeOneOwnedDrained, true)
+  assert.equal(result.accountingSize, 48); assert.equal(result.activeOffset, 40)
   assert.equal(result.observerState, 'error'); assert.equal(result.compilerResultValid, true)
   assert.equal(result.observerFailureCount, 1); assert.equal(result.cleanup, true)
 })

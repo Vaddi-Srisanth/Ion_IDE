@@ -6,10 +6,11 @@ import { tmpdir } from 'node:os'
 import { test, type TestContext } from 'node:test'
 import type { Readable } from 'node:stream'
 import { monitorWindowsPipeProcess } from '../src/main/windows-process'
+import type { RunTrace } from '../src/main/run-console/trace'
 
 // These use real local child processes and fd3 pipes on the host OS. They
 // verify parser/Node IO behavior, not Windows Job APIs or descendant ownership.
-function fixture(t: TestContext, script: string, executable = process.execPath, control = true) {
+function fixture(t: TestContext, script: string, executable = process.execPath, control = true, trace?: RunTrace) {
   const child = spawn(executable, ['-e', script], {
     windowsHide: true, stdio: control ? ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'pipe'],
   }) as ChildProcessWithoutNullStreams
@@ -19,7 +20,7 @@ function fixture(t: TestContext, script: string, executable = process.execPath, 
   const closed = new Promise<[number | null, NodeJS.Signals | null]>(resolve => {
     child.once('close', (code, signal) => resolve([code, signal]))
   })
-  const monitor = monitorWindowsPipeProcess(child, message => failures.push(message))
+  const monitor = monitorWindowsPipeProcess(child, message => failures.push(message), trace)
   child.stdout.resume()
   child.stderr.resume()
   t.after(async () => {
@@ -32,6 +33,34 @@ function fixture(t: TestContext, script: string, executable = process.execPath, 
   })
   return { child, monitor, closed, failures, spawnErrors }
 }
+
+test('optional pipe trace distinguishes parsed payload identity and cleanup receipt without retaining listeners', { timeout: 5000 }, async t => {
+  const records: { stage: string; event: string; value?: number | string | boolean | null }[] = []
+  const trace: RunTrace = (stage, event, value) => records.push({ stage, event, value })
+  // Deliberately different from the fake supervisor's own PID. This proves the
+  // parser reports the READY payload, not child.pid. No native Windows claim.
+  const script = "require('node:fs').writeSync(3,'READY 42\\nCLEAN\\n');"
+  const sample = fixture(t, script, process.execPath, true, trace)
+  await sample.closed
+  assert.equal(await sample.monitor.finished, true)
+  assert.deepEqual(records, [
+    { stage: 'compiler-payload', event: 'ready-observed', value: 42 },
+    { stage: 'compiler-job', event: 'clean-observed', value: undefined },
+  ])
+  const status = sample.child.stdio[3] as Readable
+  assert.equal(status.listenerCount('data'), 0)
+  assert.equal(status.listenerCount('error'), 0)
+  sample.monitor.dispose()
+
+  const disabled = fixture(t, script)
+  await disabled.closed
+  assert.equal(await disabled.monitor.finished, true)
+  assert.equal(records.length, 2, 'Omitting tracing introduces no extra records or observer.')
+  const invalid = fixture(t, "require('node:fs').writeSync(3,'READY NaN\\nCLEAN\\n');", process.execPath, true, trace)
+  await invalid.closed
+  assert.equal(await invalid.monitor.finished, false)
+  assert.equal(records.length, 2, 'An unvalidated payload must not produce a trusted identity marker.')
+})
 
 test('pipe status parser accepts READY and CLEAN split across actual IO events', { timeout: 5000 }, async t => {
   const sample = fixture(t, `

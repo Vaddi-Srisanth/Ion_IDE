@@ -3,6 +3,7 @@ import { realpath } from 'node:fs/promises'
 import { delimiter, isAbsolute, join, relative, sep } from 'node:path'
 import { homedir } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
+import type { RunTrace } from './run-console/trace'
 
 const systemRoot = process.env.SystemRoot || 'C:\\Windows'
 export const windowsSystemDirectory = join(systemRoot, 'System32')
@@ -73,7 +74,7 @@ export function windowsPipeCommand(executable: string, args: string[]): { execut
 
 
 /** Observe only the private native status pipe. Never consume program output. */
-export function monitorWindowsPipeProcess(child: ChildProcessWithoutNullStreams, onFailure: (detail: string) => void) {
+export function monitorWindowsPipeProcess(child: ChildProcessWithoutNullStreams, onFailure: (detail: string) => void, trace?: RunTrace) {
   const status = child.stdio[3] as Readable | undefined
   if (!status) return {
     finished: Promise.resolve(false), verified: false,
@@ -105,8 +106,15 @@ export function monitorWindowsPipeProcess(child: ChildProcessWithoutNullStreams,
       if (newline < 0) return
       const line = buffered.slice(0, newline).replace(/\r$/, '')
       buffered = buffered.slice(newline + 1)
-      if (!ready && /^READY [1-9][0-9]{0,9}$/.test(line)) ready = true
-      else if (ready && !cleaned && line === 'CLEAN') cleaned = true
+      if (!ready && /^READY [1-9][0-9]{0,9}$/.test(line)) {
+        ready = true
+        // Receipt time in Node, not the native payload creation timestamp.
+        // child.pid identifies the supervisor; READY identifies its payload.
+        trace?.('compiler-payload', 'ready-observed', Number(line.slice(6)))
+      } else if (ready && !cleaned && line === 'CLEAN') {
+        cleaned = true
+        trace?.('compiler-job', 'clean-observed')
+      }
       else return fail(/^ERROR [0-9]{1,10}$/.test(line)
         ? 'The Windows process supervisor failed (' + line.slice(6) + ').'
         : 'The Windows process supervisor returned invalid status.')

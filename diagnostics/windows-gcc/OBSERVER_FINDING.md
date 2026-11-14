@@ -1,0 +1,7 @@
+# Reproduced observer defect and correction
+
+Native evidence: run43604680641, hostC, warm-77-A. GCC exited0 and streams completed; observer threw System.InvalidOperationException at job-member-counts during cleanup. The returned snapshot declared2assigned and1listed PID; final cleanupcompleted andcompilerResultValidwere true. The exact cause of the original two older samples was not exported, so this is a matching reproduced defect, not invented backfilled exception data.
+
+Microsoft documents a variable-length returned prefix: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_process_id_list. The old harness treated every incomplete list as a fatal invariant. The corrected harness treats it as an explicit uncertain observation, never as child absence or drain proof. Drain requires independent Job accounting ActiveProcesses1 and verified live controller membership. Existing exact-handle membership checks before termination, complete pre-spawn self-only membership, 64-process bounds, 15-second compiler deadline and2-second cleanup interval stay unchanged.
+
+Pure C# regression actually executes the old2/1predicate to reproduce its exception, verifies partial handling and no falseabsence, active2notdrained, active1unownednotdrained, active1owneddrained, invalidcountsrejected, and accounting ABI48bytes/activeoffset40. Native post-fix verification remains pending. Historical failures and the original12.67-second sample remain immutable.
