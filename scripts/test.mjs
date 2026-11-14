@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { build } from 'esbuild'
 import { buildFileMutations } from './build-file-mutations.mjs'
 import { buildWindowsConsoleProbe, buildWindowsPty } from './windows/build-pty.mjs'
+import { pipeFixtureSources } from './windows/pipe-fixture-source.mjs'
 
 const directory = await mkdtemp(join(tmpdir(), 'ion-tests-'))
 try {
@@ -19,14 +20,10 @@ try {
   if (processHelper) await buildWindowsPty(processHelper, process.arch)
   if (processHelper && files.includes('windows-process-job.test.ts')) {
     const source = await readFile('src/main/run-console/pty-windows.cpp', 'utf8')
-    const candidate = 'CREATE_SUSPENDED | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT'
-    if (source.split(candidate).length !== 2) throw new Error('Expected exactly one pipe-only detached launch flag.')
-    const packet = /  \/\/ CRT_STDIO_INHERITANCE_BEGIN\n[\s\S]*?  \/\/ CRT_STDIO_INHERITANCE_END\n/g
-    if ([...source.matchAll(packet)].length !== 1) throw new Error('Expected one bounded standard-descriptor inheritance packet.')
-    const withoutPacket = source.replace(packet, '')
+    const controls = pipeFixtureSources(source)
     const control = join(directory, 'baseline-pipe.cpp'), detachedControl = join(directory, 'detached-control-pipe.cpp')
-    await writeFile(control, withoutPacket.replace(candidate, 'CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT'))
-    await writeFile(detachedControl, withoutPacket)
+    await writeFile(control, controls.baseline)
+    await writeFile(detachedControl, controls.detached)
     baselineHelper = join(directory, 'baseline-ion-pty.exe')
     detachedControlHelper = join(directory, 'detached-control-ion-pty.exe')
     consoleProbe = join(directory, 'console-probe.exe')

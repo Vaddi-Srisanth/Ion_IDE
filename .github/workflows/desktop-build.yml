@@ -130,7 +130,20 @@ jobs:
         env:
           ION_PIPE_CONSOLE_REPORT: performance-results/windows-pipe-console.json
           ION_PIPE_COMPILER_REPORT: performance-results/windows-pipe-compiler.json
-        run: npm test -- windows-process-job windows-pipe-protocol
+        run: |
+          node --test scripts/windows/pipe-fixture-source.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test -- windows-process-job windows-pipe-protocol
+      - name: Preserve pipe diagnostics immediately
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-pipe-diagnostics-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            performance-results/windows-pipe-console.json
+            performance-results/windows-pipe-compiler.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Prepare disposable real Jupyter fixture with direct pins and resolved receipt
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         timeout-minutes: 10
@@ -180,6 +193,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/test-shutdown-cleanup-failure.mjs --out performance-results/windows-shutdown-cleanup-failure.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Attribute compiler diagnostics before terminal rendering
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/trace-windows-compiler-diagnostics.mjs
+      - name: Preserve compiler bridge evidence immediately
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-compiler-bridge-${{ github.sha }}-${{ github.run_attempt }}
+          path: performance-results/windows-compiler-bridge.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify interactive Run Console
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/verify-windows-run-console.mjs

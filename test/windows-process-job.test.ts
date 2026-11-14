@@ -8,7 +8,7 @@ import { test, type TestContext } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { execute, findWindowsCompiler } from '../src/main/runner'
-import { configureWindowsProcessHelper, monitorWindowsPipeProcess, windowsEnvironment, windowsToolPaths } from '../src/main/windows-process'
+import { configureWindowsProcessHelper, monitorWindowsPipeProcess, windowsEnvironment, windowsToolPaths, workspaceSafeWindowsToolPaths } from '../src/main/windows-process'
 
 const windows = process.platform === 'win32'
 const run = promisify(execFile)
@@ -338,8 +338,8 @@ test('Windows pipe commands avoid a console session while preserving stdin, sepa
     }
   })
 
-test('Windows GCC driver and child diagnostics survive detached CRT descriptor inheritance',
-  { skip: !windows, timeout: 130000 }, async t => {
+test('Windows selected compiler and GCC driver/frontend diagnostics survive detached CRT descriptor inheritance',
+  { skip: !windows, timeout: 260000 }, async t => {
     const helper = native(), baseline = process.env.ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER
     const detachedControl = process.env.ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER
     assert.ok(baseline && detachedControl, 'Build both exact historical helper controls with scripts/test.mjs.')
@@ -350,8 +350,13 @@ test('Windows GCC driver and child diagnostics survive detached CRT descriptor i
       if (found && basename(found).toLowerCase() === 'gcc.exe') { gcc = found; break }
     }
     assert.ok(gcc, 'An actual installed GCC is required for the CRT child-diagnostic regression.')
+    const selected = await findWindowsCompiler(await workspaceSafeWindowsToolPaths(cwd), cwd)
+    assert.ok(selected, 'The application compiler selection must resolve in the same environment.')
+    const compilers = [{ path: gcc, selectedByApplication: gcc.toLowerCase() === selected.toLowerCase() }]
+    if (!compilers[0].selectedByApplication) compilers.push({ path: selected, selectedByApplication: true })
+    assert.ok(compilers.length <= 2)
     const source = join(cwd, 'invalid.c'), sibling = join(cwd, 'untouched.c')
-    const sourceText = '#error ION-GCC-CHILD-DIAGNOSTIC\nint main(void) { return 0; }\n'
+    const sourceText = '#error ION-COMPILER-FRONTEND-DIAGNOSTIC\nint main(void) { return 0; }\n'
     const siblingText = '/* unrelated source must remain byte-for-byte unchanged */\n'
     await writeFile(source, sourceText)
     await writeFile(sibling, siblingText)
@@ -361,28 +366,33 @@ test('Windows GCC driver and child diagnostics survive detached CRT descriptor i
       { name: 'detached-with-crt', path: helper },
     ]
     const cases = [
-      { name: 'driver-option', marker: '--ion-gcc-invalid-option', args: ['--ion-gcc-invalid-option'] },
-      { name: 'compiler-child', marker: 'ION-GCC-CHILD-DIAGNOSTIC',
+      { name: 'driver-option', marker: '--ion-compiler-invalid-option', args: ['--ion-compiler-invalid-option'] },
+      { name: 'source-diagnostic', marker: 'ION-COMPILER-FRONTEND-DIAGNOSTIC',
         args: ['-x', 'c', '-std=c17', '-fdiagnostics-color=never', '-fsyntax-only', source] },
     ]
-    type Observation = { variant: string; scenario: string; marker: string; helperSha256?: string;
+    type Observation = { compiler: string; selectedByApplication: boolean; variant: string; scenario: string; marker: string; helperSha256?: string;
       elapsedMs?: number; result?: Awaited<ReturnType<typeof execute>>; error?: string; markerInStderr?: boolean }
     const observations: Observation[] = []
     const receipt: Record<string, unknown> = { platform: process.platform, architecture: process.arch,
-      compiler: basename(gcc), observations, candidatePassed: false, unrelatedFilesUnchanged: false }
+      applicationSelectedCompiler: basename(selected), compilers: compilers.map(compiler => ({
+        name: basename(compiler.path), selectedByApplication: compiler.selectedByApplication })),
+      plannedExecutions: compilers.length * variants.length * cases.length,
+      observations, candidatePassed: false, unrelatedFilesUnchanged: false }
     let primaryError: unknown
     try {
-      // Observe all six configured executions once. Do not erase an earlier
-      // control timeout or assume the historical controls must lose stderr.
-      for (const variant of variants) for (const scenario of cases) {
-        const row: Observation = { variant: variant.name, scenario: scenario.name, marker: scenario.marker }
+      // Observe each configured execution once (at most twelve), preserving
+      // the unchanged 15s per-command limit. The matrix-level test budget also
+      // covers each command's bounded cleanup; it does not alter product limits.
+      for (const compiler of compilers) for (const variant of variants) for (const scenario of cases) {
+        const row: Observation = { compiler: basename(compiler.path), selectedByApplication: compiler.selectedByApplication,
+          variant: variant.name, scenario: scenario.name, marker: scenario.marker }
         observations.push(row)
         const began = performance.now()
         try {
           row.helperSha256 = createHash('sha256').update(await readFile(variant.path)).digest('hex')
           configureWindowsProcessHelper(variant.path)
           const controller = new AbortController()
-          const job = execute(gcc, scenario.args, options(cwd, controller.signal, 15000))
+          const job = execute(compiler.path, scenario.args, options(cwd, controller.signal, 15000))
           ownCleanup(t, async () => { controller.abort(); await job })
           row.result = await job
           row.markerInStderr = row.result.stderr?.includes(scenario.marker) ?? false
@@ -392,19 +402,23 @@ test('Windows GCC driver and child diagnostics survive detached CRT descriptor i
       assert.equal(await readFile(source, 'utf8'), sourceText)
       assert.equal(await readFile(sibling, 'utf8'), siblingText)
       receipt.unrelatedFilesUnchanged = true
+      assert.equal(observations.length, compilers.length * variants.length * cases.length)
       for (const row of observations) {
         assert.equal(row.error, undefined, 'The configured diagnostic could not execute: ' + JSON.stringify(row))
         assert.equal(row.result?.outputComplete, true, 'Every observed control/candidate must prove native cleanup: ' + JSON.stringify(row))
       }
-      for (const row of observations.filter(row => row.variant === 'detached-with-crt')) {
+      const candidates = observations.filter(row => row.variant === 'detached-with-crt')
+      assert.equal(candidates.length, compilers.length * cases.length)
+      for (const row of candidates) {
         assert.equal(row.result?.state, 'exited', JSON.stringify(row))
         assert.ok(Number.isInteger(row.result.exitCode) && row.result.exitCode !== 0, JSON.stringify(row))
-        assert.equal(row.markerInStderr, true, 'Candidate lost the actual GCC diagnostic: ' + JSON.stringify(row))
+        assert.equal(row.markerInStderr, true, 'Candidate lost the actual compiler diagnostic: ' + JSON.stringify(row))
         assert.ok(row.result.output.includes(row.marker), JSON.stringify(row))
       }
       receipt.candidatePassed = true
       receipt.detachedNoCrtObservations = observations.filter(row => row.variant === 'detached-no-crt')
-        .map(row => ({ scenario: row.scenario, state: row.result?.state, exitCode: row.result?.exitCode,
+        .map(row => ({ compiler: row.compiler, selectedByApplication: row.selectedByApplication,
+          scenario: row.scenario, state: row.result?.state, exitCode: row.result?.exitCode,
           markerInStderr: row.markerInStderr }))
     } catch (error) {
       primaryError = error
@@ -419,7 +433,7 @@ test('Windows GCC driver and child diagnostics survive detached CRT descriptor i
           await writeFile(process.env.ION_PIPE_COMPILER_REPORT, JSON.stringify(receipt, null, 2) + '\n')
         } catch (error) {
           if (!primaryError) throw error
-          t.diagnostic('The GCC receipt could not be saved: ' + String(error).slice(0, 1000))
+          t.diagnostic('The compiler receipt could not be saved: ' + String(error).slice(0, 1000))
         }
       }
     }

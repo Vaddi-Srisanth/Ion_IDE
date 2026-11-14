@@ -52,7 +52,7 @@ async function verifyWindowsConsole(page) {
   await page.evaluate(() => {
     const events = window.ionWindowsSmokeEvents = []
     window.ion.runConsole.onUpdate(({ update }) => {
-      if (events.length >= 12) return
+      if (events.length === 32) events.shift()
       events.push(update.kind === 'data' ? { ...update, text: update.text.slice(0, 512) } : update)
     })
   })
