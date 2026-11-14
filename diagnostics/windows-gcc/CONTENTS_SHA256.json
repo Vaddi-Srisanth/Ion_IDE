@@ -17,6 +17,11 @@
       "sha256": "e43228f3c3a138ee2ecca95472119024e7365c078f1df2238af644d8a63c6f42"
     },
     {
+      "path": "diagnostics/windows-gcc/.gitattributes",
+      "bytes": 92,
+      "sha256": "4f8d00a23f9bf5359db5196feda933d4fc15d8b33249c840d09c0eab3630df72"
+    },
+    {
       "path": "diagnostics/windows-gcc/ACTIONS_GUIDE.md",
       "bytes": 7389,
       "sha256": "eb496f93754c1557d503e703163fe2ad2ffcedd25620fd78b76f1c5655a0325a"
@@ -28,8 +33,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
-      "bytes": 6128,
-      "sha256": "d132bef53e3f7bc7632dc662ac3bc7da144640043baabff41c955ecd71c4c692"
+      "bytes": 7005,
+      "sha256": "7ed1c4cd7b36ee4f5eaee74f07ed4ce660e4e9bda9c73fa98d598d08221438a0"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
@@ -108,8 +113,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.test.mjs",
-      "bytes": 7115,
-      "sha256": "c420d73ffd7b0341cfd2769ac6681356b5d5ff8b63e0e6f4fc729905d2bf70b6"
+      "bytes": 7704,
+      "sha256": "c8909d11d8df31dad92fce8f7f27bc0d719856cc1038bb43844412fae547ada0"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-package.json",

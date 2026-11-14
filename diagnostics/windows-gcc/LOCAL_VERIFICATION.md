@@ -54,3 +54,9 @@ Explicit approval is required to upload **only** `codex/ion-gcc-hosted-diagnosti
 After authorized execution, download all three job artifacts, including failed jobs, and report exact runner image/toolchain versions, attempted/planned/unexecuted counts, per-lane/host statistics and unknown intervals. Keep the original finding open if not reproduced or still unexplained. A production correction, if justified by evidence, requires a separate reviewable patch and regression tests.
 
 Rollback is simply to leave this local diagnostic branch unused. No application migration, profile change, executable replacement or main-branch rollback is needed.
+
+## First hosted attempt — run 43598239651
+
+All three Windows Server 2022 x64 jobs reached the portable contract suite, then failed before any GCC trials. Confirmed diagnostic defect: checkout's CRLF conversion made the C# fixture extractor's LF-only delimiter split fail. The same conversion would invalidate recorded bundle/source hashes. This is not a GCC latency measurement. All three failure artifacts and original run remain preserved; 0 compiler trials completed, 909 unexecuted.
+
+Correction: a scoped `.gitattributes` keeps only this diagnostic fixture at LF for reproducible hashes; the test's embedded C# extractor now independently accepts CRLF and LF and includes a regression check for both. No production execution source or compiler deadline changed. A corrected diagnostic commit/run is a new cohort, not a replacement successful rerun of the failed sample.

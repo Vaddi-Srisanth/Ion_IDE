@@ -9,7 +9,20 @@ import { tmpdir } from 'node:os'
 import test from 'node:test'
 
 const source = await readFile(new URL('./gcc-direct-powershell.ps1', import.meta.url), 'utf8')
-const csharp = source.split("@'\n")[1].split("\n'@")[0]
+function embeddedCsharp(text) {
+  const normalized = text.replace(/\r\n/g, '\n')
+  const begin = normalized.indexOf("@'\n")
+  const end = normalized.indexOf("\n'@", begin + 3)
+  assert.ok(begin >= 0 && end > begin, 'Embedded adapter boundaries are missing.')
+  return normalized.slice(begin + 3, end)
+}
+const csharp = embeddedCsharp(source)
+
+test('embedded C# extraction accepts real Windows CRLF and LF checkouts without changing source semantics', () => {
+  const lf = source.replace(/\r\n/g, '\n')
+  assert.equal(embeddedCsharp(lf), embeddedCsharp(lf.replace(/\n/g, '\r\n')))
+  assert.match(csharp, /public static IonGccDirectResult Run/)
+})
 const exec = promisify(execFile)
 
 test('A lane fails closed before running a compiler on unsupported hosts or altered manifests', () => {
