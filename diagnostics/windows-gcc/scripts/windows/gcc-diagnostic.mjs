@@ -488,7 +488,7 @@ export async function preparePackage(destination) {
     await mkdir(dirname(to), { recursive: true }); await cp(from, to, { errorOnExist: true, force: false })
     manifest.sourceFiles.push({ path: name, sha256: await hashFile(from) })
   }
-  for (const name of ['gcc-diagnostic.mjs', 'gcc-diagnostic-host.cjs', 'gcc-direct-powershell.ps1', 'compare-gcc-latency.mjs', 'build-pty.mjs']) {
+  for (const name of ['gcc-diagnostic.mjs', 'gcc-diagnostic-host.cjs', 'gcc-diagnostic-errors.cjs', 'gcc-direct-powershell.ps1', 'compare-gcc-latency.mjs', 'build-pty.mjs']) {
     await cp(join(here, name), join(runtime, name), { errorOnExist: true, force: false })
   }
   await writeFile(join(runtime, 'gcc-package.json'), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' })

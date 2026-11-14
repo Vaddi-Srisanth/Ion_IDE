@@ -254,12 +254,20 @@ export async function collect(options) {
             gap('invalid-result-retained')
           } else {
             let malformedLines = 0, resultSeen = false, records = 0
-            const events = [], liveResults = []
+            const events = [], liveResults = [], hostErrors = []
             for (const line of bytes.toString('utf8').split('\n')) {
               if (!line.trim()) continue
               if (++records > 258) { malformedLines++; break }
               try {
                 const item = JSON.parse(line)
+                if (item.kind === 'host-error') {
+                  assert.equal(item.lane, laneOf(id))
+                  const e = item.error ?? {}, allowed = ['ERR_ASSERTION', 'ENOENT', 'EACCES', 'EPERM', 'MODULE_NOT_FOUND', 'ERR_INVALID_ARG_TYPE', 'ERR_INVALID_ARG_VALUE', 'HOST_ERROR']
+                  assert.ok(hostErrors.length < 2)
+                  hostErrors.push({ code: allowed.includes(e.code) ? e.code : 'HOST_ERROR', line: positive(e.line), column: positive(e.column),
+                    messageSha256: /^[a-f0-9]{64}$/.test(e.messageSha256 ?? '') ? e.messageSha256 : null })
+                  gap('diagnostic-host-error-retained'); continue
+                }
                 assert.equal(item.runId, id); assert.equal(item.lane, laneOf(id))
                 if (item.kind === 'event') events.push(...core.sanitizeEvents([item]))
                 else if (item.kind === 'result') {
@@ -275,7 +283,7 @@ export async function collect(options) {
             }
             assert.ok(events.length <= 256)
             partial.set(id, events)
-            await write('samples/' + id + '.timeline.json', { runId: id, events, resultSeen, liveResults, malformedLines,
+            await write('samples/' + id + '.timeline.json', { runId: id, events, resultSeen, liveResults, hostErrors, malformedLines,
               originalSha256: hash(bytes), clock: 'per-attempt local monotonic; no cross-process subtraction' })
             if (malformedLines) gap('partial-trace-malformed-or-truncated')
           }

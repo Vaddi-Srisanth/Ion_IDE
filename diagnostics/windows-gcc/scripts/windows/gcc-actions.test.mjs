@@ -157,3 +157,20 @@ test('missing live trace and startup/host failures remain explicit instead of a 
   assert.deepEqual(result.hostShutdown, [{ lane: 'B', pid: 123, normal: false, exited: true, code: 1, signal: null }])
   assert.ok(!(await artifactText(f.output)).includes(secret))
 })
+
+test('host failures preserve only a safe source location, code and message hash', async t => {
+  const { createRequire } = await import('node:module')
+  const { safeHostError } = createRequire(import.meta.url)('./gcc-diagnostic-errors.cjs')
+  const error = new Error(secret); error.code = 'ERR_ASSERTION'
+  error.stack = 'Error: '+secret+'\n at attempt (C:\\private\\gcc-diagnostic-host.cjs:73:12)'
+  const safe = safeHostError(error)
+  assert.equal(safe.code, 'ERR_ASSERTION'); assert.equal(safe.line, 73)
+  assert.ok(!JSON.stringify(safe).includes(secret)); assert.match(safe.messageSha256, /^[a-f0-9]{64}$/)
+  const f = await fixture(t), row = sample('first-C', { state: 'error', exitCode: null, cleanupVerified: false })
+  await ledger(f.workspace, [row]); await raw(f.workspace, row)
+  await writeFile(join(f.workspace, 'raw/first-C.events.jsonl'), JSON.stringify({ kind: 'host-error', lane: 'C', message: secret, error: safe })+'\n')
+  const result = await collectFixture(f)
+  const trace = JSON.parse(await readFile(join(f.output, 'samples/first-C.timeline.json'), 'utf8'))
+  assert.deepEqual(trace.hostErrors, [safe]); assert.ok(result.evidenceGaps.includes('diagnostic-host-error-retained'))
+  assert.ok(!(await artifactText(f.output)).includes(secret))
+})

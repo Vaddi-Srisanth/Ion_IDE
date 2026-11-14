@@ -33,8 +33,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
-      "bytes": 7827,
-      "sha256": "fc6f99e4fa944b59ad69458625d7214b878cdd42edf73ea710b0a79d742eb715"
+      "bytes": 8659,
+      "sha256": "7261633ac768a5b7793918bddffe36053fdf03011e215b81e7d5b3ea04c79e48"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
@@ -83,23 +83,28 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.mjs",
-      "bytes": 24007,
-      "sha256": "fb0a0577371b0c54bc638bcfd9ba5a10a8f0aa7ce7d65bba4542e9269186e2c4"
+      "bytes": 24713,
+      "sha256": "15e2590dbc75949fff380356c67371988725c6b7d1b9d21ed55ec2749fdbefbf"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.test.mjs",
-      "bytes": 10541,
-      "sha256": "bc54a33e2896fd56e329c0006ce12f070df870c50495e08e3d1fe9c8feae5310"
+      "bytes": 11808,
+      "sha256": "6e0b47b5279f41aa909f015c55f64532f778a58e1d0e59ec68fdc4de876e3a18"
+    },
+    {
+      "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic-errors.cjs",
+      "bytes": 644,
+      "sha256": "eeb81a88a084e6b10f87ffdb450e3bada49eda4d201be9aad74a43c66c44fc43"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic-host.cjs",
-      "bytes": 8767,
-      "sha256": "4059d74ef4aae37f1f2afe65d94c2d560475e4b3eb63f1cffb9f6deea87e355a"
+      "bytes": 8867,
+      "sha256": "f78c96e722887a9cbd3bc7eef139063e419c965aee37ee4aa3496f77aa3e7f4d"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.mjs",
-      "bytes": 37473,
-      "sha256": "aa073c3f0ff62734b3a6a464d6e9e609437ef1d7889d3c8d902786f83874a914"
+      "bytes": 37502,
+      "sha256": "92e0db9efc56fa5acc729095ace5f5c74b6ebfb4c22065d1cd77f720728ba3eb"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.test.mjs",

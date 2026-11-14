@@ -4,6 +4,7 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const readline = require('node:readline')
 const crypto = require('node:crypto')
+const { safeHostError } = require('./gcc-diagnostic-errors.cjs')
 
 async function main() {
   assert.equal(process.platform, 'win32', 'No diagnostic host may launch on macOS.')
@@ -46,7 +47,7 @@ async function main() {
     if (!['run', 'version'].includes(command.kind) || running || closing || (command.kind === 'version' && lane !== 'B')) return
     running = true; controller = new AbortController()
     void attempt(command.manifest, controller.signal, command.kind === 'version').then(send, error => send({ kind: 'host-error',
-      message: String(error.message).slice(0, 512) })).finally(() => {
+      lane, error: safeHostError(error), message: String(error.message).slice(0, 512) })).finally(() => {
       running = false; controller = undefined; if (closing) void quit()
     })
   })
