@@ -1,5 +1,7 @@
 # Preserved GCC evidence and measurement boundaries
 
+**Historical handoff evidence, preserved before approved hosted CI. See [HOSTED_RESULTS.md](HOSTED_RESULTS.md) for new actual Windows measurements.**
+
 **14 November 2026 — diagnostic package prepared; Windows execution unverified; release held.** No cause for the rare delay is asserted. No installed app/profile is needed or changed.
 
 The prior local checkpoint passed 246 unit tests, skipped 25, and passed 17 separate diagnostic-tool tests. [Prior report](../gcc-latency/REPORT.md) and its hashed raw receipts remain unchanged in the source checkout. The handoff ships a sanitized extraction and hashes instead of duplicating private paths/logs into a shareable archive.

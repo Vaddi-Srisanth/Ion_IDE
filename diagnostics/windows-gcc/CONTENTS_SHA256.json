@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "baseCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
   "scope": "diagnostic workflows and fixture only",
-  "nativeWindowsStatus": "pending approval and execution",
+  "nativeWindowsStatus": "Actual hosted execution complete; 907 successful / 2 observer failures; original delay unresolved",
   "releaseStatus": "held",
   "excludes": "this manifest itself",
   "files": [
@@ -23,28 +23,33 @@
     },
     {
       "path": "diagnostics/windows-gcc/ACTIONS_GUIDE.md",
-      "bytes": 7717,
-      "sha256": "438d72922bcd1602336a0cf8f9ac5ce001af159871a20774ba909b3e7b96927b"
+      "bytes": 7872,
+      "sha256": "4daf30642e3230e3beb85b1c0d803a7f14e2fd9e1b882634d15678f14aa0ba5c"
     },
     {
       "path": "diagnostics/windows-gcc/EVIDENCE_SUMMARY.md",
-      "bytes": 5375,
-      "sha256": "d8c4324c97013c947bd9f2d0883208a774d1fa3e3a08e8140eab41cc7775f85a"
+      "bytes": 5526,
+      "sha256": "cf4bf00434672b972cd522692a60acf030434a1b8dddc0cf458e7dd35bd0288a"
+    },
+    {
+      "path": "diagnostics/windows-gcc/HOSTED_RESULTS.md",
+      "bytes": 12154,
+      "sha256": "21a462d008edd8fad3182982fff9195facf2ae2ae7cfda6ad921724406ad7d0f"
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
-      "bytes": 10559,
-      "sha256": "36b8275a1b2989323bbe753ed842c8432840c2c802c2b21100e923c0a09155ec"
+      "bytes": 11603,
+      "sha256": "d15e9c575e326535404757d69cbc429c6465496d829e441be696787989316aff"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
-      "bytes": 3635,
-      "sha256": "12b63107eda18b4510eb421ec56ac773678a6a3c2d4ffe1d9aab1aa67322df08"
+      "bytes": 1602,
+      "sha256": "5f1c0e1538184493701fb44115fffd0ad794e9ac94a24a1e295534fb6c3d652c"
     },
     {
       "path": "diagnostics/windows-gcc/WINDOWS_DIAGNOSTIC_GUIDE.md",
-      "bytes": 10877,
-      "sha256": "c7475092a7b27c3e090dd0383b867798aea0e10f0e53abb1846bfa3d823fe299"
+      "bytes": 11109,
+      "sha256": "560d2082fceaf81e068e17cf0b320e52ff2868eea2e6b1981627c8eb1cb31c90"
     },
     {
       "path": "diagnostics/windows-gcc/build-helper.mjs",
@@ -123,8 +128,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-package.json",
-      "bytes": 1350,
-      "sha256": "2d0dcf807aeab24fab2e311456c68cea1c1ef86be9afb3a04c62ec4f4669fb44"
+      "bytes": 1523,
+      "sha256": "749a0c68491c7b6da51eed0c5c21677df7c2eb4b4834b1efb95bbe2e4f7025c8"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-production-adapter.cjs",

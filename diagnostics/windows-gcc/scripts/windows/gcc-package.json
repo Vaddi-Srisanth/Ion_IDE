@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "nativeStatus": "UNVERIFIED — prepared on macOS, not executed on Windows",
+  "nativeStatus": "Actual Windows x64 execution: 909 attempts, 907 successful, 2 direct-observer errors; original delay unresolved",
   "releaseStatus": "held",
   "compileMs": 15000,
   "sourceSha256": "c1508a9865d19d0432e48a78ec222d095b76acdfe718823a6768345e7d9d65d6",
@@ -34,5 +34,8 @@
       "path": "src/main/run-console/pty-windows.cpp",
       "sha256": "59abec767310c91e343c9555e627cbff1c07c73d6dbced3d7fb6151f0fffcca5"
     }
-  ]
+  ],
+  "verifiedRunId": 43600747226,
+  "measuredCommit": "05dde34a4a0773d788282681d5e249d46eee861a",
+  "issueFixed": false
 }

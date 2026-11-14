@@ -1,3 +1,5 @@
+> Updated hosted execution evidence is in [HOSTED_RESULTS.md](HOSTED_RESULTS.md). C now runs once per manifest via argv; its stdin transport is not used. The source-checkout sealed handoff remains unchanged as historical evidence.
+
 # Windows GCC diagnostic guide
 
 **Diagnostic handoff only. GCC issue unresolved; release held. Native Windows execution is UNVERIFIED.** This package neither installs Ion nor uses an existing Ion profile. It never uploads results. Review the scripts before running them.

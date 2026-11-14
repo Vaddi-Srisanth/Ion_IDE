@@ -1,6 +1,6 @@
 # Windows hosted GCC investigation — review candidate
 
-Status: **prepared locally; upload and execution require explicit approval.**
+Status: **uploaded and run with explicit user approval.** See [verified hosted results](HOSTED_RESULTS.md):909 final attempts,907 successful,2 direct-observer errors,0 timeouts. The historical delay remains unresolved; release held.
 The rare GCC delay is unresolved. This package does not fix it or authorize a release.
 
 ## Scope and provenance

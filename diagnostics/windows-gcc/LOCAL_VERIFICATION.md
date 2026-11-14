@@ -1,6 +1,6 @@
 # Local review and verification
 
-Prepared 14 November 2026 on macOS 27.2.1 arm64, Node 26.11.1, actionlint 1.7.12. **No new native Windows evidence yet. No upload or workflow dispatch authorized yet. GCC issue unresolved; release held.**
+Prepared 14 November 2026 on macOS 27.2.1 arm64, Node 26.11.1, actionlint 1.7.12. This records the initial local review. The user subsequently approved the diagnostic-only upload and hosted Windows runs; latest actual evidence is in [HOSTED_RESULTS.md](HOSTED_RESULTS.md). Original GCC issue unresolved; release held.
 
 ## Changes reviewed
 
@@ -49,7 +49,7 @@ These portable test timings are not Windows performance results. Hosted VM/compi
 
 ## Remaining gates and rollback
 
-Explicit approval is required to upload **only** `codex/ion-gcc-hosted-diagnostics` and manually run its workflow. Do not merge, tag, publish, install or alter the update feed. If the connection lacks write/Actions permissions, report the precise access failure; do not change repository visibility or silently use a different publication path.
+Explicit approval was obtained to upload **only** `codex/ion-gcc-hosted-diagnostics` and manually run its workflow. The runs are complete; see HOSTED_RESULTS.md for successful and failed samples. Do not merge, tag, publish, install or alter the update feed. If the connection lacks write/Actions permissions, report the precise access failure; do not change repository visibility or silently use a different publication path.
 
 After authorized execution, download all three job artifacts, including failed jobs, and report exact runner image/toolchain versions, attempted/planned/unexecuted counts, per-lane/host statistics and unknown intervals. Keep the original finding open if not reproduced or still unexplained. A production correction, if justified by evidence, requires a separate reviewable patch and regression tests.
 
@@ -76,3 +76,7 @@ The same pre-compiler Electron failure repeated. Its live trace was empty, not a
 ## Fifth hosted attempt — run 43600068025
 
 All three C failures now prove stdin closed before the result and host exited before explicit quit. The host's readline-close handler explicitly calls `app.quit()`; that is the proximate diagnostic failure. The OS/Electron reason for stdin EOF is not established. The no-window autoquit hypothesis did not resolve it, so that speculative listener is removed. C now receives an approved fixed manifest via argv, runs once without creating a stdin interface, drains its final stdout write, and quits explicitly. Parent requires a valid engine result AND normal one-shot exit. C starts per trial; B remains persistent; compiler-only timings remain distinct from C startup and program duration. The existing native helper watches its owning process and drains its Job on owner death. No execution security boundary or deadline changed. A new real-child regression verifies result transport with closed stdin and a50KB final frame. Native C behavior is pending the next cohort, not declared fixed yet.
+
+## Final measured cohort — run43600747226
+
+Measured commit05dde34 completed909/909 attempted operations:907 successful,2 direct PowerShell observer errors after GCC exit0,0 timeouts. All303 Ion Node and303 Electron-engine trials succeeded. All attempts reported owned-process cleanup and complete output; controller exits were verified. All18 artifact archives from six diagnostic cohorts were retained with SHA-256 verification. The12.67-second outlier did not recur; original cause remains unknown. Two direct-observer errors remain explicitly unresolved. Final Windows contract checks were41passed/0failed/3documented skips per host; local source tests49passed/0failed/0skipped. Details, percentiles, failure traces and limitations are in HOSTED_RESULTS.md. Main, application source, installed Mac app and release/update feed remain unchanged.
