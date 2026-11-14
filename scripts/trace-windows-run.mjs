@@ -18,6 +18,7 @@ const output = resolve(values.out), target = await artifact(values.target)
 const scratch = await temporaryDirectory('windows-run-diagnostic')
 const report = { complete: false, classification: 'Diagnostic-only; no retries or performance aggregation.',
   source: { commit: process.env.GITHUB_SHA ?? null, run: process.env.GITHUB_RUN_ID ?? null },
+  coldTrial: process.env.ION_COLD_TRIAL ?? null,
   mainSha256: createHash('sha256').update(await readFile(target.args[0])).digest('hex'),
   observer: { boundedRecords: 1024, boundedPending: 256, boundedLifecycleEvents: 2049, noArgumentsPathsContentsOrEnvironment: true,
     timingChanged: 'Diagnostic promise boundaries return derived promises with original values/errors; not performance samples.',
