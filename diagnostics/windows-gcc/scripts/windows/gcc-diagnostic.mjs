@@ -128,6 +128,8 @@ export function sanitizeReport(report) {
       if (key.endsWith('Ms')) metrics[key] = finite(row.metrics?.[key])
     }
     return { runId: row.runId, lane: row.lane, phase, elapsedMs: finite(row.elapsedMs),
+      stdinClosedBeforeResult: row.stdinClosedBeforeResult === true, hostClosedBeforeResult: row.hostClosedBeforeResult === true,
+      diagnosticFailure: ['host-closed-before-result', 'EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED', 'cancelled', 'diagnostic-observation-failed'].includes(row.diagnosticFailure) ? row.diagnosticFailure : null,
       state: states.has(row.state) ? row.state : 'error', exitCode: Number.isInteger(row.exitCode) ? row.exitCode : null,
       cleanupVerified: row.cleanupVerified === true, outputComplete: row.outputComplete === true,
       adapterResultUnavailable: row.adapterResultUnavailable === true, observerWallMs: finite(row.observerWallMs),
@@ -193,7 +195,9 @@ async function freshRoot(path) {
 
 export class JsonHost {
   constructor(executable, args, options) {
-    this.child = spawn(executable, args, { ...options, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    const { oneShot = false, ...spawnOptions } = options
+    this.oneShot = oneShot
+    this.child = spawn(executable, args, { ...spawnOptions, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
     this.queue = []; this.queueBytes = 0; this.buffer = ''; this.errorBytes = 0; this.errorTail = ''; this.bytes = 0
     this.decoder = new StringDecoder('utf8')
     this.closed = new Promise(resolve => this.child.once('close', (code, signal) => { this.exit = { code, signal }; this.fail(new Error('Diagnostic host closed.')); resolve(this.exit) }))
@@ -222,6 +226,7 @@ export class JsonHost {
     })
     this.child.stderr.on('data', chunk => {
       this.errorBytes += chunk.length; this.errorTail = (this.errorTail + chunk.toString('utf8')).slice(-2048)
+      this.stdinClosedObserved ||= this.errorTail.includes('ION_GCC_DIAGNOSTIC_STDIN_CLOSED')
       if (this.errorBytes > 65536) { this.fail(new Error('Host stderr budget exceeded.')); this.kill() }
     })
   }
@@ -243,6 +248,7 @@ export class JsonHost {
   send(message) { if (this.child.stdin.writable) this.child.stdin.write(JSON.stringify(message) + '\n') }
   kill() { if (!this.exit) this.child.kill() }
   async close() {
+    const closedBeforeQuit = !!this.exit
     this.send({ kind: 'quit' }); this.child.stdin.end()
     let timer
     const normal = await Promise.race([this.closed.then(() => true), new Promise(resolve => { timer = setTimeout(() => resolve(false), 6000) })])
@@ -252,7 +258,7 @@ export class JsonHost {
       let guard
       await Promise.race([this.closed, new Promise(resolve => { guard = setTimeout(resolve, 3000) })]); clearTimeout(guard)
     }
-    return { normal, exited: !!this.exit, ...this.exit, pid: this.child.pid }
+    return { normal: normal && (!closedBeforeQuit || this.oneShot), closedBeforeQuit, exited: !!this.exit, ...this.exit, pid: this.child.pid }
   }
 }
 
@@ -357,7 +363,7 @@ export async function nativeRun(options) {
       try {
         if (sample.lane === 'A') {
           direct = new JsonHost(pwsh, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', join(here, 'gcc-direct-powershell.ps1'), '-ManifestPath', manifestPath],
-            { cwd: root, env: { ...environment } })
+            { cwd: root, env: { ...environment }, oneShot: true })
           row = await receive(direct)
           assert.ok(row, 'No final direct-shell result.')
           const closed = await direct.close(); direct = undefined
@@ -380,6 +386,11 @@ export async function nativeRun(options) {
         row = { kind: 'result', schemaVersion: 1, runId: sample.id, lane: sample.lane,
           elapsedMs: performance.now() - began, state: controller.signal.aborted ? 'cancelled' : 'error', exitCode: null,
           success: false, cleanupVerified: false, outputComplete: false, events: partialEvents, metrics: {},
+          stdinClosedBeforeResult: (direct ?? hosts.get(sample.lane))?.stdinClosedObserved === true,
+          hostClosedBeforeResult: !!(direct ?? hosts.get(sample.lane))?.exit,
+          diagnosticFailure: error.message === 'Diagnostic host closed.' ? 'host-closed-before-result'
+            : ['EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED'].includes(error.code) ? error.code
+            : controller.signal.aborted ? 'cancelled' : 'diagnostic-observation-failed',
           detail: String(error.message).slice(0, 1000), adapterResultUnavailable: true,
           hostDiagnostics: { pid: direct?.child.pid ?? hosts.get(sample.lane)?.child.pid ?? null,
             stderrTail: direct?.errorTail ?? hosts.get(sample.lane)?.errorTail ?? '',

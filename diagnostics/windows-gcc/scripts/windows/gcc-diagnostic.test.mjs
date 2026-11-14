@@ -144,3 +144,15 @@ test('whole-session budget is bounded separately from the unchanged compiler dea
   assert.equal(result.firstLane, 'C')
   assert.equal(result.samples[0].id, 'first-C')
 })
+
+test('persistent host premature exit cannot be counted as a normal requested shutdown; one-shot exit is explicit', async t => {
+  for (const oneShot of [false, true]) {
+    const host = new JsonHost(process.execPath, ['-e', 'process.stdout.write(JSON.stringify({kind:"host-ready"})+"\\n");'], { oneShot })
+    t.after(() => host.kill())
+    assert.equal((await host.next(3000)).kind, 'host-ready')
+    await host.closed
+    const result = await host.close()
+    assert.equal(result.closedBeforeQuit, true)
+    assert.equal(result.normal, oneShot)
+  }
+})

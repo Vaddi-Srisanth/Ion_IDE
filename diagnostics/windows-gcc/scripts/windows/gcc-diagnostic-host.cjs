@@ -17,6 +17,8 @@ async function main() {
   if (lane === 'C') {
     assert.ok(process.versions.electron, 'C requires actual Electron, not ELECTRON_RUN_AS_NODE.')
     electron = require('electron')
+    // A windowless diagnostic stays alive until the explicit quit command.
+    electron.app.on('window-all-closed', () => {})
     electron.app.setPath('userData', path.join(root, 'profile'))
     electron.app.setPath('sessionData', path.join(root, 'profile', 'session'))
     electron.app.setPath('logs', path.join(root, 'profile', 'logs'))
@@ -51,7 +53,7 @@ async function main() {
       running = false; controller = undefined; if (closing) void quit()
     })
   })
-  input.once('close', () => { closing = true; controller?.abort(); if (!running && electron) electron.app.quit() })
+  input.once('close', () => { process.stderr.write('ION_GCC_DIAGNOSTIC_STDIN_CLOSED\n'); closing = true; controller?.abort(); if (!running && electron) electron.app.quit() })
   send({ kind: 'host-ready', lane, pid: process.pid, node: process.versions.node,
     electron: process.versions.electron ?? null, guiWindows: 0 })
 

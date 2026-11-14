@@ -33,8 +33,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
-      "bytes": 8659,
-      "sha256": "7261633ac768a5b7793918bddffe36053fdf03011e215b81e7d5b3ea04c79e48"
+      "bytes": 9516,
+      "sha256": "b67ddde4fb8f29bd4a39bf84ffc3eb4ab0e4fe58e5c8e268749e3f15ecdb41a0"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
@@ -83,13 +83,13 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.mjs",
-      "bytes": 24713,
-      "sha256": "15e2590dbc75949fff380356c67371988725c6b7d1b9d21ed55ec2749fdbefbf"
+      "bytes": 24769,
+      "sha256": "83d3e30dcdcc9200a1dfd25c42b4e6908f2f28cbb102b60a2828dd3e99896b76"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-actions.test.mjs",
-      "bytes": 11808,
-      "sha256": "6e0b47b5279f41aa909f015c55f64532f778a58e1d0e59ec68fdc4de876e3a18"
+      "bytes": 11833,
+      "sha256": "afeabf25bcae4a379be85bf72666c603b0189fd2c0eba4b661da756a22208f83"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic-errors.cjs",
@@ -98,18 +98,18 @@
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic-host.cjs",
-      "bytes": 8867,
-      "sha256": "f78c96e722887a9cbd3bc7eef139063e419c965aee37ee4aa3496f77aa3e7f4d"
+      "bytes": 9053,
+      "sha256": "75ab2707f0907e2279ac81b1d9caf4e9788d074b6e42c1c09682180f847f7a5f"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.mjs",
-      "bytes": 37502,
-      "sha256": "92e0db9efc56fa5acc729095ace5f5c74b6ebfb4c22065d1cd77f720728ba3eb"
+      "bytes": 38615,
+      "sha256": "78e70a23b1917d36167608df2d3b1bdc4e8e4692514deff36e6cf4cbcb07e088"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-diagnostic.test.mjs",
-      "bytes": 10511,
-      "sha256": "b05ba06d9be8ab72776ee9565099f45eb2f30f3aad91f282a755ddd1fe3b41e1"
+      "bytes": 11066,
+      "sha256": "c66b5022c8709bcbc5bc1e1e94f2790fe70b496f20f67893f9b3674e64bff881"
     },
     {
       "path": "diagnostics/windows-gcc/scripts/windows/gcc-direct-powershell.ps1",

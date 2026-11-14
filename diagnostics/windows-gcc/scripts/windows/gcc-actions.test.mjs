@@ -154,7 +154,7 @@ test('missing live trace and startup/host failures remain explicit instead of a 
   assert.ok(result.evidenceGaps.includes('live-trace-missing'))
   assert.equal(result.finalReportFailurePresent, true)
   assert.equal(result.diagnosticBudgetExpired, true)
-  assert.deepEqual(result.hostShutdown, [{ lane: 'B', pid: 123, normal: false, exited: true, code: 1, signal: null }])
+  assert.deepEqual(result.hostShutdown, [{ lane: 'B', pid: 123, normal: false, exited: true, closedBeforeQuit: false, code: 1, signal: null }])
   assert.ok(!(await artifactText(f.output)).includes(secret))
 })
 

@@ -322,6 +322,7 @@ export async function collect(options) {
     diagnosticBudgetExpired: finalReport?.diagnosticBudgetExpired === true,
     hostShutdown: (Array.isArray(finalReport?.hostShutdown) ? finalReport.hostShutdown : []).slice(0, 2).flatMap(host => ['B', 'C'].includes(host.lane) ? [{
       lane: host.lane, pid: positive(host.pid), normal: host.normal === true, exited: host.exited === true,
+      closedBeforeQuit: host.closedBeforeQuit === true,
       code: Number.isInteger(host.code) ? host.code : null,
       signal: ['SIGINT', 'SIGTERM', 'SIGKILL', 'SIGBREAK', 'SIGHUP'].includes(host.signal) ? host.signal : null,
     }] : []),
