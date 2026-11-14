@@ -13,8 +13,8 @@
     },
     {
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
-      "bytes": 5717,
-      "sha256": "e43228f3c3a138ee2ecca95472119024e7365c078f1df2238af644d8a63c6f42"
+      "bytes": 6120,
+      "sha256": "46acc7f5a310561aff269df61af64066e4c3cea43d5e09a1cdf562baeff77bae"
     },
     {
       "path": "diagnostics/windows-gcc/.gitattributes",
@@ -33,8 +33,8 @@
     },
     {
       "path": "diagnostics/windows-gcc/LOCAL_VERIFICATION.md",
-      "bytes": 7005,
-      "sha256": "7ed1c4cd7b36ee4f5eaee74f07ed4ce660e4e9bda9c73fa98d598d08221438a0"
+      "bytes": 7827,
+      "sha256": "fc6f99e4fa944b59ad69458625d7214b878cdd42edf73ea710b0a79d742eb715"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
