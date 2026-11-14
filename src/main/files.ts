@@ -423,8 +423,10 @@ export class WorkspaceFiles {
         if (token === revision(stats)) throw new Error('This large file is read only in Ion.');
         throw new Error('FILE_CHANGED: The file on disk exceeds the editing limit. Use Save As to keep your edits.')
       }
-      if (token !== revision(stats)) {
-        // A metadata update or identical replacement can change the revision without changing the editor's base text.
+      if (baseHash !== undefined || token !== revision(stats)) {
+        // Metadata can collide after an equal-size external write and timestamp
+        // restoration. Check supplied base bytes before touching the file;
+        // metadata-only changes or identical replacements can still be saved.
         const current = baseHash === undefined ? null : await readStableBytes(path, limit).catch(() => null)
         if (!current || contentHash(current.data) !== baseHash) {
           throw new Error(fileChanged)

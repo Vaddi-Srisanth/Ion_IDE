@@ -23,7 +23,7 @@ async function until<T>(read: () => T, message: string): Promise<NonNullable<T>>
 }
 
 const skip = process.platform !== 'win32'
-const helper = resolve(process.env.ION_WINDOWS_PTY_EXE ?? 'dist/native/ion-pty.exe')
+const helper = resolve(process.env.ION_WINDOWS_PTY_EXE ?? process.env.ION_WINDOWS_PROCESS_TEST_HELPER ?? 'dist/native/ion-pty.exe')
 
 test('Windows Run Console uses ConPTY for TTY, resize, Unicode argv and interactive input', { skip, timeout: 25_000 }, async (t) => {
   await access(helper)

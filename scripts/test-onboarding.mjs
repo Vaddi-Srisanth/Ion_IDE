@@ -50,6 +50,18 @@ async function withProfile(scratch, name, check, options = {}) {
     assert.deepEqual(session.errors, [], 'Onboarding produced no uncaught renderer errors.')
   } catch (error) {
     failure = error
+    // Preserve the observed state when a transient introduction assertion
+    // fails; do not retry or extend its deadline to hide a missed phase.
+    const ui = await session.page.evaluate(() => ({
+      introPresent: !!document.querySelector('[data-testid="onboarding-intro"]'),
+      setupPresent: !!document.querySelector('[data-testid="onboarding-start"]'),
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      rendererUptimeMs: performance.now(),
+      cinematicResources: performance.getEntriesByType('resource')
+        .filter(entry => /\/CinematicIntro[-.]/i.test(entry.name)).slice(-8)
+        .map(entry => ({ startTimeMs: entry.startTime, durationMs: entry.duration })),
+    })).catch(() => ({ unavailable: true }))
+    await saveShutdown({ name, failed: true, ui }).catch(() => {})
   } finally {
     try {
       inspector?.setClosing()

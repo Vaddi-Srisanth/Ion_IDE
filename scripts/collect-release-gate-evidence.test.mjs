@@ -107,3 +107,17 @@ test('output exhaustion still preserves a bounded failure index instead of silen
   const sizes = await Promise.all((await readdir(f.out)).map(name => stat(join(f.out, name))))
   assert.ok(sizes.reduce((total, info) => total + info.size, 0) <= 16 * 1024 ** 2)
 })
+
+
+test('matched build identities and named terminal metrics survive without exporting arbitrary candidate strings', () => {
+  const digest = 'a'.repeat(64)
+  const result = sanitizeReleaseJson({ builds: { candidate: digest, baseline: digest },
+    candidate: 'personal candidate name', medians: { firstPromptMs: 40 }, terminalWorkload: true,
+    members: [{ privateBytes: 123, workingSet: 456 }] })
+  assert.deepEqual(result.value.builds.candidate, digest)
+  assert.equal(result.value.medians.firstPromptMs, 40)
+  assert.equal(result.value.members[0].privateBytes, 123)
+  assert.equal(result.value.members[0].workingSet, 456)
+  assert.equal(result.value.terminalWorkload, true)
+  assert.equal(result.value.candidate.redacted, true)
+})

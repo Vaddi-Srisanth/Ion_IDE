@@ -3,12 +3,17 @@ name: Ion isolated release verification (no publication)
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      performance_only:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   macos:
+    if: ${{ !inputs.performance_only }}
     name: macOS Apple silicon
     runs-on: macos-15
     timeout-minutes: 35
@@ -51,8 +56,13 @@ jobs:
       - run: node --test scripts/test-release-evidence.mjs scripts/test-mac-signing.mjs
       - name: Verify locked and corrupted image publication
         run: node scripts/test-mac-image-publication.mjs "$RUNNER_TEMP/ion-image-publication"
+      - name: Select Python compatible with the pinned Jupyter fixture
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
       - name: Verify real macOS notebook kernel in a disposable environment
         run: |
+          python3 --version
           python3 -m venv "$RUNNER_TEMP/ion-notebook-fixture"
           "$RUNNER_TEMP/ion-notebook-fixture/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: ipykernel==6.31.0 jupyter_client==8.6.3 pandas==2.3.3 matplotlib==3.10.6
           "$RUNNER_TEMP/ion-notebook-fixture/bin/python" scripts/test-notebook-interrupt.py
@@ -73,6 +83,7 @@ jobs:
           retention-days: 14
 
   windows:
+    if: ${{ !inputs.performance_only }}
     name: Windows x64
     runs-on: windows-2025
     timeout-minutes: 50
@@ -133,6 +144,10 @@ jobs:
           node --test scripts/windows/pipe-fixture-source.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm test -- windows-process-job windows-pipe-protocol
+      - name: Select Python compatible with the pinned Jupyter fixture
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
       - name: Prepare disposable real Jupyter fixture with direct pins and resolved receipt
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         timeout-minutes: 10
@@ -275,6 +290,7 @@ jobs:
           retention-days: 14
 
   windows-run-diagnostic:
+    if: ${{ !inputs.performance_only }}
     name: Windows cold C diagnostic ${{ matrix.cold }} (not a benchmark)
     runs-on: windows-2025
     timeout-minutes: 15
@@ -336,6 +352,7 @@ jobs:
           retention-days: 14
 
   windows-installer:
+    if: ${{ !inputs.performance_only }}
     name: Windows x64 installer and upgrade
     runs-on: windows-2025
     timeout-minutes: 25
@@ -389,7 +406,9 @@ jobs:
   windows-performance:
     name: Windows x64 process-tree benchmark
     runs-on: windows-2025
-    timeout-minutes: 18
+    # Two complete three-trial controls plus interleaved development samples.
+    # This bounds CI volume; application/compiler deadlines are unchanged.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -425,8 +444,13 @@ jobs:
             npm run build
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { Pop-Location }
-          node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $candidateSha = $env:GITHUB_SHA
+          try {
+            $env:GITHUB_SHA = (git -C $baseline rev-parse HEAD).Trim()
+            if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne '38cf7ff333d02be298a71c4b5315d317d57157c6') { throw 'Baseline identity mismatch.' }
+            node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { $env:GITHUB_SHA = $candidateSha }
           npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
       - name: Collect bounded sanitized release evidence
         if: always()
@@ -442,6 +466,7 @@ jobs:
 
 
   security-audit:
+    if: ${{ !inputs.performance_only }}
     name: Dependency security review
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -477,11 +502,19 @@ jobs:
           npm ci
           node node_modules/electron/install.js
           npm run build
+      - name: Configure the disposable runner account for the zsh benchmark fixture
+        run: |
+          if [ "$(node -p "require('node:os').userInfo().shell")" != /bin/zsh ]; then
+            sudo -n chsh -s /bin/zsh "$(id -un)"
+          fi
+          test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
+      - name: Validate matched terminal workload selection without launching an app
+        run: node --test scripts/benchmark-integrated-terminal.test.mjs
       - name: Measure matched production profiles and optional-panel recovery
         run: |
           node scripts/benchmark-development-workflows.mjs --target dist --baseline "$RUNNER_TEMP/ion-baseline/dist" --trials 3 --soak-seconds 60 --out performance-results/macos-development-workflows.json
-          node scripts/benchmark-integrated-terminal.mjs --target "$RUNNER_TEMP/ion-baseline/dist" --mode baseline --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
-          node scripts/benchmark-integrated-terminal.mjs --target dist --mode candidate --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
+          node scripts/benchmark-integrated-terminal.mjs --target "$RUNNER_TEMP/ion-baseline/dist" --mode baseline --matched-terminal-workload --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
+          node scripts/benchmark-integrated-terminal.mjs --target dist --mode candidate --matched-terminal-workload --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
       - name: Collect bounded sanitized release evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-macos-performance"
@@ -495,6 +528,7 @@ jobs:
           retention-days: 14
 
   windows-unit:
+    if: ${{ !inputs.performance_only }}
     name: Complete native Windows unit suite
     runs-on: windows-2025
     timeout-minutes: 30

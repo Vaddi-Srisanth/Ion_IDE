@@ -4,7 +4,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, u
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
-import { maxFileBytes, WorkspaceFiles } from '../src/main/files'
+import { maxFileBytes, revision, WorkspaceFiles } from '../src/main/files'
 import { PreferenceStore } from '../src/main/preferences'
 import { CRunner, detectCompiler } from '../src/main/runner'
 import { textPageBytes } from '../src/shared/large-text'
@@ -107,6 +107,24 @@ test('source saves reject same-size external changes even when the modified time
   assert.equal(await readFile(entry.path, 'utf8'), 'external')
 })
 
+test('source saves check the supplied base hash before mutation even when the metadata token matches', async (t) => {
+  const temporary = await sandbox(t)
+  const files = new WorkspaceFiles()
+  const entry = await files.saveAs(join(temporary, 'source.txt'), 'original')
+  assert.ok(entry)
+  const opened = await files.read(entry.path)
+  await writeFile(entry.path, 'external')
+  const current = await files.read(entry.path)
+  assert.notEqual(current.contentHash, opened.contentHash)
+  assert.equal(current.revision, revision(await lstat(entry.path, { bigint: true })))
+  // Supply the current metadata token with the editor's original base bytes.
+  // This deterministically exercises the collision branch on every platform,
+  // without depending on filesystem timestamp resolution or replacing stat().
+  await assert.rejects(files.save(entry.path, 'my unsaved changes', current.revision, opened.contentHash), /FILE_CHANGED/)
+  assert.equal(await readFile(entry.path, 'utf8'), 'external')
+  assert.deepEqual(await readdir(temporary), ['source.txt'], 'A pre-existing conflict must be rejected before staging or exchange.')
+})
+
 test('directory operations protect existing entries and support cancellation', async (t) => {
   const temporary = await sandbox(t)
   const files = new WorkspaceFiles()
@@ -122,7 +140,10 @@ test('directory operations protect existing entries and support cancellation', a
   assert.equal((await lstat(renamed.path)).isFile(), true)
   assert.equal(await files.trash(renamed.path, async () => true, (path) => rename(path, join(root.path, 'trashed.c'))), true)
   await assert.rejects(lstat(renamed.path), { code: 'ENOENT' })
-  await assert.rejects(files.trash(root.path, async () => true, async () => assert.fail()), /workspace folder/)
+  await assert.rejects(files.trash(root.path,
+    async () => assert.fail('Workspace root must be rejected before confirmation.'),
+    async () => assert.fail('Workspace root must not reach the native Trash operation.')),
+  { message: /^(?:Move the workspace folder to Trash from Finder after closing it\.|Close the workspace before moving its folder to the Recycle Bin from File Explorer\.)$/ })
 })
 
 test('named files can be seeded without overwriting existing files', async (t) => {

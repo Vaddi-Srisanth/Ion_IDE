@@ -49,8 +49,8 @@ test('practice runs standalone local toolchains and keeps stderr out of answers'
       }
       assert.deepEqual(results.map(({ status }) => status), ['success', 'success'], results.map((result) =>
         [result.message, result.compileOutput, result.programStderr].join('\n')).join('\n'))
-      assert.deepEqual(results.map(({ programStdout }) => programStdout), ['12\n', '34\n'])
-      assert.deepEqual(results.map(({ programStderr }) => programStderr), ['trace\n', 'trace\n'])
+      assert.deepEqual(results.map(({ programStdout }) => programStdout?.replaceAll('\r\n', '\n')), ['12\n', '34\n'])
+      assert.deepEqual(results.map(({ programStderr }) => programStderr?.replaceAll('\r\n', '\n')), ['trace\n', 'trace\n'])
       assert.equal(typeof results[0].compileMs, /cpp|java/.test(name) ? 'number' : 'undefined')
       assert.equal(results[1].compileMs, undefined)
     })

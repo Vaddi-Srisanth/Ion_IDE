@@ -38,6 +38,7 @@ const report = {
   samples: { candidate: [], baseline: [] },
 }
 
+await writeFile(output, JSON.stringify(report, null, 2) + '\n')
 await withScratch('development-bench', async (scratch) => {
   const probe = join(scratch, 'resource-probe')
   if (!win) await execute('/usr/bin/xcrun', ['clang', '-O2', 'scripts/benchmark-resources-probe.c', '-o', probe])
@@ -105,6 +106,11 @@ await withScratch('development-bench', async (scratch) => {
     return { tabMs, typingMs, scrollMs }
   }
   async function sample(target, label, index) {
+    const result = { trial: index + 1, complete: false, phase: 'preparing', cleanupVerified: null }
+    report.samples[label].push(result)
+    await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+    let session, primaryError
+    try {
     const profile = join(scratch, `${label}-profile-${index}`)
     const project = await developmentFixture(join(scratch, `${label} repo ${index}`), { medium: true })
     await mkdir(profile)
@@ -113,11 +119,10 @@ await withScratch('development-bench', async (scratch) => {
     const first = await launch(target, profile)
     const freshMs = first.startupMs
     await close(first)
-    const session = await launch(target, profile)
+    session = await launch(target, profile)
     const { app, page } = session
-    const result = { freshMs, warmMs: session.startupMs }
-    const capture = async (key) => { await sleep(300); result[key] = await idle(session) }
-    try {
+    Object.assign(result, { freshMs, warmMs: session.startupMs })
+    const capture = async (key) => { result.phase = key; await sleep(300); result[key] = await idle(session); await writeFile(output, JSON.stringify(report, null, 2) + '\n') }
       await page.context().setOffline(true)
       await stubDialogs(app, { folder: project.directory, allowProjectTests: true, allowRun: true, allowGit: true })
       await capture('welcome')
@@ -217,19 +222,31 @@ await withScratch('development-bench', async (scratch) => {
       }
       assert.deepEqual(session.errors, [])
       assert.deepEqual(session.requests, [])
+      Object.assign(result, { complete: true, phase: 'complete' })
       console.log(`${label} ${index + 1}/${trials} finished`)
       return result
     } catch (error) {
-      report.failure = { build: label, trial: index + 1, message: String(error) }
+      primaryError = error
+      result.complete = false
+      result.failure = { stage: result.phase, message: String(error).slice(0, 1000) }
+      report.failure = { build: label, trial: index + 1, message: String(error).slice(0, 1000) }
       await writeFile(output, JSON.stringify(report, null, 2) + '\n')
       console.error(`${label} ${index + 1}/${trials} failed`, error)
       throw error
-    } finally { await close(session) }
+    } finally {
+      try {
+        if (session) { await close(session); result.cleanupVerified = true }
+      } catch (cleanupError) {
+        result.complete = false; result.cleanupVerified = false
+        result.cleanupError = String(cleanupError).slice(0, 1000)
+        if (!primaryError) throw cleanupError
+      } finally { await writeFile(output, JSON.stringify(report, null, 2) + '\n') }
+    }
   }
 
   for (let index = 0; index < trials; index++) {
     if (baseline && !report.baselineUnavailable) {
-      try { report.samples.baseline.push(await sample(baseline, 'baseline', index)) }
+      try { await sample(baseline, 'baseline', index) }
       catch (error) {
         if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
         report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
@@ -238,7 +255,7 @@ await withScratch('development-bench', async (scratch) => {
         await writeFile(output, JSON.stringify(report, null, 2) + '\n')
       }
     }
-    report.samples.candidate.push(await sample(candidate, 'candidate', index))
+    await sample(candidate, 'candidate', index)
     await writeFile(output, JSON.stringify(report, null, 2) + '\n')
   }
 })

@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "baseCommit": "38cf7ff333d02be298a71c4b5315d317d57157c6",
   "scope": "reviewed diagnostics, optional dormant production tracing, and hosted release verification",
-  "nativeWindowsStatus": "Partial membership observer defect reproduced on Windows; corrected ownership accounting awaiting post-fix native verification",
+  "nativeWindowsStatus": "909/909 post-observer-fix native attempts passed at2fdd3da; expanded production gates found follow-up corrections awaiting exact-candidate verification",
   "releaseStatus": "held",
   "excludes": "this manifest itself",
   "files": [
     {
       "path": ".github/workflows/desktop-build.yml",
-      "bytes": 1067,
-      "sha256": "b7d883692090aef1c5c28ce269834a576b13c48a230785ac657e770c7908edf3"
+      "bytes": 1219,
+      "sha256": "7d0911762a9a9fa1e6c046d9199e5af4f1999ec7cf92b0be361bb36f9b9aa965"
     },
     {
       "path": ".github/workflows/ion-release-verification.yml",
-      "bytes": 25821,
-      "sha256": "44ebbe978ff97dcf1e25b3abf832e151f74a4ce7d2b36c66e01c87eb1949edfc"
+      "bytes": 27590,
+      "sha256": "8c7cee1792fed819e23b74ba71205ed47ca68aa6f260449409034d1a83cef7f0"
     },
     {
       "path": ".github/workflows/windows-gcc-diagnostic.yml",
@@ -48,13 +48,13 @@
     },
     {
       "path": "diagnostics/windows-gcc/OBSERVER_FINDING.md",
-      "bytes": 1487,
-      "sha256": "30c9f32024f71837bbf251efc6351407f6689a3d2a3155e4e98ce5378fcaf87a"
+      "bytes": 1837,
+      "sha256": "6da46405192363187d5376ed6aeff830e441e510fdbf0678edae5c8d06f61420"
     },
     {
       "path": "diagnostics/windows-gcc/RELEASE_GATE_PLAN.md",
-      "bytes": 2220,
-      "sha256": "0a56d808ead45dcb9ca837d7f1afa4808e6205cefcd70dbf8af3295bcf9ccb64"
+      "bytes": 3923,
+      "sha256": "dbc513472f3ce0e984a6ce32fa7684b20ea83aeda3e385fc02c32f8a5cdd4536"
     },
     {
       "path": "diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md",
@@ -187,19 +187,54 @@
       "sha256": "4af1b8651f878bffcb78bc0d7f1c74d1ebddb5250547439e4687ee8d6662f197"
     },
     {
+      "path": "scripts/benchmark-development-workflows.mjs",
+      "bytes": 15321,
+      "sha256": "8063864db64801acf7bcfdf1ffd17f42110a09fe08222c51f59876ec1540dca0"
+    },
+    {
+      "path": "scripts/benchmark-integrated-terminal.mjs",
+      "bytes": 13051,
+      "sha256": "a2778a04c0b9a81299c72e2cf4ef88d8fe5dd5e1cd9b65ecf10c6970feebd5de"
+    },
+    {
+      "path": "scripts/benchmark-integrated-terminal.test.mjs",
+      "bytes": 3398,
+      "sha256": "77ac405c1ae21c1f9664775f5e40df94330bf520d3e0d06a76aff40a90aaedcc"
+    },
+    {
       "path": "scripts/collect-release-gate-evidence.mjs",
-      "bytes": 12913,
-      "sha256": "a1a6e7fb04941519acf04d5b8dabec23ada0d792b78b0eef73fa3548c5293660"
+      "bytes": 14447,
+      "sha256": "fed239010db3e4683023ba2d0cb35ec6d7a849d40785e7576727918933117618"
     },
     {
       "path": "scripts/collect-release-gate-evidence.test.mjs",
-      "bytes": 6878,
-      "sha256": "0cc00ea9b4fd44b6b9b62b8a50b7ed507572aa08c39c3c5013d3c2e83ceb712a"
+      "bytes": 7613,
+      "sha256": "7008874d4d8765f4abf3ffcdf9949b0af1ea1c29ccc714c24980e21c1df09a16"
+    },
+    {
+      "path": "scripts/test-editor-session.mjs",
+      "bytes": 10480,
+      "sha256": "dd446ee0c962fe567ccb58a02aabf867fb05cca65eaaff9d39e52d1256dd8599"
+    },
+    {
+      "path": "scripts/test-onboarding.mjs",
+      "bytes": 17264,
+      "sha256": "165de4bb9239c02861bb9900cdbe3d27f8e06af71635f9a8b3f131ff71f96bd3"
     },
     {
       "path": "scripts/verify-windows-run-console.mjs",
       "bytes": 10818,
       "sha256": "ba9c4df0a6ab319bb3e483ddff533095c8db8a28044ef6eb3d76f1f0b9d8166a"
+    },
+    {
+      "path": "scripts/windows/test-process-exit-probe.ts",
+      "bytes": 7284,
+      "sha256": "898859a06ffc362c326fafe5ff9de535d13b330cd9334879494a0179f121dffe"
+    },
+    {
+      "path": "src/main/files.ts",
+      "bytes": 26043,
+      "sha256": "f0e3a722f468ee9a9ff68db1271d39d4d6e16ab818c283611af548f79f120bf7"
     },
     {
       "path": "src/main/index.ts",
@@ -227,14 +262,39 @@
       "sha256": "4af1b8651f878bffcb78bc0d7f1c74d1ebddb5250547439e4687ee8d6662f197"
     },
     {
+      "path": "test/backend.test.ts",
+      "bytes": 19330,
+      "sha256": "6be067b8425ea83968adfb46474c365993f7af0490235f28120aa24996fcd225"
+    },
+    {
+      "path": "test/c-run-lifecycle.test.ts",
+      "bytes": 11977,
+      "sha256": "fbdbf79f64d14961ff4d1a65db92f4fdeb1866fb7f18fa90ec1928eb626dffa2"
+    },
+    {
       "path": "test/compiler-lifecycle-trace.test.ts",
       "bytes": 8449,
       "sha256": "c05501046d6e65ed13cb5dd5747e759d3af9c23d00180e158a5c90b44efbdc1f"
     },
     {
+      "path": "test/practice-execute.test.ts",
+      "bytes": 5425,
+      "sha256": "41f5bec39b5017a017b2e67f86aed6840c6ebdbc41a38beda2a2ca1bea36738c"
+    },
+    {
+      "path": "test/windows-conpty.test.ts",
+      "bytes": 10980,
+      "sha256": "237e8a065f1585c17dcaec1656cf2442b40f309b2beb96924bc3f1f19f28b64e"
+    },
+    {
       "path": "test/windows-pipe-protocol.test.ts",
       "bytes": 11077,
       "sha256": "8ec222b24d4ba58d3f563d59fc97ba42f87056bb3729f0c0967300efa9710907"
+    },
+    {
+      "path": "test/windows-process-exit-probe.test.ts",
+      "bytes": 3004,
+      "sha256": "960f0167c1f2a47b9ef01c5b52d0f49bed36f4fcb104aed797a931ed06c08f33"
     }
   ]
 }

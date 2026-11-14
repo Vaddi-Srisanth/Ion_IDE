@@ -12,8 +12,8 @@ const limits = Object.freeze({ files: 128, entries: 512, fileBytes: 8 * 1024 ** 
 const digest = value => createHash('sha256').update(value).digest('hex')
 const filename = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.json$/
 const knownKeys = new Set(('schemaVersion version complete completed verified success passed failed failure failures errors errorCount failureCount skipped skippedCount unsuccessful timeoutCount status state phase kind language platform arch architecture mode label scope name test tests result results samples members summary protocol builds candidate baseline comparison production source commit sha sha256 sourceSha256 compilerSha256 helperSha256 adapterSha256 mainSha256 mainHash candidateHash baselineHash artifactSha256 sourceCommit runId runAttempt generatedAt time host cpu ramBytes memoryBytes release node compiler value count index trial trials attempted planned unexecuted allCleanupVerified hostCleanupVerified cleanupVerified outputComplete startupMs freshMs warmMs freshStartupMs warmStartupMs oneFile tenTabs welcome terminal closed afterClose afterCleanup idle ready enabled disabled durationMs elapsedMs medianMs p95Ms p99Ms maxMs minMs meanMs rssMiB footprintMiB workingSetMiB privateMiB cpuPercent cpuSeconds timeMs openSourceMs typingMs tabMs scrollMs durationSeconds labelCounts peakMiB firstFileMs fileOpenMs terminalOverheadMiB cleanupMs pid parent exitCode code signal byteLength bytes imageVersion environment sourceCommit target resourceProfile cold warm fresh diagnostics observations snapshots checks acceptance acceptanceCriteria reason limitation limitations').split(' '))
-for (const key of 'medium pdf running soak terminalClosed repoClosed input gitOpen largeDiff gitClosed gitRepeatedClosed savedConfigIdle testDialogIdle suiteActive suiteClosed gitCycles afterCycles editor open two hidden runs metrics totals memory process processes returned pidCount firstSourceMs runMs soakSeconds'.split(' ')) knownKeys.add(key)
-const stringEnums = new Set(('success failure failed pass passed fail error timeout cancelled rejected unavailable unverified unknown pending skipped skip complete completed incomplete not-verified incomplete-or-failed completed-review-required held exited compile-error runtime-error output-limit not-started in-progress ready stopped preparing compiling running fresh-launch warm-launch welcome one-file ten-tabs terminal-open terminal-closed after-close after-cleanup darwin win32 linux arm64 x64 ia32 c cpp java python javascript typescript json markdown html css sql light dark automatic minimal balanced full main renderer gpu child browser utility node baseline candidate comparison production observed verified not-evaluated not-run unsupported not-applicable failed-verification unable-to-verify verified-by-tests completed-manually').split(' '))
+for (const key of 'medium pdf running soak terminalClosed repoClosed input gitOpen largeDiff gitClosed gitRepeatedClosed savedConfigIdle testDialogIdle suiteActive suiteClosed gitCycles afterCycles editor open two hidden runs metrics totals memory process processes returned pidCount firstSourceMs runMs soakSeconds medians firstPromptMs privateBytes workingSet terminalWorkload matchedTerminalWorkload first last footprintBytes cpuNs artifact rendererHtmlSha256 build cleanup cleanupObservations nativeError waitResult creationUnixMs creationFileTime expectedImageCount sameImage imageSha256 operation records events id ms stage event'.split(' ')) knownKeys.add(key)
+const stringEnums = new Set(('success failure failed pass passed fail error timeout cancelled rejected unavailable unverified unknown pending skipped skip complete completed incomplete not-verified incomplete-or-failed completed-review-required held exited compile-error runtime-error output-limit not-started in-progress ready stopped preparing compiling running fresh-launch warm-launch welcome one-file ten-tabs terminal-open terminal-closed after-close after-cleanup darwin win32 linux arm64 x64 ia32 c cpp java python javascript typescript json markdown html css sql light dark automatic minimal balanced full main renderer gpu child browser utility node baseline candidate comparison production observed verified not-evaluated not-run unsupported not-applicable failed-verification unable-to-verify verified-by-tests completed-manually gone pid-reused owned-process-live open-process-limited wait-process-handle query-process-creation query-process-image preflight fixture-setup trial launch editor-setup editor-idle terminal-first-open terminal-one-session terminal-two-sessions terminal-hidden terminal-close terminal-cycles terminal-after-cycles summarizing launch-not-returned compiler-process compiler-payload compiler-job compiler-stdout compiler-stderr publish-run-console source-check-before-compile source-check-before-program compile pty engine program stdin adapter-cleanup result-finalized spawn-request spawned first-callback last-callback exit-callback ready-observed clean-observed close stop cleanup written-bytes ready launch-requested line-launch-requested start end request constructed construct-start').split(' '))
 const sensitive = /(?:password|secret|token|api_?key)|^(?:environment|env|argv|args|command|commands|commandLine|stdout|stderr|stdoutTail|stderrTail|output|transcript|transcripts|message|messages|detail|details|stack|exception|exceptions|password|secret|token|apiKey|api_key|content|contents|notes|title|url|urls|path|paths|directory|directories|home|username|userData|profilePath)$|(?:Path|Paths|Directory|CommandLine|Transcript|Password|Secret|Token|ApiKey)$/i
 const boolFailureKeys = /^(?:failed|failure|error|hasFailure|failurePresent|failuresPresent)$/i
 const countFailureKeys = /^(?:failures|failed|errors|errorCount|failureCount|unsuccessful|timeoutCount)$/i
@@ -25,7 +25,7 @@ function redacted(value, sourceHash) {
 }
 export function sanitizeReleaseJson(input, sourceHash = digest('unbound synthetic unit input')) {
   const context = { nodes: 0, limited: false, reportedFailure: false, redactedValues: 0 }
-  function visit(value, key, depth) {
+  function visit(value, key, depth, parentKey = '') {
     context.nodes++
     if (context.nodes > limits.nodes || depth > limits.depth) { context.limited = true; return { redacted: true, limit: true } }
     if ((boolFailureKeys.test(key) && value === true) || (countFailureKeys.test(key) && typeof value === 'number' && value > 0)
@@ -38,15 +38,18 @@ export function sanitizeReleaseJson(input, sourceHash = digest('unbound syntheti
     if (value === null || typeof value === 'boolean') return value
     if (typeof value === 'number') return Number.isFinite(value) ? value : null
     if (typeof value === 'string') {
-      if ((['status', 'state', 'phase', 'kind', 'language', 'platform', 'arch', 'architecture', 'mode', 'label', 'resourceProfile', 'signal'].includes(key)
+      if ((['status', 'state', 'phase', 'kind', 'language', 'platform', 'arch', 'architecture', 'mode', 'label', 'resourceProfile', 'signal', 'build', 'operation', 'stage', 'event'].includes(key)
         && (stringEnums.has(value) || /^SIG(?:INT|TERM|KILL|HUP|BREAK)$/.test(value)))
-        || (/^(?:sha|sha256|commit|sourceCommit|sourceSha256|compilerSha256|helperSha256|adapterSha256|mainSha256|mainHash|candidateHash|baselineHash|artifactSha256)$/.test(key) && /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(value))
+        || (/^(?:sha|sha256|commit|sourceCommit|sourceSha256|compilerSha256|helperSha256|adapterSha256|mainSha256|mainHash|candidateHash|baselineHash|artifactSha256|rendererHtmlSha256|imageSha256)$/.test(key) && /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(value))
+        || (key === 'id' && /^(?:repeat-[0-9]{1,2}|input|stop|compile-error|source-delay|cpu-load|pty-start-delay|compiler-timeout)$/.test(value))
+        || (key === 'creationFileTime' && /^\d{1,19}$/.test(value))
+        || (parentKey === 'builds' && ['candidate', 'baseline'].includes(key) && /^[a-f0-9]{64}$/.test(value))
         || (/^(?:version|node|release|imageVersion)$/.test(key) && /^v?\d+(?:\.\d+){1,3}(?:-[a-z0-9.-]{1,32})?$/i.test(value))) return value
       context.redactedValues++; return redacted(value, sourceHash)
     }
     if (Array.isArray(value)) {
       if (value.length > limits.array) context.limited = true
-      const items = value.slice(0, limits.array).map(item => visit(item, key, depth + 1))
+      const items = value.slice(0, limits.array).map(item => visit(item, key, depth + 1, parentKey))
       return value.length > limits.array ? { items, originalLength: value.length, incomplete: true } : items
     }
     if (typeof value === 'object') {
@@ -56,7 +59,7 @@ export function sanitizeReleaseJson(input, sourceHash = digest('unbound syntheti
         // Unknown labels may themselves contain private names. Hash them too.
         const safeKey = knownKeys.has(childKey)
           ? childKey : 'field_' + digest(childKey)
-        out[safeKey] = visit(child, childKey, depth + 1)
+        out[safeKey] = visit(child, childKey, depth + 1, key)
       }
       return out
     }

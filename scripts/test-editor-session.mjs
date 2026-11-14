@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { parseArgs } from 'node:util'
+import { parseArgs, promisify } from 'node:util'
 import { artifact, atPath, close, createProject, desktopWindowsVisible, editorShows, eventually, launch, openFolder, openFromExplorer,
   stubDialogs, withScratch } from './desktop-harness.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
 const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
+const execute = promisify(execFile)
 
 async function launchSession(profile) {
   const session = await launch(target, profile)
@@ -46,13 +48,28 @@ async function quitWithDrafts(session, action) {
   }
 }
 
-async function terminateIfRunning(process) {
-  if (process.exitCode !== null || process.signalCode !== null) return
+async function terminateIfRunning(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return
   // Successful paths already verify their intended exit. A failed assertion
   // can leave dirty files open, so cleanup must never wait for an unanswered prompt.
-  const exited = once(process, 'exit')
-  process.kill('SIGKILL')
-  await exited
+  assert.ok(Number.isSafeInteger(child.pid) && child.pid > 0, 'The owned test process has no valid PID.')
+  const observation = new AbortController()
+  const exited = once(child, 'exit', { signal: observation.signal })
+  // If native termination fails, disposing the observation must not create an
+  // unhandled rejection or retain listeners on a still-live disposable process.
+  void exited.catch(() => {})
+  try {
+    if (process.platform === 'win32') {
+      // Killing only Electron main leaves Chromium children holding this exact
+      // disposable profile's databases across the intentional crash/reopen.
+      await execute(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'),
+        ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: 8000, maxBuffer: 64 * 1024 })
+        .catch(error => {
+          if (child.exitCode === null && child.signalCode === null) throw error
+        })
+    } else child.kill('SIGKILL')
+    await exited
+  } finally { observation.abort() }
 }
 
 async function goToLine(page, line) {
