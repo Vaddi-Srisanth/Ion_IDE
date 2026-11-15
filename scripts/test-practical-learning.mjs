@@ -184,7 +184,10 @@ try {
         await editor.locator('.view-line').first().click({ position: { x: 8, y: 7 } })
         await page.keyboard.press(modifier + '+End')
         await page.keyboard.insertText('\n' + marker + '\n')
-        await page.keyboard.press(modifier + '+s')
+        await (await editorShows(page, marker)).dispose()
+        // CDP keyboard input does not route native Electron menu accelerators.
+        // The separate keyboard suite uses webContents.sendInputEvent for them.
+        await page.getByTestId('save-file').click()
         await eventually(async () => (await readFile(path, 'utf8')).includes(marker), 'The explicit save did not finish.')
         await practical.getByTestId('learning-refresh-evidence').click()
         await practical.getByTestId('learning-sample-evidence').getByText('Saved source or samples changed since that run.', { exact: false }).waitFor()
