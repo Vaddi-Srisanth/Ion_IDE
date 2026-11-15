@@ -245,3 +245,5 @@ button.lens-location:hover { border-color: var(--accent); }
 .learning-pane .practice-sample[data-status="failed"] summary b { color: var(--danger); }
 .learning-pane .practice-sample[data-status="unavailable"] summary b { color: var(--amber); }
 .learning-pane .practice-sample p { margin-top: 6px; }
+
+.learning-ai-actions { display:flex; flex-wrap:wrap; gap:6px; padding:7px 10px; border-bottom:1px solid var(--border); }

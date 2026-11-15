@@ -186,6 +186,7 @@ export interface IonBridge {
   practice: PracticeBridge
   projects: ProjectsBridge
   projectLens: import('./project-lens').ProjectLensBridge
+  explanations: import('./explanations').ExplanationBridge
   sourceControl: {
     status(root: string): ReturnType<SourceControlBridge['status']>
     trust(root: string): Promise<boolean>

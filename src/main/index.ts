@@ -34,6 +34,9 @@ import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
 import type { ProjectLensSession } from './project-lens/session'
+import type { ExplanationSession } from './explanations/session'
+import type { ExplanationReview } from '../shared/explanations'
+import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
 
@@ -186,8 +189,13 @@ function kernels(target: BrowserWindow): Promise<NotebookKernels> {
 }
 
 let projectHandlers: ReturnType<typeof import('./projects/ipc').createProjectHandlers> | undefined
+let sharedProviderVault: Promise<ProviderVault> | undefined
+function providerVault(): Promise<ProviderVault> {
+  return sharedProviderVault ??= import('./provider-vault').then(({ createProviderVault }) => createProviderVault(app.getPath('userData')))
+}
 const projects = () => import('./projects/ipc').then(({ createProjectHandlers }) => projectHandlers ??= createProjectHandlers({
   profile: () => app.getPath('userData'),
+  provider: providerVault,
   files: () => files,
   runner,
   isCurrent: (target) => target === window,
@@ -279,6 +287,101 @@ async function projectLens(target: BrowserWindow) {
   return service
 }
 
+interface ExplanationPaneLease {
+  target: BrowserWindow
+  scope: WorkspaceFiles
+  root: string | null
+  panel: 'learn' | 'projects'
+  generation: number
+  selection: number
+}
+let explanationPane: ExplanationPaneLease | undefined
+let explanationService: { target: BrowserWindow; pending: Promise<ExplanationSession>; instance?: ExplanationSession } | undefined
+
+function explanationBoundary(lease: ExplanationPaneLease): boolean {
+  return lease.target === window && !lease.target.isDestroyed() && resourceProfile === 'full'
+    && panel === lease.panel && panelGeneration === lease.generation && files === lease.scope
+    && files.rootPath === lease.root && learningSelectionGeneration === lease.selection
+}
+function currentExplanationPane(lease: ExplanationPaneLease): boolean {
+  return explanationPane === lease && explanationBoundary(lease)
+}
+function cancelExplanations(): void {
+  explanationPane = undefined
+  const service = explanationService
+  if (service?.instance) service.instance.cancel()
+  else void service?.pending.then(instance => instance.cancel(), () => undefined)
+}
+function requireExplanationPane(target: BrowserWindow): ExplanationPaneLease {
+  const lease = explanationPane
+  if (!lease || target !== lease.target || !currentExplanationPane(lease)) {
+    cancelExplanations()
+    throw new Error('Open the optional AI explanation pane in Full mode first.')
+  }
+  return lease
+}
+async function activateExplanationPane(target: BrowserWindow) {
+  if (target !== window || resourceProfile !== 'full' || (panel !== 'learn' && panel !== 'projects')) {
+    throw new Error('Online explanations are optional in Learn or Projects, in Full mode.')
+  }
+  if (!explanationPane || !currentExplanationPane(explanationPane)) {
+    cancelExplanations()
+    explanationPane = { target, scope: files, root: files.rootPath, panel, generation: panelGeneration, selection: learningSelectionGeneration }
+  }
+  const lease = explanationPane
+  const vault = await providerVault()
+  if (!currentExplanationPane(lease)) throw new Error('The AI explanation pane changed.')
+  const settings = await vault.get()
+  if (!currentExplanationPane(lease)) throw new Error('The AI explanation pane changed.')
+  return settings
+}
+async function approveExplanation(target: BrowserWindow, review: ExplanationReview, signal: AbortSignal): Promise<boolean> {
+  const lease = requireExplanationPane(target)
+  const answer = await dialog.showMessageBox(target, {
+    signal, type: 'question', buttons: ['Cancel', 'Send Reviewed Context'], cancelId: 0, defaultId: 0,
+    message: 'Send this reviewed explanation request online?',
+    detail: `Provider: ${review.provider.endpoint}\nModel: ${review.provider.model}\nPayload: ${review.bodyBytes} UTF-8 bytes\n\nReviewed sources:\n${review.sources.length
+      ? review.sources.map(source => `${source.label} · lines ${source.startLine}–${source.endLine}`).join('\n') : '(question only)'}\n\nThe exact reviewed context and explanation instructions will be sent to this provider.`,
+  })
+  return answer.response === 1 && !signal.aborted && currentExplanationPane(lease)
+}
+async function explanations(target: BrowserWindow): Promise<ExplanationSession> {
+  const lease = requireExplanationPane(target)
+  let service = explanationService
+  if (!service || service.target !== target) {
+    const pending: Promise<ExplanationSession> = Promise.all([import('./explanations/session'), import('./explanations/context')]).then(([{ ExplanationSession }, { prepareContext }]) => {
+      const instance = new ExplanationSession({ vault: providerVault,
+        isCurrent: () => Boolean(explanationPane && explanationPane.target === target && currentExplanationPane(explanationPane)),
+        approve: (review, signal) => approveExplanation(target, review, signal),
+        context: async (request, signal) => {
+          const lease = requireExplanationPane(target)
+          if (!request || typeof request !== 'object' || !('purpose' in request)
+            || request.purpose !== (lease.panel === 'learn' ? 'tutor' : 'project-lens')) throw new Error('Choose the current explanation context.')
+          return prepareContext(request, signal, {
+            scope: () => files, isCurrent: () => currentExplanationPane(lease),
+            lesson: async (pack, topic) => {
+              const store = await learningPacks()
+              const selected = await store.getLibrary(false)
+              if (!currentExplanationPane(lease) || selected.selected !== pack) throw new Error('Choose the currently selected lesson.')
+              const lesson = await learningLesson(target, pack, topic)
+              if (!currentExplanationPane(lease)) throw new Error('The lesson changed.')
+              return lesson
+            },
+            lens: async root => (await projectLens(target)).lease(root),
+          })
+        },
+      })
+      if (explanationService?.pending === pending) explanationService.instance = instance
+      return instance
+    })
+    service = { target, pending }
+    explanationService = service
+  }
+  const instance = await service.pending
+  if (!currentExplanationPane(lease)) throw new Error('The AI explanation pane changed.')
+  return instance
+}
+
 
 async function withLearning<T>(operation: (service: NonNullable<typeof learningService>) => T | Promise<T>) {
   const service = await learning()
@@ -298,6 +401,7 @@ async function learningLesson(target: BrowserWindow, id: unknown, topic: unknown
 }
 
 function releasePanel() {
+  cancelExplanations()
   if (panel === 'projects') void projectLensService?.then(service => service.close(), () => undefined)
   if (practiceRun?.panel === panel) practiceRun.controller.abort()
   if (panel === 'learn') void learningService?.release().catch(() => undefined)
@@ -316,6 +420,7 @@ async function setOptionalPanel(target: BrowserWindow, mode: unknown, root: unkn
     throw new Error('Invalid project folder.')
   }
   if (panel !== mode || projectPath !== root) releasePanel()
+  else cancelExplanations()
   const generation = ++panelGeneration
   panel = mode
   projectPath = root
@@ -328,6 +433,7 @@ async function setOptionalPanel(target: BrowserWindow, mode: unknown, root: unkn
 function applyProfile(profile: typeof resourceProfile) {
   if (resourceProfile === profile) return
   resourceProfile = profile
+  if (profile !== 'full') cancelExplanations()
   projectHandlers?.profileChanged()
 }
 
@@ -606,6 +712,8 @@ function createWindow(): BrowserWindow {
     trustedSources.clear()
     trustedGitRoot = undefined
     releasePanel()
+    const explanationCleanup = explanationService?.target === target
+      ? explanationService.pending.then(service => service.drain()) : undefined
     if (panel !== 'projects') projectHandlers?.close()
     if (panel !== 'practice') practiceRun?.controller.abort()
     panel = null
@@ -624,7 +732,7 @@ function createWindow(): BrowserWindow {
     const cleanup = Promise.allSettled([runner.drain(), fileCleanup, preferences.drain(), recovery.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), formatting?.done,
-      updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain())])
+      updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup])
     void cleanup.then(async (results) => {
       const failed = results.some((result) => result.status === 'rejected')
       if (failed) {
@@ -926,6 +1034,7 @@ function registerIpc(): void {
 
   function workspaceChanged(previous: string | null) {
     if (previous === files.rootPath) return
+    cancelExplanations()
     void projectLensService?.then(service => service.close(), () => undefined)
     trustedGitRoot = undefined
     void closeSourceControl()
@@ -1463,11 +1572,13 @@ function registerIpc(): void {
   handle('learning-packs-library', async (_target, includeCatalog) => (await learningPacks()).getLibrary(includeCatalog !== false))
   handle('learning-packs-install', async (_target, id) => (await learningPacks()).install(id))
   handle('learning-packs-remove', async (_target, id) => {
+    cancelExplanations()
     const library = await (await learningPacks()).remove(id)
     if (diagnosticPackIds.some((pack) => pack === id)) learningSelectionGeneration++
     return library
   })
   handle('learning-packs-select', async (_target, id, includeCatalog) => {
+    cancelExplanations()
     const library = await (await learningPacks()).select(id, includeCatalog !== false)
     learningSelectionGeneration++
     return library
@@ -1540,8 +1651,37 @@ function registerIpc(): void {
   handle('projects-automatic', async (target, root, id, token, enabled) =>
     (await activeProjects(target)).setAutomatic(target, root, id, token, enabled))
   handle('projects-provider', async (target) => (await onlineProjects(target)).provider(target))
-  handle('projects-configure', async (target, value) => (await onlineProjects(target)).configure(target, value))
+  handle('projects-configure', async (target, value) => {
+    const handlers = await onlineProjects(target)
+    cancelExplanations()
+    handlers.cancelOnline()
+    return handlers.configure(target, value)
+  })
   handle('projects-propose', async (target, goal) => (await onlineProjects(target)).propose(target, goal))
+  handle('explanations-provider', activateExplanationPane)
+  handle('explanations-configure', async (target, value) => {
+    const lease = requireExplanationPane(target)
+    const vault = await providerVault()
+    if (!currentExplanationPane(lease)) throw new Error('The AI explanation pane changed.')
+    cancelExplanations()
+    projectHandlers?.cancelOnline()
+    const settings = await vault.update(value)
+    if (!explanationBoundary(lease)) throw new Error('The AI explanation pane changed.')
+    return settings
+  })
+  handle('explanations-review', async (target, request) => (await explanations(target)).review(request))
+  handle('explanations-send', async (target, token) => (await explanations(target)).send(token))
+  handle('explanations-open-citation', async (target, token, sourceId, range) =>
+    (await explanations(target)).openCitation(token, sourceId, range))
+  handle('explanations-cancel', async target => {
+    if (target !== window) return
+    const service = explanationService
+    cancelExplanations()
+    // Report completion only after the existing owner has released its files,
+    // native consent and response stream; do not admit a replacement operation.
+    if (service?.instance) await service.instance.drain()
+    else await service?.pending.then(instance => instance.drain())
+  })
   handle('project-lens-analyze', async (target, root) => {
     if (typeof root !== 'string') throw new Error('Choose an open project folder.')
     return (await projectLens(target)).analyze(root)

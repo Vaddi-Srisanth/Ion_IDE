@@ -1,4 +1,4 @@
-import { dialog, safeStorage, type BrowserWindow } from 'electron'
+import { dialog, type BrowserWindow } from 'electron'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import type { ProjectRecord, ProjectSuiteResult, ProjectTest } from '../../shared/projects'
@@ -6,13 +6,14 @@ import { isWithin, maxFileBytes, revision, type WorkspaceFiles } from '../files'
 import { compilerSetupMessage, type CRunner } from '../runner'
 import { isSelfContainedC, maxAutomaticSourceBytes, SavedTestQueue, type SavedTestSource } from './automatic'
 import { judgeTest, unavailableTest } from './evidence'
-import { ProviderVault, requestProject } from './provider'
+import { requestProject, type ProviderVault } from './provider'
 import { ProjectRepository, type SavedProject } from './repository'
 import { boundedText } from './spec'
 import { cTestAdapter, cTestEvidence, executeProjectTests, missingTestSource, selectedProjectTests, type TestSource } from './suite'
 
 interface ProjectOptions {
   profile(): string
+  provider(): Promise<ProviderVault>
   files(): WorkspaceFiles
   runner: CRunner
   isCurrent(target: BrowserWindow): boolean
@@ -49,20 +50,8 @@ async function testSummary(runner: CRunner, test: ProjectTest, path: string, sig
   ].join('\n')
 }
 
-export function createProjectHandlers({ profile, files, runner, isCurrent, isBusy, isFull }: ProjectOptions) {
+export function createProjectHandlers({ profile, provider, files, runner, isCurrent, isBusy, isFull }: ProjectOptions) {
   const store = new ProjectRepository(join(profile(), 'projects-v1'))
-  const providerVault = new ProviderVault(join(profile(), 'planning-provider-v1.json'), {
-    async available() {
-      if (!await safeStorage.isAsyncEncryptionAvailable()) return false
-      return process.platform !== 'linux' || ['gnome_libsecret', 'kwallet', 'kwallet5', 'kwallet6'].includes(safeStorage.getSelectedStorageBackend())
-    },
-    encrypt: value => safeStorage.encryptStringAsync(value),
-    async decrypt(value) {
-      const result = await safeStorage.decryptStringAsync(value)
-      if (result.shouldReEncrypt) return (await safeStorage.decryptStringAsync(value)).result
-      return result.result
-    },
-  })
   let opened: { target: BrowserWindow; path: string } | null = null
   let panelRevision = 0
   let running = false
@@ -359,12 +348,12 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       await job?.done.catch(() => undefined)
     },
     async provider(_target: BrowserWindow) {
-      return providerVault.get()
+      return (await provider()).get()
     },
     async configure(_target: BrowserWindow, value: unknown) {
       if (!isFull()) throw new Error('Online planning is available in Full mode.')
-      if (online) throw new Error('Wait for the planning request to finish before changing provider settings.')
-      return providerVault.update(value)
+      online?.abort()
+      return (await provider()).update(value)
     },
     async propose(target: BrowserWindow, input: unknown) {
       if (!isFull() || opened?.target !== target) throw new Error('Open Projects in Full mode to plan online.')
@@ -373,6 +362,7 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       const operation = new AbortController()
       online = operation
       try {
+        const providerVault = await provider()
         const settings = await providerVault.get()
         if (!settings.hasKey || !settings.model) throw new Error('Configure a provider, model, and API key first.')
         if (!isCurrent(target) || operation.signal.aborted || !isFull()) return null
@@ -382,9 +372,9 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
           detail: `Provider: ${settings.endpoint}\nModel: ${settings.model}\n\n${goal}\n\nIon sends this description and planning instructions. You can review the proposed plan before saving it.`,
         })
         if (!isCurrent(target) || answer.response !== 1 || operation.signal.aborted || !isFull()) return null
-        const provider = await providerVault.unlock(settings)
+        const unlockedProvider = await providerVault.unlock(settings)
         if (!isCurrent(target) || operation.signal.aborted || !isFull()) return null
-        return (await requestProject(provider, goal, operation.signal)).spec
+        return (await requestProject(unlockedProvider, goal, operation.signal)).spec
       } finally {
         if (online === operation) online = null
       }
@@ -401,6 +391,7 @@ export function createProjectHandlers({ profile, files, runner, isCurrent, isBus
       savedTests.push(path, { revision: savedRevision, digest: digest(text) })
     },
     stopAutomatic() { savedTests.clear() },
+    cancelOnline() { online?.abort() },
     profileChanged() {
       if (isFull()) return
       online?.abort()

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ExplanationAction } from '../../shared/explanations'
 import type { Entry } from '../../shared/contracts'
 import type { ProjectLensBridge, ProjectLensOpenResult, ProjectLensReference, ProjectLensSnapshot } from '../../shared/project-lens'
 import { Icon } from '../icons'
@@ -8,20 +9,24 @@ interface Props {
   root: Entry
   bridge: ProjectLensBridge
   onOpen(result: ProjectLensOpenResult): void
+  canExplain?: boolean
+  onExplain?(action: ExplanationAction, context: { root: string; refs: ProjectLensReference[] }): void
 }
 
-export function ProjectLens({ root, bridge, onOpen }: Props) {
+export function ProjectLens({ root, bridge, onOpen, canExplain, onExplain }: Props) {
   const [snapshot, setSnapshot] = useState<ProjectLensSnapshot | null>(null)
   const [busy, setBusy] = useState(false)
   const [opening, setOpening] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [visibleFiles, setVisibleFiles] = useState(40)
+  const [selectedFiles, setSelectedFiles] = useState<ProjectLensReference[]>([])
+  const [action, setAction] = useState<ExplanationAction>('understand')
   const generation = useRef(0)
   const mounted = useRef(false)
   useEffect(() => {
     mounted.current = true
     generation.current++
-    setSnapshot(null); setBusy(false); setOpening(null); setError(null); setVisibleFiles(40)
+    setSnapshot(null); setBusy(false); setOpening(null); setError(null); setVisibleFiles(40); setSelectedFiles([])
     return () => {
       mounted.current = false
       generation.current++
@@ -31,7 +36,7 @@ export function ProjectLens({ root, bridge, onOpen }: Props) {
 
   async function analyze() {
     const request = ++generation.current
-    setBusy(true); setOpening(null); setError(null); setSnapshot(null); setVisibleFiles(40)
+    setBusy(true); setOpening(null); setError(null); setSnapshot(null); setVisibleFiles(40); setSelectedFiles([])
     try {
       const value = await bridge.analyze(root.path)
       if (!mounted.current || generation.current !== request) return
@@ -74,6 +79,27 @@ export function ProjectLens({ root, bridge, onOpen }: Props) {
     {!snapshot && !busy && <p className="project-lens-note">Analyze only when you need it. Source and document contents stay unread. File presence and declarations do not verify working behavior.</p>}
     {snapshot && !ready && <p role="status">{snapshot.status === 'invalidated' ? 'The workspace changed. Analyze again to view current evidence.' : 'Analysis cancelled.'}</p>}
     {ready && <div className="project-lens-results">
+      {onExplain && <section className="project-lens-online" aria-label="Optional project explanations">
+        <h4>Ask about this project</h4>
+        <p className="project-lens-note">Optional online explanations. Choose evidence, then review exactly what leaves this computer. Nothing is sent automatically.</p>
+        <label>Explanation<select aria-label="Project explanation" value={action} onChange={event => setAction(event.currentTarget.value as ExplanationAction)}>
+          <option value="understand">Understand my project</option><option value="ask-codebase">Ask my codebase</option>
+          <option value="architecture">Explain architecture</option><option value="health">Project health</option>
+          <option value="teach-project">Teach me this project</option><option value="next-steps">What should I build next?</option>
+        </select></label>
+        <label>Optional source evidence (up to four files)<select aria-label="Add project source evidence" value="" disabled={selectedFiles.length >= 4 || !canExplain}
+          onChange={event => { const file = snapshot.files.find(file => file.reference.path === event.currentTarget.value)
+            if (file && !selectedFiles.some(item => item.path === file.reference.path)) setSelectedFiles(current => [...current, file.reference].slice(0, 4)) }}>
+          <option value="">Choose an inspected file…</option>{snapshot.files.filter(file => !selectedFiles.some(item => item.path === file.reference.path))
+            .map(file => <option key={file.reference.path} value={file.reference.path}>{file.reference.path}</option>)}
+        </select></label>
+        {selectedFiles.map(file => <div className="project-lens-selected" key={file.path}><span>{file.path}</span>
+          <button type="button" className="icon-button" aria-label={'Exclude ' + file.path} onClick={() => setSelectedFiles(current => current.filter(item => item.path !== file.path))}><Icon name="x" size={12}/></button></div>)}
+        <button type="button" className="button" data-testid="project-lens-explain" disabled={!canExplain || busy}
+          title={canExplain ? 'Prepare a review; no network request yet' : 'Online explanations are optional in the Full resource profile'}
+          onClick={() => onExplain(action, { root: root.path, refs: selectedFiles })}>Review online context…</button>
+      </section>}
+
       <p className="project-lens-summary" role="status" data-testid="project-lens-summary">
         <strong>{snapshot.status === 'partial' ? 'Partial snapshot' : 'Scoped snapshot complete'}</strong>
         <span>{snapshot.counts.filesInspected} eligible files inspected · {snapshot.counts.directoriesInspected} folders · {snapshot.durationMs} ms</span>

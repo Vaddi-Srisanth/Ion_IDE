@@ -29,6 +29,9 @@ interface Props {
   onRetry?(): void
   onLibraryChange(library: PackLibrary): void
   onManageContent(): void
+  canAskTutor?: boolean
+  lessonSelection?: { packId: string; lessonId: string; request: number }
+  onTutor?(context: { packId?: string; lessonId?: string; diagnostic?: string }): void
   onPractice(): void
   onClose(): void
   onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>, stayInLearn?: boolean) => void
@@ -184,7 +187,9 @@ function References({ references }: { references: PackReference[] }) {
   </details>
 }
 
-function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun }: {
+function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun, canAskTutor, onTutor }: {
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
   bridge: LearningBridge
   practice: PracticeBridge
   onPrepareRun: Props['onPrepareRun']
@@ -218,6 +223,9 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
           : <article className="learning-concept learning-pack-lesson" data-testid="learning-pack-lesson" data-topic={lesson.value.id}>
             <p className="learning-kicker">{lesson.value.section}{lesson.value.difficulty && ' · ' + lesson.value.difficulty}</p>
             <h3>{lesson.value.title}</h3>
+            {onTutor && <button type="button" className="button" data-testid="lesson-ask-tutor" disabled={!canAskTutor}
+              title={canAskTutor ? 'Optional online explanation; review context before sending' : 'Online explanations are optional in the Full resource profile'}
+              onClick={() => onTutor({ packId, lessonId: topicId })}><Icon name="book" size={12}/> Ask Tutor</button>}
             {!!lesson.value.prerequisites?.length && <p className="learning-meta">Before this lesson, read {lesson.value.prerequisites.map(showTopic).join(', ')}.</p>}
             <p>{lesson.value.explanation}</p>
             <h4>Example</h4>
@@ -248,7 +256,9 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
   )
 }
 
-function PackTopics({ packs, pack, topicId, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun }: {
+function PackTopics({ packs, pack, topicId, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun, canAskTutor, onTutor }: {
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
   bridge: LearningBridge
   practice: PracticeBridge
   onPrepareRun: Props['onPrepareRun']
@@ -280,7 +290,7 @@ function PackTopics({ packs, pack, topicId, onTopic, onExercise, bridge, practic
   const { topics, prerequisites, references, miniProject } = details.value
   if (topicId) return <PackLessonReader key={topicId} packs={packs} pack={pack} topicId={topicId} topics={topics}
     onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise} bridge={bridge} practice={practice}
-    onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
+    onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
 
   const sections = new Map<string, PackTopic[]>()
   for (const topic of topics) {
@@ -543,7 +553,10 @@ function LearningNav({ view = 'topics', diagnostics = false, lens = false, hasFe
   </nav>
 }
 
-function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise, practice, onPrepareRun, onStopRun }: {
+function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise, practice, onPrepareRun, onStopRun, canAskTutor, onTutor, lessonSelection }: {
+  lessonSelection?: Props['lessonSelection']
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
   bridge: LearningBridge
   practice: PracticeBridge
   onPrepareRun: Props['onPrepareRun']
@@ -560,6 +573,7 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }) {
   const [view, setView] = useState<View>('topics')
   const [topicId, setTopicId] = useState<string | null>(null)
+  useEffect(() => { if (lessonSelection?.packId === pack.id) { setTopicId(lessonSelection.lessonId); setView('topics') } }, [lessonSelection, pack.id])
   const seenFeedback = useRef(feedback)
   const openedSelection = useRef<number | undefined>(undefined)
   const scroll = useRef<HTMLDivElement>(null)
@@ -589,7 +603,7 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
     }}/>
     <div ref={scroll} className="learning-scroll">
       {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}
-        bridge={bridge} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
+        bridge={bridge} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
         : shownView === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} lensSelection={selected}
           openedSelection={openedSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
           onRevealDiagnostic={onRevealDiagnostic} onLesson={(id) => {
@@ -602,7 +616,7 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }
 
 export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, lensEnabled, lensSelection, sourceCurrent = true,
-  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise, practice, onPrepareRun, onStopRun }: Props) {
+  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise, practice, onPrepareRun, onStopRun, canAskTutor, onTutor, lessonSelection }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
@@ -650,11 +664,19 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
         <button type="button" className="icon-button" title="Manage Learning Content" aria-label="Manage Learning Content"
           data-testid="learning-manage-content" onClick={onManageContent}><Icon name="settings" size={16}/></button>
       </div>}
+      {onTutor && <div className="learning-ai-actions">
+        <button type="button" className="button" data-testid="learning-ask-tutor" disabled={!canAskTutor}
+          title={canAskTutor ? 'Optional online explanations with context review' : 'Online explanations are optional in the Full resource profile'}
+          onClick={() => onTutor({})}>Ask Tutor</button>
+        {feedback?.diagnostics.length ? <button type="button" className="button" data-testid="learning-explain-online"
+          disabled={!canAskTutor || !sourceCurrent} title="Review the current diagnostic before sending it to your provider"
+          onClick={() => onTutor({ diagnostic: feedback.diagnostics[0].raw })}>Explain run with AI</button> : null}
+      </div>}
       {error && <p className="learning-error learning-language-error" role="alert">{error}</p>}
-      {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
+      {selected ? <LanguageContent lessonSelection={lessonSelection} key={selected.id + ':' + selected.version} pack={selected} packs={packs}
         bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} lensEnabled={lensEnabled}
         lensSelection={lensSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
-        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
+        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
         : <>
           <LearningNav/>
           <div className="learning-scroll">

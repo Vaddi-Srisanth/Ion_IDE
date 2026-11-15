@@ -26,11 +26,14 @@ import { useUpdates } from './useUpdates';
 import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
 import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
+import type { ExplanationAction, ExplanationOpenResult, ExplanationRequest } from '../shared/explanations';
 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
   | { kind: 'language-support' }
   | { kind: 'learning-content' }
+  | { kind: 'explanation'; request: ExplanationRequest; tabId: string | null; root: string | null; mode: WorkspaceMode; epoch?: number; learningPack: string | null }
+  | { kind: 'explanation-excerpt'; label: string; text: string }
   | { kind: 'source-references'; locations?: SourceReference[] }
   | { kind: 'project-tests' }
   | { kind: 'commands' }
@@ -63,6 +66,7 @@ const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker'))
 const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
 const LanguageSupport = lazy(() => import('./LanguageSupport'));
 const LearningContentSettings = lazy(async () => ({ default: (await import('./learning/LearningContentSettings')).LearningContentSettings }));
+const ExplanationDialog = lazy(async () => ({ default: (await import('./explanations/ExplanationDialog')).ExplanationDialog }));
 const SourceControlPanel = lazy(() => import('./source-control/SourceControlPanel'));
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
@@ -212,6 +216,10 @@ export function App() {
 
   const [treeRevision, setTreeRevision] = useState(0);
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [tutorLesson, setTutorLesson] = useState<{ packId: string; lessonId: string; request: number }>();
+  const explanationOpening = useRef(false);
+  const explanationMode = useRef(mode);
+  explanationMode.current = mode;
   const [bottomTab, setBottomTab] = useState<BottomTab>('run');
   const [terminalFocus, setTerminalFocus] = useState(0);
   const terminalController = useRef<TerminalController | null>(null);
@@ -285,6 +293,50 @@ export function App() {
   const notebookRunning = tabs.some((tab) => tab.notebookRunning);
   const starterTarget = active && !active.viewer && !active.notebookMode && !active.error && !active.conflict
     ? starterLanguageFor(active.name) : undefined;
+
+  const explanationTab = dialog?.kind === 'explanation' ? dialog.tabId : null;
+  const subscribeExplanationInvalidation = useCallback((listener: () => void) => explanationTab
+    ? documents.subscribeText(explanationTab, listener) : () => {}, [documents, explanationTab]);
+  const refreshExplanationContext = useCallback(async (request: ExplanationRequest): Promise<ExplanationRequest> => {
+    if (!request.code) return request;
+    const { captureEditorContext } = await import('./explanations/editor-context');
+    const code = captureEditorContext(documents);
+    if (!code || code.path !== request.code.path || code.label !== request.code.label) throw new Error('The active source changed. Reopen explanations.');
+    return { ...request, code };
+  }, [documents]);
+  useEffect(() => {
+    setDialog(current => current?.kind === 'explanation' && (current.root !== (root?.path ?? null)
+      || current.mode !== mode || current.tabId !== activeId || current.epoch !== active?.epoch
+      || settings.resourceProfile !== 'full' || screen !== 'editor' || active?.conflict
+      || current.mode === 'learn' && current.learningPack !== (packLibrary?.selected ?? null)) ? null : current);
+  }, [root?.path, mode, activeId, active?.epoch, active?.conflict, settings.resourceProfile, screen, packLibrary?.selected]);
+
+  async function openExplanation(request: ExplanationRequest) {
+    if (explanationOpening.current || settingsRef.current.resourceProfile !== 'full') return;
+    explanationOpening.current = true;
+    const ownerRoot = sessionRoot.current?.path ?? null;
+    const ownerMode = explanationMode.current;
+    const before = documents.getSnapshot();
+    try {
+      const { captureEditorContext, diagnosticContext } = await import('./explanations/editor-context');
+      const code = captureEditorContext(documents);
+      const current = documents.getSnapshot();
+      if (ownerRoot !== (sessionRoot.current?.path ?? null) || ownerMode !== explanationMode.current || before.activeId !== current.activeId) return;
+      const tab = current.tabs.find(item => item.id === current.activeId);
+      setDialog({ kind: 'explanation', request: { ...request, ...(code ? { code } : {}), ...(request.diagnostic ? { diagnostic: diagnosticContext(request.diagnostic) } : {}) },
+        tabId: current.activeId, root: ownerRoot, mode: ownerMode, epoch: tab?.epoch, learningPack: selectedLearningLanguage.current });
+    } catch (reason) { notify(errorMessage(reason), true); }
+    finally { explanationOpening.current = false; }
+  }
+  const openExplanationCitation = (result: ExplanationOpenResult) => {
+    setDialog(null);
+    if (result.entry) {
+      if (result.range) void navigateSource({ path: result.entry.path, line: result.range.startLine, column: result.range.startColumn });
+      else openWorkbenchEntry(result.entry);
+    } else if (result.lesson) {
+      setTutorLesson({ ...result.lesson, request: performance.now() });
+    } else if (result.text !== undefined) setDialog({ kind: 'explanation-excerpt', label: result.label ?? 'Reviewed excerpt', text: result.text });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -845,6 +897,16 @@ export function App() {
   }
 
   function requestWindowClose() {
+    if (dialog?.kind === 'explanation') {
+      // Read-only explanations do not block Quit. Revoke and drain their
+      // request, then preserve the editor's existing unsaved-file workflow.
+      setDialog(null);
+      void bridge.explanations.cancel().then(() => {
+        if (practiceDraft.current || projectDraft.current) setDialog({ kind: 'close-workspace-draft' });
+        else requestCloseFiles();
+      }, reason => { notify(errorMessage(reason), true); void bridge.confirmWindowClose(false); });
+      return;
+    }
     if (dialog || nativeDialogOpen.current) {
       void bridge.confirmWindowClose(false);
       return;
@@ -1181,7 +1243,10 @@ export function App() {
     }
     const module = panelContent.module;
     switch (module.mode) {
-      case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={true}
+      case 'learn': return <module.Component canAskTutor={settings.resourceProfile === 'full'} lessonSelection={tutorLesson}
+        onTutor={({ packId, lessonId, diagnostic }) => void openExplanation({ purpose: 'tutor', action: diagnostic ? 'debug' : lessonId ? 'concept' : 'hint',
+          question: diagnostic ? 'Help me investigate this diagnostic without writing the solution.' : 'Help me understand this concept and reason about my own code.',
+          ...(packId && lessonId ? { lesson: { packId, lessonId } } : {}), ...(diagnostic ? { diagnostic } : {}) })} {...learningPacks} bridge={bridge.learning} includeCatalog={true}
         practice={bridge.practice} onPrepareRun={(path) => saveMany(documents.affected(path))} onStopRun={stop}
         onManageContent={() => setDialog({ kind: 'learning-content' })} onPractice={() => selectWorkspace('practice')}
         feedback={runReport?.tabId === activeId || lensSelection ? feedback : undefined} onClose={closeAuxiliary}
@@ -1193,7 +1258,13 @@ export function App() {
           if (!stayInLearn) selectWorkspace('practice');
           openEntry(entry);
         }}/>;
-      case 'projects': return <module.Component root={root} onOpenFolder={openFolder} resourceProfile={settings.resourceProfile}
+      case 'projects': return <module.Component onExplain={(action: ExplanationAction, project: NonNullable<ExplanationRequest['project']>) => void openExplanation({ purpose: 'project-lens', action, project,
+        question: action === 'health' ? 'Identify evidence-based potential issues and suggestions. Clearly state uncertainty; do not claim a verified vulnerability or score.'
+          : action === 'teach-project' ? 'Give a beginner reading path with validated citations and concept-checking questions.'
+          : action === 'next-steps' ? 'Suggest a small dependency-ordered roadmap grounded in the reviewed evidence, with acceptance criteria and risks. Do not execute anything.'
+          : action === 'architecture' ? 'Explain the apparent architecture, module relationships and data flow. Separate observed facts from inferences and unknowns.'
+          : action === 'ask-codebase' ? 'Where should I begin reading this project? Ground your answer in the selected evidence.'
+          : 'Explain what this project appears to do, with both beginner and technical explanations. Distinguish declarations from working behavior.' })} root={root} onOpenFolder={openFolder} resourceProfile={settings.resourceProfile}
         onOpenLensSource={({ entry, range }) => {
           if (range) void navigateSource({ path: entry.path, line: range.startLine, column: range.startColumn });
           else openWorkbenchEntry(entry);
@@ -1357,6 +1428,11 @@ export function App() {
         onWorkspace={(next) => { dismissOnboarding(); selectWorkspace(next); }}
         error={notice?.error ? notice.message : undefined}/>}
       <Suspense fallback={null}>
+        {dialog?.kind === 'explanation' && <ExplanationDialog initialRequest={dialog.request} bridge={bridge.explanations}
+          subscribeInvalidation={subscribeExplanationInvalidation} refreshContext={refreshExplanationContext}
+          onOpenCitation={openExplanationCitation} onClose={() => setDialog(null)}
+          />}
+
         {dialog?.kind === 'commands' && <Commands onClose={() => setDialog(null)}
           items={commandEntries.filter(([id]) => availableCommand(id)).map(([id, { label }]) => ({
             id, label, shortcut: shortcut(id), choose: () => {
@@ -1393,6 +1469,9 @@ export function App() {
             });
           }}/>}
       </Suspense>
+      {dialog?.kind === 'explanation-excerpt' && <Modal title="Reviewed excerpt" onClose={() => setDialog(null)}>
+        <p>{dialog.label}</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{dialog.text}</pre>
+      </Modal>}
       {dialog?.kind === 'source-references' && <Modal title="Find References" className="command-picker" onClose={() => setDialog(null)}>
         <div className="source-references" data-testid="source-references">
           {dialog.locations?.length ? dialog.locations.map(({ path, line, column }) => (

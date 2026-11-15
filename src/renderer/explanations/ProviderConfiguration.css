@@ -1,0 +1,8 @@
+.explanation-provider { display:grid; gap:10px; margin-top:10px; }
+.explanation-provider label { display:grid; gap:5px; min-width:0; color:var(--text); }
+.explanation-provider input { width:100%; box-sizing:border-box; }
+.explanation-provider p { margin:0; color:var(--muted); font-size:12px; }
+.explanation-provider p.explanation-error { color:var(--danger); }
+.explanation-provider .explanation-actions { display:flex; flex-wrap:wrap; gap:7px; }
+
+.explanation-provider input { background:var(--background); color:var(--ink); border:1px solid var(--border); border-radius:var(--radius-control,4px); padding:6px 8px; min-height:28px; }

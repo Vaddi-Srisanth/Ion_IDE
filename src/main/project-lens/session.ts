@@ -58,6 +58,49 @@ export class ProjectLensSession {
 
   close(): void { this.cancel() }
 
+  /** Main-only evidence lease. This neither analyzes again nor grants paths. */
+  lease(root: string): {
+    snapshot: ProjectLensSnapshot
+    validate(): Promise<void>
+    openReference(reference: ProjectLensReference): Promise<ProjectLensOpenResult>
+  } {
+    const selected = this.snapshot
+    const generation = this.generation
+    if (!selected || this.currentScope() !== selected.scope || selected.scope.rootPath !== root || selected.value.root !== root) {
+      throw new Error('Analyze the current folder again before reviewing its explanation context.')
+    }
+    const current = () => this.snapshot === selected && this.generation === generation
+      && this.currentScope() === selected.scope && selected.scope.rootPath === root
+    const validate = async () => {
+      if (!current()) throw new Error('The Project Lens evidence lease changed.')
+      const before = await selected.scope.inspect(root, 'folder')
+      if (!current() || before.stats.dev !== selected.rootDevice || before.stats.ino !== selected.rootInode) {
+        throw new Error('The Project Lens folder changed.')
+      }
+      // Manifest content and inspected file metadata are the evidence sent to
+      // the provider; validate their saved revisions without reading sources.
+      const unique = new Map(references(selected.value).map(reference => [reference.path, reference]))
+      for (const reference of unique.values()) {
+        if (!current()) throw new Error('The Project Lens evidence lease changed.')
+        const file = await selected.scope.inspect(join(root, reference.path), 'file')
+        if (!current() || revision(file.stats) !== reference.revision) throw new Error('The Project Lens evidence changed on disk.')
+      }
+      const after = await selected.scope.inspect(root, 'folder')
+      if (!current() || after.stats.dev !== selected.rootDevice || after.stats.ino !== selected.rootInode) {
+        throw new Error('The Project Lens folder changed.')
+      }
+    }
+    return Object.freeze({ snapshot: selected.value, validate,
+      openReference: async (reference: ProjectLensReference) => {
+        await validate()
+        if (!current()) throw new Error('The Project Lens evidence lease changed.')
+        const result = await this.openReference(root, reference)
+        if (!current()) throw new Error('The Project Lens evidence lease changed.')
+        return result
+      },
+    })
+  }
+
   async analyze(root: string): Promise<ProjectLensSnapshot> {
     const scope = this.currentScope()
     if (typeof root !== 'string' || !root || scope.rootPath !== root) throw new Error('Analyze the exact currently open folder.')

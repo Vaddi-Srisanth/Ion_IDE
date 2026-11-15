@@ -67,6 +67,9 @@ async function buildDesktop() {
       'main/practice/index': 'src/main/practice/index.ts',
       'main/projects/ipc': 'src/main/projects/ipc.ts',
       'main/project-lens/session': 'src/main/project-lens/session.ts',
+      'main/explanations/session': 'src/main/explanations/session.ts',
+      'main/explanations/context': 'src/main/explanations/context.ts',
+      'main/provider-vault': 'src/main/provider-vault.ts',
       'main/viewers/index': 'src/main/viewers/index.ts',
       'main/viewers/document-worker': 'src/main/viewers/document-worker.ts',
       'main/notebooks/kernel-service': 'src/main/notebooks/kernel-service.ts',
@@ -84,9 +87,10 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|explanations\/(?:session|context)|provider-vault|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
-          const singleFile = path.endsWith('/ipc') || path === './project-lens/session' || path === './web-preview' || path === './profile-export'
+          const singleFile = path.endsWith('/ipc') || path === './project-lens/session' || path.startsWith('./explanations/')
+            || path === './provider-vault' || path === './web-preview' || path === './profile-export'
             || path === './notebooks/kernel-service' || path === './learning/catalog-store'
             || path === './workspace-search' || path === './update-install' || path === './run-trust' || path.endsWith('/service')
           return { path: path + (singleFile ? '.cjs' : '/index.cjs'), external: true }

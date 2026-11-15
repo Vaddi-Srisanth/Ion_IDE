@@ -312,6 +312,14 @@ export class Documents {
     }
   };
 
+  /** Explicit context capture uses an existing active buffer only; never reads a file or creates a model. */
+  activeTextPrefix(id: string, length: number): string | undefined {
+    if (this.activeId !== id || !Number.isSafeInteger(length) || length < 0 || length > 8192) return;
+    return this.modelAccess?.getTextPrefix?.(id, length) ?? this.records.get(id)?.stagedText?.slice(0, length);
+  }
+
+  textVersion(id: string): number | undefined { return this.records.get(id)?.version; }
+
   async loadTextPrefix(id: string, length: number): Promise<string> {
     return this.modelAccess?.getTextPrefix?.(id, length) ?? (await this.loadText(id)).slice(0, length);
   }

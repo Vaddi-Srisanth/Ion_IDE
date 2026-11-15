@@ -34,6 +34,51 @@ test('session opens only inspected evidence with the exact recorded range and re
   assert.equal(Object.isFrozen(source), true)
 })
 
+test('main-only explanation lease uses frozen existing evidence and rejects changed saved revisions', async t => {
+  const { root, scope } = await fixture(t)
+  const session = new ProjectLensSession(() => scope)
+  t.after(() => session.close())
+  assert.throws(() => session.lease(root), /Analyze the current folder again/)
+  const snapshot = await session.analyze(root)
+  const lease = session.lease(root)
+  assert.equal(Object.isFrozen(lease), true)
+  assert.equal(lease.snapshot, snapshot)
+  await lease.validate()
+  const reference = snapshot.files.find(file => file.reference.path === 'src/main.js')!.reference
+  assert.equal((await lease.openReference(reference)).entry.name, 'main.js')
+  await assert.rejects(lease.openReference({ ...reference, path: 'uninspected.js' }), /not part/)
+  await writeFile(join(root, 'package.json'), '{"main":"changed.js"}\n')
+  await assert.rejects(lease.validate(), /changed on disk/)
+  await assert.rejects(lease.openReference(reference), /changed on disk/)
+})
+
+test('explanation lease is revoked by cancel, reanalysis, scope replacement, and root replacement', async t => {
+  const { root, scope } = await fixture(t)
+  const other = await fixture(t)
+  let authority = scope
+  const session = new ProjectLensSession(() => authority)
+  t.after(() => session.close())
+  await session.analyze(root)
+  const cancelled = session.lease(root)
+  session.cancel()
+  await assert.rejects(cancelled.validate(), /lease changed/)
+  await session.analyze(root)
+  const old = session.lease(root)
+  await session.analyze(root)
+  await assert.rejects(old.validate(), /lease changed/)
+  const replacedScope = session.lease(root)
+  authority = other.scope
+  await assert.rejects(replacedScope.validate(), /lease changed/)
+  authority = scope
+  const replacedRoot = session.lease(root)
+  const moved = root + '-lease-original'
+  t.after(() => rm(moved, { recursive: true, force: true }))
+  await rename(root, moved)
+  await mkdir(root)
+  await assert.rejects(replacedRoot.validate(), /folder changed/)
+  assert.equal(scope.authorizes(join(other.root, 'package.json')), false)
+})
+
 test('arbitrary references, forged ranges, new files, traversal and wrong roots are rejected', async t => {
   const { root, scope } = await fixture(t)
   const session = new ProjectLensSession(() => scope)
