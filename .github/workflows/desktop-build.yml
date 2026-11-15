@@ -56,11 +56,16 @@ jobs:
       - run: npm run build
       - name: Verify fixture process ownership
         run: node --test scripts/fixture-process-runner.test.mjs
+      - name: Verify bounded diagnostic and measurement controls
+        run: node --test scripts/desktop-startup-observer.test.mjs scripts/collect-release-gate-evidence.test.mjs scripts/test-update-preferences-support.mjs scripts/test-run-completion.mjs
       - name: Verify actual offline practical learning
         run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
       - name: Verify actual offline Project Lens
         if: ${{ !cancelled() }}
         run: node scripts/test-project-lens.mjs --out performance-results/project-lens-native.json
+      - name: Verify direct learning diagnostics and preserved content
+        if: ${{ !cancelled() }}
+        run: node scripts/test-learning-marketplace.mjs --out performance-results/direct-learning.json
       - name: Collect bounded sanitized evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-learning-safe"

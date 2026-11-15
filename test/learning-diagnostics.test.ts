@@ -90,6 +90,73 @@ test('diagnostics require the reviewed tool, matching source, and complete trace
   assert.doesNotMatch(colored.raw, /\x1b/)
 })
 
+// Constructed from the actual CSI/OSC envelope observed in Windows CI job
+//132751971378; only disposable paths and diagnostic text are synthetic. This is
+//not a claim that the path-masked CI console preserved every original byte.
+const conptyPath = 'C:\\Ion disposable fixture\\undefined name.py'
+const pythonTrace = `Traceback (most recent call last):\r\n  File "${conptyPath}", line 1, in <module>\r\n    print(undefined_study_value)\r\n          ^^^^^^^^^^^^^^^^^^^^^\r\nNameError: name 'undefined_study_value' is not defined`
+const conptyPrefix = '\x1b[?9001h\x1b[?1004h\x1b[?25l\x1b[2J\x1b[m\x1b[H' + '\r\n'.repeat(6)
+  + '\x1b[H\x1b]0;C:\\Fixture toolchain\\python.exe\x07'
+const conptySuffix = '\x1b[7;1H\x1b[?9001l\x1b[?1004l\n'
+function conptyResult(output: string): RunResult {
+  return { status: 'runtime-error', compiler: 'C:\\Fixture toolchain\\python.exe', compileOutput: '', programOutput: output,
+    exitCode: 1, durationMs: 1, message: 'Program failed (exit code 1).', outputComplete: true }
+}
+
+test('reviewed ConPTY framing is normalized only for classification, preserving original raw evidence', () => {
+  const output = conptyPrefix + pythonTrace + conptySuffix
+  const executed = conptyResult(output)
+  const [diagnostic] = diagnose(executed, 'python', conptyPath)
+  assert.equal(diagnostic.category, 'python-undefined-name')
+  assert.equal(diagnostic.confidence, 'high')
+  assert.deepEqual(diagnostic.location, { file: conptyPath, line: 1 })
+  assert.ok(diagnostic.raw.includes('\x1b]0;C:\\Fixture toolchain\\python.exe\x07'))
+  assert.ok(diagnostic.raw.includes('\x1b[7;1H'))
+  assert.equal(executed.programOutput, output)
+})
+
+test('malformed, overwritten, unknown and source-mismatched terminal diagnostics remain uncertain', () => {
+  const cases = [
+    { output: '\x1b]0;unfinished title' + pythonTrace },
+    { output: '\x1b[?9001' + pythonTrace },
+    { output: conptyPrefix + pythonTrace.replace('\r\n  File', '\r\n\x1b[1;1H  File') + conptySuffix },
+    { output: conptyPrefix + pythonTrace + '\x1b[2J' },
+    { output: 'overwritten\r' + pythonTrace },
+    { output: conptyPrefix + pythonTrace.replace('NameError: name \'undefined_study_value\' is not defined', 'RuntimeError: an unreviewed failure') + conptySuffix },
+    { output: conptyPrefix + pythonTrace + conptySuffix, source: 'C:\\Other fixture\\undefined name.py' },
+  ]
+  for (const item of cases) {
+    const [diagnostic] = diagnose(conptyResult(item.output), 'python', item.source ?? conptyPath)
+    assert.equal(diagnostic.category, 'unclassified-runtime')
+    assert.equal(diagnostic.confidence, 'uncertain')
+    assert.equal(diagnostic.packTopic, undefined)
+    assert.ok(diagnostic.raw)
+  }
+})
+
+test('runtime control normalization abstains at bounded text and control-count limits', () => {
+  for (const output of ['\n'.repeat(65537) + pythonTrace, '\x1b[?9001h'.repeat(257) + pythonTrace]) {
+    const [diagnostic] = diagnose(conptyResult(output), 'python', conptyPath)
+    assert.equal(diagnostic.category, 'unclassified-runtime')
+    assert.equal(diagnostic.confidence, 'uncertain')
+    assert.equal(diagnostic.packTopic, undefined)
+    assert.ok(diagnostic.raw.includes('undefined_study_value'))
+    assert.ok(diagnostic.raw.length <= 2200)
+  }
+})
+
+test('framing treats ASCII and Unicode whitespace consistently without hiding visible text', () => {
+  for (const prefix of [' \t\r\n', '\u00a0\u2003\ufeff\r\n']) {
+    const [diagnostic] = diagnose(conptyResult(prefix + conptyPrefix + pythonTrace + conptySuffix), 'python', conptyPath)
+    assert.equal(diagnostic.category, 'python-undefined-name')
+  }
+  for (const prefix of ['A\r\n', '\u03bb\r\n']) {
+    const [diagnostic] = diagnose(conptyResult(prefix + conptyPrefix + pythonTrace + conptySuffix), 'python', conptyPath)
+    assert.equal(diagnostic.category, 'unclassified-runtime')
+    assert.equal(diagnostic.confidence, 'uncertain')
+  }
+})
+
 test('Node file URLs and compiler paths work with Windows paths and spaces', async () => {
   const corpus = await fixtures()
   const node = corpus.find(({ id }) => id === 'js-esm-name')!

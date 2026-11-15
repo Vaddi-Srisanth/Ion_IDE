@@ -1,0 +1,519 @@
+{
+  "kind": "Node-only-classifier-function-microbenchmark",
+  "baseline": "df089aabfc8b5f3f5e19eb1d3372fc12131c7703",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.11.1"
+  },
+  "iterationsPerSample": 100,
+  "pairedSamples": 6,
+  "limitations": [
+    "Not Ion startup, idle RAM, macOS footprint, native Windows correctness or display latency.",
+    "One Node process with ordinary compiled modules; allocator/GC affect small timings.",
+    "RSS is sampled at batch endpoints, not peak or retained memory.",
+    "Malformed, ambiguous and over-limit output intentionally abstains."
+  ],
+  "cases": {
+    "plain": {
+      "bytes": 184,
+      "samples": [
+        {
+          "pair": 1,
+          "label": "before",
+          "elapsedMs": 0.2828750000000042,
+          "perCallMs": 0.002828750000000042,
+          "cpuMs": 0.961,
+          "rssBeforeBytes": 18614792,
+          "rssAfterBytes": 18958928,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 1,
+          "label": "after",
+          "elapsedMs": 0.6672909999999987,
+          "perCallMs": 0.006672909999999988,
+          "cpuMs": 1.251,
+          "rssBeforeBytes": 18991696,
+          "rssAfterBytes": 19598000,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "after",
+          "elapsedMs": 0.3890829999999994,
+          "perCallMs": 0.003890829999999994,
+          "cpuMs": 0.499,
+          "rssBeforeBytes": 19614384,
+          "rssAfterBytes": 20155104,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "before",
+          "elapsedMs": 0.396250000000002,
+          "perCallMs": 0.00396250000000002,
+          "cpuMs": 0.995,
+          "rssBeforeBytes": 20171488,
+          "rssAfterBytes": 20499264,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 3,
+          "label": "before",
+          "elapsedMs": 0.1911660000000026,
+          "perCallMs": 0.0019116600000000262,
+          "cpuMs": 0.507,
+          "rssBeforeBytes": 20499264,
+          "rssAfterBytes": 20810608,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 3,
+          "label": "after",
+          "elapsedMs": 0.331707999999999,
+          "perCallMs": 0.00331707999999999,
+          "cpuMs": 0.661,
+          "rssBeforeBytes": 20826992,
+          "rssAfterBytes": 21416912,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "after",
+          "elapsedMs": 0.4406660000000002,
+          "perCallMs": 0.004406660000000002,
+          "cpuMs": 0.939,
+          "rssBeforeBytes": 21433296,
+          "rssAfterBytes": 22252592,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "before",
+          "elapsedMs": 0.14570799999999906,
+          "perCallMs": 0.0014570799999999906,
+          "cpuMs": 0.281,
+          "rssBeforeBytes": 22252592,
+          "rssAfterBytes": 22252592,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 5,
+          "label": "before",
+          "elapsedMs": 0.15108300000000696,
+          "perCallMs": 0.0015108300000000697,
+          "cpuMs": 0.311,
+          "rssBeforeBytes": 22252592,
+          "rssAfterBytes": 22498352,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 5,
+          "label": "after",
+          "elapsedMs": 0.26679199999999526,
+          "perCallMs": 0.0026679199999999526,
+          "cpuMs": 0.791,
+          "rssBeforeBytes": 22498352,
+          "rssAfterBytes": 22711344,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "after",
+          "elapsedMs": 0.26500000000000057,
+          "perCallMs": 0.0026500000000000056,
+          "cpuMs": 0.903,
+          "rssBeforeBytes": 22727728,
+          "rssAfterBytes": 22891568,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "before",
+          "elapsedMs": 0.22895799999999866,
+          "perCallMs": 0.002289579999999987,
+          "cpuMs": 0.538,
+          "rssBeforeBytes": 22907952,
+          "rssAfterBytes": 23022640,
+          "category": "python-undefined-name"
+        }
+      ]
+    },
+    "conpty": {
+      "bytes": 256,
+      "samples": [
+        {
+          "pair": 1,
+          "label": "before",
+          "elapsedMs": 0.18337500000000517,
+          "perCallMs": 0.0018337500000000517,
+          "cpuMs": 0.778,
+          "rssBeforeBytes": 23530640,
+          "rssAfterBytes": 23628944,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 1,
+          "label": "after",
+          "elapsedMs": 0.8662499999999937,
+          "perCallMs": 0.008662499999999938,
+          "cpuMs": 1.544,
+          "rssBeforeBytes": 23694480,
+          "rssAfterBytes": 23760016,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "after",
+          "elapsedMs": 0.4399170000000012,
+          "perCallMs": 0.004399170000000012,
+          "cpuMs": 0.531,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "before",
+          "elapsedMs": 0.13791700000000162,
+          "perCallMs": 0.0013791700000000161,
+          "cpuMs": 0.303,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 3,
+          "label": "before",
+          "elapsedMs": 0.13741699999999923,
+          "perCallMs": 0.0013741699999999923,
+          "cpuMs": 0.139,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 3,
+          "label": "after",
+          "elapsedMs": 0.3648330000000044,
+          "perCallMs": 0.003648330000000044,
+          "cpuMs": 0.367,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "after",
+          "elapsedMs": 0.4223750000000024,
+          "perCallMs": 0.0042237500000000235,
+          "cpuMs": 1.077,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "before",
+          "elapsedMs": 0.1376249999999999,
+          "perCallMs": 0.0013762499999999988,
+          "cpuMs": 0.139,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 5,
+          "label": "before",
+          "elapsedMs": 0.13716699999999804,
+          "perCallMs": 0.0013716699999999804,
+          "cpuMs": 0.139,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 5,
+          "label": "after",
+          "elapsedMs": 0.4194169999999957,
+          "perCallMs": 0.004194169999999957,
+          "cpuMs": 1.296,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23760016,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "after",
+          "elapsedMs": 0.3632080000000002,
+          "perCallMs": 0.003632080000000002,
+          "cpuMs": 1.255,
+          "rssBeforeBytes": 23760016,
+          "rssAfterBytes": 23792784,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "before",
+          "elapsedMs": 0.13904199999999634,
+          "perCallMs": 0.0013904199999999634,
+          "cpuMs": 0.14,
+          "rssBeforeBytes": 23792784,
+          "rssAfterBytes": 23792784,
+          "category": "unclassified-runtime"
+        }
+      ]
+    },
+    "nearLimit": {
+      "bytes": 63186,
+      "samples": [
+        {
+          "pair": 1,
+          "label": "before",
+          "elapsedMs": 1.0979579999999984,
+          "perCallMs": 0.010979579999999984,
+          "cpuMs": 2.119,
+          "rssBeforeBytes": 24054928,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 1,
+          "label": "after",
+          "elapsedMs": 36.75275,
+          "perCallMs": 0.3675275,
+          "cpuMs": 36.393,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "after",
+          "elapsedMs": 34.929458999999994,
+          "perCallMs": 0.34929458999999996,
+          "cpuMs": 34.934,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 2,
+          "label": "before",
+          "elapsedMs": 1.1298329999999908,
+          "perCallMs": 0.011298329999999907,
+          "cpuMs": 1.18,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 3,
+          "label": "before",
+          "elapsedMs": 1.021000000000015,
+          "perCallMs": 0.01021000000000015,
+          "cpuMs": 1.023,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 3,
+          "label": "after",
+          "elapsedMs": 34.46200000000002,
+          "perCallMs": 0.34462000000000015,
+          "cpuMs": 34.462,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "after",
+          "elapsedMs": 34.936041999999986,
+          "perCallMs": 0.34936041999999984,
+          "cpuMs": 34.934,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 4,
+          "label": "before",
+          "elapsedMs": 1.1037919999999986,
+          "perCallMs": 0.011037919999999986,
+          "cpuMs": 1.131,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 5,
+          "label": "before",
+          "elapsedMs": 1.045833999999985,
+          "perCallMs": 0.01045833999999985,
+          "cpuMs": 1.058,
+          "rssBeforeBytes": 24562832,
+          "rssAfterBytes": 24562832,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 5,
+          "label": "after",
+          "elapsedMs": 34.868708999999996,
+          "perCallMs": 0.34868709,
+          "cpuMs": 34.867,
+          "rssBeforeBytes": 24579216,
+          "rssAfterBytes": 24579216,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "after",
+          "elapsedMs": 34.78683299999997,
+          "perCallMs": 0.3478683299999997,
+          "cpuMs": 34.809,
+          "rssBeforeBytes": 24579216,
+          "rssAfterBytes": 24579216,
+          "category": "python-undefined-name"
+        },
+        {
+          "pair": 6,
+          "label": "before",
+          "elapsedMs": 1.0046250000000327,
+          "perCallMs": 0.010046250000000327,
+          "cpuMs": 1.007,
+          "rssBeforeBytes": 24579216,
+          "rssAfterBytes": 24579216,
+          "category": "python-undefined-name"
+        }
+      ]
+    },
+    "overLimit": {
+      "bytes": 70184,
+      "samples": [
+        {
+          "pair": 1,
+          "label": "before",
+          "elapsedMs": 1.1135419999999954,
+          "perCallMs": 0.011135419999999953,
+          "cpuMs": 1.302,
+          "rssBeforeBytes": 24775824,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 1,
+          "label": "after",
+          "elapsedMs": 0.8180830000000014,
+          "perCallMs": 0.008180830000000014,
+          "cpuMs": 0.844,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 2,
+          "label": "after",
+          "elapsedMs": 0.7585830000000442,
+          "perCallMs": 0.007585830000000442,
+          "cpuMs": 0.761,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 2,
+          "label": "before",
+          "elapsedMs": 1.1008339999999635,
+          "perCallMs": 0.011008339999999634,
+          "cpuMs": 1.102,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 3,
+          "label": "before",
+          "elapsedMs": 1.116375000000005,
+          "perCallMs": 0.01116375000000005,
+          "cpuMs": 1.117,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 3,
+          "label": "after",
+          "elapsedMs": 0.8770840000000248,
+          "perCallMs": 0.008770840000000248,
+          "cpuMs": 0.986,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 4,
+          "label": "after",
+          "elapsedMs": 0.7941250000000082,
+          "perCallMs": 0.007941250000000082,
+          "cpuMs": 0.796,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 4,
+          "label": "before",
+          "elapsedMs": 1.0744169999999826,
+          "perCallMs": 0.010744169999999826,
+          "cpuMs": 1.075,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 5,
+          "label": "before",
+          "elapsedMs": 1.089749999999981,
+          "perCallMs": 0.010897499999999808,
+          "cpuMs": 1.091,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 5,
+          "label": "after",
+          "elapsedMs": 0.8489170000000286,
+          "perCallMs": 0.008489170000000285,
+          "cpuMs": 1.044,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 6,
+          "label": "after",
+          "elapsedMs": 0.8081249999999613,
+          "perCallMs": 0.008081249999999613,
+          "cpuMs": 0.965,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        },
+        {
+          "pair": 6,
+          "label": "before",
+          "elapsedMs": 1.1625830000000406,
+          "perCallMs": 0.011625830000000406,
+          "cpuMs": 1.389,
+          "rssBeforeBytes": 24824976,
+          "rssAfterBytes": 24824976,
+          "category": "unclassified-runtime"
+        }
+      ]
+    }
+  }
+}

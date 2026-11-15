@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { stripVTControlCharacters } from 'node:util'
 import type { RunResult } from '../../shared/contracts'
 import {
   diagnosticConcepts, type CompilerFamily, type CompilerProblem, type DiagnosticCategory,
@@ -357,17 +358,58 @@ function classifyNode(lines: string[], source: string): RuntimeClassification | 
   if (call) return { category: 'javascript-not-callable', location, context: call[1] }
 }
 
+/** A classifier copy, not a terminal emulator or a rewrite of original evidence. */
+function runtimeClassificationText(output: string): string | undefined {
+  if (output.length > 64 * 1024) return
+  const control = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\]0;[^\x00-\x1f\x7f-\x9f]*(?:\x07|\x1b\\))/y
+  const framing: Array<{ start: number; end: number; cursor: boolean }> = []
+  let firstText = Number.POSITIVE_INFINITY, lastText = -1, controls = 0
+  for (let index = 0; index < output.length;) {
+    const code = output.charCodeAt(index)
+    if (code === 0x1b) {
+      control.lastIndex = index
+      const sequence = control.exec(output)?.[0]
+      if (!sequence || ++controls > 256) return
+      const end = index + sequence.length
+      if (!/^\x1b\[[0-9;]*m$/.test(sequence) && !/^\x1b\[\?(?:9001|1004|25)[hl]$/.test(sequence)
+        && !sequence.startsWith('\x1b]0;')) {
+        const cursor = /^\x1b\[(?:[0-9]{1,5}(?:;[0-9]{1,5})?)?H$/.test(sequence)
+        if (!cursor && sequence !== '\x1b[2J') return
+        framing.push({ start: index, end, cursor })
+      }
+      index = end
+      continue
+    }
+    // A bare CR/backspace/other unreviewed control may overwrite visible text.
+    if (code === 13 && output.charCodeAt(index + 1) !== 10 || code < 32 && ![9, 10, 13].includes(code)
+      || code >= 0x7f && code <= 0x9f) return
+    if (code > 32 && (code < 127 || !/\s/.test(output[index]))) {
+      firstText = Math.min(firstText, index); lastText = index
+    }
+    index++
+  }
+  // The observed ConPTY home/clear prefix precedes diagnostic text; its final
+  // cursor positioning prints nothing afterward. Interior moves/erases are
+  // ambiguous and must not manufacture an apparently ordered traceback.
+  if (framing.some(item => item.end > firstText && !(item.cursor && item.start > lastText))) return
+  return stripVTControlCharacters(output).trimEnd()
+}
+
 function runtimeDiagnostic(result: RunResult, language: RunLanguage, compiler: CompilerFamily, source: string | undefined): ClassifiedDiagnostic {
   const output = (result.programStderr?.trim() || result.programOutput).replace(/\x1b\[[0-9;]*m/g, '').trimEnd()
   let known: RuntimeClassification | undefined
   if (result.programSignal === 'SIGSEGV' || result.programSignal === 'SIGBUS') {
     if (language === 'c') known = { category: 'runtime-memory-fault' }
     else if (language === 'cpp') known = { category: 'cpp-memory-access' }
-  } else if (source && result.exitCode === 1 && result.outputComplete !== false && output) {
-    const lines = output.split(/\r?\n/)
-    if (compiler === 'javac') known = classifyJavaRuntime(lines, source)
-    else if (compiler === 'python') known = classifyPython(lines, source)
-    else if (compiler === 'node') known = classifyNode(lines, source)
+  } else if (source && result.exitCode === 1 && result.outputComplete !== false && output
+    && (compiler === 'javac' || compiler === 'python' || compiler === 'node')) {
+    const classifiedOutput = runtimeClassificationText(output)
+    if (classifiedOutput) {
+      const lines = classifiedOutput.split(/\r?\n/)
+      if (compiler === 'javac') known = classifyJavaRuntime(lines, source)
+      else if (compiler === 'python') known = classifyPython(lines, source)
+      else if (compiler === 'node') known = classifyNode(lines, source)
+    }
   }
   const category = known?.category ?? 'unclassified-runtime'
   const raw = [result.message, output.slice(-(maxRawLength - Math.min(result.message.length, 400) - 1))]
