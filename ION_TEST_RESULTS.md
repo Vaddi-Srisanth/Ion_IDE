@@ -28,3 +28,8 @@ Native caller scripts were updated for the deliberate removal of Marketplace, re
 - First C browser attempt failed because the fixture expected a nonexistent `upper` variable in the unchanged Java task (actual starter reads `count`). Corrected the assertion to actual content; retained failed report in `ui-C-first`. No application timeout was raised. Corrected and final runs pass.
 - New `scripts/test-practical-learning.mjs --require-toolchains` will verify real Python/Java/C sample runs, hints, actual Monaco Undo/Redo, stale saved-source evidence and attempts on both native CI platforms. Native execution remains unverified until those jobs run.
 - A/B native run43683773521: ten passed, one failed Windows paired performance fixture setup, two optional jobs skipped. See performance report for the retained failure and actual measurements.
+
+
+### First C native run — retained failure
+
+Run43686655436 Mac completed the entire existing regression command, then the new practical fixture failed during `open-exercise`. Its finally-close hit the expected unsaved-changes dialog and masked the primary error. This is a fixture failure, not evidence of a production shutdown defect. The fixture typed after its button settled without waiting for the asynchronously opened Monaco model. Added explicit starter-model readiness, granular persisted phases and primary/cleanup error preservation; a disposable recovery-confirmation path handles normal unsaved test content. Native correction remains unverified until a new run. No execution/shutdown deadline was raised.

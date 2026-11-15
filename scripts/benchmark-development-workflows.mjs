@@ -6,11 +6,12 @@ import { cpus, release, totalmem } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 import { artifact, atPath, close, editorShows, eventually, launch, openFolder, openFromExplorer, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
-import { developmentFixture, processTree, testSpec, waitForChildren } from './development-workflow-fixtures.mjs'
+import { developmentFixture, fixtureRunnerProtocol, processTree, testSpec, waitForChildren } from './development-workflow-fixtures.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' }, baseline: { type: 'string' },
   trials: { type: 'string', default: '3' }, 'soak-seconds': { type: 'string', default: '60' },
   out: { type: 'string', default: 'performance-results/development-workflows.json' },
+  'alternate-order': { type: 'boolean', default: false },
   'allow-unavailable-baseline': { type: 'boolean', default: false } } })
 const trials = Number(values.trials)
 const soakSeconds = Number(values['soak-seconds'])
@@ -30,6 +31,7 @@ const report = {
   time: new Date().toISOString(), host: { platform: process.platform, arch: process.arch, release: release(),
     cpu: cpus()[0]?.model, ramBytes: totalmem() },
   protocol: { trials, soakSeconds, idleMs: 1_400, fixture: '1000 files, 10 open tabs, 7,000-line diff, 4 C cases',
+    fixtureRunner: fixtureRunnerProtocol, order: values['alternate-order'] ? 'alternating-baseline-first-candidate-first' : 'baseline-first',
     memory: win ? 'summed working set and private bytes, per-process CIM and Get-Process counters' : 'summed RSS and per-process macOS-attributed footprint',
     cpu: 'delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.',
     input: 'keypress to second renderer animation callback. Physical screen presentation is outside the measurement.',
@@ -229,6 +231,8 @@ await withScratch('development-bench', async (scratch) => {
       primaryError = error
       result.complete = false
       result.failure = { stage: result.phase, message: String(error).slice(0, 1000) }
+      if (error?.fixtureCommand) result.fixtureFailure = { command: error.fixtureCommand,
+        stdout: error.stdout, stderr: error.stderr }
       report.failure = { build: label, trial: index + 1, message: String(error).slice(0, 1000) }
       await writeFile(output, JSON.stringify(report, null, 2) + '\n')
       console.error(`${label} ${index + 1}/${trials} failed`, error)
@@ -253,17 +257,20 @@ await withScratch('development-bench', async (scratch) => {
   }
 
   for (let index = 0; index < trials; index++) {
-    if (baseline && !report.baselineUnavailable) {
-      try { await sample(baseline, 'baseline', index) }
-      catch (error) {
-        if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
-        report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
-        delete report.failure
-        console.error('BASELINE UNAVAILABLE. Its failed workload is retained in the report. No matched comparison can be claimed.')
-        await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+    const order = values['alternate-order'] && index % 2 ? ['candidate', 'baseline'] : ['baseline', 'candidate']
+    for (const label of order) {
+      if (label === 'candidate') await sample(candidate, label, index)
+      else if (baseline && !report.baselineUnavailable) {
+        try { await sample(baseline, label, index) }
+        catch (error) {
+          if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
+          report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
+          delete report.failure
+          console.error('BASELINE UNAVAILABLE. Its failed workload is retained in the report. No matched comparison can be claimed.')
+          await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+        }
       }
     }
-    await sample(candidate, 'candidate', index)
     await writeFile(output, JSON.stringify(report, null, 2) + '\n')
   }
 })

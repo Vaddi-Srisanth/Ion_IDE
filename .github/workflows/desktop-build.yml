@@ -23,6 +23,52 @@ permissions:
   contents: read
 
 jobs:
+  focused-learning-verification:
+    if: github.ref_name == 'feature/ion-next-generation'
+    name: Practical learning (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Select installed Windows compilers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $gcc = 'C:\mingw64\bin'
+          if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'GCC unavailable.' }
+          $gcc >> $env:GITHUB_PATH
+          $jdk = $env:JAVA_HOME_21_X64
+          if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 unavailable.' }
+          "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
+          Join-Path $jdk 'bin' >> $env:GITHUB_PATH
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+      - name: Verify fixture process ownership
+        run: node --test scripts/fixture-process-runner.test.mjs
+      - name: Verify actual offline practical learning
+        run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
+      - name: Collect bounded sanitized evidence
+        if: always()
+        run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-learning-safe"
+      - name: Upload evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: focused-learning-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ion-learning-safe/**
+          if-no-files-found: error
+          retention-days: 14
   windows-gcc-diagnostics:
     if: github.event_name == 'workflow_dispatch' && (inputs.suite == 'diagnostic' || inputs.suite == 'all')
     uses: ./.github/workflows/windows-gcc-diagnostic.yml

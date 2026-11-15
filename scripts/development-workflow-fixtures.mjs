@@ -1,20 +1,17 @@
-import { execFile } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { createProject, eventually, resourceSnapshot } from './desktop-harness.mjs'
 import { windowsProcessTree } from './windows/process-tree.mjs'
-
-const execute = promisify(execFile)
+import { resolveFixtureExecutable, runFixtureCommand } from './fixture-process-runner.mjs'
+export { fixtureRunnerProtocol } from './fixture-process-runner.mjs'
 
 export async function git(root, ...args) {
   const began = performance.now()
-  const { stdout } = await execute('git', ['-C', root, ...args], {
-    // This prepares a real 1,000-file fixture before any application timing.
-    // Hosted Windows can exceed ten seconds during its initial bulk add.
-    windowsHide: true, timeout: process.platform === 'win32' ? 30_000 : 10_000, maxBuffer: 2_000_000,
-    env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' },
-  })
+  // Fixture protocol v2: preparation remains outside application timings. The
+  // 10s/30s command deadlines are unchanged; descendant cleanup is now owned.
+  const environment = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' }
+  const executable = await resolveFixtureExecutable('git', root, environment)
+  const { stdout } = await runFixtureCommand(executable, ['-C', root, ...args], { cwd: process.cwd(), environment })
   if (performance.now() - began > 5000) console.log(`Fixture Git ${args[0]} took ${Math.round(performance.now() - began)} ms before application measurement.`)
   return stdout
 }

@@ -55,6 +55,7 @@ try {
     await writeFile(join(profile, 'preferences.json'), JSON.stringify({ version: 1,
       settings: { autoSave: false, saveBeforeRun: true, openFullScreen: false }, recents: [] }))
     const session = await launch(target, profile)
+    let primaryFailure
     try {
       const { app, page } = session
       await page.context().setOffline(true)
@@ -104,12 +105,23 @@ try {
         assert.equal(initial.attemptCount, 1)
         assert.equal(initial.manualStatus, 'Not started')
         assert.equal(initial.samples, null)
+        // The exercise button settles before Documents.open finishes its read
+        // and Monaco model activation. Never type into the previous model.
+        lane.phase = 'wait-starter-model'
+        await persist()
+        await (await editorShows(page, 'TODO:')).dispose()
         const editor = page.getByTestId('editor').locator('.monaco-editor')
         await editor.evaluate((element, id) => { element.dataset.practicalFixture = id }, language)
+        lane.phase = 'replace-starter'
+        await persist()
         await replaceSource(page, solution.source, solution.marker)
+        lane.phase = 'undo-solution'
+        await persist()
         await page.keyboard.press(modifier + '+z')
         await (await editorShows(page, 'TODO:')).dispose()
         assert.equal(await readFile(path, 'utf8'), definition.starter, 'Unsaved solution/Undo must not alter the source on disk.')
+        lane.phase = 'redo-solution'
+        await persist()
         await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+y')
         await (await editorShows(page, solution.marker)).dispose()
         assert.equal(await editor.getAttribute('data-practical-fixture'), language)
@@ -179,15 +191,35 @@ try {
       }
       assert.deepEqual(session.requests, [], 'Practical learning made a network request.')
       assert.deepEqual(session.errors, [], 'Practical learning raised an uncaught renderer error.')
+    } catch (error) {
+      primaryFailure = error
+      report.failure = String(error.message ?? error).slice(0, 1500)
+      console.error('Practical-learning primary failure:', report.lanes.at(-1)?.phase, report.failure)
+      await persist()
+      throw error
     } finally {
-      await close(session)
+      // Only this disposable test profile is involved. Honor normal editor
+      // recovery instead of allowing its unsaved dialog to mask a prior error.
+      const closing = close(session)
+      const keep = session.page.getByRole('dialog', { name: 'Unsaved changes', exact: true })
+        .getByRole('button', { name: 'Keep Drafts and Quit', exact: true })
+      await Promise.race([closing.then(() => false, () => false),
+        keep.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)])
+        .then(async visible => { if (visible) await keep.click() })
+      try { await closing }
+      catch (error) {
+        report.cleanupFailure = String(error.message ?? error).slice(0, 1500)
+        await persist()
+        if (primaryFailure) throw new AggregateError([primaryFailure, error], 'Practical learning and cleanup both failed.')
+        throw error
+      }
     }
   })
   report.complete = report.lanes.length === 3 && report.lanes.every(lane => lane.status === 'verified')
   await persist()
   if (values['require-toolchains']) assert.deepEqual(report.unavailable, [], 'Required local toolchains were unavailable; execution was not verified.')
 } catch (error) {
-  report.failure = String(error.message ?? error).slice(0, 1500)
+  report.failure ??= String(error.message ?? error).slice(0, 1500)
   await persist()
   throw error
 }
