@@ -37,6 +37,13 @@ if (values['measure-resources']) report.resources = { complete: false, maximumDu
     transport: 'Synthetic main-process fetch: live TLS, provider latency, network buffering and model processing are not measured.',
     recovery: 'Code-only checks at 20 and 60 seconds after optional panels close. No forced garbage collection.' }, samples: [] }
 const persist = () => writeFile(output, JSON.stringify(report, null, 2) + '\n')
+const failureLocation = (error, failurePhase) => {
+  const location = String(error?.stack ?? '').match(/test-explanations\.mjs:(\d+):(\d+)/)
+  return { phase: failurePhase, fixtureLine: location ? Number(location[1]) : null,
+    fixtureColumn: location ? Number(location[2]) : null,
+    kind: ['TimeoutError', 'AssertionError', 'Error', 'AggregateError'].includes(error?.name) ? error.name : 'unknown',
+    message: 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
+}
 let phase = 'fixture'
 await persist()
 try {
@@ -428,12 +435,15 @@ require(${JSON.stringify(target.args[0])});\n`)
       await dialog().getByRole('button', { name: 'Review suggested milestones', exact: true }).click()
       const proposals = page.getByTestId('recommendation-review')
       await proposals.waitFor()
+      phase = 'recommendation-select-and-edit'
       await proposals.getByRole('checkbox', { name: 'Add this milestone', exact: true }).check()
       await proposals.getByLabel('Title', { exact: true }).fill('User-reviewed improvement')
       await proposals.getByLabel('Description', { exact: true }).fill('Explain two cases after independent review.')
       await proposals.getByLabel('Acceptance criteria (one per line)', { exact: true }).fill('Explain two representative inputs.')
+      phase = 'recommendation-save-reviewed-draft'
       await proposals.getByTestId('recommendation-save').click()
       await proposals.waitFor({ state: 'detached' })
+      phase = 'recommendation-verify-saved-record'
       const merged = await page.evaluate(root => window.ion.projects.open(root), root)
       assert.deepEqual(merged.spec.milestones[0], initialRecord.spec.milestones[0])
       assert.deepEqual(merged.spec.tests, initialRecord.spec.tests)
@@ -599,10 +609,61 @@ require(${JSON.stringify(target.args[0])});\n`)
       }
       const running = workflow()
       await (resourceDeadline ? Promise.race([running, resourceDeadline]) : running)
-    } catch (error) { failure = error; throw error }
+    } catch (error) {
+      failure = error
+      // Capture the original failure before cleanup can throw its own error.
+      report.failure = failureLocation(error, phase)
+      if (session && !session.page.isClosed()) {
+        report.failureUi = await session.page.evaluate(() => {
+          const proposal = document.querySelector('[data-testid="recommendation-review"]')
+          const save = proposal?.querySelector('[data-testid="recommendation-save"]')
+          const categories = [...document.querySelectorAll('[role="alert"]')].slice(0, 8).map(node => {
+            const text = node.textContent ?? ''
+            return /changed|reload/i.test(text) ? 'conflict' : /limit|maximum|within|exceed/i.test(text) ? 'limit'
+              : /prerequisite|dependenc|cycle/i.test(text) ? 'dependency' : /citation|source|excerpt/i.test(text) ? 'citation'
+                : /invalid|review|criteria/i.test(text) ? 'validation' : 'other'
+          })
+          return { aiDialogCount: document.querySelectorAll('[data-testid="explanation-dialog"]').length,
+            proposalCount: proposal ? 1 : 0, proposalSaveDisabled: save instanceof HTMLButtonElement ? save.disabled : null,
+            selectedMilestones: proposal?.querySelectorAll('input[type="checkbox"]:checked').length ?? 0,
+            dialogCount: document.querySelectorAll('[role="dialog"]').length, alertCategories: categories }
+        }).catch(() => ({ unavailable: true }))
+      }
+      await persist()
+      throw error
+    }
     finally {
       clearTimeout(resourceTimer)
       if (session) {
+        // Failure-only recovery of disposable UI state. Preserve the primary
+        // error while releasing AI requests and unsaved proposal selections.
+        if (failure && !session.page.isClosed()) {
+          try {
+            let cancellationTimer
+            try {
+              await Promise.race([session.page.evaluate(() => window.ion.explanations.cancel()), new Promise((_, reject) => {
+                cancellationTimer = setTimeout(() => reject(new Error('Disposable AI cancellation did not drain within the existing eight-second fixture limit.')), 8000)
+              })])
+            } finally { clearTimeout(cancellationTimer) }
+            const ai = session.page.getByRole('dialog').filter({ has: dialog() })
+            if (await dialog().count()) {
+              await ai.getByRole('button', { name: 'Close dialog', exact: true }).click()
+              await dialog().waitFor({ state: 'detached' })
+            }
+            const proposals = session.page.getByTestId('recommendation-review')
+            if (await proposals.count()) {
+              await proposals.getByRole('button', { name: 'Cancel', exact: true }).click()
+              await eventually(async () => !await proposals.count()
+                || await proposals.getByRole('button', { name: 'Discard proposals', exact: true }).isVisible(),
+              'Disposable proposal did not close or request explicit discard.')
+              if (await proposals.count()) await proposals.getByRole('button', { name: 'Discard proposals', exact: true }).click()
+              await proposals.waitFor({ state: 'detached' })
+            }
+          } catch (cleanupError) {
+            report.failureUiCleanup = failureLocation(cleanupError, 'failure-ui-cleanup')
+            await persist()
+          }
+        }
         const closing = close(session)
         const keep = session.page.getByRole('dialog', { name: 'Unsaved changes', exact: true })
           .getByRole('button', { name: 'Keep Drafts and Quit', exact: true })
@@ -626,8 +687,9 @@ require(${JSON.stringify(target.args[0])});\n`)
           if (!failure) report.checks.pendingRequestShutdownDrain = 'passed'
         } catch (cleanupError) {
           report.cleanupVerified = false
-          if (failure) throw new AggregateError([failure, cleanupError], 'Native explanation workflow and cleanup failed.')
-          throw cleanupError
+          report.cleanupFailure = failureLocation(cleanupError, 'application-cleanup')
+          await persist()
+          if (!failure) throw cleanupError
         }
       }
     }
@@ -635,11 +697,7 @@ require(${JSON.stringify(target.args[0])});\n`)
   })
 } catch (error) {
   // Never dump provider bodies, credentials, source text or disposable paths.
-  const location = String(error?.stack ?? '').match(/test-explanations\.mjs:(\d+):(\d+)/)
-  report.complete = false; report.failure = { phase,
-    fixtureLine: location ? Number(location[1]) : null,
-    fixtureColumn: location ? Number(location[2]) : null,
-    message: 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
+  report.complete = false; report.failure ??= failureLocation(error, phase)
   await persist()
   throw new Error('Native explanation verification failed during ' + phase + '. Sanitized receipt: ' + output)
 }
