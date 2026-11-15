@@ -14,13 +14,15 @@ const { chromium } = require('playwright-core');
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index], value = process.argv[index + 1];
-  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20]');
+  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles', '--practical'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20] [--practical true]');
   options.set(key, value);
 }
 for (const key of ['--target', '--out']) if (!isAbsolute(options.get(key) ?? '')) throw new Error(key + ' must be absolute.');
-for (const key of ['--next', '--catalog']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
+for (const key of ['--next', '--catalog', '--practical']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
 const next = options.get('--next') === 'true';
 const catalog = options.get('--catalog') === 'true';
+const practical = options.get('--practical') === 'true';
+if (practical && (!next || !catalog)) throw new Error('--practical requires --next true --catalog true.');
 if (catalog && !next) throw new Error('--catalog true requires --next true.');
 const cycles = options.has('--cycles') ? Number(options.get('--cycles')) : 0;
 if (options.has('--cycles') && (!/^[0-9]+$/.test(options.get('--cycles')) || !Number.isSafeInteger(cycles) || cycles < 1 || cycles > 50)) throw new Error('--cycles must be an integer from 1 through 50.');
@@ -148,6 +150,48 @@ try {
       await learn.getByTestId('learning-pack-lesson').waitFor();
       await snapshot('lesson');
       scenario.assertions.push('Learn selects installed Java; Topics remains first; real bundled lesson renders.');
+      if (practical) {
+        await learn.getByRole('button', { name: 'Back to topics' }).click();
+        await learn.locator('[data-testid="learning-topic"][data-topic="flow"]').click();
+        await learn.getByTestId('learning-objective').waitFor();
+        assert.equal(await learn.getByTestId('learning-hints').locator('li').count(), 0);
+        for (let hint = 1; hint <= 3; hint++) {
+          await learn.getByTestId('learning-reveal-hint').click();
+          await learn.getByTestId('learning-activity').getByText('Hints viewed: ' + hint, { exact: false }).waitFor();
+          assert.equal(await learn.getByTestId('learning-hints').locator('li').count(), hint);
+        }
+        await learn.getByTestId('learning-start-exercise').click();
+        const run = learn.getByTestId('learning-run-samples');
+        await learn.locator('[data-testid="learning-run-samples"]:not(:disabled)').waitFor();
+        await page.locator('.monaco-editor .view-lines').getByText('int count = input.nextInt();', { exact: false }).waitFor();
+        assert.equal(await page.getByTestId('practice-pane').count(), 0, 'Enriched exercise left Learn.');
+        assert.equal(await page.locator('.monaco-editor').count(), 1);
+        const fixtureState = () => page.evaluate(() => window.__ionBrowserFixture.inspect());
+        const before = await fixtureState();
+        await page.evaluate(() => window.__ionBrowserFixture.deferPractice('practice.openAttempt'));
+        await run.click();
+        await page.waitForFunction(() => window.__ionBrowserFixture.inspect().pendingPractice === 'practice.openAttempt');
+        await learn.getByTestId('learning-stop-samples').click();
+        await page.evaluate(() => window.__ionBrowserFixture.resolvePractice());
+        await learn.locator('[data-testid="learning-run-samples"]:not(:disabled)').waitFor();
+        const stoppedPreflight = await fixtureState();
+        assert.equal(stoppedPreflight.cancelCount, before.cancelCount);
+        assert.equal(stoppedPreflight.calls.filter(name => name === 'practice.runSamples').length, before.calls.filter(name => name === 'practice.runSamples').length);
+        assert.equal(stoppedPreflight.calls.filter(name => name === 'saveFile').length, before.calls.filter(name => name === 'saveFile').length);
+        await run.click();
+        await learn.getByTestId('practice-results').getByText('1 of 3 passed', { exact: true }).waitFor();
+        await learn.getByTestId('learning-sample-evidence').getByText('1 of 3 samples passed', { exact: false }).waitFor();
+        await learn.getByTestId('practice-results').scrollIntoViewIfNeeded();
+        await snapshot('practical-results');
+        assert.equal((await fixtureState()).cancelCount, before.cancelCount, 'Completed run was cancelled.');
+        await page.evaluate(() => window.__ionBrowserFixture.deferPractice('practice.runSamples'));
+        await run.click();
+        await page.waitForFunction(() => window.__ionBrowserFixture.inspect().pendingPractice === 'practice.runSamples');
+        await learn.getByRole('button', { name: 'Back to topics' }).click();
+        await page.waitForFunction(() => window.__ionBrowserFixture.inspect().cancelCount === 1 && window.__ionBrowserFixture.inspect().pendingPractice === null);
+        assert.equal((await fixtureState()).calls.includes('stopRun'), false, 'Sample cancellation touched the broad Run Console stop.');
+        scenario.assertions.push('Real practical React UI: three graduated hints; scaffold beside one Monaco; Stop during held lookup prevents save/run; held sample-run unmount invokes one narrow cancellation; completed run does not cancel. All sample statuses are explicit test transport, not native execution evidence.');
+      }
 
       await page.getByRole('button', { name: 'Welcome', exact: true }).click();
       await page.getByTestId('welcome').waitFor();

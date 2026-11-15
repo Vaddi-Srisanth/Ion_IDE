@@ -158,6 +158,9 @@ const bridge: IonBridge = {
     getHistory: () => ipcRenderer.invoke('ion:learning-history'),
     clearHistory: () => ipcRenderer.invoke('ion:learning-clear'),
     recordTopic: (id, action) => ipcRenderer.invoke('ion:learning-topic', id, action),
+    getLearningActivity: (pack, lesson) => ipcRenderer.invoke('ion:learning-lesson-activity', pack, lesson),
+    recordLearningActivity: (pack, lesson, action) => ipcRenderer.invoke('ion:learning-lesson-record', pack, lesson, action),
+    getLearningTaskEvidence: (pack, lesson) => ipcRenderer.invoke('ion:learning-task-evidence', pack, lesson),
   },
   learningPacks: {
     getLibrary: (includeCatalog) => ipcRenderer.invoke('ion:learning-packs-library', includeCatalog),
@@ -196,6 +199,7 @@ const bridge: IonBridge = {
     createAttempt: (id, label) => ipcRenderer.invoke('ion:practice-create-attempt', id, label),
     openAttempt: (id, attempt) => ipcRenderer.invoke('ion:practice-open-attempt', id, attempt),
     runSamples: (id, attempt) => ipcRenderer.invoke('ion:practice-run-samples', id, attempt),
+    cancelSamples: () => ipcRenderer.invoke('ion:practice-cancel-samples'),
   },
   stopRun: () => ipcRenderer.invoke('ion:stop-run'),
   onCommand: buffered<MenuCommand>('ion:command'),

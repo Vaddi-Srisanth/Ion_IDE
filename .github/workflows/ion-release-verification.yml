@@ -46,6 +46,8 @@ jobs:
           fi
           test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
       - run: npm run test:regression
+      - name: Verify practical learning with actual local toolchains
+        run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
       - name: Verify configuration isolation and shutdown cleanup
         run: |
           npm run test:git-security
@@ -277,6 +279,12 @@ jobs:
       - name: Verify offline Learning Lens
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: npm run test:learning-lens
+      - name: Verify direct learning and saved exercise evidence
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-learning-marketplace.mjs
+      - name: Verify practical learning with actual local toolchains
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
       - name: Verify offline onboarding
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: |

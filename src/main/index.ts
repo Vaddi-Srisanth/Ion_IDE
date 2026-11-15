@@ -121,7 +121,7 @@ let terminalFocused = false
 let ignoreTerminalAccelerators = false
 let webPreview: BrowserWindow | undefined
 let webPreviewOpening = false
-let practiceRun: { controller: AbortController; job?: Promise<unknown> } | null = null
+let practiceRun: { controller: AbortController; job?: Promise<unknown>; panel: OptionalPanel | null } | null = null
 let resourceProfile = defaultSettings.resourceProfile
 let panel: OptionalPanel | null = null
 let projectPath: string | undefined
@@ -279,7 +279,16 @@ async function withLearning<T>(operation: (service: NonNullable<typeof learningS
   }
 }
 
+async function learningLesson(target: BrowserWindow, id: unknown, topic: unknown) {
+  const generation = panelGeneration
+  if (target !== window || panel !== 'learn') throw new Error('Open the lesson in Learn first.')
+  const lesson = await (await learningPacks()).getLesson(id, topic)
+  if (target !== window || panel !== 'learn' || generation !== panelGeneration) throw new Error('The Learn panel changed.')
+  return lesson
+}
+
 function releasePanel() {
+  if (practiceRun?.panel === panel) practiceRun.controller.abort()
   if (panel === 'learn') void learningService?.release().catch(() => undefined)
   if (panel === 'projects') projectHandlers?.close()
   if (panel === 'practice') {
@@ -1424,6 +1433,20 @@ function registerIpc(): void {
   handle('learning-history', () => withLearning((service) => service.getHistory()))
   handle('learning-clear', () => withLearning((service) => service.clearHistory()))
   handle('learning-topic', (_target, id, action) => withLearning((service) => service.recordTopic(id, action)))
+  handle('learning-lesson-activity', async (target, id, topic) => {
+    await learningLesson(target, id, topic)
+    return withLearning(service => service.getLearningActivity(id, topic))
+  })
+  handle('learning-lesson-record', async (target, id, topic, action) => {
+    const lesson = await learningLesson(target, id, topic)
+    if (action === 'hint-revealed' && !lesson.hints?.length) throw new Error('This lesson has no graduated hints.')
+    return withLearning(service => service.recordLearningActivity(id, topic, action))
+  })
+  handle('learning-task-evidence', async (target, id, topic) => {
+    await learningLesson(target, id, topic)
+    if (!diagnosticPackIds.some(pack => pack === id)) return { problemId: null, attemptCount: 0, manualStatus: null, samples: null }
+    return (await practice()).learningTaskEvidence(id, topic)
+  })
 
   handle('learning-packs-library', async (_target, includeCatalog) => (await learningPacks()).getLibrary(includeCatalog !== false))
   handle('learning-packs-install', async (_target, id) => (await learningPacks()).install(id))
@@ -1490,7 +1513,7 @@ function registerIpc(): void {
       difficulty: lesson.difficulty === 'advanced' ? 'Hard' : lesson.difficulty === 'intermediate' ? 'Medium' : 'Easy',
       statement: [lesson.practice, 'Expected behavior', lesson.exercise.expected, 'Completion', lesson.exercise.completion].join('\n\n'),
       samples: (lesson.exercise.samples ?? []).map((sample, index) => ({ ...sample, label: 'Sample ' + (index + 1) })),
-    })
+    }, lesson.starter)
     if (target !== window) throw new Error('The Learn window closed.')
     const path = await library.openAttempt(started.problem.id, started.attempt.id)
     return { problemId: started.problem.id, entry: await files.grant(path, 'file', true) }
@@ -1527,19 +1550,25 @@ function registerIpc(): void {
     return files.grant(path, 'file', true)
   })
   handle('practice-run-samples', async (target, id, attempt) => {
+    if (target !== window || panel !== 'learn' && panel !== 'practice') throw new Error('Open Learn or Practice before running samples.')
     if (practiceRun || runner.busy || activeRun || projectHandlers?.busy) throw new Error('A program or test is already running.')
+    const generation = panelGeneration
     const controller = new AbortController()
     const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
-      if (controller.signal.aborted || target !== window) return [cancelledRun()]
+      if (controller.signal.aborted || target !== window || generation !== panelGeneration) return [cancelledRun()]
       const entry = await files.grant(path, 'file', true)
+      if (controller.signal.aborted || target !== window || generation !== panelGeneration) return [cancelledRun()]
       return runPracticeSamples(target, entry.path, inputs, sourceRevision, controller.signal)
     }))
-    practiceRun = { controller, job }
+    practiceRun = { controller, job, panel }
     try {
       return await job
     } finally {
       practiceRun = null
     }
+  })
+  handle('practice-cancel-samples', (target) => {
+    if (target === window) practiceRun?.controller.abort()
   })
   handle('stop-run', () => {
     projectHandlers?.stopAutomatic()

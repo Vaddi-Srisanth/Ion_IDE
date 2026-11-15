@@ -14,7 +14,7 @@ export const coreSummaryKeys = ['id', 'name', 'summary', 'version', 'topicCount'
 const topicKeys = ['id', 'title', 'section'] as const
 const topicOptions = ['difficulty', 'prerequisites', 'related', 'keywords'] as const
 const lessonKeys = [...topicKeys, 'explanation', 'example', 'api', 'practice'] as const
-const lessonOptions = ['pitfall', 'exampleFile', 'exampleMode', 'expectedOutput', 'references', 'exercise', ...topicOptions] as const
+const lessonOptions = ['objective', 'starter', 'hints', 'followUp', 'pitfall', 'exampleFile', 'exampleMode', 'expectedOutput', 'references', 'exercise', ...topicOptions] as const
 const metadataKeys = ['kind', 'categories', 'languageVersion', 'prerequisites', 'miniProject', 'references', 'attribution'] as const
 const reserved = /^(?:index|library|aux|con|nul|prn|com[0-9]|lpt[0-9])$/
 const releaseVersion = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/
@@ -130,6 +130,11 @@ function topic(value: Record<string, unknown>): boolean {
 export function isLesson(value: unknown): value is PackLesson {
   return hasKeys(value, lessonKeys, lessonOptions) && topic(value)
     && text(value.explanation, 6000, true) && text(value.example, 8000, true, true) && text(value.practice, 2000, true)
+    && optional(value, 'objective', (item) => text(item, 600, true))
+    && optional(value, 'starter', (item) => text(item, 8000, true, true) && Buffer.byteLength(item, 'utf8') <= 8000)
+    && optional(value, 'hints', (items) => Array.isArray(items) && items.length > 0
+      && array(items, 3, (item) => text(item, 600, true)))
+    && optional(value, 'followUp', (item) => text(item, 1200, true))
     && optional(value, 'pitfall', (item) => text(item, 2000, true))
     && optional(value, 'exampleFile', (item) => typeof item === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,60}\.[a-zA-Z0-9]{1,10}$/.test(item))
     && optional(value, 'exampleMode', (item) => item === 'program' || item === 'fragment')

@@ -47,3 +47,6 @@ New installations keep a separate topic index and one file per lesson in the loc
 ## Catalog roadmap
 
 The six core collections have 15 lessons each; several other languages still have shorter introductory material. Prioritize reviewing small practical Python, Java and C paths before expanding language count. Broader language catalogs are future work, not shipped courses.
+
+
+On the next-generation feature branch, Python/Java/C `flow` lessons include optional objective, starter (maximum8,000 UTF-8 bytes), up to three hints and an unverified follow-up. Existing pack schemas/IDs and exercise tests remain unchanged. These are introductory practical lessons; no complete-course or mastery claim. Older strict readers may reject enriched exports; keep original exports for interoperability until a future release declares its minimum supported version.

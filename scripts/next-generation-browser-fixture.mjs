@@ -50,6 +50,28 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   const library = (catalog = false) => ({ installed: [...(materialized ? [summary] : []), ...(imported ? [importedSummary] : [])], catalog: catalog ? [summary] : [], selected });
   const checkedPack = id => { if (id !== 'java') throw new Error('Unknown fixture pack.'); };
   const draftMap = new Map();
+  const exerciseEntry = { kind: 'file', name: 'Main.java', path: '/ion-browser-fixture/practice/learning-java-flow/Main.java' };
+  const flow = pack.lessons.find(item => item.id === 'flow');
+  let exercise, exerciseText = flow?.starter ?? '', exerciseRevision = 'exercise-r1', deferredPractice, practicePending, cancelCount = 0;
+  const checkExercise = (id, attempt) => {
+    if (!exercise || id !== exercise.id || attempt !== undefined && attempt !== 'fixture-attempt') throw new Error('Unknown exercise fixture.');
+  };
+  const practiceReply = async (method, value) => {
+    const response = record(method, value);
+    if (deferredPractice === method) {
+      deferredPractice = undefined;
+      return new Promise((resolvePending, rejectPending) => { practicePending = { method, resolve: () => { practicePending = undefined; resolvePending(response); },
+        reject: () => { practicePending = undefined; rejectPending(new Error('Fixture sample run cancelled.')); } }; });
+    }
+    return response;
+  };
+  // UI transport evidence only: activity is in-memory, not native persistence.
+  const activity = new Map();
+  const lessonActivity = (id, topic) => {
+    checkedPack(id);
+    if (!pack.lessons.some(item => item.id === topic)) throw new Error('Unknown fixture lesson activity.');
+    return activity.get(topic) ?? { packId: id, lessonId: topic, opened: 0, hintsRevealed: 0, lastAt: null };
+  };
   window.ion = {
     firstLaunch: false, platform: 'darwin',
     getPreferences: async () => record('getPreferences', { settings, recents: [
@@ -80,7 +102,14 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
         if (id !== null) { checkedPack(id); materialized = true; }
         selected = id; return record('learningPacks.select', library(includeCatalog));
       },
-      install: forbidden('learningPacks.install'), startExercise: forbidden('learningPacks.startExercise'),
+      install: forbidden('learningPacks.install'), startExercise: async (id, topic) => {
+        checkedPack(id); if (topic !== 'flow' || !flow?.exercise) throw new Error('Only the reviewed flow UI fixture is available.');
+        exercise ??= { id: 'fixture-problem', revision: 1, language: 'java', title: flow.title, difficulty: 'Easy', topic: flow.section,
+          sourceUrl: '', statement: flow.practice, notes: '', completion: 'Not started',
+          samples: flow.exercise.samples.map((sample, index) => ({ id: 'fixture-sample-' + index, label: 'Sample ' + (index + 1), ...sample })),
+          attempts: [{ id: 'fixture-attempt', label: 'First attempt', createdAt: 1 }] };
+        return record('learningPacks.startExercise', { problemId: exercise.id, entry: exerciseEntry });
+      },
       remove: async id => {
         if (id === 'java' && materialized) materialized = false;
         else if (id === 'fixture-import' && imported) imported = false;
@@ -116,15 +145,39 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
       },
     },
     learning: { getTopics: reply('learning.getTopics', []), getHistory: reply('learning.getHistory', { categories: [], topics: [] }),
+      getLearningActivity: async (id, topic) => record('learning.getLearningActivity', lessonActivity(id, topic)),
+      recordLearningActivity: async (id, topic, action) => {
+        if (!['lesson-opened', 'hint-revealed'].includes(action)) throw new Error('Unexpected activity.');
+        const previous = lessonActivity(id, topic);
+        const next = { ...previous, opened: previous.opened + Number(action === 'lesson-opened'),
+          hintsRevealed: previous.hintsRevealed + Number(action === 'hint-revealed'), lastAt: 1 };
+        activity.set(topic, next); return record('learning.recordLearningActivity', next);
+      },
+      getLearningTaskEvidence: async (id, topic) => {
+        lessonActivity(id, topic);
+        const report = topic === 'flow' && exercise?.attempts[0].lastRun;
+        return record('learning.getLearningTaskEvidence', { problemId: topic === 'flow' ? exercise?.id ?? null : null,
+          attemptCount: topic === 'flow' && exercise ? 1 : 0, manualStatus: topic === 'flow' ? exercise?.completion ?? null : null,
+          samples: report ? { attemptId: 'fixture-attempt', testedAt: report.testedAt, current: report.current,
+            total: report.results.length, ...Object.fromEntries(['passed', 'failed', 'unavailable', 'skipped'].map(status =>
+              [status, report.results.filter(item => item.status === status).length])) } : null });
+      },
       getConcept: forbidden('learning.getConcept'), clearHistory: forbidden('learning.clearHistory'), recordTopic: forbidden('learning.recordTopic') },
     setOptionalPanel: async mode => { if (![null, 'learn', 'practice', 'projects'].includes(mode)) throw new Error('Unexpected fixture panel.'); record('setOptionalPanel:' + mode, null); },
     openFolder: reply('openFolder', folder), openFile: reply('openFile', entry),
     openRecent: async path => { if (path === root) return record('openRecent', folder); if (path === entry.path) return record('openRecent', entry); throw new Error('Unknown fixture recent.'); },
     listDirectory: async path => { if (path !== root) throw new Error('Unknown fixture directory.'); return record('listDirectory', [entry]); },
-    readFile: async path => { if (path !== entry.path) throw new Error('Unknown fixture file.'); return record('readFile', { text, revision: 'fixture-r1' }); },
+    readFile: async path => {
+      if (path === exerciseEntry.path && exercise) return record('readFile', { text: exerciseText, revision: exerciseRevision });
+      if (path !== entry.path) throw new Error('Unknown fixture file.'); return record('readFile', { text, revision: 'fixture-r1' });
+    },
     quickOpen: { search: async query => record('quickOpen.search', { entries: query && !'main.java'.includes(query.toLowerCase()) ? [] : [entry], truncated: false }),
       open: async path => { if (path !== entry.path) throw new Error('Unknown Quick Open fixture.'); return record('quickOpen.open', entry); } },
-    saveFile: forbidden('saveFile'), saveFileAs: forbidden('saveFileAs'), createEntry: forbidden('createEntry'), renameEntry: forbidden('renameEntry'), trashEntry: forbidden('trashEntry'),
+    saveFile: async (path, source, revision) => {
+      if (path !== exerciseEntry.path || revision !== exerciseRevision || typeof source !== 'string') throw new Error('Unexpected fixture save.');
+      exerciseText = source; exerciseRevision += '-next';
+      return practiceReply('saveFile', { revision: exerciseRevision });
+    }, saveFileAs: forbidden('saveFileAs'), createEntry: forbidden('createEntry'), renameEntry: forbidden('renameEntry'), trashEntry: forbidden('trashEntry'),
     readTextPage: forbidden('readTextPage'), exportLocalProfile: forbidden('exportLocalProfile'), clearRunTrust: forbidden('clearRunTrust'),
     runConsole: { onUpdate: subscribe('runUpdate'), start: forbidden('runConsole.start'), cancel: forbidden('runConsole.cancel'), input: forbidden('runConsole.input'), resize: forbidden('runConsole.resize'), projectInputs: forbidden('runConsole.projectInputs'), preview: forbidden('runConsole.preview') },
     stopRun: forbidden('stopRun'),
@@ -142,8 +195,20 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
     sourceControl: { status: forbidden('sourceControl.status'), trust: forbidden('sourceControl.trust'), diff: forbidden('sourceControl.diff'), change: forbidden('sourceControl.change'), commit: forbidden('sourceControl.commit'), close: forbidden('sourceControl.close') },
     practice: { list: reply('practice.list', { problems: [], unavailable: 0 }),
       browse: forbidden('practice.browse'), getChallenge: forbidden('practice.getChallenge'), start: forbidden('practice.start'),
-      get: forbidden('practice.get'), save: forbidden('practice.save'), openAttempt: forbidden('practice.openAttempt'),
-      createAttempt: forbidden('practice.createAttempt'), runSamples: forbidden('practice.runSamples') },
+      get: async id => { checkExercise(id); return record('practice.get', exercise); }, save: forbidden('practice.save'),
+      openAttempt: async (id, attempt) => { checkExercise(id, attempt); return practiceReply('practice.openAttempt', exerciseEntry); },
+      createAttempt: forbidden('practice.createAttempt'),
+      runSamples: async (id, attempt) => {
+        checkExercise(id, attempt);
+        // Deliberately fixed UI fixture statuses, never evidence of real execution.
+        exercise.attempts[0].lastRun = { current: true, testedAt: 1, results: exercise.samples.map((sample, index) =>
+          ({ id: sample.id, label: sample.label, status: index === 0 ? 'passed' : 'failed', message: 'TEST FIXTURE: no program executed.',
+            expected: sample.expectedOutput, stdout: index === 0 ? sample.expectedOutput : 'fixture mismatch', stderr: '' })) };
+        return practiceReply('practice.runSamples', exercise);
+      }, cancelSamples: async () => {
+        cancelCount++; record('practice.cancelSamples', null);
+        if (practicePending?.method === 'practice.runSamples') practicePending.reject();
+      } },
     projects: { open: async path => { if (path !== root) throw new Error('Unknown project fixture.'); return record('projects.open', null); },
       onSourceSaved: subscribe('projectSourceSaved'), save: forbidden('projects.save'), approve: forbidden('projects.approve'),
       run: forbidden('projects.run'), runSuite: forbidden('projects.runSuite'), cancelSuite: forbidden('projects.cancelSuite'),
@@ -156,7 +221,13 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   window.__ionBrowserFixture = {
     description: 'TEST ONLY: real React/Monaco rendering with deterministic in-memory transport; no native runtime verification.',
     inspect: () => ({ calls: [...calls], failures: [...failures], subscribers: Object.fromEntries([...subscribers].map(([name, callbacks]) => [name, callbacks.size])), draftCount: draftMap.size,
-      previewTokens: previewTokens.size, pendingPreview: Boolean(pendingPreview), selected, materialized }),
+      previewTokens: previewTokens.size, pendingPreview: Boolean(pendingPreview), selected, materialized,
+      pendingPractice: practicePending?.method ?? null, cancelCount }),
+    deferPractice: method => {
+      if (practicePending || deferredPractice || !['practice.openAttempt', 'practice.runSamples', 'saveFile'].includes(method)) throw new Error('Unexpected practice defer.');
+      deferredPractice = method;
+    },
+    resolvePractice: () => { if (!practicePending) throw new Error('No pending fixture operation.'); practicePending.resolve(); },
     command: name => { for (const callback of subscribers.get('command') ?? []) callback(name); },
     deferNextPreview: () => { if (pendingPreview || previewTokens.size) throw new Error('Preview already pending.'); deferPreview = true; },
     resolvePreview: () => { if (!pendingPreview) throw new Error('No deferred fixture preview.'); pendingPreview(); },

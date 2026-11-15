@@ -5,11 +5,12 @@ import { dirname, join } from 'node:path'
 import type { RunResult } from '../../shared/contracts'
 import {
   diagnosticConcepts, diagnosticTitles, type ConceptId, type DiagnosticCategory, type LearningConcept, type LearningDiagnostic,
-  type LearningFeedback, type LearningHistory, type LearningTopic,
+  type LearningActivity, type LearningFeedback, type LearningHistory, type LearningTopic,
 } from '../../shared/learning'
 import type { RunLanguage } from '../../shared/run-console'
 import { retryFingerprint } from './retry'
 import { diagnose, packDiagnostics, type ClassifiedDiagnostic } from './diagnostics'
+import { hasKeys, isId, isTopicId } from './pack-format'
 
 export { compilerProblems } from './diagnostics'
 
@@ -33,6 +34,8 @@ const maxEpisodes = 8
 const maxFingerprints = 8
 const maxRetryFingerprints = 4
 const maxHistoryBytes = 512 * 1024
+const maxActivityEntries = 256
+const maxActivityCount = 65535
 const historyReadFlags = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK
 
 interface Episode {
@@ -48,11 +51,13 @@ interface FileHistory {
 
 type CategoryStats = Omit<LearningHistory['categories'][number], 'category'>
 type TopicStats = Omit<LearningHistory['topics'][number], 'id'>
+type ActivityStats = Pick<LearningActivity, 'opened' | 'hintsRevealed'> & { lastAt: number }
 interface State {
   version: 1
   files: Record<string, FileHistory>
   categories: Partial<Record<DiagnosticCategory, CategoryStats>>
   topics: Partial<Record<ConceptId, TopicStats>>
+  activity?: Record<string, ActivityStats>
 }
 
 interface Observation {
@@ -87,6 +92,24 @@ function counts(value: unknown, keys: readonly string[]): boolean {
   })
 }
 
+function activityKey(pack: unknown, lesson: unknown): string {
+  if (!isId(pack) || !isTopicId(lesson)) throw new Error('Invalid learning lesson identity.')
+  return pack + ':' + lesson
+}
+
+function validActivity(value: unknown): value is Record<string, ActivityStats> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const entries = Object.entries(value)
+  return entries.length <= maxActivityEntries && entries.every(([key, row]) => {
+    const [pack, lesson, extra] = key.split(':')
+    return extra === undefined && isId(pack) && isTopicId(lesson)
+      && hasKeys(row, ['opened', 'hintsRevealed', 'lastAt'])
+      && counts(row, ['opened', 'hintsRevealed', 'lastAt'])
+      && (row.opened as number) <= maxActivityCount && (row.hintsRevealed as number) <= maxActivityCount
+      && (row.lastAt as number) > 0
+  })
+}
+
 function parseState(text: string): State {
   const state = JSON.parse(text) as State
   if (!state || state.version !== 1 || !state.files || !state.categories || !state.topics) {
@@ -105,7 +128,8 @@ function parseState(text: string): State {
         || (episode.retryHashes !== undefined && (!Array.isArray(episode.retryHashes)
           || episode.retryHashes.length > maxRetryFingerprints || !episode.retryHashes.every(validHash)))))
     || Object.entries(state.categories).some(([key, row]) => !isCategory(key) || !counts(row, ['encountered', 'repeated', 'resolved']))
-    || Object.entries(state.topics).some(([key, row]) => !topicById.has(key as ConceptId) || !counts(row, ['viewed', 'selected']))) {
+    || Object.entries(state.topics).some(([key, row]) => !topicById.has(key as ConceptId) || !counts(row, ['viewed', 'selected']))
+    || (state.activity !== undefined && !validActivity(state.activity))) {
     throw new Error('Learning history could not be read. You can clear it in the History panel.')
   }
   return state
@@ -177,6 +201,37 @@ export class LearningService {
           selected: previous.selected + Number(action === 'selected'),
         } },
       })
+    })
+  }
+
+  async getLearningActivity(pack: unknown, lesson: unknown): Promise<LearningActivity> {
+    const key = activityKey(pack, lesson)
+    return this.serial(async () => {
+      const previous = (await this.read()).activity?.[key]
+      return { packId: pack as string, lessonId: lesson as string,
+        opened: previous?.opened ?? 0, hintsRevealed: previous?.hintsRevealed ?? 0, lastAt: previous?.lastAt ?? null }
+    })
+  }
+
+  async recordLearningActivity(pack: unknown, lesson: unknown, action: unknown): Promise<LearningActivity> {
+    const key = activityKey(pack, lesson)
+    if (action !== 'lesson-opened' && action !== 'hint-revealed') {
+      return Promise.reject(new Error('Unknown learning activity action.'))
+    }
+    return this.serial(async () => {
+      const state = await this.read()
+      const previous = state.activity?.[key]
+      const activity = { ...state.activity }
+      // Updating insertion order gives the bounded map an explicit least-recent-event eviction policy.
+      delete activity[key]
+      const next: ActivityStats = {
+        opened: Math.min(maxActivityCount, (previous?.opened ?? 0) + Number(action === 'lesson-opened')),
+        hintsRevealed: Math.min(maxActivityCount, (previous?.hintsRevealed ?? 0) + Number(action === 'hint-revealed')),
+        lastAt: Math.max(1, Date.now(), previous?.lastAt ?? 0),
+      }
+      activity[key] = next
+      await this.write({ ...state, activity: Object.fromEntries(Object.entries(activity).slice(-maxActivityEntries)) })
+      return { packId: pack as string, lessonId: lesson as string, ...next }
     })
   }
 
@@ -318,10 +373,12 @@ export class LearningService {
   }
 
   private async write(state: State): Promise<void> {
+    const text = JSON.stringify(state) + '\n'
+    if (Buffer.byteLength(text) > maxHistoryBytes) throw new Error('Learning history exceeds its local storage limit.')
     const temporary = this.file + '.' + randomUUID() + '.tmp'
     await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
     try {
-      await writeFile(temporary, JSON.stringify(state) + '\n', { flag: 'wx', mode: 0o600 })
+      await writeFile(temporary, text, { flag: 'wx', mode: 0o600 })
       await rename(temporary, this.file)
       this.data = state
     } finally {

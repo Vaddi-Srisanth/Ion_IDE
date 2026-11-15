@@ -116,4 +116,5 @@ export interface PracticeBridge {
   createAttempt(problemId: string, label: string): Promise<{ problem: PracticeProblem; attempt: PracticeAttempt }>
   openAttempt(problemId: string, attemptId: string): Promise<Entry>
   runSamples(problemId: string, attemptId: string): Promise<PracticeProblem>
+  cancelSamples(): Promise<void>
 }

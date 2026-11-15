@@ -29,6 +29,7 @@
     "test:markdown": "node scripts/test-markdown-preview.mjs",
     "test:marketplace": "node scripts/test-learning-marketplace.mjs",
     "test:practice": "node scripts/test-practice-catalog.mjs",
+    "test:practical-learning": "node scripts/test-practical-learning.mjs",
     "test:starters": "node scripts/test-starter-code.mjs",
     "test:notebooks": "node scripts/test-notebook.mjs --edit",
     "test:notebook-trust": "node scripts/test-notebook-trust.mjs",

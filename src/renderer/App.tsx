@@ -1182,14 +1182,15 @@ export function App() {
     const module = panelContent.module;
     switch (module.mode) {
       case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={true}
+        practice={bridge.practice} onPrepareRun={(path) => saveMany(documents.affected(path))} onStopRun={stop}
         onManageContent={() => setDialog({ kind: 'learning-content' })} onPractice={() => selectWorkspace('practice')}
         feedback={runReport?.tabId === activeId || lensSelection ? feedback : undefined} onClose={closeAuxiliary}
         lensEnabled={settings.learningLens} sourceCurrent={sourceCurrent} lensSelection={feedback ? lensSelection : undefined}
         canRevealDiagnostic={(diagnostic) => problemRows.some(({ problem, canReveal }) => canReveal && problem.raw === diagnostic.raw)}
         onRevealDiagnostic={(diagnostic) => revealProblem(problemRows.findIndex(({ problem, canReveal }) => canReveal && problem.raw === diagnostic.raw))}
-        onExercise={({ entry, problemId }) => {
+        onExercise={({ entry, problemId }, stayInLearn) => {
           setPracticeExercise(problemId);
-          selectWorkspace('practice');
+          if (!stayInLearn) selectWorkspace('practice');
           openEntry(entry);
         }}/>;
       case 'projects': return <module.Component root={root} onOpenFolder={openFolder} resourceProfile={settings.resourceProfile}

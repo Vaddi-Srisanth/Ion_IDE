@@ -3,14 +3,19 @@ import {
   diagnosticConcepts, diagnosticTitles, type ConceptId, type LearningBridge, type LearningConcept, type LearningDiagnostic,
   type LearningFeedback, type LearningHistory,
 } from '../../shared/learning'
-import { diagnosticPackIds, type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
+import { type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
   type PackReference, type PackSummary, type PackTopic } from '../../shared/learning-packs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import type { PracticeBridge } from '../../shared/practice'
+import { PracticalExercise } from './PracticalExercise'
 import './learning.css'
 
 interface Props {
   bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun(path: string): Promise<boolean>
+  onStopRun(): void
   feedback?: LearningFeedback
   lensEnabled: boolean
   lensSelection?: LearningLensSelection
@@ -26,7 +31,7 @@ interface Props {
   onManageContent(): void
   onPractice(): void
   onClose(): void
-  onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>) => void
+  onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>, stayInLearn?: boolean) => void
 }
 
 interface LearningLensSelection {
@@ -179,7 +184,11 @@ function References({ references }: { references: PackReference[] }) {
   </details>
 }
 
-function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise }: {
+function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun }: {
+  bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   packs: LearningPacksBridge
   pack: PackSummary
   topicId: string
@@ -189,15 +198,8 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
   onExercise: Props['onExercise']
 }) {
   const [lesson, setLesson] = useState<Load<PackLesson> | null>(null)
-  const [starting, setStarting] = useState(false)
-  const [startError, setStartError] = useState<string>()
-  const mounted = useRef(false)
   const back = useRef<HTMLButtonElement>(null)
   const packId = pack.id
-  useEffect(() => {
-    mounted.current = true
-    return () => { mounted.current = false }
-  }, [])
   useEffect(() => { back.current?.focus() }, [])
   useEffect(() => {
     let active = true
@@ -235,30 +237,8 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
               <h4>Watch for</h4>
               <p>{lesson.value.pitfall}</p>
             </div>}
-            <div className="learning-exercise">
-              <h4>Try it yourself</h4>
-              <p>{lesson.value.practice}</p>
-              {lesson.value.exercise && <>
-                <h4>Expected behavior</h4><p>{lesson.value.exercise.expected}</p>
-                <h4>Completion criteria</h4><p>{lesson.value.exercise.completion}</p>
-                {!!lesson.value.exercise.samples?.length && <details>
-                  <summary>Sample inputs and outputs</summary>
-                  {lesson.value.exercise.samples.map(({ input, expectedOutput }, index) => <div key={index}>
-                    <p>Input {index + 1}</p><pre>{input || '(empty)'}</pre><p>Output</p><pre>{expectedOutput || '(empty)'}</pre>
-                  </div>)}
-                </details>}
-                {diagnosticPackIds.some((id) => id === packId) && <button className="button" type="button"
-                  data-testid="learning-start-exercise" disabled={starting} onClick={() => {
-                    setStarting(true)
-                    setStartError(undefined)
-                    void packs.startExercise(packId, topicId).then(
-                      (result) => { if (mounted.current) onExercise(result) },
-                      (reason: unknown) => { if (mounted.current) setStartError(errorMessage(reason)) },
-                    ).finally(() => { if (mounted.current) setStarting(false) })
-                  }}>{starting ? 'Opening Practice…' : 'Open in Practice'}</button>}
-                {startError && <p role="alert" className="learning-error">{startError}</p>}
-              </>}
-            </div>
+            <PracticalExercise packId={packId} topicId={topicId} lesson={lesson.value} learning={bridge} packs={packs}
+              practice={practice} onExercise={onExercise} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
             {!!lesson.value.related?.length && <><h4>Related lessons</h4><div className="learning-related">
               {lesson.value.related.map((id) => <button className="button" key={id} onClick={() => onTopic(id)}>{showTopic(id)}</button>)}
             </div></>}
@@ -268,7 +248,11 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
   )
 }
 
-function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
+function PackTopics({ packs, pack, topicId, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun }: {
+  bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   packs: LearningPacksBridge
   pack: PackSummary
   topicId: string | null
@@ -295,7 +279,8 @@ function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
   if ('error' in details) return <p className="learning-error" role="alert">{details.error}</p>
   const { topics, prerequisites, references, miniProject } = details.value
   if (topicId) return <PackLessonReader key={topicId} packs={packs} pack={pack} topicId={topicId} topics={topics}
-    onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise}/>
+    onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise} bridge={bridge} practice={practice}
+    onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
 
   const sections = new Map<string, PackTopic[]>()
   for (const topic of topics) {
@@ -558,8 +543,11 @@ function LearningNav({ view = 'topics', diagnostics = false, lens = false, hasFe
   </nav>
 }
 
-function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise }: {
+function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise, practice, onPrepareRun, onStopRun }: {
   bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   feedback?: LearningFeedback
   packs: LearningPacksBridge
   pack: PackSummary
@@ -600,7 +588,8 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
       setView(next)
     }}/>
     <div ref={scroll} className="learning-scroll">
-      {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}/>
+      {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}
+        bridge={bridge} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
         : shownView === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} lensSelection={selected}
           openedSelection={openedSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
           onRevealDiagnostic={onRevealDiagnostic} onLesson={(id) => {
@@ -613,7 +602,7 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }
 
 export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, lensEnabled, lensSelection, sourceCurrent = true,
-  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise }: Props) {
+  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise, practice, onPrepareRun, onStopRun }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
@@ -665,7 +654,7 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
       {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
         bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} lensEnabled={lensEnabled}
         lensSelection={lensSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
-        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise}/>
+        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
         : <>
           <LearningNav/>
           <div className="learning-scroll">

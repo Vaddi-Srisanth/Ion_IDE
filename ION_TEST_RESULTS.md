@@ -18,3 +18,13 @@
 Renderer journeys exercise actual unsaved editing, single Undo, stable editor-widget identity, keyboard focus, draft protection, direct selection, import preview/confirm/discard, confirmed removal, export and late-preview cleanup. External browser requests are blocked. These are not mocked native filesystem/terminal/recovery pass claims.
 
 Native caller scripts were updated for the deliberate removal of Marketplace, retaining path/import/tamper/data-integrity assertions. Historical Marketplace benchmark names remain aliases for explicitly versioned direct-learning/content-settings workloads; their changed measurements must not be mixed with old Marketplace results. Existing Windows benchmark setup failure and rare GCC latency remain open historical issues.
+
+
+## C practical-learning checkpoint (local)
+
+- Typecheck and production build pass. Full Node suite: 310 tests, 284 passed, 26 platform/tool-specific skips, zero failures. This includes ten unused offline Lens analyzer tests; it does not claim a wired Lens UI.
+- New activity/evidence tests use real disposable local storage, real Node runner output and unchanged Practice source identities. New schema tests verify UTF-8 starter limits and import/export. Shared result rendering tests exercise all four real statuses and escaped output. Historical C/Java/Python examples: 45 actually executed and matched expected outputs, zero skips.
+- Headless production renderer: four light/dark × laptop/desktop cases at scale2 pass. Stop while attempt lookup is held prevents both saving and execution; unmount during a held sample request issues one narrow cancellation. Completed runs do not cancel; broad Run Console Stop remains unused. Source/Undo/single widget and draft protection pass. Browser transport tests do not execute programs or prove native persistence.
+- First C browser attempt failed because the fixture expected a nonexistent `upper` variable in the unchanged Java task (actual starter reads `count`). Corrected the assertion to actual content; retained failed report in `ui-C-first`. No application timeout was raised. Corrected and final runs pass.
+- New `scripts/test-practical-learning.mjs --require-toolchains` will verify real Python/Java/C sample runs, hints, actual Monaco Undo/Redo, stale saved-source evidence and attempts on both native CI platforms. Native execution remains unverified until those jobs run.
+- A/B native run43683773521: ten passed, one failed Windows paired performance fixture setup, two optional jobs skipped. See performance report for the retained failure and actual measurements.
