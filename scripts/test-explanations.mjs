@@ -238,7 +238,15 @@ require(${JSON.stringify(target.args[0])});\n`)
     })
     const reviewed = () => session.app.evaluate(() => globalThis.ionExplanationFixture.lastReview)
     const reply = () => session.app.evaluate(() => globalThis.ionExplanationFixture.lastReply)
-    const mode = value => session.app.evaluate(value => { globalThis.ionExplanationFixture.mode = value }, value)
+    const mode = async value => {
+      // ElectronApp.evaluate supplies Electron first and the caller's value
+      // second; Page.evaluate has a different callback signature.
+      const applied = await session.app.evaluate((_electron, selected) => {
+        globalThis.ionExplanationFixture.mode = selected
+        return globalThis.ionExplanationFixture.mode
+      }, value)
+      assert.equal(applied, value, 'The synthetic transport mode was not applied.')
+    }
     const dialog = () => session.page.getByTestId('explanation-dialog')
     const closeDialog = async () => {
       await session.page.getByRole('dialog').filter({ has: dialog() }).getByRole('button', { name: 'Close dialog', exact: true }).click()
