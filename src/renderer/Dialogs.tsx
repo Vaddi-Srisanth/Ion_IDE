@@ -38,7 +38,7 @@ export function Modal({ title, className = '', children, onClose, busy = false, 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThemePreview, onThemeFavorite, startBrowsing, onLanguageSupport, onChange, onUpdateLaunchChange,
-  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
+  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onReplayIntro, onLearningContent, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string, loaded?: ThemeData): Promise<void>;
@@ -54,6 +54,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
   onReplayIntro(): void;
+  onLearningContent(): void;
   onClose(): void;
 }) {
   // The preview changes the workbench while the picker controls keep a stable
@@ -122,6 +123,12 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
         </div>}
       </div>
 
+      <div className="settings-group">
+        <h3>Learning</h3>
+        <div className="setting"><div><b>Learning content</b><p>Built-in languages are ready in Learn. Import, export or manage saved content.</p></div>
+          <button className="button" type="button" data-testid="manage-learning-content" onClick={onLearningContent}>Manage Content</button>
+        </div>
+      </div>
       <div className="settings-group">
         <h3>Resources</h3>
         <div className="setting">

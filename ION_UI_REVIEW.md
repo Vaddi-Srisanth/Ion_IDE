@@ -21,3 +21,9 @@ Baseline capture `ui-baseline-retry` and revised `ui-A-verified` passed all four
 - [Revised light lesson](docs/screenshots/next-generation/milestone-a-learn-light.png)
 
 One initial fixture capture failed on an unsupported service-release test method; an explicit no-service fixture implementation corrected it. A later interaction test assumed an obsolete Monaco textarea; using actual visible editor input corrected the harness without changing product timeouts. Both failed reports remain local. Theme validation caught 4.36:1 light Run-hover contrast and stale metadata swatches; the actual palette and metadata were corrected, retaining the 4.5:1 assertions.
+
+## Milestone B actual review
+
+Fresh direct-language selection and actual Content settings journeys passed four cases at 1× and four at2× browser scale. Inspected the compact Content modal and corrected singular lesson-count grammar. [Learn](docs/screenshots/next-generation/milestone-b-learn-dark.png) · [Content settings](docs/screenshots/next-generation/milestone-b-content-dark.png). These remain renderer fixture captures, not native display-scaling or desktop tests.
+
+Repeated Content settings open/close ran20 cycles in each of four cases (80 total). Tests retained the original source and Monaco widget and observed zero preview tokens, pending previews or project listeners after close. DOM listeners stayed559; nodes 803→797. Forced-GC browser JS heap rose about107–116KiB across20 cycles, with smaller late increments. This is short-workload evidence only; it does not prove indefinite leak absence or native memory recovery.

@@ -3,7 +3,7 @@ name: Desktop verification
 # Source delivery runs the existing native gates. Publication remains separate.
 on:
   push:
-    branches: [main, codex/ion-stabilization-delivery]
+    branches: [main, codex/ion-stabilization-delivery, feature/ion-next-generation]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -35,6 +35,7 @@ jobs:
     with:
       performance_only: ${{ inputs.suite == 'performance' }}
       follow_up_only: ${{ inputs.suite == 'follow-up' }}
+      retain_installers: ${{ github.ref_name != 'feature/ion-next-generation' }}
   windows-git-verification:
     if: github.event_name != 'workflow_dispatch' || inputs.suite == 'git-checks'
     uses: ./.github/workflows/windows-git-supplement.yml

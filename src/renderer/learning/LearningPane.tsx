@@ -23,7 +23,8 @@ interface Props {
   loadError?: string
   onRetry?(): void
   onLibraryChange(library: PackLibrary): void
-  onMarketplace(): void
+  onManageContent(): void
+  onPractice(): void
   onClose(): void
   onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>) => void
 }
@@ -612,21 +613,32 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }
 
 export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, lensEnabled, lensSelection, sourceCurrent = true,
-  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onMarketplace, onClose, onExercise }: Props) {
+  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
-  const installed = library?.installed ?? []
+  // Only compact summaries are combined; lesson payloads stay on disk until opened.
+  const available = [...new Map([...(library?.catalog ?? []), ...(library?.installed ?? [])].map(pack => [pack.id, pack])).values()]
+  const mounted = useRef(false)
+  const selecting = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   async function selectLanguage(id: string) {
+    if (selecting.current) return
+    selecting.current = true
     setError(null)
     setChanging(true)
     try {
-      onLibraryChange(await packs.select(id || null, includeCatalog))
+      const next = await packs.select(id || null, includeCatalog)
+      if (mounted.current) onLibraryChange(next)
     } catch (reason) {
-      setError(errorMessage(reason))
+      if (mounted.current) setError(errorMessage(reason))
     } finally {
-      setChanging(false)
+      selecting.current = false
+      if (mounted.current) setChanging(false)
     }
   }
 
@@ -634,19 +646,20 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
     <aside className="learning-pane" aria-label="Learn" data-testid="learning-pane">
       <header className="pane-title">
         <h2><Icon name="book" size={14}/> Learn</h2>
+        <button type="button" className="button learning-practice" data-testid="learning-practice" onClick={onPractice}><Icon name="flask" size={13}/> Practice Lab</button>
         <button type="button" className="icon-button" aria-label="Hide learning panel" onClick={onClose}><Icon name="x" size={15}/></button>
       </header>
-      {library && installed.length > 0 && <div className="learning-language-row">
+      {library && available.length > 0 && <div className="learning-language-row">
         <label className="learning-language">
           <span>Language</span>
           <select data-testid="learning-language" value={selected?.id ?? ''} disabled={changing}
             onChange={(event) => void selectLanguage(event.currentTarget.value)}>
-            <option value="">Choose an installed language</option>
-            {installed.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+            <option value="">Choose a language or topic</option>
+            {available.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <button type="button" className="icon-button" title="Open Marketplace" aria-label="Open Marketplace"
-          data-testid="learning-open-marketplace" onClick={onMarketplace}><Icon name="marketplace" size={16}/></button>
+        <button type="button" className="icon-button" title="Manage Learning Content" aria-label="Manage Learning Content"
+          data-testid="learning-manage-content" onClick={onManageContent}><Icon name="settings" size={16}/></button>
       </div>}
       {error && <p className="learning-error learning-language-error" role="alert">{error}</p>}
       {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
@@ -659,14 +672,14 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
             {!library ? (loadError
               ? <><p className="learning-error" role="alert">{loadError}</p>
                 {onRetry && <button type="button" className="button" onClick={onRetry}>Retry</button>}</>
-              : <p className="learning-copy" role="status">Opening learning packs…</p>)
+              : <p className="learning-copy" role="status">Opening lessons…</p>)
               : <section className="learning-empty">
                 <div className="learning-empty-icon"><Icon name="book" size={20}/></div>
-                <h3>{installed.length ? 'Choose what to learn' : 'Start with a language pack'}</h3>
-                <p className="learning-copy">{installed.length ? 'Pick an installed language above to see its topics.'
-                  : 'Install a pack from Marketplace to get syntax guides, code examples, key APIs, and practice exercises.'}</p>
-                {!installed.length && <button type="button" className="button" data-testid="learning-open-marketplace"
-                  onClick={onMarketplace}><Icon name="marketplace" size={15}/> Open Marketplace</button>}
+                <h3>Choose what to learn</h3>
+                <p className="learning-copy">{available.length ? 'Choose a language above. Read a concept, write your own code, and try an exercise. Built-in lessons work offline.'
+                  : 'No learning content is available. You can import a validated JSON lesson collection in Preferences.'}</p>
+                <p className="learning-copy learning-evidence-note">Opening a topic is exploration. Passing sample tests is evidence for those examples, not proof of mastery.</p>
+                {!available.length && <button type="button" className="button" onClick={onManageContent}>Manage Content</button>}
               </section>}
           </div>
         </>}

@@ -30,6 +30,7 @@ import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
   | { kind: 'language-support' }
+  | { kind: 'learning-content' }
   | { kind: 'source-references'; locations?: SourceReference[] }
   | { kind: 'project-tests' }
   | { kind: 'commands' }
@@ -55,13 +56,13 @@ async function loadPanel(mode: OptionalPanel) {
 
 type LoadedPanel = Awaited<ReturnType<typeof loadPanel>>;
 type PanelContent = { key: string; module: LoadedPanel } | { key: string; error: string };
-type MarketplaceContent = { Component: typeof import('./learning/MarketplacePane').MarketplacePane } | { error: string };
 const modeNames: Record<WorkspaceMode, string> = { free: 'Code', learn: 'Learn', projects: 'Projects', practice: 'Practice Lab' };
 const bridge = window.ion;
 const Commands = lazy(async () => ({ default: (await import('./CommandPicker')).Commands }));
 const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker')).QuickOpen }));
 const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
 const LanguageSupport = lazy(() => import('./LanguageSupport'));
+const LearningContentSettings = lazy(async () => ({ default: (await import('./learning/LearningContentSettings')).LearningContentSettings }));
 const SourceControlPanel = lazy(() => import('./source-control/SourceControlPanel'));
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
@@ -125,19 +126,14 @@ export function App() {
   const dismissOnboarding = useCallback(() => setOnboarding(null), []);
   const [mode, setMode] = useState<WorkspaceMode>('free');
   const [auxiliaryVisible, setAuxiliaryVisible] = useState(true);
-  const [marketplaceVisible, setMarketplaceVisible] = useState(false);
-  const [marketplaceContent, setMarketplaceContent] = useState<MarketplaceContent | null>(null);
   const [packLibrary, setPackLibrary] = useState<PackLibrary | null>(null);
-  const packVisibility = useRef<'hidden' | 'learn' | 'marketplace'>('hidden');
+  const packVisibility = useRef<'hidden' | 'learn'>('hidden');
   const selectedLearningLanguage = useRef<string | null>(null);
   const applyPackLibrary = useCallback((library: PackLibrary) => {
     selectedLearningLanguage.current = library.selected;
     const visibility = packVisibility.current;
     if (visibility === 'hidden') return;
-    setPackLibrary((previous) => ({
-      ...library,
-      catalog: visibility === 'learn' ? [] : library.catalog.length ? library.catalog : previous?.catalog ?? [],
-    }));
+    setPackLibrary(library);
   }, []);
   const [packLoadError, setPackLoadError] = useState<string>();
   const [packAttempt, setPackAttempt] = useState(0);
@@ -188,7 +184,6 @@ export function App() {
     if (sourceControlVisible) closeSourceControl();
     else {
       setSourceControlVisible(true);
-      setMarketplaceVisible(false);
     }
   };
   const [sessionAvailable, setSessionAvailable] = useState(false);
@@ -207,7 +202,7 @@ export function App() {
     }
   }, [root?.path]);
   const panelMode = screen === 'editor' && auxiliaryVisible && mode !== 'free' ? mode : null;
-  const needsPackLibrary = screen === 'editor' && (panelMode === 'learn' || marketplaceVisible);
+  const needsPackLibrary = screen === 'editor' && panelMode === 'learn';
   const panelRoot = panelMode === 'projects' ? root?.path : undefined;
   const panelKey = panelMode ? panelMode + (panelRoot ? ':' + panelRoot : '') : null;
   const [panelContent, setPanelContent] = useState<PanelContent | null>(null);
@@ -394,8 +389,8 @@ export function App() {
   }, [panelKey, panelMode, panelRoot, panelAttempt, notify]);
 
   useLayoutEffect(() => {
-    packVisibility.current = !needsPackLibrary ? 'hidden' : marketplaceVisible ? 'marketplace' : 'learn';
-  }, [needsPackLibrary, marketplaceVisible]);
+    packVisibility.current = needsPackLibrary ? 'learn' : 'hidden';
+  }, [needsPackLibrary]);
 
   useLayoutEffect(() => {
     learningPanel.current = (settings.learningLens || packLibrary?.selected !== 'c')
@@ -408,17 +403,6 @@ export function App() {
   }, [packLibrary?.selected, panelMode, panelContent, panelKey, settings.learningLens]);
 
   useEffect(() => {
-    if (!marketplaceVisible || marketplaceContent) return;
-    let current = true;
-    void import('./learning/MarketplacePane').then(({ MarketplacePane }) => {
-      if (current) setMarketplaceContent({ Component: MarketplacePane });
-    }, (reason: unknown) => {
-      if (current) setMarketplaceContent({ error: errorMessage(reason) });
-    });
-    return () => { current = false; };
-  }, [marketplaceVisible, marketplaceContent]);
-
-  useEffect(() => {
     if (!needsPackLibrary) {
       setPackLibrary(null);
       setPackLoadError(undefined);
@@ -426,13 +410,13 @@ export function App() {
     }
     let current = true;
     setPackLoadError(undefined);
-    void bridge.learningPacks.getLibrary(marketplaceVisible).then((library) => {
+    void bridge.learningPacks.getLibrary(true).then((library) => {
       if (current) applyPackLibrary(library);
     }, (reason: unknown) => {
       if (current) setPackLoadError(errorMessage(reason));
     });
     return () => { current = false; };
-  }, [needsPackLibrary, marketplaceVisible, packAttempt, applyPackLibrary]);
+  }, [needsPackLibrary, packAttempt, applyPackLibrary]);
 
   const applySettings = useCallback((changes: Partial<Settings>) => {
     const next = { ...settingsRef.current, ...changes };
@@ -572,7 +556,6 @@ export function App() {
       return;
     }
     closeSourceControl();
-    setMarketplaceVisible(false);
     if (next !== 'practice') setPracticeExercise(undefined);
     setMode(next);
     setLensSelection(undefined);
@@ -581,33 +564,16 @@ export function App() {
   };
   const showWelcome = () => {
     closeSourceControl();
-    setMarketplaceVisible(false);
     setLensSelection(undefined);
     setScreen('welcome');
   };
-  const toggleMarketplace = () => {
-    closeSourceControl();
-    setMarketplaceVisible((visible) => !visible);
-  };
   const toggleExplorer = () => {
-    if (marketplaceVisible) {
-      setMarketplaceVisible(false);
-      if (!settingsRef.current.showExplorer) updateSettings({ showExplorer: true });
-    } else updateSettings({ showExplorer: !settingsRef.current.showExplorer });
-  };
-  const learnFromMarketplace = () => {
-    if (mode !== 'learn' && (projectDraft.current || practiceDraft.current)) {
-      notify('Pack selected. Save your workspace changes before switching to Learn.');
-      return;
-    }
-    setMarketplaceVisible(false);
-    selectWorkspace('learn');
+    updateSettings({ showExplorer: !settingsRef.current.showExplorer });
   };
   const openEntry = useCallback((entry: Entry) => {
     dismissOnboarding();
     if (entry.kind === 'folder') {
       closeSourceControl();
-      setMarketplaceVisible(false);
       setRoot(entry);
       setTarget(entry.path);
       refreshTree();
@@ -1163,7 +1129,8 @@ export function App() {
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
         case 'toggle-source-control': if (screen === 'editor') toggleSourceControl(); break;
-        case 'toggle-marketplace': if (screen === 'editor') toggleMarketplace(); break;
+        // Preserve existing customized shortcut IDs while retiring the Marketplace experience.
+        case 'toggle-marketplace': setDialog({ kind: 'learning-content' }); break;
         case 'toggle-output': if (screen === 'editor') toggleBottom(); break;
         case 'toggle-terminal':
           if (screen === 'editor' && settingsRef.current.showOutput && bottomTab === 'terminal') toggleBottom();
@@ -1183,19 +1150,6 @@ export function App() {
     packs: bridge.learningPacks, library: packLibrary, loadError: packLoadError,
     onLibraryChange: applyPackLibrary, onRetry: () => setPackAttempt((attempt) => attempt + 1),
   };
-
-  function renderMarketplace() {
-    if (!marketplaceVisible) return undefined;
-    if (!marketplaceContent) return <p className="tree-message" role="status">Opening Marketplace…</p>;
-    if ('error' in marketplaceContent) {
-      return <div className="tree-message" role="alert">
-        <p>{marketplaceContent.error}</p>
-        <button className="button" onClick={() => setMarketplaceContent(null)}>Retry</button>
-      </div>;
-    }
-    return <marketplaceContent.Component {...learningPacks} library={packLibrary?.catalog.length ? packLibrary : null}
-      onClose={() => setMarketplaceVisible(false)} onLearn={learnFromMarketplace}/>;
-  }
 
   function renderSourceControl() {
     if (!sourceControlVisible) return undefined;
@@ -1227,7 +1181,8 @@ export function App() {
     }
     const module = panelContent.module;
     switch (module.mode) {
-      case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={marketplaceVisible} onMarketplace={() => setMarketplaceVisible(true)}
+      case 'learn': return <module.Component {...learningPacks} bridge={bridge.learning} includeCatalog={true}
+        onManageContent={() => setDialog({ kind: 'learning-content' })} onPractice={() => selectWorkspace('practice')}
         feedback={runReport?.tabId === activeId || lensSelection ? feedback : undefined} onClose={closeAuxiliary}
         lensEnabled={settings.learningLens} sourceCurrent={sourceCurrent} lensSelection={feedback ? lensSelection : undefined}
         canRevealDiagnostic={(diagnostic) => problemRows.some(({ problem, canReveal }) => canReveal && problem.raw === diagnostic.raw)}
@@ -1358,8 +1313,7 @@ export function App() {
             <SourceControlDiffView diff={sourceControlDiff} onClose={() => setSourceControlDiff(undefined)}
               dirty={hasUnsavedSource(sourceControlDiff.absolutePath)} theme={displayTheme} accentColor={appearance.accentColor}/>
           </Suspense>}
-          marketplace={renderMarketplace()}
-          onToggleExplorer={toggleExplorer} onToggleMarketplace={toggleMarketplace}
+          onToggleExplorer={toggleExplorer}
           active={active} tabs={tabs} root={root} target={target}
           treeRevision={treeRevision} settings={settings} activeTheme={displayTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
@@ -1445,6 +1399,7 @@ export function App() {
       </Modal>}
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
+        onLearningContent={() => setDialog({ kind: 'learning-content' })}
         onChange={updateSettings} onUpdateLaunchChange={changeUpdateLaunch} preferencesReady={preferencesReady} updates={updates}
         onInstallUpdate={() => { setDialog(null); void updates.install().then((error) => { if (error) notify(error, true); }); }}
         onThemeChange={changeTheme} onThemePreview={setPreviewTheme} onThemeFavorite={changeThemeFavorite}
@@ -1452,6 +1407,11 @@ export function App() {
         onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
         onReplayIntro={() => { setDialog(null); setOnboarding('replay'); }}
         onClose={() => setDialog(null)}/>}
+      {dialog?.kind === 'learning-content' && <Modal title="Learning Content" className="preferences" onClose={() => setDialog(null)}>
+        <Suspense fallback={<p role="status">Opening learning content…</p>}>
+          <LearningContentSettings packs={bridge.learningPacks} onLibraryChange={applyPackLibrary}/>
+        </Suspense>
+      </Modal>}
       {dialog?.kind === 'recovery' && <ConfirmDialog title="Recover unsaved edits"
         message={`Ion found ${recoveryDrafts.length} unsaved ${recoveryDrafts.length === 1 ? 'draft' : 'drafts'}. Restore them as separate tabs to review and save.`}
         action="Restore Drafts" alternative="Discard Drafts" onConfirm={restoreDrafts} onAlternative={discardDrafts}

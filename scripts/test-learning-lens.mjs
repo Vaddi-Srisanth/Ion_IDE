@@ -66,11 +66,10 @@ async function history(page) {
 }
 
 async function selectCPack(page) {
-  await page.getByTestId('toggle-marketplace').click()
-  await page.locator('[data-testid="marketplace-install"][data-pack="c"]').click()
-  await page.locator('[data-testid="marketplace-use"][data-pack="c"]').click()
-  await page.getByTestId('marketplace-pane').waitFor({ state: 'detached' })
-  await (await page.waitForFunction(() => document.querySelector('[data-testid="learning-language"]')?.value === 'c')).dispose()
+  await page.getByTestId('learning-language').selectOption('c')
+  await (await page.waitForFunction(async () =>
+    document.querySelector('[data-testid="learning-language"]')?.value === 'c'
+    && (await window.ion.learningPacks.getLibrary(false)).selected === 'c')).dispose()
 }
 
 async function theme(page, id) {

@@ -13,7 +13,7 @@ The current Learn entry requires explicit pack installation. General course comp
 | Milestone | Working slice | Gate / status |
 | --- | --- | --- |
 | A | Welcome, compact workbench navigation, theme-compatible design tokens, representative Learn layout | Implemented locally; four renderer cases plus real Monaco Undo/navigation and dirty-form protection verified. Native platforms pending |
-| B | Direct built-in language selection, content settings, preserved imports and progress, Practice route within Learn | Pending A representative validation; no eager full-catalog payloads or destructive migration |
+| B | Direct built-in language selection, content settings, preserved imports and progress, Practice route within Learn | Implemented locally with actual disk and renderer journeys; no eager full-catalog payloads or destructive migration |
 | C | Small reviewed Python/Java/C learning paths, graduated hints, actual exercise/test evidence | Pending; do not label reference material a complete course |
 | D | Explicit bounded, authorized, cancellable offline Project Lens | Pending; no execution or automatic workspace scanning |
 | E | Tutor and Lens AI with exact source-context review, revision checks, validated citations, cancellation | Pending; existing API keys stay in OS-backed vault; no unapproved live calls |

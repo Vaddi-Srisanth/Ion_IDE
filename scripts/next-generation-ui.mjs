@@ -14,7 +14,7 @@ const { chromium } = require('playwright-core');
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index], value = process.argv[index + 1];
-  if (!['--target', '--out', '--next', '--scale', '--catalog'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true]');
+  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20]');
   options.set(key, value);
 }
 for (const key of ['--target', '--out']) if (!isAbsolute(options.get(key) ?? '')) throw new Error(key + ' must be absolute.');
@@ -22,6 +22,9 @@ for (const key of ['--next', '--catalog']) if (options.has(key) && options.get(k
 const next = options.get('--next') === 'true';
 const catalog = options.get('--catalog') === 'true';
 if (catalog && !next) throw new Error('--catalog true requires --next true.');
+const cycles = options.has('--cycles') ? Number(options.get('--cycles')) : 0;
+if (options.has('--cycles') && (!/^[0-9]+$/.test(options.get('--cycles')) || !Number.isSafeInteger(cycles) || cycles < 1 || cycles > 50)) throw new Error('--cycles must be an integer from 1 through 50.');
+if (cycles && (!next || !catalog)) throw new Error('--cycles requires candidate --next true --catalog true.');
 const scale = options.get('--scale') ?? '1';
 if (!['1', '2'].includes(scale)) throw new Error('--scale must be 1 or 2.');
 const target = await realpath(options.get('--target'));
@@ -63,7 +66,7 @@ const report = {
   kind: 'headless-browser-real-renderer-with-test-bridge',
   limitations: ['Not Electron/native runtime verification.', 'No native filesystem writes, execution, terminal, recovery, installer or memory-footprint claims.',
     'JS heap is Chromium renderer JS heap, not process-tree RSS or macOS attributed footprint.', 'Fixture-selected Java pack and synthetic project are test data, not user data.'],
-  target, chrome, nextGenerationAssertions: next, freshCatalogFixture: catalog,
+  target, chrome, nextGenerationAssertions: next, freshCatalogFixture: catalog, contentSettingsCycles: cycles,
   deviceScaleFactor: Number(scale), scaleCaveat: 'Chrome device scale factor, not native macOS Retina/WindowServer verification.', scenarios: [], errors: [],
 };
 let browser;
@@ -119,7 +122,7 @@ try {
       scenario.welcomeReadyMs = performance.now() - boot;
       scenario.assertions.push('Welcome visible; Practice remains discoverable; selected theme applied.');
       await snapshot('welcome');
-      const dormant = scenario.welcome.jsResources.filter(({ path }) => /LearningPane|MarketplacePane|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
+      const dormant = scenario.welcome.jsResources.filter(({ path }) => /LearningPane|MarketplacePane|LearningContentSettings|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
       assert.deepEqual(dormant, [], 'Optional modules were requested on Welcome.');
       const welcomeCalls = await page.evaluate(() => window.__ionBrowserFixture.inspect());
       assert.equal(welcomeCalls.calls.some(name => /learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
@@ -129,10 +132,13 @@ try {
       const learn = page.getByTestId('learning-pane');
       await learn.waitFor();
       if (catalog) {
+        assert.equal(await page.getByTestId('toggle-marketplace').count(), 0, 'Marketplace rail must be absent.');
         await learn.getByTestId('learning-language').waitFor();
         assert.equal(await learn.getByTestId('learning-language').inputValue(), '', 'Fresh fixture must not select a language automatically.');
         await learn.getByTestId('learning-language').selectOption('java');
-        scenario.assertions.push('Fresh profile chooses Java directly in Learn without a Marketplace/install journey. Fixture materialization is test-only.');
+        assert.equal((await page.evaluate(() => window.__ionBrowserFixture.inspect())).calls.includes('learningPacks.install'), false);
+        await learn.getByTestId('learning-practice').waitFor();
+        scenario.assertions.push('Fresh profile chooses Java directly in Learn; no Marketplace rail/install call; Practice is visible. Fixture materialization is test-only.');
       }
       await learn.getByTestId('learning-topic').first().waitFor();
       assert.equal((await learn.locator('.learning-nav-item').first().innerText()).trim(), 'Topics');
@@ -212,8 +218,13 @@ try {
         await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
         scenario.assertions.push('Actual dirty Projects form blocks Code navigation; input survives until explicit discard.');
 
-        await page.getByRole('button', { name: 'Welcome', exact: true }).click();
-        await page.getByTestId('workspace-practice').click();
+        if (catalog) {
+          await learnNavigation.click();
+          await learn.getByTestId('learning-practice').click();
+        } else {
+          await page.getByRole('button', { name: 'Welcome', exact: true }).click();
+          await page.getByTestId('workspace-practice').click();
+        }
         await page.getByTestId('practice-pane').waitFor();
         await page.getByTestId('practice-new').click();
         await page.getByTestId('practice-title').fill('Do not lose this practice draft');
@@ -227,9 +238,73 @@ try {
         await code.click();
         await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
         scenario.assertions.push('Actual dirty Practice form blocks Code navigation and resumes with the original input.');
+        if (catalog) {
+          await page.evaluate(() => window.__ionBrowserFixture.command('toggle-marketplace'));
+          const content = page.getByTestId('learning-content-settings');
+          const contentDialog = page.getByRole('dialog', { name: 'Learning Content', exact: true });
+          await content.waitFor();
+          const javaCopy = content.locator('[data-content-id="java"]');
+          await javaCopy.getByTestId('content-export').click();
+          await content.getByText('Java exported.', { exact: true }).waitFor();
+          await javaCopy.getByTestId('content-remove').click();
+          await javaCopy.getByTestId('content-remove-confirm').click();
+          await javaCopy.waitFor({ state: 'detached' });
+          await content.getByTestId('content-import').click();
+          await content.getByTestId('content-import-preview').waitFor();
+          await content.getByTestId('content-import-discard').click();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().previewTokens === 0);
+          await content.getByTestId('content-import').click();
+          await content.getByTestId('content-import-confirm').click();
+          await content.locator('[data-content-id="fixture-import"]').waitFor();
+          await snapshot('learning-content');
+          scenario.assertions.push('Existing command alias opens real Content Settings; component export/remove/review/discard/confirm calls work against explicit test data only.');
+
+          await page.evaluate(() => window.__ionBrowserFixture.deferNextPreview());
+          await content.getByTestId('content-import').click();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().pendingPreview);
+          await contentDialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+          await contentDialog.waitFor({ state: 'detached' });
+          await page.evaluate(() => window.__ionBrowserFixture.resolvePreview());
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().previewTokens === 0);
+          assert.equal(await page.getByTestId('content-import-preview').count(), 0);
+          scenario.assertions.push('Closing Content Settings during a pending chooser response discards its late preview token without reopening the dialog.');
+          if (cycles) {
+            scenario.contentCycles = { count: cycles, forcedGC: true,
+              caveat: 'Test-only CDP forced garbage collection. Browser JS heap/DOM counters, not native RAM, natural recovery or proof that no leak exists.', samples: [] };
+            await cdp.send('HeapProfiler.enable');
+            const sample = async cycle => {
+              await cdp.send('HeapProfiler.collectGarbage');
+              const metrics = await cdp.send('Performance.getMetrics');
+              const dom = await cdp.send('Memory.getDOMCounters');
+              scenario.contentCycles.samples.push({ cycle, jsHeapUsedBytes: metrics.metrics.find(({ name }) => name === 'JSHeapUsedSize')?.value,
+                jsHeapTotalBytes: metrics.metrics.find(({ name }) => name === 'JSHeapTotalSize')?.value,
+                documents: dom.documents, nodes: dom.nodes, jsEventListeners: dom.jsEventListeners });
+              const state = await page.evaluate(() => window.__ionBrowserFixture.inspect());
+              assert.equal(state.previewTokens, 0, 'Preview retained after content cycle.');
+              assert.equal(state.pendingPreview, false);
+              assert.equal(state.subscribers.projectSourceSaved, 0, 'Project listener retained after content cycle.');
+              assert.deepEqual(state.failures, []);
+              assert.equal(state.calls.some(name => /terminal\.create|runConsole\.start|updates\.check|formatting\.run|languageTools\.query/.test(name)), false);
+              assert.equal(await editorElement.evaluate(element => element.isConnected), true, 'Content cycle replaced original Monaco widget.');
+              assert.equal(await page.locator('.monaco-editor').count(), 1);
+              assert.equal(await page.locator('.monaco-editor .view-lines').innerText(), originalSource, 'Content cycles changed source text.');
+            };
+            await sample(0);
+            for (let cycle = 1; cycle <= cycles; cycle++) {
+              await page.evaluate(() => window.__ionBrowserFixture.command('toggle-marketplace'));
+              await content.locator('[data-testid="content-import"]:not(:disabled)').waitFor();
+              await page.keyboard.press('Escape');
+              await content.waitFor({ state: 'detached' });
+              if (cycle % 5 === 0 || cycle === cycles) await sample(cycle);
+            }
+            await cdp.send('HeapProfiler.disable');
+            scenario.assertions.push(`${cycles} real Content Settings open/Escape-close cycles preserve source/widget and release preview/project resources; forced-GC browser metrics sampled every five cycles.`);
+          }
+        }
       }
       scenario.fixture = await page.evaluate(() => window.__ionBrowserFixture.inspect());
       assert.deepEqual(scenario.fixture.failures, [], 'Unsupported bridge methods called.');
+      if (catalog) { assert.equal(scenario.fixture.previewTokens, 0); assert.equal(scenario.fixture.calls.includes('learningPacks.install'), false); }
       assert.equal(scenario.fixture.calls.some(name => /terminal\.create|runConsole\.start|updates\.check|formatting\.run/.test(name)), false);
       if (next) assert.equal(scenario.fixture.subscribers.projectSourceSaved, 0, 'Project listener leaked after leaving Projects.');
       assert.deepEqual(scenario.errors, [], 'Renderer, request or console errors.');

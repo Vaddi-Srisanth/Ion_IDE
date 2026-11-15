@@ -10,6 +10,9 @@ on:
       follow_up_only:
         type: boolean
         default: false
+      retain_installers:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -74,6 +77,7 @@ jobs:
       - run: node scripts/verify-mac-release.mjs
       - run: node scripts/release-evidence.mjs record mac-arm64
       - name: Retain verified macOS installer (no public release)
+        if: ${{ inputs.retain_installers }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ion-macos-arm64-${{ github.sha }}-${{ github.run_attempt }}
@@ -406,6 +410,7 @@ jobs:
       - run: npm run test:release:win
       - run: node scripts/release-evidence.mjs record windows-x64
       - name: Retain verified Windows installer (no public release)
+        if: ${{ inputs.retain_installers }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ion-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
@@ -452,13 +457,13 @@ jobs:
       - run: node node_modules/electron/install.js
       - run: npm run build
       - run: node scripts/benchmark-windows.mjs --label candidate --terminal
-      - name: Matched production baseline versus optional-trace candidate
+      - name: Matched 0.9.8 source control versus feature candidate
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'ion-performance-baseline'
-          git fetch --no-tags origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git fetch --no-tags origin a108a01bad53a6008761049c28a86e90bdd0374e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git worktree add --detach $baseline 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git worktree add --detach $baseline a108a01bad53a6008761049c28a86e90bdd0374e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Push-Location $baseline
           try {
@@ -472,7 +477,7 @@ jobs:
           $candidateSha = $env:GITHUB_SHA
           try {
             $env:GITHUB_SHA = (git -C $baseline rev-parse HEAD).Trim()
-            if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne '38cf7ff333d02be298a71c4b5315d317d57157c6') { throw 'Baseline identity mismatch.' }
+            if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne 'a108a01bad53a6008761049c28a86e90bdd0374e') { throw 'Baseline identity mismatch.' }
             node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { $env:GITHUB_SHA = $candidateSha }
@@ -519,10 +524,10 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run build
-      - name: Build exact published control with identical dependencies
+      - name: Build exact reviewed 0.9.8 source control with identical dependencies
         run: |
-          git fetch --depth=1 origin 38cf7ff333d02be298a71c4b5315d317d57157c6
-          git worktree add --detach "$RUNNER_TEMP/ion-baseline" 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git fetch --depth=1 origin a108a01bad53a6008761049c28a86e90bdd0374e
+          git worktree add --detach "$RUNNER_TEMP/ion-baseline" a108a01bad53a6008761049c28a86e90bdd0374e
           cd "$RUNNER_TEMP/ion-baseline"
           npm ci
           node node_modules/electron/install.js

@@ -1,5 +1,7 @@
 # Ion IDE
 
+> **Local next-generation feature branch:** Milestones A/B implement a Code-first layout, direct offline learning and content management in Preferences. Native feature verification is pending; this is not a published installer or update. Project Lens, AI Tutor and reviewed practical courses are not implemented yet. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
+
 **An offline-first desktop IDE for learning by coding.**
 
 *Write code. Understand errors. Learn offline.*
@@ -75,7 +77,7 @@ npm start
 4. Click **Run** or press **F5**. Review the local execution prompt.
 5. In **Run Console**, type your name and press **Enter**. Look for the greeting and the exit status.
 6. Remove the semicolon after `fflush(stdout)`, save, and run again. Read the compiler message in Run Console.
-7. Install the C pack from **Marketplace** and select it in **Learn**. Rerun the broken file. Choose **Explain** in **Problems** for a recognized compiler error. Restore the semicolon and run again.
+7. Open **Learn** and choose **C** directly. Rerun the broken file. Choose **Explain** in **Problems** for a recognized compiler error. Restore the semicolon and run again. No Marketplace or installation step is required.
 
 [Run Console guide](docs/USAGE.md#write-and-run-code) · [Keyboard shortcuts](docs/USAGE.md#keyboard-navigation)
 
@@ -87,11 +89,11 @@ For supported C compiler errors, Ion connects the source location, the original 
 
 ### Run, learn, and verify
 
-| Capability | Coverage in 0.9.7 |
+| Capability | Coverage on this source branch |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
 | **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
-| **Bundled learning packs** | 162 lessons across 19 packs. Core syntax, common APIs, examples, exercises, and selected mini-projects. Install or import packs offline. |
+| **Offline learning** | 162 reference/introductory lessons across 19 collections, not 19 complete courses. Choose built-in languages directly in Learn; only selected content is materialized. Import/export/manage content in Preferences. Existing lessons and Practice records are preserved. |
 | **Diagnostic explanations** | C with GCC or Clang has the Learning Lens workflow. Reviewed subsets for C++, Java, Python, and JavaScript also link to relevant installed lessons. |
 | **Run Tests** | Save C behavior tests in Projects, approve their local compiler and program commands, then run a selected case or the approved suite from the toolbar. See expected and actual output, exit codes, timing, compiler locations, and saved evidence. [Run Tests guide](docs/USAGE.md#saved-run-tests) |
 | **Practice** | Pick a topic, language, and difficulty for 27 built-in challenges with sample tests. Save notes, results, and multiple attempts. Run samples in the five languages listed above. |
@@ -121,15 +123,15 @@ Screenshots use disposable sample workspaces. The core-workflow images were capt
 ![Learning Lens links an actual C compiler diagnostic to the highlighted line and the relevant offline concept](docs/screenshots/learning-lens.webp)
 
 <details>
-<summary>Run Console, Marketplace, Projects, Markdown, and Practice</summary>
+<summary>Run Console, Learning Content, Projects, Markdown, and Practice</summary>
 
 **Run Console** with input and output from a locally compiled C program.
 
 ![Run Console showing three entered readings and the calculated average](docs/screenshots/run-console.webp)
 
-**Marketplace** with an installed Python learning pack.
+**Learning Content** in Preferences (real compiled renderer with a deterministic test transport; not a native screenshot).
 
-![Offline Learning Marketplace showing the Python pack, lesson count, and topic filters](docs/screenshots/marketplace.webp)
+![Learning Content settings with reviewed import and saved-content actions](docs/screenshots/next-generation/milestone-b-content-dark.png)
 
 **Projects** with a locally verified C test.
 

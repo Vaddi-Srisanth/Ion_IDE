@@ -43,7 +43,7 @@ test('pack installation and language selection are separate, local, and durable'
     assert.equal(initial.selected, null)
     assert.equal(await store.isSelected('c'), false)
     await assert.rejects(lstat(join(profile, learningLibraryDirectory)), { code: 'ENOENT' })
-    await assert.rejects(store.select('c'), /Install/)
+    await assert.rejects(store.select('unavailable'), /catalog/)
     await assert.rejects(store.getTopics('c'), /Install/)
     await assert.rejects(store.getLesson('c', 'branches'), /Install/)
     await assert.rejects(store.install('../other'), /catalog/)

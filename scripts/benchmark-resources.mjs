@@ -160,36 +160,20 @@ async function populatePanel(session, mode) {
   const { page } = session
   if (mode === 'learn') {
     if (await page.evaluate(() => Boolean(window.ion.learningPacks))) {
-      const firstMs = await page.getByTestId('learning-open-marketplace').evaluate((trigger) => new Promise((resolve, reject) => {
-        const start = performance.now()
-        const timer = setTimeout(() => {
-          changes.disconnect()
-          reject(new Error('Marketplace did not show its catalog.'))
-        }, 8000)
-        const changes = new MutationObserver(() => {
-          if (!document.querySelector('[data-testid="marketplace-install"]')) return
-          changes.disconnect()
-          clearTimeout(timer)
-          resolve(performance.now() - start)
-        })
-        changes.observe(document.body, { childList: true, subtree: true })
-        trigger.click()
-      }))
-      const install = page.locator('[data-testid="marketplace-install"][data-pack="c"]')
-      report.learningMarketplace = { firstMs }
-      await stage(session, 'marketplace')
-      const installStarted = performance.now()
-      await install.click()
-      const choose = page.locator('[data-testid="marketplace-use"][data-pack="c"]')
-      await choose.waitFor()
-      report.learningMarketplace.installMs = performance.now() - installStarted
-      await choose.click()
+      const started = performance.now()
+      await page.getByTestId('learning-language').waitFor()
+      const firstMs = performance.now() - started
+      report.directLearning = { protocol: 'direct-language-selection-v1', firstMs }
+      await stage(session, 'learning-language-choice')
+      const selectStarted = performance.now()
+      await page.getByTestId('learning-language').selectOption('c')
       const first = page.getByTestId('learning-topic').first()
       await first.waitFor()
+      report.directLearning.selectMs = performance.now() - selectStarted
       const lessonStarted = performance.now()
       await first.click()
       await page.getByTestId('learning-pack-lesson').waitFor()
-      report.learningMarketplace.openLessonMs = performance.now() - lessonStarted
+      report.directLearning.openLessonMs = performance.now() - lessonStarted
       return
     }
     await page.getByTestId('learning-topics').click()

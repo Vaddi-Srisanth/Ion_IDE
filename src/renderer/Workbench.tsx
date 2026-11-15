@@ -173,14 +173,12 @@ export interface WorkbenchProps {
   hidden?: boolean;
   mode: WorkspaceMode;
   auxiliary?: ReactNode;
-  marketplace?: ReactNode;
   sourceControl?: ReactNode;
   sourceControlEntries?: readonly SourceControlEntry[];
   sourceControlDiff?: ReactNode;
   onToggleAuxiliary(): void;
   onWorkspace(mode: WorkspaceMode): void;
   onToggleExplorer(): void;
-  onToggleMarketplace(): void;
   onToggleSourceControl(): void;
   active: Tab | undefined;
   tabs: Tab[];
@@ -239,8 +237,8 @@ export interface WorkbenchProps {
 
 export function Workbench(props: WorkbenchProps) {
   const {
-    documents, hidden, mode, auxiliary, marketplace, sourceControl, sourceControlEntries, sourceControlDiff,
-    onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleMarketplace, onToggleSourceControl,
+    documents, hidden, mode, auxiliary, sourceControl, sourceControlEntries, sourceControlDiff,
+    onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
@@ -370,7 +368,7 @@ export function Workbench(props: WorkbenchProps) {
       <main className="workspace" style={panelSizes} data-testid="workspace" aria-label={`${modeName} workspace`} data-mode={mode}>
         <nav className="activity-bar" aria-label="Workspace panels">
           <button className="activity-button" title={hint('toggle-explorer', 'Toggle Explorer')} aria-label="Toggle Explorer"
-            aria-pressed={settings.showExplorer && !marketplace} onClick={onToggleExplorer}>
+            aria-pressed={settings.showExplorer} onClick={onToggleExplorer}>
             <Icon name="files" size={20}/>
           </button>
           <button className="activity-button" type="button" title={hint('toggle-source-control', 'Source Control')}
@@ -394,22 +392,17 @@ export function Workbench(props: WorkbenchProps) {
             aria-label={mode === 'projects' ? 'Toggle Projects panel' : 'Projects'} data-testid="navigate-projects"
             aria-pressed={mode === 'projects' && Boolean(auxiliary) && !sourceControl}
             onClick={() => mode === 'projects' ? onToggleAuxiliary() : onWorkspace('projects')}><Icon name="map" size={18}/><span>Projects</span></button>
-          <button className="activity-button" type="button" title={hint('toggle-marketplace', 'Marketplace')}
-            aria-label="Marketplace" aria-pressed={Boolean(marketplace)} data-testid="toggle-marketplace" onClick={onToggleMarketplace}>
-            <Icon name="marketplace" size={19}/>
-          </button>
           <div className="activity-end"><span className="signal" title="Local workspace"/></div>
         </nav>
-        {(settings.showExplorer || marketplace) && <>
+        {settings.showExplorer && <>
           <div className="explorer-frame">
-            {settings.showExplorer && <Explorer hidden={Boolean(marketplace)}
+            <Explorer
               root={root} activePath={active?.path ?? null} target={target} tabs={tabs} revision={treeRevision}
               sourceControlEntries={sourceControlEntries}
               onOpen={onOpenEntry} onTarget={onTarget} onCreate={onCreate} onRename={onRename} onTrash={onTrash}
-              onRefresh={onRefresh} onOpenFolder={onOpenFolder}/>}
-            {marketplace}
+              onRefresh={onRefresh} onOpenFolder={onOpenFolder}/>
           </div>
-          <Splitter label={marketplace ? 'Resize Marketplace' : 'Resize Explorer'} value={settings.explorerWidth}
+          <Splitter label="Resize Explorer" value={settings.explorerWidth}
             setting="explorerWidth" min={150} max={620} onResize={onSettings}/>
         </>}
         {(auxiliary || sourceControl) && <>

@@ -30,7 +30,7 @@ const commands = {
   welcome: { label: 'Welcome', key: 'Mod+Shift+1' },
   'toggle-explorer': { label: 'Toggle Explorer', key: 'Mod+B' },
   'toggle-source-control': { label: 'Toggle Source Control' },
-  'toggle-marketplace': { label: 'Toggle Learning Marketplace' },
+  'toggle-marketplace': { label: 'Manage Learning Content' },
   'toggle-output': { label: 'Toggle Bottom Panel', key: 'Mod+J' },
   'toggle-terminal': { label: 'Toggle Terminal', key: 'Mod+Shift+J' },
   'focus-terminal': { label: 'Focus Terminal', key: 'Mod+Alt+J' },

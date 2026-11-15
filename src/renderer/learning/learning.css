@@ -8,6 +8,8 @@
 }
 .learning-pane .pane-title { min-height: 35px; }
 .learning-pane .pane-title h2 { letter-spacing: .08em; }
+.learning-pane .learning-practice { margin-inline-start: auto; min-height: 24px; font-size: 10px; padding-inline: 6px; }
+.learning-pane .learning-evidence-note { margin-top: 16px; color: var(--muted); font-size: 11px; }
 .learning-pane .learning-language-row { padding: 12px; background: var(--surface); }
 .learning-pane .learning-language > span { color: var(--muted); letter-spacing: .08em; }
 .learning-pane .learning-scroll { padding: 16px; }

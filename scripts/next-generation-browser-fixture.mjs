@@ -44,7 +44,10 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
     ({ id, title, section, difficulty, prerequisites, related, keywords }));
   let selected = freshCatalog ? null : 'java';
   let materialized = !freshCatalog;
-  const library = (catalog = false) => ({ installed: materialized ? [summary] : [], catalog: catalog ? [summary] : [], selected });
+  let imported = false, previewSequence = 0, deferPreview = false, pendingPreview;
+  const previewTokens = new Set();
+  const importedSummary = { ...summary, id: 'fixture-import', name: 'Fixture Java Notes', topicCount: 1, source: 'local', diagnostics: false };
+  const library = (catalog = false) => ({ installed: [...(materialized ? [summary] : []), ...(imported ? [importedSummary] : [])], catalog: catalog ? [summary] : [], selected });
   const checkedPack = id => { if (id !== 'java') throw new Error('Unknown fixture pack.'); };
   const draftMap = new Map();
   window.ion = {
@@ -77,9 +80,40 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
         if (id !== null) { checkedPack(id); materialized = true; }
         selected = id; return record('learningPacks.select', library(includeCatalog));
       },
-      install: forbidden('learningPacks.install'), remove: forbidden('learningPacks.remove'), startExercise: forbidden('learningPacks.startExercise'),
-      previewImport: forbidden('learningPacks.previewImport'), confirmImport: forbidden('learningPacks.confirmImport'),
-      discardImport: forbidden('learningPacks.discardImport'), exportPack: forbidden('learningPacks.exportPack'),
+      install: forbidden('learningPacks.install'), startExercise: forbidden('learningPacks.startExercise'),
+      remove: async id => {
+        if (id === 'java' && materialized) materialized = false;
+        else if (id === 'fixture-import' && imported) imported = false;
+        else throw new Error('Unknown fixture saved content.');
+        if (selected === id) selected = null;
+        return record('learningPacks.remove', library(true));
+      },
+      // These methods exercise the real content-management component only.
+      // No native chooser, validation, disk export or pack import is simulated.
+      previewImport: async () => {
+        if (previewTokens.size || pendingPreview) throw new Error('Fixture preview already pending.');
+        const token = 'fixture-preview-' + (++previewSequence);
+        previewTokens.add(token);
+        const preview = record('learningPacks.previewImport', { token, update: imported,
+          details: { pack: importedSummary, topics: topics.slice(0, 1), prerequisites: [], references: [] } });
+        if (deferPreview) {
+          deferPreview = false;
+          return new Promise(resolvePreview => { pendingPreview = () => { pendingPreview = undefined; resolvePreview(preview); }; });
+        }
+        return preview;
+      },
+      confirmImport: async token => {
+        if (!previewTokens.delete(token)) throw new Error('Unknown fixture preview token.');
+        imported = true; return record('learningPacks.confirmImport', library(true));
+      },
+      discardImport: async token => {
+        if (!previewTokens.delete(token)) throw new Error('Unknown fixture preview token.');
+        record('learningPacks.discardImport', null);
+      },
+      exportPack: async id => {
+        if (!(id === 'java' && materialized) && !(id === 'fixture-import' && imported)) throw new Error('Unknown fixture export.');
+        return record('learningPacks.exportPack', true);
+      },
     },
     learning: { getTopics: reply('learning.getTopics', []), getHistory: reply('learning.getHistory', { categories: [], topics: [] }),
       getConcept: forbidden('learning.getConcept'), clearHistory: forbidden('learning.clearHistory'), recordTopic: forbidden('learning.recordTopic') },
@@ -121,7 +155,10 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   };
   window.__ionBrowserFixture = {
     description: 'TEST ONLY: real React/Monaco rendering with deterministic in-memory transport; no native runtime verification.',
-    inspect: () => ({ calls: [...calls], failures: [...failures], subscribers: Object.fromEntries([...subscribers].map(([name, callbacks]) => [name, callbacks.size])), draftCount: draftMap.size }),
+    inspect: () => ({ calls: [...calls], failures: [...failures], subscribers: Object.fromEntries([...subscribers].map(([name, callbacks]) => [name, callbacks.size])), draftCount: draftMap.size,
+      previewTokens: previewTokens.size, pendingPreview: Boolean(pendingPreview), selected, materialized }),
     command: name => { for (const callback of subscribers.get('command') ?? []) callback(name); },
+    deferNextPreview: () => { if (pendingPreview || previewTokens.size) throw new Error('Preview already pending.'); deferPreview = true; },
+    resolvePreview: () => { if (!pendingPreview) throw new Error('No deferred fixture preview.'); pendingPreview(); },
   };
 }

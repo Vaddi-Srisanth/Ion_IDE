@@ -175,9 +175,9 @@ await withScratch('release-check', async (scratch) => {
     assert.deepEqual(checks, ['Statements and semicolons', false, 0])
     await page.getByTestId('workspace-learn').click()
     await page.getByTestId('learning-pane').waitFor()
-    await page.getByTestId('learning-open-marketplace').click()
-    await page.locator('[data-testid="marketplace-install"][data-pack="python"]').click()
-    await page.locator('[data-testid="marketplace-use"][data-pack="python"]').click()
+    await page.getByTestId('learning-language').selectOption('python')
+    await (await page.waitForFunction(async () =>
+      (await window.ion.learningPacks.getLibrary(false)).selected === 'python')).dispose()
     await page.getByTestId('learning-topic').first().click()
     await page.getByTestId('learning-pack-lesson').waitFor()
     await page.getByRole('button', { name: 'Welcome', exact: true }).click()

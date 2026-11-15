@@ -201,9 +201,23 @@ await withScratch('theme-flow', async (scratch) => {
     await verifyPanel('markdown-preview', 'background')
     await atPath(page, 'explorer-entry', notebook).click()
     await verifyPanel('notebook-view', 'background')
-    await page.getByTestId('toggle-marketplace').click()
-    await verifyPanel('marketplace-pane', 'panel')
-    await page.getByTestId('toggle-marketplace').click()
+    // Content now lives in a modal. Close it before changing themes instead of
+    // trying to click the inaccessible titlebar beneath an open dialog.
+    for (const id of [imported.id, 'light', imported.id]) {
+      await page.getByTestId('settings').first().click()
+      const preferences = page.getByRole('dialog', { name: 'Preferences', exact: true })
+      if (id === 'light') await preferences.getByTestId('theme-light').click()
+      else if (await page.locator('.app-shell').getAttribute('data-theme-id') !== id) await select(page, id)
+      await theme(page, id)
+      await preferences.getByTestId('manage-learning-content').click()
+      const contentDialog = page.getByRole('dialog', { name: 'Learning Content', exact: true })
+      await contentDialog.getByTestId('learning-content-settings').waitFor()
+      assert.equal(await background(contentDialog), rgb((await palette(id)).colors.surface))
+      assert.equal(await contentDialog.getByTestId('learning-content-settings').evaluate((element) =>
+        getComputedStyle(element).color), rgb((await palette(id)).colors.text))
+      await contentDialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+      await contentDialog.waitFor({ state: 'detached' })
+    }
 
     for (const [mode, pane] of [['learn', 'learning-pane'], ['projects', 'projects-panel'], ['practice', 'practice-pane']]) {
       await page.getByRole('button', { name: 'Welcome', exact: true }).click()
@@ -212,7 +226,7 @@ await withScratch('theme-flow', async (scratch) => {
     }
     assert.deepEqual(first.requests, [], 'Theme use attempted no network requests')
     assert.deepEqual(first.errors, [], 'Theme use raised no uncaught renderer errors')
-    console.log('PASS theme changes reach Markdown, notebooks, Marketplace, Learn, Projects and Practice offline')
+    console.log('PASS theme changes reach Markdown, notebooks, Learning Content, Learn, Projects and Practice offline')
   } finally {
     await close(first)
   }
