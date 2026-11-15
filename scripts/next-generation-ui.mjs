@@ -14,15 +14,17 @@ const { chromium } = require('playwright-core');
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index], value = process.argv[index + 1];
-  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles', '--practical', '--lens'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20] [--practical true] [--lens true]');
+  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles', '--practical', '--lens', '--explanations'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20] [--practical true] [--lens true] [--explanations true]');
   options.set(key, value);
 }
 for (const key of ['--target', '--out']) if (!isAbsolute(options.get(key) ?? '')) throw new Error(key + ' must be absolute.');
-for (const key of ['--next', '--catalog', '--practical', '--lens']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
+for (const key of ['--next', '--catalog', '--practical', '--lens', '--explanations']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
 const next = options.get('--next') === 'true';
 const catalog = options.get('--catalog') === 'true';
 const practical = options.get('--practical') === 'true';
 const lens = options.get('--lens') === 'true';
+const explanations = options.get('--explanations') === 'true';
+if (explanations && (!next || !catalog)) throw new Error('--explanations requires --next true --catalog true.');
 if (practical && (!next || !catalog)) throw new Error('--practical requires --next true --catalog true.');
 if (catalog && !next) throw new Error('--catalog true requires --next true.');
 const cycles = options.has('--cycles') ? Number(options.get('--cycles')) : 0;
@@ -69,7 +71,7 @@ const report = {
   kind: 'headless-browser-real-renderer-with-test-bridge',
   limitations: ['Not Electron/native runtime verification.', 'No native filesystem writes, execution, terminal, recovery, installer or memory-footprint claims.',
     'JS heap is Chromium renderer JS heap, not process-tree RSS or macOS attributed footprint.', 'Fixture-selected Java pack and synthetic project are test data, not user data.'],
-  target, chrome, nextGenerationAssertions: next, freshCatalogFixture: catalog, contentSettingsCycles: cycles,
+  target, chrome, nextGenerationAssertions: next, freshCatalogFixture: catalog, contentSettingsCycles: cycles, explanationJourney: explanations,
   deviceScaleFactor: Number(scale), scaleCaveat: 'Chrome device scale factor, not native macOS Retina/WindowServer verification.', scenarios: [], errors: [],
 };
 let browser;
@@ -83,6 +85,7 @@ try {
     report.scenarios.push(scenario);
     const context = await browser.newContext({ viewport: { width, height }, colorScheme: theme, deviceScaleFactor: Number(scale),
       serviceWorkers: 'block', reducedMotion: 'reduce' });
+    let page;
     try {
       await context.addInitScript(installBrowserFixture, await browserFixtureData(theme, { freshCatalog: catalog }));
       await context.route('**/*', async route => {
@@ -90,7 +93,7 @@ try {
         if (url.startsWith(origin + '/') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
         scenario.errors.push('Blocked unexpected remote request: ' + url); return route.abort('blockedbyclient');
       });
-      const page = await context.newPage();
+      page = await context.newPage();
       page.setDefaultTimeout(15000);
       page.on('pageerror', error => scenario.errors.push(error.message));
       page.on('console', message => { if (scenario.console.length < 120) scenario.console.push({ type: message.type(), text: message.text().slice(0, 1200) }); });
@@ -125,10 +128,10 @@ try {
       scenario.welcomeReadyMs = performance.now() - boot;
       scenario.assertions.push('Welcome visible; Practice remains discoverable; selected theme applied.');
       await snapshot('welcome');
-      const dormant = scenario.welcome.jsResources.filter(({ path }) => /ProjectLens|LearningPane|MarketplacePane|LearningContentSettings|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
+      const dormant = scenario.welcome.jsResources.filter(({ path }) => /ExplanationDialog|ReviewRecommendations|ProjectLens|LearningPane|MarketplacePane|LearningContentSettings|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
       assert.deepEqual(dormant, [], 'Optional modules were requested on Welcome.');
       const welcomeCalls = await page.evaluate(() => window.__ionBrowserFixture.inspect());
-      assert.equal(welcomeCalls.calls.some(name => /projectLens|learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
+      assert.equal(welcomeCalls.calls.some(name => /explanations|projectLens|learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
       scenario.assertions.push('Named learning/project/practice/terminal chunks and services dormant on Welcome.');
 
       await page.getByTestId('workspace-learn').click();
@@ -297,6 +300,118 @@ try {
         assert.equal(await page.locator('.monaco-editor .view-lines').innerText(), originalSource, 'One Undo did not restore pre-edit source.');
         scenario.assertions.push('Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.');
 
+        if (explanations) {
+          const fixtureState = () => page.evaluate(() => window.__ionBrowserFixture.inspect());
+          const originalModelSource = await page.evaluate(async () => {
+            const url = performance.getEntriesByType('resource').map(item => item.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+            const { editor } = await import(url);
+            return editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]')).getValue();
+          });
+          assert.deepEqual((await fixtureState()).explanations.counts, { provider: 0, configure: 0, review: 0, send: 0, cancel: 0, citation: 0 }, 'Explanation backend was touched before explicit opening.');
+          await page.getByTestId('settings').click();
+          await page.getByTestId('resource-profile').selectOption('full');
+          await page.locator('.app-shell[data-resource-profile="full"]').waitFor();
+          await page.getByRole('dialog', { name: 'Preferences', exact: true }).getByRole('button', { name: 'Close dialog' }).click();
+          await learnNavigation.click();
+          await learn.getByTestId('learning-topic').first().click();
+          await learn.getByTestId('lesson-ask-tutor').click();
+          const tutor = page.getByTestId('explanation-dialog');
+          const tutorDialog = page.getByRole('dialog', { name: 'Optional online tutor', exact: true });
+          await tutor.waitFor();
+          await tutor.getByText('Provider settings', { exact: false }).waitFor();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.counts.provider === 1);
+          assert.equal((await fixtureState()).explanations.counts.review, 0);
+          assert.equal((await fixtureState()).explanations.counts.send, 0);
+          assert.equal(await tutor.locator('fieldset input:checked').count(), 0);
+          assert.equal(await tutor.getByLabel('Current unsaved code:', { exact: false }).isChecked(), false);
+          await tutor.locator('.explanation-provider-details summary').click();
+          const key = tutor.getByLabel('API key', { exact: true });
+          await key.fill('fixture-key-never-networked');
+          await tutor.locator('form.explanation-provider').evaluate(form => {
+            const button = [...form.querySelectorAll('button')].find(item => item.textContent === 'Save Provider');
+            form.requestSubmit(button); form.requestSubmit(button);
+          });
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.counts.configure === 1);
+          assert.equal(await key.inputValue(), '', 'Password field was not cleared immediately.');
+          await tutor.locator('textarea[aria-describedby="explanation-question-limit"]').fill('TEST FIXTURE: explain this source without changing it.');
+          await tutor.getByLabel('Installed lesson:', { exact: false }).check();
+          await tutor.getByLabel('Current unsaved code:', { exact: false }).check();
+          await tutor.getByTestId('explanation-review').click();
+          const review = tutor.getByTestId('explanation-review-content');
+          await review.waitFor();
+          const reviewed = (await fixtureState()).explanations;
+          assert.equal(reviewed.counts.send, 0, 'Review sent the provider request.');
+          assert.equal(reviewed.lastRequest.code.text.includes('public class Main'), true);
+          assert.equal(reviewed.lastRequest.lesson.packId, 'java');
+          assert.ok((await review.innerText()).includes('fixture-model') && (await review.innerText()).includes('1,234 bytes'));
+          await review.locator('details').filter({ hasText: 'editor-buffer' }).locator('summary').click();
+          assert.ok((await review.innerText()).includes('System.out.println(topic)'));
+          await snapshot('explanation-review');
+          await tutor.getByTestId('explanation-send').click();
+          const answer = tutor.getByTestId('explanation-answer');
+          await answer.waitFor();
+          assert.equal((await fixtureState()).explanations.counts.send, 1);
+          assert.ok((await answer.innerText()).includes('<script>unsafe_fixture()</script>'));
+          assert.equal(await answer.locator('script,img,iframe,a').count(), 0, 'Untrusted answer became active markup.');
+          await snapshot('explanation-answer');
+          await answer.getByRole('button', { name: 'Source code-1 · 1–1', exact: true }).click();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.counts.citation === 1);
+          await tutor.waitFor({ state: 'detached' });
+          assert.equal(await editorElement.evaluate(element => element.isConnected), true);
+          assert.equal(await page.locator('.monaco-editor').count(), 1);
+          await learn.getByTestId('lesson-ask-tutor').click();
+          await tutor.waitFor();
+          await tutor.getByLabel('Current unsaved code:', { exact: false }).check();
+          await tutor.locator('textarea[aria-describedby="explanation-question-limit"]').fill('TEST FIXTURE: retain this explanation only for the current source.');
+          await tutor.getByTestId('explanation-review').click();
+          await review.waitFor();
+          await tutor.getByTestId('explanation-send').click();
+          await answer.waitFor();
+          // Change the actual existing Monaco model while the read-only modal is
+          // open. This exercises App's real source invalidation subscription.
+          await page.evaluate(async () => {
+            const url = performance.getEntriesByType('resource').map(item => item.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+            const { editor } = await import(url);
+            const instance = editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]'));
+            instance.pushUndoStop(); instance.executeEdits('ui-fixture', [{ range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 }, text: '// Explicit fixture edit\n' }]); instance.pushUndoStop();
+          });
+          await answer.waitFor({ state: 'detached' });
+          assert.equal(await tutor.getByRole('button', { name: 'Review suggested milestones', exact: true }).count(), 0);
+          await tutor.getByTestId('explanation-review').click();
+          await review.waitFor();
+          assert.equal((await fixtureState()).explanations.lastRequest.code.text.startsWith('// Explicit fixture edit'), true, 'Explicit review did not refresh actual unsaved source.');
+          await page.evaluate(() => window.__ionBrowserFixture.deferExplanation('send'));
+          await tutor.getByTestId('explanation-send').click();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.pending === 'send');
+          await page.evaluate(() => window.__ionBrowserFixture.deferExplanation('cancel'));
+          await tutor.getByRole('button', { name: 'Cancel request', exact: true }).click();
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.pending === 'cancel');
+          assert.equal(await tutor.getByTestId('explanation-review').isDisabled(), true, 'Review unlocked before cancellation cleanup completed.');
+          await page.evaluate(() => window.__ionBrowserFixture.resolveExplanation());
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().explanations.pending === null);
+          assert.equal(await answer.count(), 0);
+          assert.equal((await fixtureState()).explanations.reply, false);
+          await tutorDialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+          await tutor.waitFor({ state: 'detached' });
+          await page.waitForFunction(() => !window.__ionBrowserFixture.inspect().explanations.lease);
+          await page.locator('.monaco-editor .view-line').first().click();
+          await page.keyboard.press('Meta+z');
+          await page.waitForFunction(async expected => {
+            const url = performance.getEntriesByType('resource').map(item => item.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+            const { editor } = await import(url);
+            return editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]')).getValue() === expected;
+          }, originalModelSource);
+          scenario.explanationUndo = { exactModelRestored: true, note: 'Actual Monaco model equality, avoiding virtualized DOM paint and NBSP matching.' };
+          assert.equal(await editorElement.evaluate(element => element.isConnected), true);
+          await code.click();
+          await page.getByTestId('settings').click();
+          await page.getByTestId('resource-profile').selectOption('minimal');
+          await page.locator('.app-shell[data-resource-profile="minimal"]').waitFor();
+          await page.getByRole('dialog', { name: 'Preferences', exact: true }).getByRole('button', { name: 'Close dialog' }).click();
+          scenario.assertions.push('Actual optional tutor UI: Full-only explicit open; unchecked context; password cleared; review sends nothing; exact source/metadata rendered; explicit Send uses synthetic JSON; escaped answer; citation reuses existing Monaco; real model edit invalidates answer; explicit review recaptures unsaved source; held Send cancellation releases fixture ownership; Undo preserved. This is browser transport evidence only, not native/provider connectivity.');
+          scenario.explanations = (await fixtureState()).explanations;
+        }
+
         await code.focus();
         await page.keyboard.press('Tab');
         scenario.keyboardFocus = await learnNavigation.evaluate(element => ({ active: document.activeElement === element,
@@ -328,7 +443,43 @@ try {
           await lensPane.getByTestId('project-lens-summary').waitFor();
           await lensPane.getByText('React', { exact: true }).waitFor();
           await snapshot('project-lens');
-          await lensPane.getByRole('button', { name: 'Main.java', exact: false }).first().click();
+          if (explanations) {
+            await page.getByTestId('settings').click();
+            await page.getByTestId('resource-profile').selectOption('full');
+            await page.locator('.app-shell[data-resource-profile="full"]').waitFor();
+            await page.getByRole('dialog', { name: 'Preferences', exact: true }).getByRole('button', { name: 'Close dialog' }).click();
+            await lensPane.getByLabel('Add project source evidence', { exact: true }).selectOption('Main.java');
+            await lensPane.getByTestId('project-lens-explain').click();
+            const projectExplanation = page.getByTestId('explanation-dialog');
+            await projectExplanation.waitFor();
+            await projectExplanation.getByLabel('Bounded offline project structure', { exact: true }).check();
+            await projectExplanation.getByLabel('Main.java', { exact: true }).check();
+            await projectExplanation.locator('textarea[aria-describedby="explanation-question-limit"]').fill('TEST FIXTURE: suggest one small verifiable milestone.');
+            await projectExplanation.getByTestId('explanation-review').click();
+            await projectExplanation.getByTestId('explanation-review-content').waitFor();
+            await projectExplanation.getByTestId('explanation-send').click();
+            await projectExplanation.getByTestId('explanation-answer').waitFor();
+            await projectExplanation.getByRole('button', { name: 'Review suggested milestones', exact: true }).click();
+            const recommendations = page.getByTestId('recommendation-review');
+            await recommendations.waitFor();
+            await recommendations.getByLabel('Add this milestone', { exact: true }).check();
+            await recommendations.getByLabel('Title', { exact: true }).fill('User-reviewed fixture milestone');
+            await snapshot('recommendation-review');
+            await recommendations.getByTestId('recommendation-save').click();
+            await recommendations.waitFor({ state: 'detached' });
+            const saved = (await page.evaluate(() => window.__ionBrowserFixture.inspect())).projectRecord;
+            assert.equal(saved.spec.milestones[0].title, 'User-reviewed fixture milestone');
+            assert.equal(saved.spec.milestones[0].status, 'not-started');
+            assert.ok(saved.spec.milestones[0].description.includes('Reviewed context (not verification)'));
+            assert.deepEqual(saved.approved, []); assert.deepEqual(saved.evidence, []); assert.deepEqual(saved.spec.tests, []);
+            scenario.recommendationRoadmap = saved;
+            await page.getByTestId('settings').click();
+            await page.getByTestId('resource-profile').selectOption('minimal');
+            await page.locator('.app-shell[data-resource-profile="minimal"]').waitFor();
+            await page.getByRole('dialog', { name: 'Preferences', exact: true }).getByRole('button', { name: 'Close dialog' }).click();
+            scenario.assertions.push('Actual Project Lens → explicit context review → synthetic AI reply → editable milestone review → explicit save creates one Not started milestone with reviewed evidence labels, no tests/approvals/execution. In-memory fixture persistence only.');
+          }
+          await lensPane.locator('button.project-lens-link').filter({ hasText: 'Main.java' }).first().click();
           assert.equal(await editorElement.evaluate(element => element.isConnected), true);
           await page.getByTestId('project-view-roadmap').click();
           await lensPane.waitFor({ state: 'detached' });
@@ -433,6 +584,10 @@ try {
       assert.deepEqual(consoleErrors, [], 'Console errors.');
       scenario.status = 'passed';
     } catch (error) {
+      if (page) {
+        try { await page.screenshot({ path: join(output, label + '-failure.png'), animations: 'disabled' }); scenario.screenshots.push(label + '-failure.png'); } catch {}
+        try { scenario.failureFixture = await page.evaluate(() => window.__ionBrowserFixture.inspect()); } catch {}
+      }
       scenario.status = 'failed'; scenario.errors.push(error.stack ?? String(error)); throw error;
     } finally {
       await context.close();

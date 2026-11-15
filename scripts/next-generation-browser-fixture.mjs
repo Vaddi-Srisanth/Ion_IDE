@@ -52,6 +52,7 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   const library = (catalog = false) => ({ installed: [...(materialized ? [summary] : []), ...(imported ? [importedSummary] : [])], catalog: catalog ? [summary] : [], selected });
   const checkedPack = id => { if (id !== 'java') throw new Error('Unknown fixture pack.'); };
   const draftMap = new Map();
+  let projectRecord = null;
   const exerciseEntry = { kind: 'file', name: 'Main.java', path: '/ion-browser-fixture/practice/learning-java-flow/Main.java' };
   const flow = pack.lessons.find(item => item.id === 'flow');
   let exercise, exerciseText = flow?.starter ?? '', exerciseRevision = 'exercise-r1', deferredPractice, practicePending, cancelCount = 0;
@@ -69,6 +70,19 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   };
   // UI transport evidence only: activity is in-memory, not native persistence.
   const activity = new Map();
+  let explanationProvider = { endpoint: 'https://fixture.invalid/v1', model: 'fixture-model', hasKey: false };
+  let explanationLease = false, explanationSequence = 0, explanationReview, explanationReply;
+  let deferExplanation, pendingExplanation, lastExplanationRequest, optionalPanel = null;
+  const explanationCounts = { provider: 0, configure: 0, review: 0, send: 0, cancel: 0, citation: 0 };
+  const explanationCall = (name, value) => { explanationCounts[name]++; return record('explanations.' + name, value); };
+  const holdExplanation = async (method, value) => {
+    if (deferExplanation !== method) return value;
+    deferExplanation = undefined;
+    return new Promise((resolveHeld, rejectHeld) => {
+      pendingExplanation = { method, resolve: () => { pendingExplanation = undefined; resolveHeld(value); },
+        reject: () => { pendingExplanation = undefined; rejectHeld(new Error('Cancelled explicit UI fixture request.')); } };
+    });
+  };
   const lessonActivity = (id, topic) => {
     checkedPack(id);
     if (!pack.lessons.some(item => item.id === topic)) throw new Error('Unknown fixture lesson activity.');
@@ -165,7 +179,7 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
               [status, report.results.filter(item => item.status === status).length])) } : null });
       },
       getConcept: forbidden('learning.getConcept'), clearHistory: forbidden('learning.clearHistory'), recordTopic: forbidden('learning.recordTopic') },
-    setOptionalPanel: async mode => { if (![null, 'learn', 'practice', 'projects'].includes(mode)) throw new Error('Unexpected fixture panel.'); record('setOptionalPanel:' + mode, null); },
+    setOptionalPanel: async mode => { if (![null, 'learn', 'practice', 'projects'].includes(mode)) throw new Error('Unexpected fixture panel.'); optionalPanel = mode; record('setOptionalPanel:' + mode, null); },
     openFolder: reply('openFolder', folder), openFile: reply('openFile', entry),
     openRecent: async path => { if (path === root) return record('openRecent', folder); if (path === entry.path) return record('openRecent', entry); throw new Error('Unknown fixture recent.'); },
     listDirectory: async path => { if (path !== root) throw new Error('Unknown fixture directory.'); return record('listDirectory', [entry, manifestEntry]); },
@@ -212,11 +226,79 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
         cancelCount++; record('practice.cancelSamples', null);
         if (practicePending?.method === 'practice.runSamples') practicePending.reject();
       } },
-    projects: { open: async path => { if (path !== root) throw new Error('Unknown project fixture.'); return record('projects.open', null); },
-      onSourceSaved: subscribe('projectSourceSaved'), save: forbidden('projects.save'), approve: forbidden('projects.approve'),
+    projects: { open: async path => { if (path !== root) throw new Error('Unknown project fixture.'); return record('projects.open', projectRecord); },
+      onSourceSaved: subscribe('projectSourceSaved'), save: async (path, spec, revision) => {
+        if (path !== root || revision !== (projectRecord?.revision ?? null) || !spec || spec.version !== 1
+          || !Array.isArray(spec.milestones) || spec.milestones.length !== 1 || spec.milestones.some(item => item.status !== 'not-started')
+          || spec.tests.length !== 0) throw new Error('Unexpected reviewed fixture roadmap save.');
+        projectRecord = { spec: clone(spec), revision: 'fixture-project-r1', approved: [], automatic: [], evidence: [] };
+        return record('projects.save', projectRecord);
+      }, approve: forbidden('projects.approve'),
       run: forbidden('projects.run'), runSuite: forbidden('projects.runSuite'), cancelSuite: forbidden('projects.cancelSuite'),
       setAutomatic: forbidden('projects.setAutomatic'), provider: forbidden('projects.provider'), configure: forbidden('projects.configure'),
       propose: forbidden('projects.propose') },
+    explanations: {
+      provider: async () => {
+        if (settings.resourceProfile !== 'full' || !['learn', 'projects'].includes(optionalPanel)) throw new Error('UI fixture provider outside explicit Full learning/project pane.');
+        explanationLease = true;
+        return explanationCall('provider', explanationProvider);
+      },
+      configure: async update => {
+        if (!explanationLease || !update || update.endpoint !== 'https://fixture.invalid/v1' || update.model !== 'fixture-model'
+          || update.apiKey !== 'fixture-key-never-networked') throw new Error('Unexpected explanation fixture provider configuration.');
+        explanationProvider = { ...explanationProvider, hasKey: true };
+        explanationLease = false; explanationReview = undefined; explanationReply = undefined;
+        return explanationCall('configure', explanationProvider);
+      },
+      review: async request => {
+        if (!explanationLease || !explanationProvider.hasKey || !request || !['tutor', 'project-lens'].includes(request.purpose)
+          || typeof request.question !== 'string' || new TextEncoder().encode(request.question).byteLength > 2048 || request.project?.refs.length > 4
+          || request.code?.text.length > 65536 || request.code?.path && request.code.path !== entry.path) throw new Error('Unexpected explanation fixture request.');
+        lastExplanationRequest = clone(request);
+        const sources = [];
+        if (request.lesson) {
+          checkedPack(request.lesson.packId);
+          const lesson = pack.lessons.find(item => item.id === request.lesson.lessonId);
+          if (!lesson) throw new Error('Unknown reviewed fixture lesson.');
+          sources.push({ id: 'lesson-1', label: lesson.title, origin: 'lesson', revision: pack.version, startLine: 1, endLine: 2,
+            text: 'TEST FIXTURE lesson excerpt: ' + lesson.explanation.slice(0, 500) });
+        }
+        if (request.code) sources.push({ id: 'code-1', label: request.code.label, origin: 'editor-buffer', revision: 'buffer-' + request.code.version,
+          startLine: 1, endLine: request.code.text.split('\n').length, text: request.code.text });
+        if (request.diagnostic) sources.push({ id: 'diagnostic-1', label: 'Fixture diagnostic', origin: 'diagnostic', revision: 'diagnostic-r1', startLine: 1, endLine: 1, text: request.diagnostic });
+        if (request.project) {
+          if (request.project.root !== root) throw new Error('Unknown reviewed fixture project.');
+          sources.push({ id: 'structure-1', label: 'Fixture structure', origin: 'structure', revision: 'structure-r1', startLine: 1, endLine: 2, text: 'Main.java\npackage.json' });
+        }
+        explanationReview = { token: 'fixture-review-' + (++explanationSequence), provider: clone(explanationProvider), bodyBytes: 1234,
+          expiresAt: Date.now() + 60000, sources, exclusions: ['TEST FIXTURE: no native context or provider request was made.'],
+          question: request.question, purpose: request.purpose, action: request.action };
+        return holdExplanation('review', explanationCall('review', explanationReview));
+      },
+      send: async token => {
+        if (!explanationLease || token !== explanationReview?.token) throw new Error('Unexpected reviewed fixture token.');
+        const source = explanationReview.sources.find(item => item.id === 'code-1') ?? explanationReview.sources[0];
+        const citations = source ? [{ sourceId: source.id, startLine: 1, endLine: 1 }] : [];
+        explanationReply = { token: 'fixture-answer-' + explanationSequence, summary: 'TEST FIXTURE <script>unsafe_fixture()</script> — not a live AI response.',
+          sections: [{ kind: 'observed', title: 'Fixture observation', text: '<img src=x onerror=unsafe_fixture()>', citations },
+            { kind: 'unknown', title: 'Unverified behavior', text: 'No program was executed.', citations: [] }], questions: ['What evidence would verify this?'],
+          recommendations: [{ id: 'fixture-next', title: 'Verify the fixture behavior', description: 'A test-only unverified suggestion.',
+            acceptance: ['Verify expected output'], dependsOn: [], citations }] };
+        return holdExplanation('send', explanationCall('send', explanationReply));
+      },
+      cancel: async () => {
+        explanationLease = false; explanationReview = undefined; explanationReply = undefined;
+        pendingExplanation?.reject();
+        const result = holdExplanation('cancel', explanationCall('cancel', null));
+        deferExplanation = undefined;
+        return result;
+      },
+      openCitation: async (token, sourceId, range) => {
+        const source = explanationReview?.sources.find(item => item.id === sourceId);
+        if (!explanationReply || token !== explanationReply.token || !source || sourceId !== 'code-1' || range.startLine !== 1 || range.endLine !== 1) throw new Error('Unexpected fixture citation.');
+        return explanationCall('citation', { entry, range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 } });
+      },
+    },
     projectLens: {
       analyze: async path => {
         if (path !== root) throw new Error('Unknown Lens fixture root.');
@@ -246,7 +328,14 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
     description: 'TEST ONLY: real React/Monaco rendering with deterministic in-memory transport; no native runtime verification.',
     inspect: () => ({ calls: [...calls], failures: [...failures], subscribers: Object.fromEntries([...subscribers].map(([name, callbacks]) => [name, callbacks.size])), draftCount: draftMap.size,
       previewTokens: previewTokens.size, pendingPreview: Boolean(pendingPreview), selected, materialized,
-      pendingPractice: practicePending?.method ?? null, cancelCount }),
+      pendingPractice: practicePending?.method ?? null, cancelCount, projectRecord: clone(projectRecord),
+      explanations: { counts: { ...explanationCounts }, lease: explanationLease, pending: pendingExplanation?.method ?? null,
+        reviewed: Boolean(explanationReview), reply: Boolean(explanationReply), lastRequest: clone(lastExplanationRequest ?? null) } }),
+    deferExplanation: method => {
+      if (pendingExplanation && !(method === 'cancel' && pendingExplanation.method === 'send') || deferExplanation || !['review', 'send', 'cancel'].includes(method)) throw new Error('Unexpected held explanation method.');
+      deferExplanation = method;
+    },
+    resolveExplanation: () => { if (!pendingExplanation || pendingExplanation.method !== 'cancel') throw new Error('No held cancellation fixture.'); pendingExplanation.resolve(); },
     deferPractice: method => {
       if (practicePending || deferredPractice || !['practice.openAttempt', 'practice.runSamples', 'saveFile'].includes(method)) throw new Error('Unexpected practice defer.');
       deferredPractice = method;

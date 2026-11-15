@@ -168,3 +168,18 @@ test('startup phase numbers and fixed labels survive while arbitrary renderer re
   assert.equal(result.value.startupPhases.renderer.resources[0].responseEnd, 15)
   assert.ok(!JSON.stringify(result).includes(secret))
 })
+
+test('bounded explanation resource checkpoints survive without publishing source or provider data', () => {
+  const result = sanitizeReleaseJson({ resources: { complete: false, cycles: 5, maximumDurationMs: 300000,
+    samples: [{ label: 'cycles-5-dialog-closed', ui: { editorCount: 1, modelCount: 1 },
+      first: { rssMiB: 312, footprintMiB: 180 }, intervalMs: 1400, cpuPercent: 0.2 }],
+    postShutdownMembers: [], processCleanupVerified: true }, question: secret, content: secret,
+    label: secret })
+  assert.equal(result.reportedFailure, true)
+  assert.equal(result.value.resources.samples[0].label, 'cycles-5-dialog-closed')
+  assert.equal(result.value.resources.samples[0].ui.modelCount, 1)
+  assert.equal(result.value.resources.samples[0].first.footprintMiB, 180)
+  assert.equal(result.value.resources.cycles, 5)
+  assert.deepEqual(result.value.resources.postShutdownMembers, [])
+  assert.ok(!JSON.stringify(result).includes(secret))
+})

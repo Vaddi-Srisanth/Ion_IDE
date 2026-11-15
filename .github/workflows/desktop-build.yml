@@ -66,6 +66,9 @@ jobs:
       - name: Verify direct learning diagnostics and preserved content
         if: ${{ !cancelled() }}
         run: node scripts/test-learning-marketplace.mjs --out performance-results/direct-learning.json
+      - name: Verify consent-reviewed explanations, roadmap handoff and resource cleanup
+        if: ${{ !cancelled() }}
+        run: node scripts/test-explanations.mjs --measure-resources --out performance-results/explanations-native.json
       - name: Collect bounded sanitized evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-learning-safe"

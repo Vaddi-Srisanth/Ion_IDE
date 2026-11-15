@@ -26,7 +26,7 @@ import { useUpdates } from './useUpdates';
 import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
 import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
-import type { ExplanationAction, ExplanationOpenResult, ExplanationRequest } from '../shared/explanations';
+import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, ExplanationRequest, ExplanationReview } from '../shared/explanations';
 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
@@ -34,6 +34,7 @@ type Dialog =
   | { kind: 'learning-content' }
   | { kind: 'explanation'; request: ExplanationRequest; tabId: string | null; root: string | null; mode: WorkspaceMode; epoch?: number; learningPack: string | null }
   | { kind: 'explanation-excerpt'; label: string; text: string }
+  | { kind: 'recommendations'; reply: ExplanationReply; review: ExplanationReview; root: Entry }
   | { kind: 'source-references'; locations?: SourceReference[] }
   | { kind: 'project-tests' }
   | { kind: 'commands' }
@@ -67,6 +68,7 @@ const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
 const LanguageSupport = lazy(() => import('./LanguageSupport'));
 const LearningContentSettings = lazy(async () => ({ default: (await import('./learning/LearningContentSettings')).LearningContentSettings }));
 const ExplanationDialog = lazy(async () => ({ default: (await import('./explanations/ExplanationDialog')).ExplanationDialog }));
+const ReviewRecommendations = lazy(async () => ({ default: (await import('./projects/ReviewRecommendations')).ReviewRecommendations }));
 const SourceControlPanel = lazy(() => import('./source-control/SourceControlPanel'));
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
@@ -1431,8 +1433,9 @@ export function App() {
         {dialog?.kind === 'explanation' && <ExplanationDialog initialRequest={dialog.request} bridge={bridge.explanations}
           subscribeInvalidation={subscribeExplanationInvalidation} refreshContext={refreshExplanationContext}
           onOpenCitation={openExplanationCitation} onClose={() => setDialog(null)}
-          />}
-
+          onRecommendations={dialog.request.purpose === 'project-lens' && root ? (reply, review) => setDialog({ kind: 'recommendations', root, reply, review }) : undefined}/>}
+        {dialog?.kind === 'recommendations' && <ReviewRecommendations root={dialog.root} reply={dialog.reply} review={dialog.review}
+          bridge={bridge.projects} onDirtyChange={markProjectDraft} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notify('Reviewed milestones saved locally. No tests were approved or run.'); }}/>}
         {dialog?.kind === 'commands' && <Commands onClose={() => setDialog(null)}
           items={commandEntries.filter(([id]) => availableCommand(id)).map(([id, { label }]) => ({
             id, label, shortcut: shortcut(id), choose: () => {
