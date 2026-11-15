@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, close, editorShows, eventually, launch, stubDialogs, withScratch } from './desktop-harness.mjs'
@@ -9,6 +9,10 @@ const { values } = parseArgs({ options: {
   'require-toolchains': { type: 'boolean', default: false },
 } })
 const target = await artifact(values.target)
+assert.equal(target.args.length, 1, 'Practical learning diagnostics require an unpackaged production target.')
+const editorModule = (await readdir(resolve(dirname(target.args[0]), '../renderer/assets')))
+  .find(name => /^editor\.api-[A-Za-z0-9_-]+\.js$/.test(name))
+assert.ok(editorModule, 'The production Monaco module was not built.')
 const output = resolve(values.out)
 await mkdir(dirname(output), { recursive: true })
 const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
@@ -45,15 +49,16 @@ async function replaceSource(page, source, marker) {
   // CDP insertText is an IME-style insertion, not a user paste; its multiline
   // Undo grouping differs in stock Monaco. Exercise the existing paste command
   // as the previously verified Undo control does, without touching OS clipboard.
-  await page.evaluate(async text => {
-    const url = performance.getEntriesByType('resource').map(entry => entry.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name))
-    if (!url) throw new Error('The already-loaded Monaco module is unavailable.')
+  await page.evaluate(async ({ text, moduleName }) => {
+    // app:// resources need not expose Resource Timing entries. Resolve the
+    // known compiled module exactly as the existing native Undo fixture does.
+    const url = new URL('assets/' + moduleName, location.href).href
     const { editor } = await import(url)
     const instance = editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]'))
     if (!instance) throw new Error('The existing active source editor is unavailable.')
     instance.focus()
     instance.trigger('clipboard', 'paste', { text, pasteOnNewLine: false, multicursorText: null })
-  }, source)
+  }, { text: source, moduleName: editorModule })
   await (await editorShows(page, marker)).dispose()
 }
 
