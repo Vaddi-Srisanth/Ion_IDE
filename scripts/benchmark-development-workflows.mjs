@@ -35,6 +35,7 @@ const report = {
     memory: win ? 'summed working set and private bytes, per-process CIM and Get-Process counters' : 'summed RSS and per-process macOS-attributed footprint',
     cpu: 'delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.',
     input: 'keypress to second renderer animation callback. Physical screen presentation is outside the measurement.',
+    startupPhaseDiagnostics: process.env.ION_STARTUP_PHASE_DIAGNOSTICS === '1',
     baselineFailurePolicy: values['allow-unavailable-baseline'] ? 'Record an incomplete baseline as unavailable. Every candidate trial must pass.' : 'Fail on an incomplete baseline.' },
   builds: { candidate: await hash(candidate), ...(baseline && { baseline: await hash(baseline) }) },
   samples: { candidate: [], baseline: [] },
@@ -120,10 +121,12 @@ await withScratch('development-bench', async (scratch) => {
       settings: { resourceProfile: 'minimal', autoSave: false, showOutput: true, openFullScreen: false } }))
     const first = await launch(target, profile)
     const freshMs = first.startupMs
+    if (first.startupPhases) result.freshStartupPhases = first.startupPhases
     await close(first)
     session = await launch(target, profile)
     const { app, page } = session
-    Object.assign(result, { freshMs, warmMs: session.startupMs })
+    Object.assign(result, { freshMs, warmMs: session.startupMs,
+      ...(session.startupPhases && { startupPhases: session.startupPhases }) })
     const capture = async (key) => { result.phase = key; await sleep(300); result[key] = await idle(session); await writeFile(output, JSON.stringify(report, null, 2) + '\n') }
       await page.context().setOffline(true)
       await stubDialogs(app, { folder: project.directory, allowProjectTests: true, allowRun: true, allowGit: true })

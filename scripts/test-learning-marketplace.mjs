@@ -1,17 +1,117 @@
 import assert from 'node:assert/strict'
 // Historical filename/npm alias retained; this now exercises direct Learn and Content settings.
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
   artifact, close, createProject, editorShows, eventually, launch, openFromExplorer, stubDialogs, withScratch,
 } from './desktop-harness.mjs'
+import { installBenchmarkRun } from './run-completion.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' }, screenshots: { type: 'string' },
+  out: { type: 'string', default: 'performance-results/direct-learning.json' },
 } })
 const target = await artifact(values.target)
 const screenshots = values.screenshots ? resolve(values.screenshots) : null
+const receiptPath = resolve(values.out)
+const receipt = { schemaVersion: 1, protocol: 'direct-learning-observation-v1', complete: false,
+  platform: process.platform, arch: process.arch, phase: 'fixture', runs: [], cleanups: [] }
+let phase = 'fixture', primaryError
+const errorRecord = error => ({ name: error?.name ?? 'Error', message: String(error?.message ?? error).slice(0, 2000),
+  stack: String(error?.stack ?? '').slice(-4000) })
+function watchMain(session) {
+  const state = { stderr: '', console: [] }
+  const stderr = chunk => { state.stderr = (state.stderr + String(chunk)).slice(-8192) }
+  const consoleMessage = message => {
+    state.console.push({ type: message.type(), text: message.text().slice(0, 1000) })
+    if (state.console.length > 12) state.console.shift()
+  }
+  session.appProcess.stderr?.on('data', stderr)
+  session.app.on('console', consoleMessage)
+  return { state, dispose() { session.appProcess.stderr?.removeListener('data', stderr); session.app.removeListener('console', consoleMessage) } }
+}
+async function captureFailure(session, observation, error) {
+  receipt.phase = phase
+  receipt.failure = errorRecord(error)
+  receipt.main = observation.state
+  receipt.renderer = await session.page.evaluate(async () => {
+    const bounded = async promise => {
+      let timer
+      try { return await Promise.race([promise, new Promise(resolve => { timer = setTimeout(() => resolve({ unavailable: 'diagnostic capture deadline' }), 1000) })]) }
+      catch (reason) { return { unavailable: String(reason?.message ?? reason).slice(0, 300) } }
+      finally { clearTimeout(timer) }
+    }
+    const library = await bounded(window.ion.learningPacks.getLibrary())
+    const history = await bounded(window.ion.learning.getHistory())
+    const output = document.querySelector('[data-testid="output"]')
+    return {
+      selected: library?.selected ?? null,
+      installed: library?.installed?.slice(0, 24).map(({ id, version, diagnostics }) => ({ id, version, diagnostics })) ?? library,
+      selector: document.querySelector('[data-testid="learning-language"]')?.value ?? null,
+      mode: document.querySelector('[data-testid="workspace"]')?.getAttribute('data-mode'),
+      output: output ? { phase: output.getAttribute('data-phase'), status: output.getAttribute('data-status'),
+        text: [...output.querySelectorAll('.xterm-rows > div')].map(row => row.textContent).join('\n').slice(-8192) } : null,
+      learningText: document.querySelector('[data-testid="learning-pane"]')?.textContent?.slice(-8192),
+      diagnostics: [...document.querySelectorAll('[data-testid="learning-diagnostic"]')].slice(0, 24).map(node => ({
+        category: node.getAttribute('data-category'), raw: node.textContent?.slice(0, 2200) })),
+      history: history?.categories ? { categories: history.categories.slice(0, 24), topics: history.topics?.slice(0, 24) } : history,
+      run: window.ionLearningRunReceipt ?? null,
+    }
+  }).catch(reason => ({ unavailable: String(reason.message).slice(0, 500) }))
+  // Only the synthetic fixture's bounded run output is logged. No environment,
+  // user profile or source dump; path-bearing raw receipt is sanitized at upload.
+  const safeText = value => String(value ?? '').replace(/\b[A-Z]:[\\/][^\r\n"']+/gi, '[disposable path]')
+    .replace(/(?:\/private)?\/(?:tmp|var\/folders)\/[^\r\n"']+/g, '[disposable path]').slice(-8192)
+  console.error('Direct learning failure observation:', JSON.stringify({ phase,
+    selected: receipt.renderer.selected, selector: receipt.renderer.selector, mode: receipt.renderer.mode,
+    outputPhase: receipt.renderer.output?.phase, outputStatus: receipt.renderer.output?.status,
+    runId: receipt.renderer.run?.id, completed: receipt.renderer.run?.completed,
+    terminal: safeText(receipt.renderer.run?.terminalTail ?? receipt.renderer.output?.text),
+    diagnosticCategories: receipt.renderer.diagnostics?.map(item => item.category),
+    learningText: safeText(receipt.renderer.learningText) }))
+}
+async function closeObserved(session, observation, primary) {
+  let cleanup
+  try {
+    await close(session)
+    receipt.cleanups.push({ status: 'passed', exitCode: session.appProcess.exitCode, signal: session.appProcess.signalCode })
+  } catch (error) {
+    cleanup = error
+    receipt.cleanups.push({ status: 'failed', error: errorRecord(error), shutdown: error.desktopShutdown ?? null })
+  } finally { observation.dispose() }
+  if (cleanup) throw primary ? new AggregateError([primary, cleanup], 'Direct learning workflow and cleanup both failed.') : cleanup
+}
+async function runObserved(page, expectedStatus) {
+  await page.evaluate(() => {
+    window.ionLearningRunReceiptCleanup?.()
+    const record = { id: null, completed: false, events: [], terminalTail: '', compilerTail: '', ignoredRunIds: [] }
+    const unsubscribe = window.ion.runConsole.onUpdate(({ id, update }) => {
+      if (!record.id && (update.kind === 'phase' && update.phase === 'preparing' || update.kind === 'complete')) record.id = id
+      if (record.id !== id) { if (record.ignoredRunIds.length < 8 && !record.ignoredRunIds.includes(id)) record.ignoredRunIds.push(id); return }
+      if (record.events.length < 40) record.events.push({ id, kind: update.kind, phase: update.phase, stream: update.stream, ms: performance.now() })
+      if (update.kind === 'complete') record.completed = true
+      if (update.kind === 'data' && update.stream === 'terminal') record.terminalTail = (record.terminalTail + update.text).slice(-8192)
+      if (update.kind === 'data' && update.stream === 'compiler') record.compilerTail = (record.compilerTail + update.text).slice(-4096)
+    })
+    window.ionLearningRunReceipt = record
+    window.ionLearningRunReceiptCleanup = () => { unsubscribe(); delete window.ionLearningRunReceiptCleanup }
+  })
+  // Reuse the tested correlation observer instead of accepting an old rendered
+  // runtime-error. Existing per-stage eight-second watchdogs are unchanged.
+  await page.evaluate(installBenchmarkRun, { preparing: 8000, compiling: 8000, running: 8000 })
+  try {
+    await page.getByTestId('run').click()
+    const completion = await page.evaluate(() => window.ionBenchmarkRunCompletion)
+    const observed = await page.evaluate(() => window.ionLearningRunReceipt)
+    receipt.runs.push({ phase, completion, ...observed })
+    assert.ok(observed.id && observed.completed, 'The current run did not deliver its correlated completion.')
+    assert.equal(completion.failure, undefined, 'The correlated run observer failed: ' + completion.failure)
+    assert.equal(completion.status, expectedStatus)
+  } finally {
+    await page.evaluate(() => { window.ionBenchmarkRunCleanup?.(); window.ionLearningRunReceiptCleanup?.() }).catch(() => {})
+  }
+}
 if (screenshots) await mkdir(screenshots, { recursive: true })
 const capture = (page, name) => screenshots ? page.screenshot({ path: join(screenshots, name + '.png') }) : Promise.resolve()
 const contentRow = (content, id) => content.locator(`[data-content-id="${id}"]`)
@@ -37,7 +137,7 @@ async function closeContent(content) {
   await content.waitFor({ state: 'detached' })
 }
 
-await withScratch('learning-marketplace', async (scratch) => {
+try { await withScratch('learning-marketplace', async (scratch) => {
   const profile = join(scratch, 'profile')
   const project = await createProject(join(scratch, 'project'), { fileCount: 0 })
   const custom = join(scratch, 'tiny-study.json')
@@ -57,11 +157,15 @@ await withScratch('learning-marketplace', async (scratch) => {
     writeFile(pythonError, 'print(undefined_study_value)\n'),
   ])
   let savedProblem, savedHistory, savedSource, savedSourcePath
+  phase = 'launch-first'
   const first = await launch(target, profile)
+  const firstObservation = watchMain(first)
+  let firstError
   try {
     const { app, page } = first
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory, allowRun: true })
+    phase = 'direct-selection-storage-export'
     await page.getByTestId('workspace-learn').click()
     const learn = page.getByTestId('learning-pane')
     await learn.getByTestId('learning-language').waitFor()
@@ -99,21 +203,23 @@ await withScratch('learning-marketplace', async (scratch) => {
     await capture(page, 'learn-python')
     console.log('PASS Topics first, no default language, direct Python/Java/C selection, chosen-only storage, real lessons and export')
 
+    phase = 'c-diagnostic-selected-python'
     await page.locator('.titlebar').getByTestId('open-folder').click()
     await openFromExplorer(page, project.broken, 'return 0')
-    await page.getByTestId('run').click()
-    await page.locator('[data-testid="output"][data-status="compile-error"]').waitFor()
+    await runObserved(page, 'compile-error')
     assert.equal(await learn.getByTestId('learning-diagnostic').count(), 0)
     assert.deepEqual((await page.evaluate(() => window.ion.learning.getHistory())).categories, [])
 
+    phase = 'python-runtime-delivery'
     await openFromExplorer(page, pythonError, 'undefined_study_value')
-    await page.getByTestId('run').click()
-    await page.locator('[data-testid="output"][data-status="runtime-error"]').waitFor()
+    await runObserved(page, 'runtime-error')
+    phase = 'python-diagnostic-classification'
     await learn.getByTestId('learning-result').click()
     await learn.locator('[data-category="python-undefined-name"]').waitFor()
     await learn.getByTestId('learning-show-explanation').click()
     await lesson.getByText('Values, names, and output', { exact: true }).waitFor()
     await lesson.getByRole('heading', { name: 'Expected behavior' }).waitFor()
+    phase = 'exercise-practice-evidence'
     await learn.getByRole('button', { name: 'Back to topics' }).click()
     await learn.locator('[data-testid="learning-topic"][data-topic="flow"]').click()
     await learn.getByTestId('learning-start-exercise').click()
@@ -151,6 +257,7 @@ await withScratch('learning-marketplace', async (scratch) => {
     savedHistory = await page.evaluate(() => window.ion.learning.getHistory())
     assert.ok(savedHistory.categories.some(({ category }) => category === 'python-undefined-name'))
 
+    phase = 'draft-navigation-protection'
     // The new experience navigation must retain the existing unsaved-draft guard.
     await practice.getByTestId('practice-edit').click()
     await page.getByTestId('practice-notes').fill('Unsaved draft blocks switching.')
@@ -168,6 +275,7 @@ await withScratch('learning-marketplace', async (scratch) => {
     await page.getByTestId('workspace-learn').click()
     await current(page, 'python')
 
+    phase = 'reviewed-import-and-update'
     content = await openContent(page)
     await stubDialogs(app, { file: bad })
     await content.getByTestId('content-import').click()
@@ -206,6 +314,7 @@ await withScratch('learning-marketplace', async (scratch) => {
     await contentRow(content, authored.id).getByTestId('content-export').click()
     await content.getByRole('status').filter({ hasText: 'Tiny Study exported.' }).waitFor()
     assert.deepEqual(JSON.parse(await readFile(customExport, 'utf8')), updated)
+    phase = 'content-removal-preserves-evidence'
     for (const id of [authored.id, 'python']) {
       const row = contentRow(content, id)
       await row.getByTestId('content-remove').click()
@@ -236,11 +345,18 @@ await withScratch('learning-marketplace', async (scratch) => {
     assert.deepEqual(first.requests, [])
     assert.deepEqual(first.errors, [])
     console.log('PASS offline diagnostic guidance, Practice sample evidence and identities, navigation draft guard, reviewed imports/updates, safe text and removal')
+  } catch (error) {
+    firstError = error
+    await captureFailure(first, firstObservation, error).catch(reason => { receipt.captureError = errorRecord(reason) })
+    throw error
   } finally {
-    await close(first)
+    await closeObserved(first, firstObservation, firstError)
   }
 
+  phase = 'offline-relaunch'
   const second = await launch(target, profile)
+  const secondObservation = watchMain(second)
+  let secondError
   try {
     const { page } = second
     await page.context().setOffline(true)
@@ -255,7 +371,24 @@ await withScratch('learning-marketplace', async (scratch) => {
     assert.deepEqual(second.requests, [])
     assert.deepEqual(second.errors, [])
     console.log('PASS selected language, lessons, notes, attempts, sample evidence and diagnostic history survive an offline relaunch')
+  } catch (error) {
+    secondError = error
+    await captureFailure(second, secondObservation, error).catch(reason => { receipt.captureError = errorRecord(reason) })
+    throw error
   } finally {
-    await close(second)
+    await closeObserved(second, secondObservation, secondError)
   }
-})
+}); receipt.complete = true }
+catch (error) { primaryError = error; receipt.failure ??= errorRecord(error) }
+finally {
+  receipt.phase = phase
+  try {
+    await mkdir(dirname(receiptPath), { recursive: true })
+    const text = JSON.stringify(receipt, null, 2) + '\n'
+    assert.ok(Buffer.byteLength(text) < 128 * 1024, 'Direct learning receipt exceeded its bound.')
+    await writeFile(receiptPath, text)
+  } catch (error) {
+    primaryError = primaryError ? new AggregateError([primaryError, error], 'Direct learning failed and its receipt could not be written.') : error
+  }
+}
+if (primaryError) throw primaryError

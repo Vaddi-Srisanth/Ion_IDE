@@ -64,3 +64,14 @@ The offline Lens checkpoint does not implement AI Tutor, project AI explanations
 
 
 D first native run43693605190 reaches and passes read boundaries, inert scripts, source navigation, stale references, cancellation, view-unmount cleanup and root invalidation on both platforms; it then fails its own wait for the old Lens component. Actual root changes replace the Projects lease and remount the default Roadmap. The fixture now asserts that reset explicitly and chooses Lens in the new root before testing its new snapshot. No production behavior/deadline change. Native completion remains pending; failed receipts are preserved.
+
+
+## Native investigation instrumentation (test infrastructure only)
+
+The retained Windows updater failure closes its inspector WebSocket (CR-terminated marker, one transport close, readyState3); missing newline was ruled out. Actual Electron PID1404 differs from launcherPID1564. A failed2s CIM probe does not establish either process's liveness. The next receipt adds immediate known-PID OS probes before/after CIM and bounded wrapper-exit events. No production shutdown patch is justified by current evidence.
+
+The direct-learning Python diagnostic locator is valid. A runtime-error status was observed, but its raw traceback and selected learning state were not captured, so classification failure remains unexplained. The fixture now correlates each run's IPC completion before examining its result, retains bounded diagnostic evidence, and separates primary and cleanup failures. Existing correlated-run unit tests explicitly reject old runtime-error DOM state and other run IDs. Phase-specific watchdogs distinguish preparation/compilation/execution; no production deadline or Python-classification assertion changes.
+
+35 focused test-infrastructure tests pass, zero skips/failures: startup observer6, sanitized collector11, update-shutdown support9, run completion9. These are not native pass claims. Optional startup observations preserve the original aggregate intervals while splitting controller launch/window/locator and click/tab/text observations. Renderer navigation/resources/clicks use a separate clock; no subtraction across clock origins. Inspector/transport overhead remains inside controller timings. There are no pre-main production marks, physical-display measurements or root-cause conclusions yet.
+
+The Windows baseline and candidate now use the same current test harness with different immutable production builds; protocol fields identify that change. Instrumented runs must be distinguished from prior uninstrumented measurements. Git LFS failure no longer prevents the independent shutdown step from running, and only its exact nested JSON receipt is eligible for sanitized upload. No recursive profile/artifact collection.

@@ -98,3 +98,8 @@ The earlier Mac one-file footprint gap does not persist in this run. Ten-tab ren
 Node endpointRSS29.58→25.32MiB; after forcedGC29.61→25.34MiB; retainedJSheap5.30→5.30MiB. These do not measure Ion RAM, natural memory recovery or leaks. Peak includes process/module startup and stays in the raw numeric report. Profiling predates the final own-property guard; final correctness tests rerun on that guard, while final-app profiling remains pending.
 
 Review also moved Lens behind the existing main-process external-module boundary: startup bundle230,337→215,055bytes in local intermediate builds; optional session19,034bytes. This is a package/parse-boundary measurement, not RAM. A snapshot holds≤128KiB per owner; canceled I/O now retains ownership until cleanup, rejecting new requests while stopping rather than accumulating overlapping calls. Native final-D costs remain unverified.
+
+
+### Pending startup-attribution measurement
+
+The four-pair Mac slowdown is observed, not diagnosed. Warm startup here follows a Welcome-only session, not restoration after coding; learning/recovery-cache restoration cannot be claimed as its cause. A bounded opt-in **test-only** observer now partitions controller launch/firstWindow/Welcome observations and per-file click/tab/text waits, alongside independent renderer navigation/resource timings. Both lanes use the same observer/harness. Its post-startup inspection and retained numeric records introduce measurement overhead, so these instrumented results will be labeled separately. No production optimization or claim of recovered latency has been made.

@@ -28,7 +28,8 @@ const report = {
   host: { platform: process.platform, release: release(), arch: process.arch, memoryBytes: totalmem(), cpu: cpus()[0]?.model },
   source: { commit: process.env.GITHUB_SHA ?? null, runId: process.env.GITHUB_RUN_ID ?? null,
     runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null },
-  protocol: { trials, idleMs, soakMs }, label: values.label, samples,
+  protocol: { trials, idleMs, soakMs, sharedFeatureHarness: true,
+    startupPhaseDiagnostics: process.env.ION_STARTUP_PHASE_DIAGNOSTICS === '1' }, label: values.label, samples,
 }
 async function saveReport() {
   await mkdir(dirname(output), { recursive: true })
@@ -97,10 +98,26 @@ await withScratch('windows-bench', async (scratch) => {
     samples.push(sample)
     await saveReport()
     const profile = join(scratch, 'profile-' + i)
+    const recordShutdown = async diagnostic => {
+      sample.shutdownFailure = diagnostic
+      sample.complete = false
+      await saveReport()
+    }
     const first = await launch(target, profile)
+    if (first.startupPhases) sample.freshStartupPhases = first.startupPhases
+    first.onShutdownFailure = recordShutdown
     const fresh = first.startupMs
-    await close(first)
+    try { await close(first) }
+    catch (error) {
+      sample.failure = { phase: 'fresh-launch', name: error?.name, message: String(error?.message ?? error).slice(0, 2000) }
+      await saveReport()
+      throw error
+    }
+    sample.phase = 'warm-launch'
+    await saveReport()
     const session = await launch(target, profile)
+    session.onShutdownFailure = recordShutdown
+    if (session.startupPhases) sample.startupPhases = session.startupPhases
     const observer = { console: [], stderr: '' }
     const observeConsole = message => {
       observer.console.push({ type: message.type(), text: message.text().slice(0, 500) })

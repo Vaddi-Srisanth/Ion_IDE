@@ -250,14 +250,15 @@ jobs:
           npm run test:source-control
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:project-suites
-      - name: Verify configuration isolation and shutdown cleanup
+      - name: Verify Git configuration isolation
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
-        run: |
-          npm run test:git-security
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/test-git-lfs.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:shutdown
+        run: npm run test:git-security
+      - name: Verify genuine Git LFS
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-git-lfs.mjs
+      - name: Verify shutdown cleanup independently of LFS availability
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:shutdown
       - name: Verify rendered syntax and capability labels
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/test-language-capabilities.mjs
@@ -441,6 +442,9 @@ jobs:
 
   windows-performance:
     name: Windows x64 process-tree benchmark
+    env:
+      ION_INSPECTOR_SHUTDOWN_DIAGNOSTICS: '1'
+      ION_STARTUP_PHASE_DIAGNOSTICS: '1'
     runs-on: windows-2025
     # Two complete three-trial controls plus interleaved development samples.
     # This bounds CI volume; application/compiler deadlines are unchanged.
@@ -486,7 +490,7 @@ jobs:
           try {
             $env:GITHUB_SHA = (git -C $baseline rev-parse HEAD).Trim()
             if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne 'a108a01bad53a6008761049c28a86e90bdd0374e') { throw 'Baseline identity mismatch.' }
-            node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
+            node scripts/benchmark-windows.mjs --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { $env:GITHUB_SHA = $candidateSha }
           node --test scripts/fixture-process-runner.test.mjs
@@ -521,6 +525,8 @@ jobs:
       - run: npm audit --audit-level=high
 
   macos-performance:
+    env:
+      ION_STARTUP_PHASE_DIAGNOSTICS: '1'
     name: macOS matched production performance
     runs-on: macos-15
     timeout-minutes: 25
