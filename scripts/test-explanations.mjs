@@ -282,7 +282,12 @@ require(${JSON.stringify(target.args[0])});\n`)
       assert.deepEqual((await stats()).modules, [])
       assert.equal((await stats()).calls, 0)
       assert.equal((await stats()).encrypted, 0)
-      await openFolder(page, { directory: root, program: source })
+      phase = 'open-disposable-workspace'
+      // openFolder waits for an immediate explorer child. The source lives in
+      // a collapsed directory, so wait for main.c then explicitly expand src.
+      await openFolder(page, { directory: root, program: join(root, 'main.c') })
+      await atPath(page, 'explorer-entry', join(root, 'src')).click()
+      phase = 'open-disposable-source'
       await openFromExplorer(page, source, 'saved fixture')
       await page.getByTestId('editor').evaluate(node => { node.dataset.explanationInstance = 'preserve-this-editor' })
       assert.deepEqual((await stats()).modules, [])
@@ -628,9 +633,13 @@ require(${JSON.stringify(target.args[0])});\n`)
     }
     report.complete = true
   })
-} catch {
+} catch (error) {
   // Never dump provider bodies, credentials, source text or disposable paths.
-  report.complete = false; report.failure = { phase, message: 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
+  const location = String(error?.stack ?? '').match(/test-explanations\.mjs:(\d+):(\d+)/)
+  report.complete = false; report.failure = { phase,
+    fixtureLine: location ? Number(location[1]) : null,
+    fixtureColumn: location ? Number(location[2]) : null,
+    message: 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
   await persist()
   throw new Error('Native explanation verification failed during ' + phase + '. Sanitized receipt: ' + output)
 }
