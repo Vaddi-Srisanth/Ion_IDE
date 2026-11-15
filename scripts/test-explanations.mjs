@@ -20,7 +20,7 @@ assert.equal(target.args.length, 1, 'Use an unpackaged production build with a d
 const output = resolve(values.out)
 await mkdir(dirname(output), { recursive: true })
 const modules = await readdir(join(target.path, 'renderer/assets'))
-const editorModule = modules.find(name => /^MonacoSurface-[\w-]+\.js$/.test(name))
+const editorModule = modules.find(name => /^editor\.api-[\w-]+\.js$/.test(name))
 assert.ok(editorModule, 'The compiled Monaco module must exist.')
 const hash = value => createHash('sha256').update(value).digest('hex')
 const report = { schemaVersion: 1, protocol: 'explanations-native-v1', complete: false, platform: process.platform,
