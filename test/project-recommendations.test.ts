@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import type { ExplanationReply, ReviewedSource } from '../src/shared/explanations'
 import type { ProjectRecord, ProjectSpec } from '../src/shared/projects'
 import { mergeProjectRecommendations } from '../src/shared/project-recommendations'
 import { newProject, validateProject } from '../src/main/projects/spec'
+import { ProjectRepository } from '../src/main/projects/repository'
+import { WorkspaceFiles } from '../src/main/files'
+import { ProjectLensSession } from '../src/main/project-lens/session'
+import { prepareContext } from '../src/main/explanations/context'
 
 type Recommendation = ExplanationReply['recommendations'][number]
 const recommendation = (more: Partial<Recommendation> = {}): Recommendation => ({ id: 'inspect', title: 'Inspect behavior',
@@ -98,4 +105,49 @@ test('a new roadmap may begin with an empty draft only when reviewed selections 
   assert.deepEqual(validateProject(spec), spec)
   assert.deepEqual(draft, before)
   assert.throws(() => mergeProjectRecommendations(draft, [recommendation()], [], sources), /at least one recommendation/)
+})
+
+test('exact native E/F fixture merges real reviewed source IDs and persists its original tests/manual status through ProjectRepository', async t => {
+  const scratch = await realpath(await mkdtemp(join(tmpdir(), 'ion-native-recommendation-contract-')))
+  t.after(() => rm(scratch, { recursive: true, force: true }))
+  const root = join(scratch, 'Project ü with spaces'), profile = join(scratch, 'profile')
+  await mkdir(join(root, 'src'), { recursive: true })
+  await writeFile(join(root, 'src/evidence.py'), 'def fixture_value():\n    return 3\n')
+  await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n')
+  await writeFile(join(root, 'package.json'), '{"name":"disposable-explanation-fixture","dependencies":{"react":"19"}}\n')
+  const initialProject = validateProject({ version: 1, title: 'Existing verified local plan', description: 'Keep all existing local work.',
+    goal: 'Preserve old milestones and tests while reviewing new drafts.', technologies: [], files: [], environment: [],
+    milestones: [{ id: 'old-work', title: 'Existing manual progress', description: 'Original milestone.',
+      acceptance: ['Original acceptance requirement.'], dependsOn: [], status: 'manually-completed' }],
+    tests: [{ id: 'old-test', milestoneId: 'old-work', title: 'Existing test definition', source: 'main.c',
+      stdin: '', expectedOutput: '', match: 'exact', exitCode: 0 }] })
+  const repository = new ProjectRepository(profile)
+  const initialRecord = await repository.save(root, initialProject, null)
+  const scope = new WorkspaceFiles()
+  await scope.grant(root, 'folder')
+  const lens = new ProjectLensSession(() => scope)
+  t.after(() => lens.close())
+  const snapshot = await lens.analyze(root)
+  const reference = snapshot.files.find(item => item.reference.path === 'src/evidence.py')!.reference
+  const context = await prepareContext({ purpose: 'project-lens', action: 'understand',
+    question: 'Explain only the evidence I explicitly selected.', project: { root, refs: [reference] } }, new AbortController().signal,
+  { scope: () => scope, isCurrent: () => true, lens: async requested => lens.lease(requested),
+    lesson: async () => { throw new Error('No lesson selected.') } })
+  const source = context.input.sources.find(item => item.origin === 'saved-file')!
+  assert.match(source.id, /^source-[a-f0-9-]{36}$/)
+  const actualRecommendation: Recommendation = { id: 'inspect', title: 'User-reviewed improvement',
+    description: 'Explain two cases after independent review.', acceptance: ['Explain two representative inputs.'], dependsOn: [],
+    citations: [{ sourceId: source.id, startLine: source.startLine, endLine: source.startLine }] }
+  const current = (await repository.read(root))!
+  const { spec } = mergeProjectRecommendations(current.spec, [actualRecommendation], ['inspect'], context.input.sources)
+  const merged = await repository.save(root, spec, current.revision)
+  assert.deepEqual(merged.spec.milestones[0], initialRecord.spec.milestones[0])
+  assert.deepEqual(merged.spec.tests, initialRecord.spec.tests)
+  assert.deepEqual(merged.approved, initialRecord.approved)
+  assert.deepEqual(merged.evidence, initialRecord.evidence)
+  assert.equal(merged.spec.milestones[1].title, 'User-reviewed improvement')
+  assert.equal(merged.spec.milestones[1].status, 'not-started')
+  assert.match(merged.spec.milestones[1].description, /Reviewed context \(not verification\)/)
+  assert.deepEqual(await new ProjectRepository(profile).read(root), merged)
+  await assert.rejects(repository.save(root, spec, initialRecord.revision), /saved project changed/)
 })

@@ -69,14 +69,14 @@ export function ReviewRecommendations({ root, reply, review, bridge, onClose, on
       <p>These are unverified AI suggestions based on the reviewed snapshot. Edit and select what you want to add. Changes since that snapshot may invalidate a suggestion.</p>
       <p className="project-muted">New milestones start Not started. Existing milestones, manual progress, approved tests and evidence are preserved. Nothing runs or becomes verified through this action.</p>
       {record === null && <><label>Project title<input value={title} maxLength={120} onChange={event => { setEdited(true); setTitle(event.target.value) }} disabled={pending}/></label>
-        <label>Objective<textarea value={goal} maxLength={1000} onChange={event => { setEdited(true); setGoal(event.target.value) }} disabled={pending}/></label></>}
+        <label>Objective<textarea aria-label="Objective" value={goal} maxLength={1000} onChange={event => { setEdited(true); setGoal(event.target.value) }} disabled={pending}/></label></>}
       {record && <p>Adding to <strong>{record.spec.title}</strong> · {record.spec.milestones.length} existing milestones.</p>}
       {draft.map(item => <section className="project-card" key={item.id} data-recommendation-id={item.id}>
         <label><input type="checkbox" checked={selected.includes(item.id)} disabled={pending}
           onChange={event => setSelected(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id))}/> Add this milestone</label>
         <label>Title<input value={item.title} maxLength={120} disabled={pending} onChange={event => update(item.id, { title: event.target.value })}/></label>
-        <label>Description<textarea value={item.description} maxLength={800} disabled={pending} onChange={event => update(item.id, { description: event.target.value })}/></label>
-        <label>Acceptance criteria (one per line)<textarea value={item.acceptance.join('\n')} disabled={pending} maxLength={3200}
+        <label>Description<textarea aria-label="Description" value={item.description} maxLength={800} disabled={pending} onChange={event => update(item.id, { description: event.target.value })}/></label>
+        <label>Acceptance criteria (one per line)<textarea aria-label="Acceptance criteria (one per line)" value={item.acceptance.join('\n')} disabled={pending} maxLength={3200}
           onChange={event => update(item.id, { acceptance: event.target.value.split('\n') })}/></label>
         {draft.length > 1 && <label>Prerequisites (select explicitly; their milestones must also be selected)
           <select multiple size={Math.min(3, draft.length - 1)} value={item.dependsOn} disabled={pending}
