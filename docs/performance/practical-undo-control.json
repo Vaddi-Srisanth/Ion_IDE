@@ -1,0 +1,47 @@
+{
+  "scope": "Headless Chrome production renderer with synthetic transport; stock Monaco input control, not native Electron proof",
+  "browserVersion": "157.0.8103.51",
+  "complete": true,
+  "samples": [
+    {
+      "viewport": "960x700-dark-scale2",
+      "afterInsertFocus": true,
+      "canUndo": true,
+      "imeSingleUndoRestoredOriginal": false,
+      "stockAndIonAfterImeUndoMatch": true,
+      "actualPasteSingleUndoAndRedo": "passed",
+      "temporaryControlDisposed": true,
+      "ordinaryEditorCount": 1
+    },
+    {
+      "viewport": "960x700-light-scale2",
+      "afterInsertFocus": true,
+      "canUndo": true,
+      "imeSingleUndoRestoredOriginal": false,
+      "stockAndIonAfterImeUndoMatch": true,
+      "actualPasteSingleUndoAndRedo": "passed",
+      "temporaryControlDisposed": true,
+      "ordinaryEditorCount": 1
+    },
+    {
+      "viewport": "1440x900-dark-scale2",
+      "afterInsertFocus": true,
+      "canUndo": true,
+      "imeSingleUndoRestoredOriginal": false,
+      "stockAndIonAfterImeUndoMatch": true,
+      "actualPasteSingleUndoAndRedo": "passed",
+      "temporaryControlDisposed": true,
+      "ordinaryEditorCount": 1
+    },
+    {
+      "viewport": "1440x900-light-scale2",
+      "afterInsertFocus": true,
+      "canUndo": true,
+      "imeSingleUndoRestoredOriginal": false,
+      "stockAndIonAfterImeUndoMatch": true,
+      "actualPasteSingleUndoAndRedo": "passed",
+      "temporaryControlDisposed": true,
+      "ordinaryEditorCount": 1
+    }
+  ]
+}

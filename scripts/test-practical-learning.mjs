@@ -42,7 +42,18 @@ async function activePath(page) {
 async function replaceSource(page, source, marker) {
   await page.getByTestId('editor').locator('.monaco-editor .view-line').first().click({ position: { x: 12, y: 7 } })
   await page.keyboard.press(modifier + '+a')
-  await page.keyboard.insertText(source)
+  // CDP insertText is an IME-style insertion, not a user paste; its multiline
+  // Undo grouping differs in stock Monaco. Exercise the existing paste command
+  // as the previously verified Undo control does, without touching OS clipboard.
+  await page.evaluate(async text => {
+    const url = performance.getEntriesByType('resource').map(entry => entry.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name))
+    if (!url) throw new Error('The already-loaded Monaco module is unavailable.')
+    const { editor } = await import(url)
+    const instance = editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]'))
+    if (!instance) throw new Error('The existing active source editor is unavailable.')
+    instance.focus()
+    instance.trigger('clipboard', 'paste', { text, pasteOnNewLine: false, multicursorText: null })
+  }, source)
   await (await editorShows(page, marker)).dispose()
 }
 
