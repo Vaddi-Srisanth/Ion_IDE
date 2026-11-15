@@ -185,6 +185,7 @@ export interface IonBridge {
   learningPacks: LearningPacksBridge
   practice: PracticeBridge
   projects: ProjectsBridge
+  projectLens: import('./project-lens').ProjectLensBridge
   sourceControl: {
     status(root: string): ReturnType<SourceControlBridge['status']>
     trust(root: string): Promise<boolean>

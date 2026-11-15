@@ -33,3 +33,31 @@ Native caller scripts were updated for the deliberate removal of Marketplace, re
 ### First C native run — retained failure
 
 Run43686655436 Mac completed the entire existing regression command, then the new practical fixture failed during `open-exercise`. Its finally-close hit the expected unsaved-changes dialog and masked the primary error. This is a fixture failure, not evidence of a production shutdown defect. The fixture typed after its button settled without waiting for the asynchronously opened Monaco model. Added explicit starter-model readiness, granular persisted phases and primary/cleanup error preservation; a disposable recovery-confirmation path handles normal unsaved test content. Native correction remains unverified until a new run. No execution/shutdown deadline was raised.
+
+
+## D offline foundation, local only
+
+21real-FS analyzer/session tests pass, including a root-replacement test that failed before adding rootdev/ino validation. Earlier whole-tree local suite318total/292pass/26skip/0fail (before three final D guards; final snapshot suite reruns separately); skips retain their platform/tool reasons in the test log. Typecheck/build pass. Four actual compiled-renderer cases (`ui-D-first`,960×700/1440×900,light/dark,scale2) pass; no automatic Analyze, same Monaco, explicit evidence/source links and cancel-on-leave. These use transparent test data, not native analysis results.
+
+New `scripts/test-project-lens.mjs` prepares a real native UI/IPC/filesystem-read observer, verifies no source/secret/document reads or manifest execution, authorization/staleness, held-I/O cancellation/root changes and shutdown. It has only been syntax checked locally: no native D pass is claimed. No local Electron launch, installed application change, release or update-feed mutation.
+
+
+### Practical input fixture root cause
+
+Run43687651636 now preserves the primary failure on both Mac and Windows: `undo-solution`, before compilation. Cleanup successfully honors unsaved recovery; no shutdown timeout now masks it. The wait-for-model correction alone did not fix this. A separate actual compiled-renderer control reproduces multiline CDP `insertText` single-Undo behavior identically in Ion and a temporary stock Monaco widget in all four viewport/theme cases. The temporary stock widget/model/host is disposed before normal single-editor checks. This is not evidence of production Undo corruption. [Control measurements](docs/performance/practical-undo-control.json).
+
+The native fixture now uses the already-existing Monaco paste command, exactly like the established Undo control, for a coherent replacement. Browser actual paste→Undo→Redo restores exact source. Native correction is still pending; failed samples are retained, and no production Undo implementation or deadline was changed.
+
+
+D final guards add prototype-shaped manifest/limit rejection and a deterministic cancel/reanalyze ownership test: ten overlapping pending inspections reproduced before, maximum one after. Payload fitting regression also fails before correction. Native test now observes real FileHandle close counts and forwarded IPC analysis settlement, including cancellation, view unmount and root change; no fake snapshots or execution results.
+
+C native run43690648826 progressed through exact paste/Undo/Redo and real C sample success, then failed the fixture's save step: CDP key dispatch did not exercise Electron's native Save accelerator. The established keyboard suite uses webContents.sendInputEvent. The practical fixture now clicks the actual Save action and waits for actual disk content; native verification is running. No production save, Undo, security or deadline change.
+
+
+## D exact staged-candidate verification — 15 November 2026
+
+The independently archived staged tree `ec8eff8e06ef31ea665f8f7a0f6dc3288556ff17` passes typecheck, production build and the full local Node suite: **321 total, 295 pass, 26 explicitly skipped, zero failures**. Four actual production-renderer scenarios pass at 960×700/1440×900, light/dark and 2× browser scale. Each includes explicit Lens analysis, source navigation using the existing Monaco widget, draft protection and twenty Content Settings open/close cycles. This is browser renderer evidence with a test bridge, not native filesystem execution or total application RAM. Native Lens verification is prepared in the focused hosted jobs; it has not run at this checkpoint.
+
+Native run43691393265 at `649d2f8` now passes the dedicated practical-learning jobs on **both macOS and Windows**, exercising real C/Python/Java tools, exact paste→Undo→Redo, actual Save, stale evidence and preserved attempts. The whole workflow is **not green**: full Windows checks retain shutdown/Git-LFS-preflight and old direct-learning fixture failures, and the Windows matched benchmark fails during baseline shutdown. These are being investigated; no failed sample is omitted or counted as passing. The earlier balanced four-pair benchmark remains separately identified by its exact source revision.
+
+The offline Lens checkpoint does not implement AI Tutor, project AI explanations or recommendation-to-roadmap integration. The unwired provider/session drafts are excluded from its staged tree and commit.

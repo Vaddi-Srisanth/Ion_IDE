@@ -1,0 +1,33 @@
+.project-lens { min-width: 0; padding: 12px; color: var(--text); background: var(--panel); border-top: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
+.project-lens-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.project-lens-heading h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ink); font-size: 12px; }
+.project-lens-heading p, .project-lens-note { margin: 4px 0 8px; color: var(--muted); }
+.project-lens-results { display: grid; gap: 12px; margin-top: 8px; }
+.project-lens-summary { display: grid; gap: 3px; margin: 0; }
+.project-lens-summary strong, .project-lens h4, .project-lens h5 { color: var(--ink); }
+.project-lens-summary span { color: var(--muted); font-size: 11px; }
+.project-lens h4 { margin: 0 0 6px; font-size: 12px; }
+.project-lens h5 { margin: 8px 0 5px; font-size: 11px; }
+.project-lens-error { color: var(--danger); overflow-wrap: anywhere; }
+.project-lens-warning { color: var(--amber); margin: 0; }
+.project-lens ul { margin: 4px 0; padding-left: 17px; }
+.project-lens ul.project-lens-languages, .project-lens ul.project-lens-evidence, .project-lens ul.project-lens-paths, .project-lens ul.project-lens-dependencies { list-style: none; padding: 0; }
+.project-lens-languages li { display: flex; justify-content: space-between; gap: 10px; }
+.project-lens-evidence li { border-bottom: 1px solid var(--subtle-border); padding: 6px 0; }
+.project-lens-evidence li > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; }
+.project-lens-evidence p { margin: 3px 0; color: var(--muted); }
+.project-lens-confidence { color: var(--muted); font: 10px var(--mono); }
+.project-lens-link { display: inline-flex; max-width: 100%; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: transparent; color: var(--accent); text-align: left; font-size: 11px; }
+.project-lens-link span { overflow-wrap: anywhere; min-width: 0; }
+.project-lens-link svg { flex: none; }
+.project-lens-link:hover:not(:disabled) { color: var(--ink); }
+.project-lens details { min-width: 0; padding: 6px 0; border-top: 1px solid var(--subtle-border); }
+.project-lens summary { cursor: pointer; color: var(--text); overflow-wrap: anywhere; }
+.project-lens-paths li small { display: block; color: var(--muted); font-size: 10px; }
+.project-lens-dependencies li { padding: 3px 0; overflow-wrap: anywhere; }
+.project-lens-dependencies span { color: var(--muted); font-size: 11px; }
+.project-lens-scripts { margin: 0; }
+.project-lens-scripts > div { margin: 6px 0; }
+.project-lens-scripts dt { color: var(--ink); font-size: 11px; }
+.project-lens-scripts dd { margin: 3px 0 0; padding: 5px 7px; background: var(--surface); color: var(--text); overflow-wrap: anywhere; }
+.project-lens code { font: 11px var(--mono); white-space: pre-wrap; }

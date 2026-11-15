@@ -12,13 +12,13 @@ The current Learn entry requires explicit pack installation. General course comp
 
 | Milestone | Working slice | Gate / status |
 | --- | --- | --- |
-| A | Welcome, compact workbench navigation, theme-compatible design tokens, representative Learn layout | Implemented locally; four renderer cases plus real Monaco Undo/navigation and dirty-form protection verified. Native platforms pending |
+| A | Welcome, compact workbench navigation, theme-compatible design tokens, representative Learn layout | Implemented locally; four renderer cases plus real Monaco Undo/navigation and dirty-form protection verified. A/B native desktop/installer tests passed; one Windows benchmark fixture failed |
 | B | Direct built-in language selection, content settings, preserved imports and progress, Practice route within Learn | Implemented locally with actual disk and renderer journeys; no eager full-catalog payloads or destructive migration |
 | C | Small reviewed Python/Java/C learning paths, graduated hints, actual exercise/test evidence | Three practical flow lessons implemented and locally verified; native C gate pending; complete course paths remain unfinished |
-| D | Explicit bounded, authorized, cancellable offline Project Lens | Pending; no execution or automatic workspace scanning |
+| D | Explicit bounded, authorized, cancellable offline Project Lens | Local implementation plus18filesystem tests/four renderer cases; native checks and resource gate pending; no execution/autoscanning |
 | E | Tutor and Lens AI with exact source-context review, revision checks, validated citations, cancellation | Pending; existing API keys stay in OS-backed vault; no unapproved live calls |
 | F | Evidence-backed proposals reviewed/edited into existing roadmap model | Pending; no automatic execution or completion |
-| G | Native Mac/Windows, accessibility, migration, visual and matched resource verification | Pending available authorization and safe environments |
+| G | Native Mac/Windows, accessibility, migration, visual and matched resource verification | Authorized feature-only native CI in progress; performance regression remains under investigation |
 
 Milestones are committed separately after applicable checks. Native checks that cannot run safely are recorded as unverified; headless browser renderer tests are useful visual evidence but do not replace Electron IPC, native OS, process or installer tests.
 

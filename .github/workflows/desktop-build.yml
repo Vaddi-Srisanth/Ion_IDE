@@ -58,6 +58,9 @@ jobs:
         run: node --test scripts/fixture-process-runner.test.mjs
       - name: Verify actual offline practical learning
         run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
+      - name: Verify actual offline Project Lens
+        if: ${{ !cancelled() }}
+        run: node scripts/test-project-lens.mjs --out performance-results/project-lens-native.json
       - name: Collect bounded sanitized evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-learning-safe"

@@ -19,6 +19,7 @@ export interface PracticePaneProps {
   onOpenEntry(entry: Entry): void
   onPrepareRun(path: string): Promise<boolean>
   onClose(): void
+  onLearn?(): void
   onDirtyChange?(dirty: boolean): void
   onStopRun?(): void
 }
@@ -275,7 +276,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 }
 
 
-export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun }: PracticePaneProps) {
+export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun, onLearn }: PracticePaneProps) {
   const [view, setView] = useState<'browse' | 'saved'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
@@ -444,6 +445,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
     <aside className="practice-pane" data-testid="practice-pane" aria-label="Coding practice">
       <div className="practice-heading">
         <h2><Icon name="flask" size={16} /> Practice</h2>
+        {onLearn && <button type="button" className="button" data-testid="practice-return-learn" onClick={onLearn}><Icon name="book" size={13}/> Learn</button>}
         <button className="icon-button" onClick={onClose} aria-label="Hide Practice" title="Hide Practice"><Icon name="x" size={15} /></button>
       </div>
       <nav className="practice-nav" aria-label="Practice views">

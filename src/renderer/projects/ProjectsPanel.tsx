@@ -5,6 +5,24 @@ import type {
 } from '../../shared/projects'
 import { errorMessage } from '../documents'
 import './projects.css'
+import type { ProjectLensOpenResult } from '../../shared/project-lens'
+
+function LazyProjectLens({ root, onOpen }: { root: Entry; onOpen(result: ProjectLensOpenResult): void }) {
+  const [loaded, setLoaded] = useState<{ Component: typeof import('./ProjectLens').ProjectLens } | { error: string }>()
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let active = true
+    setLoaded(undefined)
+    void import('./ProjectLens').then(module => { if (active) setLoaded({ Component: module.ProjectLens }) },
+      reason => { if (active) setLoaded({ error: errorMessage(reason) }) })
+    return () => { active = false }
+  }, [attempt])
+  if (!loaded) return <p role="status" className="project-message">Opening Project Lens…</p>
+  if ('error' in loaded) return <div className="project-message" role="alert">
+    <p>{loaded.error}</p><button type="button" className="button" onClick={() => setAttempt(value => value + 1)}>Retry</button>
+  </div>
+  return <loaded.Component root={root} bridge={window.ion.projectLens} onOpen={onOpen}/>
+}
 
 export interface ProjectsPanelProps {
   root: Entry | null
@@ -12,6 +30,7 @@ export interface ProjectsPanelProps {
   onOpenFolder(): void
   beforeRun?(): Promise<boolean>
   onDirtyChange?(dirty: boolean): void
+  onOpenLensSource(result: ProjectLensOpenResult): void
 }
 
 type Draft = { kind: 'new'; title: string; description: string }
@@ -33,12 +52,28 @@ const evidenceLabels = {
 }
 
 export default function ProjectsPanel(props: ProjectsPanelProps) {
+  const [view, setView] = useState<'roadmap' | 'lens'>('roadmap')
+  const dirty = useRef(false)
+  const [notice, setNotice] = useState<string>()
+  const markDirty = (value: boolean) => { dirty.current = value; props.onDirtyChange?.(value) }
   return (
     <section className="projects-panel" aria-label="Project roadmap" data-testid="projects-panel">
-      {props.root ? <ProjectFolder key={props.root.path} {...props} root={props.root}/>
+      <nav className="projects-views" aria-label="Project tools">
+        {(['roadmap', 'lens'] as const).map(next => <button type="button" key={next} className="button"
+          data-testid={'project-view-' + next} aria-pressed={view === next} onClick={() => {
+            if (next === view) return
+            if (dirty.current) { setNotice('Save or discard the current project draft before switching tools.'); return }
+            setNotice(undefined); setView(next)
+          }}>{next === 'roadmap' ? 'Roadmap' : 'Project Lens'}</button>)}
+      </nav>
+      {notice && <p role="status" className="project-message">{notice}</p>}
+      {props.root ? view === 'lens'
+        ? <LazyProjectLens key={props.root.path} root={props.root} onOpen={props.onOpenLensSource}/>
+        : <ProjectFolder key={props.root.path} {...props} onDirtyChange={markDirty} root={props.root}/>
         : <div className="projects-empty">
-          <h2>Project roadmap</h2>
-          <p>Open a folder to create or resume its local project. Project specs and test evidence stay on this device.</p>
+          <h2>{view === 'lens' ? 'Project Lens' : 'Project roadmap'}</h2>
+          <p>{view === 'lens' ? 'Open a folder, then explicitly analyze its local structure. Nothing is scanned until you choose Analyze.'
+            : 'Open a folder to create or resume its local project. Project specs and test evidence stay on this device.'}</p>
           <button className="button primary" onClick={props.onOpenFolder}>Open Folder</button>
         </div>}
     </section>

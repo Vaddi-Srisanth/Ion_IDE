@@ -1194,8 +1194,13 @@ export function App() {
           openEntry(entry);
         }}/>;
       case 'projects': return <module.Component root={root} onOpenFolder={openFolder} resourceProfile={settings.resourceProfile}
+        onOpenLensSource={({ entry, range }) => {
+          if (range) void navigateSource({ path: entry.path, line: range.startLine, column: range.startColumn });
+          else openWorkbenchEntry(entry);
+        }}
         beforeRun={() => saveMany(root ? documents.affected(root.path) : [])} onDirtyChange={markProjectDraft}/>;
       case 'practice': return <module.Component bridge={bridge.practice} onOpenEntry={openEntry}
+        onLearn={() => selectWorkspace('learn')}
         initialProblem={practiceExercise}
         onPrepareRun={(path) => saveMany(documents.affected(path))} onStopRun={stop}
         onClose={closeAuxiliary} onDirtyChange={markPracticeDraft}/>;

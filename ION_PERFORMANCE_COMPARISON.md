@@ -2,6 +2,8 @@
 
 Baseline: `a108a01` / application source `42caf55`, Electron 45.2.3, Monaco 0.57.0, unchanged lockfile dependencies. The [previous native report](diagnostics/windows-gcc/FINAL_PERFORMANCE.md) is historical evidence only. Its values are not fresh feature-branch measurements.
 
+Initial measurement availability before authorization (superseded by the dated native section below):
+
 | Scope | Before | After | Status |
 | --- | --- | --- | --- |
 | Native macOS startup, process-family footprint/RSS/CPU, typing and tab latency | Historical report available | Not measured | Local Electron registration constraint; no safe new native baseline |
@@ -24,7 +26,7 @@ Welcome JS transferred370,420 bytes in all four 1× and all four 2× renderer ca
 
 Twenty Content settings cycles per size/theme case (80 total), with explicit test-only CDP GC at baseline/every 5 cycles, retained one editor and unchanged source. JS heap final-minus-initial was119,236/114,944/109,752/113,680bytes; listeners 559 throughout and DOM nodes 803→797. Smaller late increments suggest warm retained data, but no cause or long-run leak conclusion is established. Browser counters are not whole-app RSS/footprint, native CPU, natural post-close recovery or GPU presentation. The final report preserves these limits and the raw lifecycle report.
 
-Changed historical benchmark aliases now declare `learning-content-settings-v1` or `direct-language-selection-v1`; they must not be treated as matched to the removed Marketplace cards/search workload. Native CI is prepared against exact reviewed0.9.8source a108a01, not the older tracing control 38cf7ff. It has not run for this branch.
+Changed historical benchmark aliases now declare `learning-content-settings-v1` or `direct-language-selection-v1`; they must not be treated as matched to the removed Marketplace cards/search workload. Native CI is prepared against exact reviewed0.9.8source a108a01, not the older tracing control 38cf7ff. Those checks subsequently ran; see the dated native A/B checkpoint below.
 
 
 ## Actual native A/B checkpoint — 15 November 2026
@@ -62,3 +64,37 @@ Twenty Content Settings open/close cycles in each C scenario retained 139,740–
 The pre-launch Git fixture used raw execFile timeout with no descendant owner. A deterministic owned control reproduces the surviving grandchild; the corrected fixture adapter uses the existing process runner/Windows Job helper and verifies cleanup before scratch removal. Three focused Node checks pass (EOF/bounded output, timeout ownership, actual 1,000-file Unicode Git fixture), no skips. Windows still needs native verification. This corrects ownership, **not** the unexplained 30-second bulk-add delay. Command deadlines remain10sMac/30sWindows, no retries. Failure reports retain bounded lifecycle traces.
 
 New benchmark protocol `ion-fixture-process-v2-owned` records process setup separately from app timings. The next production comparison requests four trials with alternating baseline-first/candidate-first order, against the same a108a01 baseline. Do not silently pool these runs with historical fixed-order trials.
+
+
+D foundation adds only on-demand metadata/manifest work and one≤128KiB snapshot per owner/renderer. It does not initialize on Code/Welcome. Full production renderer transfer and native resource impact must be measured; caps are architectural limits, not RAM measurements. No persistent-RAM claim is made from source inspection or tests.
+
+
+## Balanced native C comparison — run43688556658
+
+[All numeric samples](docs/performance/next-generation-C-balanced.json). Exact source0d2c738 vs a108a01; before D. Four trials/lane with alternating order, same1,000-file fixture/10tabs/7,000-line diff/Csuite. Both native performance jobs completed and all eight main-process exits/platform were clean. Windows fixture ownership controls passed on real Windows; this does not explain every historical bulk-add or GCC delay. The new practical integration fixture still failed independently and is not relabeled passed.
+
+| Median | Baseline | C candidate |
+|---|---:|---:|
+| Mac fresh-profile startup |760.18ms|712.81ms|
+| Mac warm startup |461.47ms|617.58ms|
+| Mac first source opening |393.11ms|484.95ms|
+| Mac Welcome footprint / RSS |126.52 /369.74MiB|125.30 /371.52MiB|
+| Mac one-file footprint / RSS |194.94 /464.67MiB|194.21 /469.02MiB|
+| Mac ten-tab footprint / RSS |196.04 /474.77MiB|203.86 /478.26MiB|
+| Mac settled saved-config CPU (% logical core) |0.189|0.170|
+| Mac typing proxy (keypress→second frame) |30.30ms|24.65ms|
+| Windows fresh / warm startup |433.51 /386.90ms|447.40 /396.64ms|
+| Windows first source opening |375.18ms|379.68ms|
+| Windows one-file working set / private |364.03 /188.67MiB|362.22 /187.44MiB|
+| Windows ten-tab working set / private |382.84 /205.24MiB|381.00 /204.10MiB|
+| Windows typing proxy |19.30ms|19.45ms|
+
+The earlier Mac one-file footprint gap does not persist in this run. Ten-tab renderer retention and Mac warm/file-open latency still warrant investigation; there is no established cause or blanket optimization claim. Four samples do not support stable p95/p99 claims. Hosted macOS reports7GiBRAM; this is not a physical8GB-laptop validation. Windows reports about16GiB. Full OS-cold launch, visible-screen latency, actual8GBhardware and four-hour sessions remain unverified.
+
+## D payload fitting — measured Node-only correction
+
+[Six paired samples and environment](docs/performance/project-lens-fitting.json). AppleM3/24GiB/darwin27.2.0/Node26.11.1, identical removed disposable500-file fixture, four64KiBmanifests, maximum884-byte relative path; warm filesystem, alternatingAB/BA/freshNode. Existing fitting serialized after every discarded entry; new bounded prefix search preserves priority/order/result limits. Regression failed before fix. Median external wall444.13→244.23ms, CPU465.50→265.00ms, serialization193.44→1.47ms/503→7calls. All12results101,221bytes, identical retained0file rows/2manifest rows/12framework entries/4entry references/2languages, explicit partial status.
+
+Node endpointRSS29.58→25.32MiB; after forcedGC29.61→25.34MiB; retainedJSheap5.30→5.30MiB. These do not measure Ion RAM, natural memory recovery or leaks. Peak includes process/module startup and stays in the raw numeric report. Profiling predates the final own-property guard; final correctness tests rerun on that guard, while final-app profiling remains pending.
+
+Review also moved Lens behind the existing main-process external-module boundary: startup bundle230,337→215,055bytes in local intermediate builds; optional session19,034bytes. This is a package/parse-boundary measurement, not RAM. A snapshot holds≤128KiB per owner; canceled I/O now retains ownership until cleanup, rejecting new requests while stopping rather than accumulating overlapping calls. Native final-D costs remain unverified.

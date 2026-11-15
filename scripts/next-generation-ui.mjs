@@ -14,14 +14,15 @@ const { chromium } = require('playwright-core');
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index], value = process.argv[index + 1];
-  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles', '--practical'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20] [--practical true]');
+  if (!['--target', '--out', '--next', '--scale', '--catalog', '--cycles', '--practical', '--lens'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true] [--cycles 20] [--practical true] [--lens true]');
   options.set(key, value);
 }
 for (const key of ['--target', '--out']) if (!isAbsolute(options.get(key) ?? '')) throw new Error(key + ' must be absolute.');
-for (const key of ['--next', '--catalog', '--practical']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
+for (const key of ['--next', '--catalog', '--practical', '--lens']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
 const next = options.get('--next') === 'true';
 const catalog = options.get('--catalog') === 'true';
 const practical = options.get('--practical') === 'true';
+const lens = options.get('--lens') === 'true';
 if (practical && (!next || !catalog)) throw new Error('--practical requires --next true --catalog true.');
 if (catalog && !next) throw new Error('--catalog true requires --next true.');
 const cycles = options.has('--cycles') ? Number(options.get('--cycles')) : 0;
@@ -124,10 +125,10 @@ try {
       scenario.welcomeReadyMs = performance.now() - boot;
       scenario.assertions.push('Welcome visible; Practice remains discoverable; selected theme applied.');
       await snapshot('welcome');
-      const dormant = scenario.welcome.jsResources.filter(({ path }) => /LearningPane|MarketplacePane|LearningContentSettings|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
+      const dormant = scenario.welcome.jsResources.filter(({ path }) => /ProjectLens|LearningPane|MarketplacePane|LearningContentSettings|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
       assert.deepEqual(dormant, [], 'Optional modules were requested on Welcome.');
       const welcomeCalls = await page.evaluate(() => window.__ionBrowserFixture.inspect());
-      assert.equal(welcomeCalls.calls.some(name => /learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
+      assert.equal(welcomeCalls.calls.some(name => /projectLens|learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
       scenario.assertions.push('Named learning/project/practice/terminal chunks and services dormant on Welcome.');
 
       await page.getByTestId('workspace-learn').click();
@@ -166,6 +167,66 @@ try {
         await page.locator('.monaco-editor .view-lines').getByText('int count = input.nextInt();', { exact: false }).waitFor();
         assert.equal(await page.getByTestId('practice-pane').count(), 0, 'Enriched exercise left Learn.');
         assert.equal(await page.locator('.monaco-editor').count(), 1);
+        const readExercise = () => page.evaluate(async () => {
+          const url = performance.getEntriesByType('resource').map(entry => entry.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+          if (!url) throw new Error('Loaded Monaco module unavailable.');
+          const { editor } = await import(url);
+          const instance = editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]'));
+          return { text: instance.getValue(), focus: instance.hasTextFocus(), canUndo: instance.getModel().canUndo() };
+        });
+        const originalExercise = (await readExercise()).text;
+        const controlSource = 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("fixture paste");\n    }\n}\n';
+        await page.locator('.monaco-editor .view-line').first().click();
+        await page.keyboard.press('Meta+a');
+        await page.keyboard.insertText(controlSource);
+        const inserted = await readExercise();
+        await page.keyboard.press('Meta+z');
+        const afterImeUndo = await readExercise();
+        scenario.multilineInputControl = { inserted, afterImeUndo, originalExercise,
+          note: 'CDP insertText control is IME-style input, not a paste; retained even when its single Undo grouping differs.' };
+        // Temporary stock control, test-only. Dispose its widget/model/host
+        // before continuing ordinary single-editor and resource checks.
+        await page.evaluate(async original => {
+          const url = performance.getEntriesByType('resource').map(entry => entry.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+          const { editor } = await import(url);
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;top:0;left:0;width:600px;height:400px;z-index:9999';
+          document.body.append(host);
+          const model = editor.createModel(original, 'java');
+          const instance = editor.create(host, { model, minimap: { enabled: false }, quickSuggestions: false,
+            suggestOnTriggerCharacters: false, wordBasedSuggestions: 'off', tabCompletion: 'off' });
+          instance.setSelection(model.getFullModelRange()); instance.focus();
+          window.__stockUndoControl = { instance, model, host };
+        }, originalExercise);
+        try {
+          await page.keyboard.insertText(controlSource);
+          await page.keyboard.press('Meta+z');
+          const stockAfterUndo = await page.evaluate(() => window.__stockUndoControl.instance.getValue());
+          scenario.multilineInputControl.stockAfterUndo = stockAfterUndo;
+          assert.equal(stockAfterUndo, afterImeUndo.text, 'Ion changed multiline IME Undo grouping versus stock Monaco.');
+        } finally {
+          await page.evaluate(() => {
+            const { instance, model, host } = window.__stockUndoControl;
+            instance.dispose(); model.dispose(); host.remove(); delete window.__stockUndoControl;
+          });
+        }
+        assert.equal(await page.locator('.monaco-editor').count(), 1);
+        // Use the real paste command for a coherent replacement and exact Undo.
+        const paste = async text => page.evaluate(async text => {
+          const url = performance.getEntriesByType('resource').map(entry => entry.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+          const { editor } = await import(url);
+          const instance = editor.getEditors().find(item => item.getDomNode()?.closest('[data-testid="editor"]'));
+          instance.focus(); instance.setSelection(instance.getModel().getFullModelRange());
+          instance.trigger('clipboard', 'paste', { text, pasteOnNewLine: false, multicursorText: null });
+        }, text);
+        await paste(originalExercise);
+        await paste(controlSource);
+        await page.keyboard.press('Meta+z');
+        assert.equal((await readExercise()).text, originalExercise, 'Single Undo after actual paste lost the exercise starter.');
+        await page.keyboard.press('Meta+Shift+z');
+        assert.equal((await readExercise()).text, controlSource, 'Redo after actual paste lost the solution.');
+        await page.keyboard.press('Meta+z');
+        assert.equal((await readExercise()).text, originalExercise);
         const fixtureState = () => page.evaluate(() => window.__ionBrowserFixture.inspect());
         const before = await fixtureState();
         await page.evaluate(() => window.__ionBrowserFixture.deferPractice('practice.openAttempt'));
@@ -258,6 +319,22 @@ try {
         await page.getByText('Save or close the current draft before switching workspaces.', { exact: true }).waitFor();
         await snapshot('project-draft-protected');
         await page.getByRole('button', { name: 'Discard Draft', exact: true }).click();
+        if (lens) {
+          await page.getByTestId('project-view-lens').click();
+          const lensPane = page.getByTestId('project-lens');
+          await lensPane.getByTestId('project-lens-analyze').waitFor();
+          assert.equal((await page.evaluate(() => window.__ionBrowserFixture.inspect())).calls.includes('projectLens.analyze'), false, 'Project Lens analyzed automatically.');
+          await lensPane.getByTestId('project-lens-analyze').click();
+          await lensPane.getByTestId('project-lens-summary').waitFor();
+          await lensPane.getByText('React', { exact: true }).waitFor();
+          await snapshot('project-lens');
+          await lensPane.getByRole('button', { name: 'Main.java', exact: false }).first().click();
+          assert.equal(await editorElement.evaluate(element => element.isConnected), true);
+          await page.getByTestId('project-view-roadmap').click();
+          await lensPane.waitFor({ state: 'detached' });
+          await page.waitForFunction(() => window.__ionBrowserFixture.inspect().calls.includes('projectLens.cancel'));
+          scenario.assertions.push('Actual lazy Lens component requires explicit Analyze; renders declared evidence and opens source using the existing widget; leaving it cancels/releases. Snapshot transport is test-only; real filesystem/security tests are separate.');
+        }
         await code.click();
         await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
         scenario.assertions.push('Actual dirty Projects form blocks Code navigation; input survives until explicit discard.');

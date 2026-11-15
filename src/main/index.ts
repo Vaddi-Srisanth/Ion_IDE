@@ -33,6 +33,7 @@ import type { ToolReply } from '../shared/language-tools'
 import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
+import type { ProjectLensSession } from './project-lens/session'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
 
@@ -268,6 +269,15 @@ const practice = () => import('./practice').then(({ PracticeStore }) => practice
   join(app.getPath('userData'), 'practice'),
 ))
 
+let projectLensService: Promise<ProjectLensSession> | undefined
+async function projectLens(target: BrowserWindow) {
+  const generation = panelGeneration
+  if (target !== window || panel !== 'projects') throw new Error('Open Project Lens in Projects first.')
+  const pending = projectLensService ??= import('./project-lens/session').then(({ ProjectLensSession }) => new ProjectLensSession(() => files))
+  const service = await pending
+  if (target !== window || panel !== 'projects' || generation !== panelGeneration) throw new Error('The Projects panel changed.')
+  return service
+}
 
 
 async function withLearning<T>(operation: (service: NonNullable<typeof learningService>) => T | Promise<T>) {
@@ -288,6 +298,7 @@ async function learningLesson(target: BrowserWindow, id: unknown, topic: unknown
 }
 
 function releasePanel() {
+  if (panel === 'projects') void projectLensService?.then(service => service.close(), () => undefined)
   if (practiceRun?.panel === panel) practiceRun.controller.abort()
   if (panel === 'learn') void learningService?.release().catch(() => undefined)
   if (panel === 'projects') projectHandlers?.close()
@@ -915,6 +926,7 @@ function registerIpc(): void {
 
   function workspaceChanged(previous: string | null) {
     if (previous === files.rootPath) return
+    void projectLensService?.then(service => service.close(), () => undefined)
     trustedGitRoot = undefined
     void closeSourceControl()
     void projectHandlers?.stopSuite()
@@ -1530,6 +1542,17 @@ function registerIpc(): void {
   handle('projects-provider', async (target) => (await onlineProjects(target)).provider(target))
   handle('projects-configure', async (target, value) => (await onlineProjects(target)).configure(target, value))
   handle('projects-propose', async (target, goal) => (await onlineProjects(target)).propose(target, goal))
+  handle('project-lens-analyze', async (target, root) => {
+    if (typeof root !== 'string') throw new Error('Choose an open project folder.')
+    return (await projectLens(target)).analyze(root)
+  })
+  handle('project-lens-open', async (target, root, reference) => {
+    if (typeof root !== 'string') throw new Error('Choose an open project folder.')
+    return (await projectLens(target)).openReference(root, reference)
+  })
+  handle('project-lens-cancel', (target) => {
+    if (target === window) return projectLensService?.then(service => service.cancel(), () => undefined)
+  })
 
   handle('practice-browse', async (_target, filters) => (await practice()).browse(filters))
   handle('practice-challenge', async (_target, id) => (await practice()).getChallenge(id))

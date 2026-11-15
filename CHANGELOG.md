@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased next-generation feature branch
+
+- Code-first Welcome/workbench, theme-compatible design tokens and guarded navigation.
+- Direct offline language lessons; imported content managed in Preferences, preserving saved progress and attempts.
+- Three introductory practical Python/Java/C lessons with editable scaffolds, graduated hints, honest local activity/manual/sample evidence and saved-sample execution beside Learn.
+- Explicit offline Project Lens foundation with bounded metadata/manifest inspection, evidence links, cancellation and validated source navigation. No source/docs scanning, project execution or AI upload during analysis.
+- Retained failed native fixtures, corrected test input/cleanup boundaries and benchmark process ownership; performance comparisons include remaining regressions.
+- AI Tutor/project-aware AI and roadmap proposals remain unfinished. No published version, installer/update feed, main merge or installed-app change.
+
 ## 0.9.8 stabilization candidate — 15 November 2026
 
 - Collects completed metadata-only notebook interpreter discovery and approval checks, durable recovery checkpoints, macOS file-metadata preservation, and pre-save content-hash conflict checks.

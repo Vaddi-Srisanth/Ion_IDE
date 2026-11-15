@@ -17,6 +17,8 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
   const root = '/ion-browser-fixture/study-space';
   const folder = { kind: 'folder', name: 'study-space', path: root };
   const entry = { kind: 'file', name: 'Main.java', path: root + '/Main.java' };
+  const manifestEntry = { kind: 'file', name: 'package.json', path: root + '/package.json' };
+  const manifestText = '{\n  "name": "fixture-project",\n  "dependencies": { "react": "19.3.1" },\n  "scripts": { "test": "echo TEXT ONLY, NEVER EXECUTED" }\n}\n';
   const text = 'import java.util.List;\n\npublic class Main {\n    public static void main(String[] args) {\n        List<String> topics = List.of("Syntax", "Collections", "Testing");\n        for (String topic : topics) {\n            System.out.println(topic);\n        }\n    }\n}\n';
   const calls = [], failures = [], subscribers = new Map();
   const clone = value => structuredClone(value);
@@ -166,8 +168,9 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
     setOptionalPanel: async mode => { if (![null, 'learn', 'practice', 'projects'].includes(mode)) throw new Error('Unexpected fixture panel.'); record('setOptionalPanel:' + mode, null); },
     openFolder: reply('openFolder', folder), openFile: reply('openFile', entry),
     openRecent: async path => { if (path === root) return record('openRecent', folder); if (path === entry.path) return record('openRecent', entry); throw new Error('Unknown fixture recent.'); },
-    listDirectory: async path => { if (path !== root) throw new Error('Unknown fixture directory.'); return record('listDirectory', [entry]); },
+    listDirectory: async path => { if (path !== root) throw new Error('Unknown fixture directory.'); return record('listDirectory', [entry, manifestEntry]); },
     readFile: async path => {
+      if (path === manifestEntry.path) return record('readFile', { text: manifestText, revision: 'manifest-r1' });
       if (path === exerciseEntry.path && exercise) return record('readFile', { text: exerciseText, revision: exerciseRevision });
       if (path !== entry.path) throw new Error('Unknown fixture file.'); return record('readFile', { text, revision: 'fixture-r1' });
     },
@@ -214,6 +217,27 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
       run: forbidden('projects.run'), runSuite: forbidden('projects.runSuite'), cancelSuite: forbidden('projects.cancelSuite'),
       setAutomatic: forbidden('projects.setAutomatic'), provider: forbidden('projects.provider'), configure: forbidden('projects.configure'),
       propose: forbidden('projects.propose') },
+    projectLens: {
+      analyze: async path => {
+        if (path !== root) throw new Error('Unknown Lens fixture root.');
+        return record('projectLens.analyze', { version: 1, root, status: 'complete', durationMs: 2,
+          limits: { depth: 6, visits: 2500, files: 500, manifestBytes: 65536, totalManifestBytes: 262144, durationMs: 5000, resultBytes: 131072 },
+          counts: { visitedEntries: 2, directoriesInspected: 1, regularFilesSeen: 2, filesInspected: 2, returnedFiles: 2, manifestBytesRead: manifestText.length },
+          languages: [{ id: 'java', label: 'Java', files: 1 }, { id: 'json', label: 'JSON', files: 1 }],
+          files: [{ reference: { path: 'Main.java', revision: 'fixture-r1' }, language: 'java', bytes: text.length },
+            { reference: { path: 'package.json', revision: 'manifest-r1' }, language: 'json', bytes: manifestText.length }],
+          manifests: [{ kind: 'npm', reference: { path: 'package.json', revision: 'manifest-r1' }, status: 'parsed',
+            dependencies: [{ name: 'react', version: '19.3.1', group: 'dependencies' }], scripts: [{ name: 'test', command: 'echo TEXT ONLY, NEVER EXECUTED' }] }],
+          frameworks: [{ name: 'React', confidence: 'declared', reason: 'Declared dependency; working behavior unverified.', reference: { path: 'package.json', revision: 'manifest-r1' } }],
+          entryPoints: [{ kind: 'existing-candidate', path: 'Main.java', reference: { path: 'Main.java', revision: 'fixture-r1' }, reason: 'Filename candidate only.' }],
+          documentation: [], tests: [], exclusions: {}, truncated: [], limitations: ['TEST FIXTURE: no filesystem analyzed in this browser transport.'] });
+      },
+      cancel: reply('projectLens.cancel', null),
+      openReference: async (path, reference) => {
+        if (path !== root || !['Main.java', 'package.json'].includes(reference.path)) throw new Error('Unknown Lens fixture reference.');
+        return record('projectLens.openReference', { entry: reference.path === 'Main.java' ? entry : manifestEntry });
+      },
+    },
     viewers: {}, workspaceSearch: { search: forbidden('workspaceSearch.search'), cancel: forbidden('workspaceSearch.cancel') },
     onCommand: subscribe('command'), onOpenEntry: subscribe('openEntry'), onCloseRequest: subscribe('closeRequest'),
     confirmWindowClose: forbidden('confirmWindowClose'),

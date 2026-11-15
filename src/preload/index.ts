@@ -48,6 +48,11 @@ const bridge: IonBridge = {
     run: (request) => ipcRenderer.invoke('ion:format-source', request),
     cancel: (id) => ipcRenderer.invoke('ion:format-cancel', id),
   },
+  projectLens: {
+    analyze: root => ipcRenderer.invoke('ion:project-lens-analyze', root),
+    cancel: () => ipcRenderer.invoke('ion:project-lens-cancel'),
+    openReference: (root, reference) => ipcRenderer.invoke('ion:project-lens-open', root, reference),
+  },
   setOptionalPanel: (panel, path) => ipcRenderer.invoke('ion:set-optional-panel', panel, path),
   getPreferences: () => ipcRenderer.invoke('ion:get-preferences'),
   updateSettings: (patch) => ipcRenderer.invoke('ion:update-settings', patch),

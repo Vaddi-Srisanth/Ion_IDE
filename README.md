@@ -1,6 +1,6 @@
 # Ion IDE
 
-> **Local next-generation feature branch:** Milestones A/B implement a Code-first layout, direct offline learning and content management in Preferences. Native feature verification is pending; this is not a published installer or update. Project Lens, AI Tutor and reviewed practical courses are not implemented yet. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
+> **Unreleased next-generation feature branch:** Code-first layout, direct offline learning, three practical Python/Java/C lessons and an on-demand offline Project Lens foundation. Native verification and performance gates are still in progress. This branch has no published installer/update; AI Tutor and project-aware AI remain unfinished. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
 
 **An offline-first desktop IDE for learning by coding.**
 

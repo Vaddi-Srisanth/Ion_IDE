@@ -1,0 +1,849 @@
+{
+  "fixture": {
+    "root": "[disposable fixture removed]",
+    "files": 500,
+    "manifests": 4,
+    "manifestBytes": 262144,
+    "maximumRelativePathBytes": 884,
+    "actualFileCount": 500
+  },
+  "samples": [
+    {
+      "label": "before",
+      "round": 0,
+      "elapsedMs": 513.157958,
+      "scanReportedMs": 241.35,
+      "stringifyCalls": 503,
+      "stringifyMs": 260.2781760000011,
+      "stringifySharePercent": 50.72086907010436,
+      "cpuUserMs": 348.767,
+      "cpuSystemMs": 139.829,
+      "memoryBefore": {
+        "rss": 16845032,
+        "heapTotal": 7225344,
+        "heapUsed": 4936432,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 33541600,
+        "heapTotal": 16269312,
+        "heapUsed": 9102800,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 33557984,
+        "heapTotal": 11157504,
+        "heapUsed": 5554520,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 66432,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 0,
+      "elapsedMs": 242.53991600000003,
+      "scanReportedMs": 242.14,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.4453760000000102,
+      "stringifySharePercent": 0.5959332483647806,
+      "cpuUserMs": 126.278,
+      "cpuSystemMs": 136.844,
+      "memoryBefore": {
+        "rss": 16763112,
+        "heapTotal": 7225344,
+        "heapUsed": 4936904,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26577944,
+        "heapTotal": 12468224,
+        "heapUsed": 9587504,
+        "external": 2570914,
+        "arrayBuffers": 155151
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26725400,
+        "heapTotal": 10895360,
+        "heapUsed": 5552560,
+        "external": 2570914,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 60064,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 1,
+      "elapsedMs": 245.45470799999998,
+      "scanReportedMs": 245.04,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.4463349999999195,
+      "stringifySharePercent": 0.589247202379968,
+      "cpuUserMs": 127.577,
+      "cpuSystemMs": 137.498,
+      "memoryBefore": {
+        "rss": 16795880,
+        "heapTotal": 7225344,
+        "heapUsed": 4936904,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26463256,
+        "heapTotal": 12468224,
+        "heapUsed": 9325600,
+        "external": 2569330,
+        "arrayBuffers": 153567
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26528792,
+        "heapTotal": 11419648,
+        "heapUsed": 5552560,
+        "external": 2569330,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 59856,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "before",
+      "round": 1,
+      "elapsedMs": 525.894541,
+      "scanReportedMs": 322.89,
+      "stringifyCalls": 503,
+      "stringifyMs": 194.57803699999977,
+      "stringifySharePercent": 36.999440349771525,
+      "cpuUserMs": 336.905,
+      "cpuSystemMs": 146.487,
+      "memoryBefore": {
+        "rss": 17123632,
+        "heapTotal": 7487488,
+        "heapUsed": 4935472,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 31100432,
+        "heapTotal": 16269312,
+        "heapUsed": 9102608,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 31116816,
+        "heapTotal": 11157504,
+        "heapUsed": 5554520,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 64016,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "before",
+      "round": 2,
+      "elapsedMs": 443.763625,
+      "scanReportedMs": 242.44,
+      "stringifyCalls": 503,
+      "stringifyMs": 192.98450399999996,
+      "stringifySharePercent": 43.48813042078425,
+      "cpuUserMs": 326.883,
+      "cpuSystemMs": 138.34,
+      "memoryBefore": {
+        "rss": 16582864,
+        "heapTotal": 7225344,
+        "heapUsed": 4936504,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 30969336,
+        "heapTotal": 16531456,
+        "heapUsed": 9103072,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 30985720,
+        "heapTotal": 11157504,
+        "heapUsed": 5554592,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 63888,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 2,
+      "elapsedMs": 243.64945800000004,
+      "scanReportedMs": 243.23,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.4763339999999516,
+      "stringifySharePercent": 0.6059254192964186,
+      "cpuUserMs": 127.251,
+      "cpuSystemMs": 137.153,
+      "memoryBefore": {
+        "rss": 16468200,
+        "heapTotal": 7225344,
+        "heapUsed": 4936832,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26430464,
+        "heapTotal": 12468224,
+        "heapUsed": 9326120,
+        "external": 2569042,
+        "arrayBuffers": 153279
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26446848,
+        "heapTotal": 11419648,
+        "heapUsed": 5552488,
+        "external": 2569042,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 59808,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 3,
+      "elapsedMs": 244.59925000000004,
+      "scanReportedMs": 244.19,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.4889159999999606,
+      "stringifySharePercent": 0.6087165026057767,
+      "cpuUserMs": 128.01,
+      "cpuSystemMs": 137.622,
+      "memoryBefore": {
+        "rss": 17041664,
+        "heapTotal": 7487488,
+        "heapUsed": 4935944,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26577968,
+        "heapTotal": 12468224,
+        "heapUsed": 9166112,
+        "external": 2567602,
+        "arrayBuffers": 151839
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26741856,
+        "heapTotal": 11157504,
+        "heapUsed": 5552560,
+        "external": 2567602,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 60032,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "before",
+      "round": 3,
+      "elapsedMs": 443.98062500000003,
+      "scanReportedMs": 242.32,
+      "stringifyCalls": 503,
+      "stringifyMs": 193.29092200000025,
+      "stringifySharePercent": 43.53589123399253,
+      "cpuUserMs": 327.465,
+      "cpuSystemMs": 137.743,
+      "memoryBefore": {
+        "rss": 16566480,
+        "heapTotal": 7225344,
+        "heapUsed": 4936432,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 30887392,
+        "heapTotal": 16531456,
+        "heapUsed": 9102016,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 30903776,
+        "heapTotal": 10895360,
+        "heapUsed": 5554520,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 63840,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "before",
+      "round": 4,
+      "elapsedMs": 444.16525,
+      "scanReportedMs": 242.47,
+      "stringifyCalls": 503,
+      "stringifyMs": 193.32266000000004,
+      "stringifySharePercent": 43.52494032344944,
+      "cpuUserMs": 327.173,
+      "cpuSystemMs": 138.373,
+      "memoryBefore": {
+        "rss": 16828672,
+        "heapTotal": 7487488,
+        "heapUsed": 4935472,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 30936592,
+        "heapTotal": 16531456,
+        "heapUsed": 9102608,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 30952976,
+        "heapTotal": 10895360,
+        "heapUsed": 5554520,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 63904,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 4,
+      "elapsedMs": 244.2135,
+      "scanReportedMs": 243.82,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.46712500000001,
+      "stringifySharePercent": 0.6007550770125362,
+      "cpuUserMs": 127.633,
+      "cpuSystemMs": 137.485,
+      "memoryBefore": {
+        "rss": 16681264,
+        "heapTotal": 7487488,
+        "heapUsed": 4937240,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26578040,
+        "heapTotal": 12730368,
+        "heapUsed": 9326240,
+        "external": 2568034,
+        "arrayBuffers": 152271
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26594424,
+        "heapTotal": 10895360,
+        "heapUsed": 5552560,
+        "external": 2568034,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 59872,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "after",
+      "round": 5,
+      "elapsedMs": 244.25612500000003,
+      "scanReportedMs": 243.86,
+      "stringifyCalls": 7,
+      "stringifyMs": 1.4934999999999263,
+      "stringifySharePercent": 0.6114483311318912,
+      "cpuUserMs": 127.847,
+      "cpuSystemMs": 137.069,
+      "memoryBefore": {
+        "rss": 16877824,
+        "heapTotal": 7487488,
+        "heapUsed": 4935872,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 26528792,
+        "heapTotal": 12468224,
+        "heapUsed": 9166104,
+        "external": 2567746,
+        "arrayBuffers": 151983
+      },
+      "memoryAfterForcedGC": {
+        "rss": 26545176,
+        "heapTotal": 11419648,
+        "heapUsed": 5552488,
+        "external": 2567746,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 59888,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    },
+    {
+      "label": "before",
+      "round": 5,
+      "elapsedMs": 444.100333,
+      "scanReportedMs": 242.16,
+      "stringifyCalls": 503,
+      "stringifyMs": 193.56629099999986,
+      "stringifySharePercent": 43.58616209369063,
+      "cpuUserMs": 327.5,
+      "cpuSystemMs": 137.948,
+      "memoryBefore": {
+        "rss": 16746728,
+        "heapTotal": 7225344,
+        "heapUsed": 4936432,
+        "external": 2559950,
+        "arrayBuffers": 144047
+      },
+      "memoryAfter": {
+        "rss": 31067688,
+        "heapTotal": 16531456,
+        "heapUsed": 9102312,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "memoryAfterForcedGC": {
+        "rss": 31116840,
+        "heapTotal": 11157504,
+        "heapUsed": 5554520,
+        "external": 2559826,
+        "arrayBuffers": 144063
+      },
+      "processLifetimeMaxRssKiB": 64000,
+      "resultBytes": 101221,
+      "counts": {
+        "visitedEntries": 503,
+        "directoriesInspected": 4,
+        "regularFilesSeen": 500,
+        "filesInspected": 500,
+        "returnedFiles": 0,
+        "manifestBytesRead": 262144
+      },
+      "status": "partial",
+      "truncated": [
+        "result-bytes"
+      ],
+      "retained": {
+        "files": 0,
+        "manifests": 2,
+        "frameworks": 12,
+        "entryPoints": 4,
+        "documentation": 0,
+        "tests": 0,
+        "languages": 2
+      }
+    }
+  ],
+  "caveats": [
+    "Six paired rounds, alternating AB/BA order; fresh Node process each sample, same warm filesystem/fixture.",
+    "GC forced before/after for retained JS comparison; not natural recovery.",
+    "RSS endpoints and process lifetime peak are not macOS-attributed footprint or Ion memory."
+  ],
+  "environment": {
+    "node": "v26.11.1",
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M3",
+    "physicalMemoryBytes": 25769803776
+  },
+  "summary": {
+    "before": {
+      "n": 6,
+      "elapsedMedianMs": 444.1327915,
+      "elapsedMaxMs": 525.894541,
+      "stringifyMedianMs": 193.44447549999995,
+      "stringifyCalls": [
+        503
+      ],
+      "cpuTotalMedianMs": 465.49699999999996,
+      "rssBeforeMedianMiB": 16.009998321533203,
+      "rssAfterMedianMiB": 29.581558227539062,
+      "rssAfterGCMedianMiB": 29.612796783447266,
+      "heapBeforeMedianMiB": 4.7077484130859375,
+      "heapAfterMedianMiB": 8.680923461914062,
+      "heapAfterGCMedianMiB": 5.297203063964844,
+      "peakRssMedianMiB": 62.453125,
+      "resultBytes": [
+        101221,
+        101221,
+        101221,
+        101221,
+        101221,
+        101221
+      ],
+      "retained": [
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        }
+      ]
+    },
+    "after": {
+      "n": 6,
+      "elapsedMedianMs": 244.23481250000003,
+      "elapsedMaxMs": 245.45470799999998,
+      "stringifyMedianMs": 1.4717294999999808,
+      "stringifyCalls": [
+        7
+      ],
+      "cpuTotalMedianMs": 264.9955,
+      "rssBeforeMedianMiB": 16.002174377441406,
+      "rssAfterMedianMiB": 25.323265075683594,
+      "rssAfterGCMedianMiB": 25.33893585205078,
+      "heapBeforeMedianMiB": 4.708164215087891,
+      "heapAfterMedianMiB": 8.89383316040039,
+      "heapAfterGCMedianMiB": 5.2953338623046875,
+      "peakRssMedianMiB": 58.4765625,
+      "resultBytes": [
+        101221,
+        101221,
+        101221,
+        101221,
+        101221,
+        101221
+      ],
+      "retained": [
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        },
+        {
+          "files": 0,
+          "manifests": 2,
+          "frameworks": 12,
+          "entryPoints": 4,
+          "documentation": 0,
+          "tests": 0,
+          "languages": 2
+        }
+      ]
+    }
+  }
+}

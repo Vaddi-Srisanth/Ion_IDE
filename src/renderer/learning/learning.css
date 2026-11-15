@@ -188,7 +188,7 @@ button.lens-location:hover { border-color: var(--accent); }
   letter-spacing: .06em;
   text-transform: uppercase;
 }
-.learning-language select, .marketplace-search {
+.learning-language select {
   width: 100%;
   min-height: 29px;
   color: var(--ink);
@@ -245,37 +245,3 @@ button.lens-location:hover { border-color: var(--accent); }
 .learning-pane .practice-sample[data-status="failed"] summary b { color: var(--danger); }
 .learning-pane .practice-sample[data-status="unavailable"] summary b { color: var(--amber); }
 .learning-pane .practice-sample p { margin-top: 6px; }
-
-.marketplace-controls { display: grid; justify-items: start; gap: 6px; padding: 9px 8px; border-bottom: 1px solid var(--border); }
-.marketplace-search { display: flex; align-items: center; gap: 5px; padding-inline: 7px; }
-.marketplace-search > svg { color: var(--muted); }
-.marketplace-search:focus-within { border-color: var(--accent); }
-.marketplace-search input { min-width: 0; width: 100%; padding: 4px 0; color: var(--ink); background: transparent; border: 0; }
-.marketplace-search input:focus-visible { outline: none; }
-.marketplace-search input::placeholder { color: var(--muted); }
-.marketplace-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
-.marketplace-section + .marketplace-section { margin-top: 13px; }
-.marketplace-section > h3 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--muted);
-  font: 650 10px var(--mono);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  margin: 0 0 5px;
-}
-.marketplace-section > h3 span { color: var(--dim); font-weight: 400; }
-.marketplace-section ul { display: grid; gap: 5px; list-style: none; padding: 0; margin: 0; }
-.marketplace-pack { min-width: 0; padding: 7px 8px; border: 1px solid var(--subtle-border); background: var(--surface); border-radius: 5px; overflow-wrap: anywhere; }
-.marketplace-pack-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; justify-content: space-between; }
-.marketplace-pack-title h4 { color: var(--ink); font-size: 12px; font-weight: 650; margin: 0; }
-.marketplace-current { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-size: 10px; }
-.marketplace-pack-summary { font-size: 11px; line-height: 1.4; color: var(--text); margin-top: 3px; }
-.marketplace-pack-size { color: var(--muted); font-size: 10px; margin-top: 4px; }
-.marketplace-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; }
-.marketplace-button { min-height: 25px; padding: 0 6px; font-size: 11px; gap: 4px; }
-.marketplace-remove { width: 24px; height: 24px; }
-.marketplace-remove:hover:not(:disabled) { color: var(--danger); }
-.marketplace-notice { color: var(--mint); font-size: 11px; line-height: 1.4; margin: 0 0 8px; }
-.marketplace-footer { color: var(--muted); font-size: 10px; padding: 7px 8px; border-top: 1px solid var(--subtle-border); }
