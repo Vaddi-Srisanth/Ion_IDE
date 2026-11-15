@@ -1,8 +1,11 @@
-name: Windows GCC diagnostics (manual verification branch)
+name: Desktop verification
 
-# This existing, registered path is a branch-only manual dispatch bridge.
-# The main branch and its release/build workflows are unchanged.
+# Source delivery runs the existing native gates. Publication remains separate.
 on:
+  push:
+    branches: [main, codex/ion-stabilization-delivery]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       suite:
@@ -21,19 +24,19 @@ permissions:
 
 jobs:
   windows-gcc-diagnostics:
-    if: inputs.suite != 'release' && inputs.suite != 'performance' && inputs.suite != 'follow-up' && inputs.suite != 'git-checks' && inputs.suite != 'startup'
+    if: github.event_name == 'workflow_dispatch' && (inputs.suite == 'diagnostic' || inputs.suite == 'all')
     uses: ./.github/workflows/windows-gcc-diagnostic.yml
     with:
       samples: ${{ inputs.samples || '100' }}
   full-release-verification:
     needs: windows-gcc-diagnostics
-    if: ${{ always() && !cancelled() && (inputs.suite == 'release' || inputs.suite == 'performance' || inputs.suite == 'follow-up' || (inputs.suite == 'all' && needs.windows-gcc-diagnostics.result == 'success')) }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.suite == 'release' || inputs.suite == 'performance' || inputs.suite == 'follow-up' || (inputs.suite == 'all' && needs.windows-gcc-diagnostics.result == 'success')) }}
     uses: ./.github/workflows/ion-release-verification.yml
     with:
       performance_only: ${{ inputs.suite == 'performance' }}
       follow_up_only: ${{ inputs.suite == 'follow-up' }}
   windows-git-verification:
-    if: inputs.suite == 'git-checks'
+    if: github.event_name != 'workflow_dispatch' || inputs.suite == 'git-checks'
     uses: ./.github/workflows/windows-git-supplement.yml
   paired-startup-verification:
     if: inputs.suite == 'startup'

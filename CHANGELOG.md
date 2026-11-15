@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.8 stabilization candidate — 15 November 2026
+
+- Collects completed metadata-only notebook interpreter discovery and approval checks, durable recovery checkpoints, macOS file-metadata preservation, and pre-save content-hash conflict checks.
+- Retains the verified stdin-boundary, terminal-readiness, eventual Git refresh, repeated-error history and Windows process/updater corrections. Existing offline editor, learning, practice, document and execution features remain present.
+- Preserves compiler lifecycle traces, observer corrections, failed samples, platform-qualified test evidence and matched performance reports. The historical 12.67-second Windows GCC delay is still unexplained; no universal speed-up or leak-free claim is made.
+- Restores ordinary push/PR desktop verification using the existing native gates and retains verified macOS/Windows installer artifacts. No public release or update-feed change is automatic.
+- Excludes the canceled Code-OSS reuse audit and unfinished experiments. No new production dependency, service, editor engine or feature is introduced in this handoff.
+
+See [candidate notes and limitations](docs/releases/0.9.8.md).
+
 ## 0.9.7 preview
 
 - Added explicit **Install and Restart** after a verified GitHub download. The Mac helper waits for the normal save/quit flow, atomically replaces the running app at its existing location and retains a rollback archive. The Windows helper waits for exit, protects the verified installer, backs up the application and runs per-user Setup in place; failed Setup restores the prior app.

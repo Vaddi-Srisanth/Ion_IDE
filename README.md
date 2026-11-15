@@ -6,7 +6,7 @@
 
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
-Version 0.9.7 adds **Install and Restart** for in-place updates and optional remembered Run approvals for your own folders. It retains the 0.9.6 Git, Windows file-safety and resource-cleanup fixes. [Update behavior](docs/UPDATES.md) · [Engineering audit](ENGINEERING_AUDIT.md) · [Performance evidence](PERFORMANCE.md)
+The 0.9.8 source candidate collects the completed notebook-trust, recovery, file-integrity, terminal, Windows process/updater and diagnostic-verification fixes. It retains **Install and Restart** and optional remembered Run-folder approvals from 0.9.7. The rare historical Windows GCC delay remains unexplained; later successful tests do not prove it fixed. [Candidate notes](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Verified scope and limits](diagnostics/windows-gcc/RELEASE_VERIFICATION.md) · [Measured performance](diagnostics/windows-gcc/FINAL_PERFORMANCE.md)
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -14,7 +14,7 @@ Version 0.9.7 adds **Install and Restart** for in-place updates and optional rem
 
 ## Download and install
 
-Get the installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). The current preview is [version 0.9.7](docs/releases/0.9.7.md). Choose **Preferences → Updates → Check for Updates**. A newer compatible release shows **Update available** in the title bar; download it, then choose **Install and Restart**. Ion protects unsaved work and replaces its existing installation.
+Get publicly published installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). At this source handoff, the latest public release is **0.9.6**; **0.9.8 is a source/local-install candidate**, not a published update. Successful native desktop verification jobs retain both candidate installers under the run's **Artifacts** for 14 days (GitHub sign-in required). Pushing source alone does not change the update feed. Choose **Preferences → Updates → Check for Updates** to check for a newer published compatible release. From 0.9.7 onward, **Install and Restart** protects unsaved work and replaces the existing installation.
 
 **Updating from 0.9.6 or earlier:** those versions only download an installer. Install 0.9.7 once into the same Applications location as your existing Mac copy, or run Windows Setup. In-place updates are available from 0.9.7 onward. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
 

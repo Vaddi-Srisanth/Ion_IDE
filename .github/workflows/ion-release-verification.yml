@@ -73,6 +73,15 @@ jobs:
       - run: npm run package:dmg
       - run: node scripts/verify-mac-release.mjs
       - run: node scripts/release-evidence.mjs record mac-arm64
+      - name: Retain verified macOS installer (no public release)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ion-macos-arm64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-mac-arm64.dmg
+            release/Ion-IDE-*-mac-arm64.dmg.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Collect bounded sanitized release evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-macos" --image-receipts "${{ runner.temp }}/ion-image-publication"
@@ -396,6 +405,15 @@ jobs:
       - run: node scripts/test-windows-updater.mjs
       - run: npm run test:release:win
       - run: node scripts/release-evidence.mjs record windows-x64
+      - name: Retain verified Windows installer (no public release)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ion-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-windows-x64-setup.exe
+            release/Ion-IDE-*-windows-x64-setup.exe.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Collect bounded sanitized release evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows-installer"
