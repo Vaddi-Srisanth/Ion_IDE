@@ -178,6 +178,7 @@ export interface WorkbenchProps {
   sourceControlEntries?: readonly SourceControlEntry[];
   sourceControlDiff?: ReactNode;
   onToggleAuxiliary(): void;
+  onWorkspace(mode: WorkspaceMode): void;
   onToggleExplorer(): void;
   onToggleMarketplace(): void;
   onToggleSourceControl(): void;
@@ -239,7 +240,7 @@ export interface WorkbenchProps {
 export function Workbench(props: WorkbenchProps) {
   const {
     documents, hidden, mode, auxiliary, marketplace, sourceControl, sourceControlEntries, sourceControlDiff,
-    onToggleAuxiliary, onToggleExplorer, onToggleMarketplace, onToggleSourceControl,
+    onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleMarketplace, onToggleSourceControl,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
@@ -382,10 +383,17 @@ export function Workbench(props: WorkbenchProps) {
             aria-pressed={settings.showOutput} onClick={onToggleBottom}>
             <Icon name="terminal" size={20}/>
           </button>
-          {mode !== 'free' && <button className="activity-button" title={hint('toggle-auxiliary', `Toggle ${modeName} panel`)}
-            aria-label={`Toggle ${modeName} panel`} aria-pressed={Boolean(auxiliary) && !sourceControl} onClick={onToggleAuxiliary}>
-            <Icon name={mode === 'learn' ? 'book' : mode === 'projects' ? 'map' : 'flask'} size={19}/>
-          </button>}
+          <div className="activity-divider"/>
+          <button className="activity-button experience-button" type="button" title="Code" aria-label="Code" aria-pressed={mode === 'free'}
+            onClick={() => onWorkspace('free')}><Icon name="code" size={19}/><span>Code</span></button>
+          <button className="activity-button experience-button" type="button" title={mode === 'learn' || mode === 'practice' ? hint('toggle-auxiliary', `Toggle ${modeName} panel`) : 'Learn'}
+            aria-label={mode === 'learn' || mode === 'practice' ? `Toggle ${modeName} panel` : 'Learn'} data-testid="navigate-learn"
+            aria-pressed={(mode === 'learn' || mode === 'practice') && Boolean(auxiliary) && !sourceControl}
+            onClick={() => mode === 'learn' || mode === 'practice' ? onToggleAuxiliary() : onWorkspace('learn')}><Icon name="book" size={18}/><span>Learn</span></button>
+          <button className="activity-button experience-button" type="button" title={mode === 'projects' ? hint('toggle-auxiliary', 'Toggle Projects panel') : 'Projects'}
+            aria-label={mode === 'projects' ? 'Toggle Projects panel' : 'Projects'} data-testid="navigate-projects"
+            aria-pressed={mode === 'projects' && Boolean(auxiliary) && !sourceControl}
+            onClick={() => mode === 'projects' ? onToggleAuxiliary() : onWorkspace('projects')}><Icon name="map" size={18}/><span>Projects</span></button>
           <button className="activity-button" type="button" title={hint('toggle-marketplace', 'Marketplace')}
             aria-label="Marketplace" aria-pressed={Boolean(marketplace)} data-testid="toggle-marketplace" onClick={onToggleMarketplace}>
             <Icon name="marketplace" size={19}/>

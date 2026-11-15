@@ -114,7 +114,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
         {themeSupportsAccent && <div className="setting">
           <div><b>Accent</b><p>Color for controls and active panes.</p></div>
           <div className="swatches" aria-label="Accent color">
-            {accents.map((accent) => <button className={`swatch ${accent}`} key={accent} aria-label={accent}
+            {accents.map((accent) => <button className={`swatch ${accent}`} key={accent} aria-label={accent === 'cyan' ? 'Theme default accent' : accent}
               aria-pressed={settings.accent === accent} onClick={() => onChange({ accent })}>
               {settings.accent === accent && <Icon name="check" size={13}/>}
             </button>)}

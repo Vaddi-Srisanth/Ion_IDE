@@ -56,7 +56,7 @@ async function loadPanel(mode: OptionalPanel) {
 type LoadedPanel = Awaited<ReturnType<typeof loadPanel>>;
 type PanelContent = { key: string; module: LoadedPanel } | { key: string; error: string };
 type MarketplaceContent = { Component: typeof import('./learning/MarketplacePane').MarketplacePane } | { error: string };
-const modeNames: Record<WorkspaceMode, string> = { free: 'Free Coding', learn: 'Learn', projects: 'Projects', practice: 'Practice' };
+const modeNames: Record<WorkspaceMode, string> = { free: 'Code', learn: 'Learn', projects: 'Projects', practice: 'Practice Lab' };
 const bridge = window.ion;
 const Commands = lazy(async () => ({ default: (await import('./CommandPicker')).Commands }));
 const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker')).QuickOpen }));
@@ -567,6 +567,12 @@ export function App() {
     }
   }
   const selectWorkspace = (next: WorkspaceMode) => {
+    if (next !== mode && (projectDraft.current || practiceDraft.current)) {
+      notify('Save or close the current draft before switching workspaces.');
+      return;
+    }
+    closeSourceControl();
+    setMarketplaceVisible(false);
     if (next !== 'practice') setPracticeExercise(undefined);
     setMode(next);
     setLensSelection(undefined);
@@ -1344,7 +1350,7 @@ export function App() {
         onFile={() => { setMode('free'); openFile(); }}
         onFolder={() => { setMode('free'); openFolder(); }}
         onRecent={(entry) => { setMode('free'); openRecent(entry); }}/>}
-      {(screen === 'editor' || notebookRunning) && <Workbench documents={documents} hidden={screen === 'welcome'} mode={mode}
+      {(screen === 'editor' || notebookRunning) && <Workbench documents={documents} hidden={screen === 'welcome'} mode={mode} onWorkspace={selectWorkspace}
           auxiliary={renderAuxiliary()} onToggleAuxiliary={sourceControlVisible ? closeSourceControl : toggleAuxiliary}
           sourceControl={renderSourceControl()} sourceControlEntries={sourceControlVisible ? sourceControlEntries : undefined}
           onToggleSourceControl={toggleSourceControl}

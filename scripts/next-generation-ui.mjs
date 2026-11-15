@@ -1,0 +1,256 @@
+// Browser-only UI verification. Intentionally imports no Electron utilities.
+// Real production renderer + explicit fixture bridge; not native runtime proof.
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
+import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { createRequire } from 'node:module';
+import { performance } from 'node:perf_hooks';
+import { browserFixtureData, installBrowserFixture } from './next-generation-browser-fixture.mjs';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright-core');
+const options = new Map();
+for (let index = 2; index < process.argv.length; index += 2) {
+  const key = process.argv[index], value = process.argv[index + 1];
+  if (!['--target', '--out', '--next', '--scale', '--catalog'].includes(key) || !value || options.has(key)) throw new Error('Usage: node scripts/next-generation-ui.mjs --target /absolute/dist/renderer --out /absolute/results [--next true] [--scale 2] [--catalog true]');
+  options.set(key, value);
+}
+for (const key of ['--target', '--out']) if (!isAbsolute(options.get(key) ?? '')) throw new Error(key + ' must be absolute.');
+for (const key of ['--next', '--catalog']) if (options.has(key) && options.get(key) !== 'true') throw new Error(key + ' accepts only true.');
+const next = options.get('--next') === 'true';
+const catalog = options.get('--catalog') === 'true';
+if (catalog && !next) throw new Error('--catalog true requires --next true.');
+const scale = options.get('--scale') ?? '1';
+if (!['1', '2'].includes(scale)) throw new Error('--scale must be 1 or 2.');
+const target = await realpath(options.get('--target'));
+const output = resolve(options.get('--out'));
+const within = (parent, path) => { const child = relative(parent, path); return !child || (!child.startsWith('..' + sep) && child !== '..' && !isAbsolute(child)); };
+if (within(target, output) || within(output, target)) throw new Error('Output must be separate from the compiled renderer.');
+await stat(join(target, 'index.html'));
+await mkdir(output, { recursive: true });
+const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+await stat(chrome);
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
+let requestCount = 0, servedBytes = 0;
+const serverErrors = [];
+const server = createServer(async (request, response) => {
+  try {
+    if (++requestCount > 1000) throw new Error('Static request budget exceeded.');
+    if (request.method !== 'GET' && request.method !== 'HEAD') { response.writeHead(405); response.end(); return; }
+    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    if (pathname === '/favicon.ico') { response.writeHead(204); response.end(); return; }
+    const path = await realpath(join(target, pathname === '/' ? 'index.html' : pathname));
+    if (!within(target, path)) throw new Error('Static path escaped target.');
+    const details = await stat(path);
+    if (!details.isFile() || details.size > 32 * 1024 * 1024 || servedBytes + details.size > 256 * 1024 * 1024) throw new Error('Static file budget exceeded.');
+    servedBytes += details.size;
+    response.writeHead(200, { 'Content-Type': mime[extname(path)] ?? 'application/octet-stream',
+      'Content-Length': details.size, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    if (request.method === 'HEAD') response.end();
+    else createReadStream(path).on('error', error => { serverErrors.push(error.message); response.destroy(error); }).pipe(response);
+  } catch (error) {
+    serverErrors.push(String(error.message));
+    if (!response.headersSent) response.writeHead(404);
+    response.end('Unavailable fixture asset.');
+  }
+});
+await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
+const origin = `http://127.0.0.1:${server.address().port}`;
+const report = {
+  kind: 'headless-browser-real-renderer-with-test-bridge',
+  limitations: ['Not Electron/native runtime verification.', 'No native filesystem writes, execution, terminal, recovery, installer or memory-footprint claims.',
+    'JS heap is Chromium renderer JS heap, not process-tree RSS or macOS attributed footprint.', 'Fixture-selected Java pack and synthetic project are test data, not user data.'],
+  target, chrome, nextGenerationAssertions: next, freshCatalogFixture: catalog,
+  deviceScaleFactor: Number(scale), scaleCaveat: 'Chrome device scale factor, not native macOS Retina/WindowServer verification.', scenarios: [], errors: [],
+};
+let browser;
+try {
+  browser = await chromium.launch({ executablePath: chrome, headless: true,
+    args: ['--disable-background-networking', '--disable-component-update', '--disable-default-apps', '--no-first-run'] });
+  report.browserVersion = browser.version();
+  for (const [width, height] of [[960, 700], [1440, 900]]) for (const theme of ['dark', 'light']) {
+    const label = `${width}x${height}-${theme}${scale === '2' ? '-scale2' : ''}`;
+    const scenario = { label, screenshots: [], console: [], errors: [], requests: [], assertions: [] };
+    report.scenarios.push(scenario);
+    const context = await browser.newContext({ viewport: { width, height }, colorScheme: theme, deviceScaleFactor: Number(scale),
+      serviceWorkers: 'block', reducedMotion: 'reduce' });
+    try {
+      await context.addInitScript(installBrowserFixture, await browserFixtureData(theme, { freshCatalog: catalog }));
+      await context.route('**/*', async route => {
+        const url = route.request().url();
+        if (url.startsWith(origin + '/') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
+        scenario.errors.push('Blocked unexpected remote request: ' + url); return route.abort('blockedbyclient');
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(15000);
+      page.on('pageerror', error => scenario.errors.push(error.message));
+      page.on('console', message => { if (scenario.console.length < 120) scenario.console.push({ type: message.type(), text: message.text().slice(0, 1200) }); });
+      page.on('requestfailed', request => scenario.errors.push('Request failed: ' + request.url() + ' ' + request.failure()?.errorText));
+      page.on('response', response => { if (response.status() >= 400) scenario.errors.push('HTTP ' + response.status() + ': ' + response.url()); });
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.enable');
+      await cdp.send('Performance.enable');
+      const network = new Map();
+      cdp.on('Network.requestWillBeSent', event => network.set(event.requestId, { url: event.request.url, type: event.type, bytes: 0 }));
+      cdp.on('Network.loadingFinished', event => { const item = network.get(event.requestId); if (item) item.bytes = event.encodedDataLength; });
+      const snapshot = async name => {
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate(() => new Promise(resolveFrame => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))));
+        const file = `${label}-${name}.png`;
+        await page.screenshot({ path: join(output, file), fullPage: false, animations: 'disabled' });
+        scenario.screenshots.push(file);
+        const metrics = await cdp.send('Performance.getMetrics');
+        const selected = Object.fromEntries(metrics.metrics.filter(({ name: key }) => ['JSHeapUsedSize', 'JSHeapTotalSize', 'Nodes', 'Documents', 'TaskDuration'].includes(key)).map(({ name: key, value }) => [key, value]));
+        const resources = [...network.values()].filter(item => /\.js(?:$|\?)/.test(item.url));
+        scenario[name] = { browserMetrics: selected, totalJsTransferredBytes: resources.reduce((sum, item) => sum + item.bytes, 0),
+          jsResources: resources.map(({ url, bytes }) => ({ path: new URL(url).pathname, bytes })),
+          layout: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth,
+            documentHeight: document.documentElement.scrollHeight, visibleMainCount: [...document.querySelectorAll('main')].filter(node => node.getBoundingClientRect().width > 0).length })) };
+        assert.equal(scenario[name].layout.documentWidth <= width + 1, true, 'Unexpected page horizontal overflow: ' + name);
+      };
+      const boot = performance.now();
+      await page.goto(origin + '/', { waitUntil: 'networkidle', timeout: 20000 });
+      await page.getByTestId('welcome').waitFor();
+      await page.locator(`.app-shell[data-theme-id="${theme}"]`).waitFor();
+      await page.getByTestId('welcome').getByTestId('workspace-practice').waitFor();
+      scenario.welcomeReadyMs = performance.now() - boot;
+      scenario.assertions.push('Welcome visible; Practice remains discoverable; selected theme applied.');
+      await snapshot('welcome');
+      const dormant = scenario.welcome.jsResources.filter(({ path }) => /LearningPane|MarketplacePane|ProjectsPanel|PracticePane|TerminalPane|TerminalSurface|xterm|addon-search/i.test(path));
+      assert.deepEqual(dormant, [], 'Optional modules were requested on Welcome.');
+      const welcomeCalls = await page.evaluate(() => window.__ionBrowserFixture.inspect());
+      assert.equal(welcomeCalls.calls.some(name => /learningPacks|terminal\.create|runConsole\.start/.test(name)), false, 'Optional backend fixture called on Welcome.');
+      scenario.assertions.push('Named learning/project/practice/terminal chunks and services dormant on Welcome.');
+
+      await page.getByTestId('workspace-learn').click();
+      const learn = page.getByTestId('learning-pane');
+      await learn.waitFor();
+      if (catalog) {
+        await learn.getByTestId('learning-language').waitFor();
+        assert.equal(await learn.getByTestId('learning-language').inputValue(), '', 'Fresh fixture must not select a language automatically.');
+        await learn.getByTestId('learning-language').selectOption('java');
+        scenario.assertions.push('Fresh profile chooses Java directly in Learn without a Marketplace/install journey. Fixture materialization is test-only.');
+      }
+      await learn.getByTestId('learning-topic').first().waitFor();
+      assert.equal((await learn.locator('.learning-nav-item').first().innerText()).trim(), 'Topics');
+      assert.equal(await learn.getByTestId('learning-language').inputValue(), 'java');
+      await snapshot('learn');
+      await learn.getByTestId('learning-topic').first().click();
+      await learn.getByTestId('learning-pack-lesson').waitFor();
+      await snapshot('lesson');
+      scenario.assertions.push('Learn selects installed Java; Topics remains first; real bundled lesson renders.');
+
+      await page.getByRole('button', { name: 'Welcome', exact: true }).click();
+      await page.getByTestId('welcome').waitFor();
+      await page.getByTestId('welcome').getByTestId('open-folder').click();
+      await page.getByTestId('explorer-entry').filter({ hasText: 'Main.java' }).click();
+      await page.locator('.monaco-editor .view-lines').getByText('public class Main {', { exact: false }).waitFor();
+      await snapshot('code');
+      assert.equal(await page.locator('.monaco-editor').count(), 1, 'Expected one normal source editor.');
+      scenario.assertions.push('Real Monaco displays fixture source; exactly one code editor exists.');
+      // Use the existing command bridge and actual command implementation, not a
+      // replacement editor action; this avoids OS-global shortcut side effects.
+      await page.evaluate(() => window.__ionBrowserFixture.command('find'));
+      await page.locator('.find-widget').waitFor({ state: 'visible' });
+      await page.keyboard.press('Escape');
+      scenario.assertions.push('Existing Find command opens real Monaco Find widget.');
+      if (next) {
+        const code = page.getByRole('button', { name: 'Code', exact: true });
+        const learnNavigation = page.getByTestId('navigate-learn');
+        const editorElement = await page.locator('.monaco-editor').elementHandle();
+        await code.waitFor();
+        await learnNavigation.waitFor();
+        const originalSource = await page.locator('.monaco-editor .view-lines').innerText();
+        // Monaco may use native EditContext instead of a hidden textarea.
+        // Exercise real keyboard input through its visible first source line.
+        const firstLine = page.locator('.monaco-editor .view-line').first();
+        const originalFirstLine = await firstLine.innerText();
+        await firstLine.click();
+        await page.keyboard.press('Meta+ArrowRight');
+        await page.keyboard.press('x');
+        await page.waitForFunction(() => document.querySelector('.monaco-editor .view-line')?.textContent.endsWith('x'));
+        await page.locator('.tab-close.tab-dirty').waitFor();
+        await learnNavigation.click();
+        await learn.waitFor();
+        await code.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
+        assert.equal(await editorElement.evaluate(element => element.isConnected), true, 'Workspace switching remounted Monaco.');
+        assert.equal(await page.locator('.monaco-editor').count(), 1);
+        assert.equal(await firstLine.innerText(), originalFirstLine + 'x', 'Unsaved source lost on navigation.');
+        await firstLine.click();
+        await page.keyboard.press('Meta+z');
+        await page.waitForFunction(() => !document.querySelector('.monaco-editor .view-line')?.textContent.endsWith('x'));
+        assert.equal(await page.locator('.monaco-editor .view-lines').innerText(), originalSource, 'One Undo did not restore pre-edit source.');
+        scenario.assertions.push('Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.');
+
+        await code.focus();
+        await page.keyboard.press('Tab');
+        scenario.keyboardFocus = await learnNavigation.evaluate(element => ({ active: document.activeElement === element,
+          focusVisible: element.matches(':focus-visible'), outline: getComputedStyle(element).outlineStyle,
+          width: getComputedStyle(element).outlineWidth, color: getComputedStyle(element).outlineColor }));
+        assert.equal(scenario.keyboardFocus.active, true, 'Tab did not reach Learn navigation.');
+        assert.equal(scenario.keyboardFocus.focusVisible, true);
+        assert.notEqual(scenario.keyboardFocus.outline, 'none');
+        assert.ok(parseFloat(scenario.keyboardFocus.width) >= 1);
+        await snapshot('keyboard-focus');
+        scenario.assertions.push('Keyboard Tab reaches Learn and computed :focus-visible outline is visible.');
+
+        await page.getByTestId('navigate-projects').click();
+        const projectTitle = page.getByTestId('project-title');
+        await projectTitle.fill('Do not lose this project draft');
+        await page.getByTestId('project-description').fill('A real React form fixture with unsaved input.');
+        await code.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'projects');
+        assert.equal(await projectTitle.inputValue(), 'Do not lose this project draft');
+        await page.getByText('Save or close the current draft before switching workspaces.', { exact: true }).waitFor();
+        await snapshot('project-draft-protected');
+        await page.getByRole('button', { name: 'Discard Draft', exact: true }).click();
+        await code.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
+        scenario.assertions.push('Actual dirty Projects form blocks Code navigation; input survives until explicit discard.');
+
+        await page.getByRole('button', { name: 'Welcome', exact: true }).click();
+        await page.getByTestId('workspace-practice').click();
+        await page.getByTestId('practice-pane').waitFor();
+        await page.getByTestId('practice-new').click();
+        await page.getByTestId('practice-title').fill('Do not lose this practice draft');
+        await page.getByRole('button', { name: 'Keep draft', exact: true }).click();
+        await code.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'practice');
+        await page.getByText('Save or close the current draft before switching workspaces.', { exact: true }).waitFor();
+        await page.getByTestId('practice-new').click();
+        assert.equal(await page.getByTestId('practice-title').inputValue(), 'Do not lose this practice draft');
+        await page.getByRole('button', { name: 'Discard draft', exact: true }).click();
+        await code.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="workspace"]')?.dataset.mode === 'free');
+        scenario.assertions.push('Actual dirty Practice form blocks Code navigation and resumes with the original input.');
+      }
+      scenario.fixture = await page.evaluate(() => window.__ionBrowserFixture.inspect());
+      assert.deepEqual(scenario.fixture.failures, [], 'Unsupported bridge methods called.');
+      assert.equal(scenario.fixture.calls.some(name => /terminal\.create|runConsole\.start|updates\.check|formatting\.run/.test(name)), false);
+      if (next) assert.equal(scenario.fixture.subscribers.projectSourceSaved, 0, 'Project listener leaked after leaving Projects.');
+      assert.deepEqual(scenario.errors, [], 'Renderer, request or console errors.');
+      const consoleErrors = scenario.console.filter(item => item.type === 'error');
+      assert.deepEqual(consoleErrors, [], 'Console errors.');
+      scenario.status = 'passed';
+    } catch (error) {
+      scenario.status = 'failed'; scenario.errors.push(error.stack ?? String(error)); throw error;
+    } finally {
+      await context.close();
+    }
+  }
+  assert.deepEqual(serverErrors, [], 'Static asset server errors.');
+  report.status = 'passed';
+} catch (error) {
+  report.status = 'failed'; report.errors.push(error.stack ?? String(error)); process.exitCode = 1;
+} finally {
+  await browser?.close();
+  server.closeAllConnections();
+  await new Promise(resolveClose => server.close(resolveClose));
+  report.server = { requestCount, servedBytes, errors: serverErrors };
+  await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
+}
+console.log(JSON.stringify({ status: report.status, scenarios: report.scenarios.map(({ label, status }) => ({ label, status })), output }));

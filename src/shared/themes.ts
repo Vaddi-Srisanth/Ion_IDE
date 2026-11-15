@@ -35,8 +35,8 @@ export interface ThemeDefinition {
 export type ThemeData = ThemeSummary & ThemeDefinition
 
 export const builtinThemes: readonly ThemeSummary[] = [
-  { id: 'dark', name: 'Ion Dark', appearance: 'dark', source: 'builtin', swatches: ['#10131a', '#7be7db', '#c2a5ff'] },
-  { id: 'light', name: 'Ion Light', appearance: 'light', source: 'builtin', swatches: ['#ffffff', '#005e58', '#6044a7'] },
+  { id: 'dark', name: 'Ion Dark', appearance: 'dark', source: 'builtin', swatches: ['#101216', '#80afff', '#c2a5ff'] },
+  { id: 'light', name: 'Ion Light', appearance: 'light', source: 'builtin', swatches: ['#fbfcfe', '#1d53b8', '#6044a7'] },
   { id: 'midnight', name: 'Ion Midnight', appearance: 'dark', source: 'builtin', swatches: ['#151021', '#cfb1ff', '#cfb1ff'] },
   { id: 'graphite', name: 'Ion Graphite', appearance: 'dark', source: 'builtin', swatches: ['#1a1817', '#ffc082', '#eab4d7'] },
   { id: 'obsidian', name: 'Ion Obsidian', appearance: 'dark', source: 'builtin', swatches: ['#101012', '#a9b9ff', '#b5acff'] },

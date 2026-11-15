@@ -6,6 +6,20 @@
   min-height: 0;
   background: var(--panel);
 }
+.learning-pane .pane-title { min-height: 35px; }
+.learning-pane .pane-title h2 { letter-spacing: .08em; }
+.learning-pane .learning-language-row { padding: 12px; background: var(--surface); }
+.learning-pane .learning-language > span { color: var(--muted); letter-spacing: .08em; }
+.learning-pane .learning-scroll { padding: 16px; }
+.learning-pane .learning-nav { gap: 4px; padding-inline: 10px; }
+.learning-pane .learning-nav-item { min-height: 37px; }
+.learning-pane .learning-topic-section + .learning-topic-section { margin-top: 20px; }
+.learning-pane .learning-topic-list { gap: 0; }
+.learning-pane .learning-topic-list .button { border: 0; border-bottom: 1px solid var(--subtle-border); border-radius: 0; background: transparent; min-height: 37px; padding: 8px 2px; font-size: 12px; }
+.learning-pane .learning-topic-list .button:hover { background: var(--surface); color: var(--accent); }
+.learning-pane .learning-pack-lesson > h3 { font-size: 17px; line-height: 1.35; letter-spacing: -.02em; margin: 7px 0 13px; }
+.learning-pane .learning-pack-lesson > p { font-size: 12px; line-height: 1.65; }
+.learning-pane .learning-pack-lesson h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin-top: 20px; }
 .learning-pane .pane-title h2 { display: flex; align-items: center; gap: 7px; }
 .learning-pane .pane-title h2 svg { color: var(--accent); }
 .learning-nav { display: flex; padding: 0 5px; border-bottom: 1px solid var(--border); }
