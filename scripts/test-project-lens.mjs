@@ -286,6 +286,13 @@ require(${JSON.stringify(target.args[0])});\n`)
         const handles = await observed()
         return handles.analyses === 0 && handles.active.length === 0 && handles.opened > beforeRootChange.opened && handles.closed > beforeRootChange.closed
       }, 'Workspace invalidation did not close its real manifest FileHandle.')
+      // A new root replaces the Projects lease and remounts its default
+      // Roadmap view. Reopen Lens explicitly; never interpret a missing old
+      // component as an analysis that failed to finish.
+      await projects.waitFor()
+      assert.equal(await projects.getByTestId('project-view-roadmap').getAttribute('aria-pressed'), 'true')
+      assert.equal(await lens.count(), 0, 'The previous root retained its Lens view.')
+      await projects.getByTestId('project-view-lens').click()
       await lens.waitFor()
       assert.equal(await lens.getByTestId('project-lens-summary').count(), 0)
       await assert.rejects(page.evaluate(({ root, reference }) => window.ion.projectLens.openReference(root, reference),
