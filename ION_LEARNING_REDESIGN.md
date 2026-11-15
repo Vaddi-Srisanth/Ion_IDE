@@ -8,7 +8,7 @@ Practice Lab is accessible from Learn and Welcome, using the same Practice store
 
 ## Not completed
 
-The catalog is reference/introductory material, not a newly reviewed complete Python/Java/C academy. Milestone C still needs carefully reviewed practical paths, progressive hints, follow-up tasks and compact evidence for hint/exercise use. No new mastery score, automatic completion, AI tutor or AI explanation is implemented. Existing sample passes establish those samples only.
+The catalog is reference/introductory material, not a newly reviewed complete Python/Java/C academy. Milestone C adds the introductory practical slice described below; complete multi-lesson course progression and independently verified follow-ups remain unfinished. No new mastery score or automatic completion is implemented. Optional reviewed-context AI Tutor is implemented separately in E; live-provider usefulness remains unverified. Existing sample passes establish those samples only.
 
 ## Human learning check
 
@@ -21,4 +21,19 @@ Python/Java/C each have one enriched `flow` lesson: reviewed objective/prerequis
 
 Activity is an optional bounded 256-entry local LRU map inside existing learning.json. Lesson-open and hint counts are exploration, not completion. Actual Practice reports provide saved-source/sample freshness and passed/failed/unavailable/skipped counts; manual completion remains separate. Hiding the owning panel or leaving a running lesson cancels only its pending sample run. No polling, second progress store or compiler background service.
 
-This is three practical lessons, not three completed courses. Follow-ups are unverified exercises, not automatic competence awards. Wider curriculum, question checking, AI Tutor and live Project Lens remain future milestones.
+This is three practical lessons, not three completed courses. Follow-ups are unverified exercises, not automatic competence awards. Wider curriculum and independently checked questions remain future work. E integrates optional reviewed-context Tutor/Lens prose; this does not replace local lesson feedback or test evidence.
+
+
+## Small learner pilot protocol — prepared, not executed
+
+Use an isolated profile and a beginner's informed consent; do not collect source, audio or personal data by default. Record Ion revision, OS/toolchain versions, task language and prior familiarity. Allow20–30minutes; the observer must not supply code.
+
+1. Ask the learner to enter Learn, choose Python, Java or C and find the introductory flow lesson without help. Record confusion and navigation steps.
+2. Ask them to restate the task and expected behavior before opening the exercise. Observe whether the starter and Run samples are discoverable.
+3. Have them make an independent attempt, run it, inspect real expected/actual output and explain a failure. Record the original diagnostic category without claiming its cause if unknown.
+4. Offer one graduated hint only when requested. Ask what changed in their reasoning; record whether it gave away too much or remained vague.
+5. Have them correct the attempt and rerun available samples. Ask what those samples do and do not establish.
+6. Give an analogous task with changed bounds/filter behavior and no hint. Evaluate reasoning and representative cases manually; record assistance separately from independent performance.
+7. Relaunch offline and confirm the learner can find their attempt, notes and actual saved evidence. Check that manual completion and sample success are not confused with mastery.
+
+Record task completion/assistance, confusion points, lost work, incorrect explanations, hint usefulness and suggestions. Fix safety/data-loss defects first. A small convenience pilot cannot establish general learning gains or superiority over another IDE. No results or participants are claimed here.

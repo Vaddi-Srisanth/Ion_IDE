@@ -1,0 +1,1015 @@
+{
+  "candidate": "2af7d824a402bade0d3ee3c902b13b4fd35de53d",
+  "run": 43701511606,
+  "artifact": 14156622681,
+  "sourceSha256": "91591e4764009121f96ca97b0220c10ec86d6ed08cd6737e4661601f0a4c00ac",
+  "scope": "Incomplete native fixture; primary failure was masked by cleanup. Preserve all eight pre-failure resource samples, not final acceptance or repeated-use recovery",
+  "complete": false,
+  "checks": {
+    "dormantBeforeExplicitOpen": "passed",
+    "explicitProviderConfiguration": "passed",
+    "explicitReviewExactBytesSingleUseConsent": "passed",
+    "forgedTokenAndCitationRejected": "passed",
+    "installedLessonUnsavedBufferUndoAndInvalidation": "passed",
+    "mainVerifiedSelectedStructureAndSource": "passed",
+    "actualCitationNavigationPreservesUnsavedEditor": "passed"
+  },
+  "resources": {
+    "complete": false,
+    "maximumDurationMs": 300000,
+    "cycles": 0,
+    "protocol": {
+      "idleWindowMs": 1400,
+      "settleMs": 350,
+      "maximumSamples": 24,
+      "repeats": 20,
+      "memory": {
+        "redacted": true,
+        "sha256": "cf48096cb26fedd59701ba794159d8f5616b0006d7374b59cd1e3d6acc2bc223"
+      },
+      "cpu": {
+        "redacted": true,
+        "sha256": "f26ecec060d9061d1e56d68150702386b6faed5d648c7ee11a4f180628d31567"
+      },
+      "scope": {
+        "redacted": true,
+        "sha256": "f6d8f66340831a8b999b80072439c920e2cbe171c37ca59c7f721d07f8993b62"
+      },
+      "field_6694ea8075001f6628da20f1afdafc74a763e2098bafc633b057534792db6aad": {
+        "redacted": true,
+        "sha256": "ceb51d396d43bf9c2d355a49fa5d9cd8b647d1692a18e4f28373054117a1383e"
+      },
+      "field_8c585378513f5f7a2e1456ee54042605fdb890392becefadd2ab180fd02fb341": {
+        "redacted": true,
+        "sha256": "541a9b888b6cabcb00a5510c84774b743236030cbaf3f9f3ec6a3a7437cd374a"
+      }
+    },
+    "samples": [
+      {
+        "label": "code-one-file-before-optional",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 716,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 1325.9183,
+          "timeMs": 2850.3755,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.609375,
+              "workingSetMiB": 115.9375,
+              "privateMiB": 83.49609375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.078125,
+              "workingSetMiB": 67.125,
+              "privateMiB": 17.6484375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 44.78515625,
+              "privateMiB": 10.89453125
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.78125,
+              "workingSetMiB": 130.02734375,
+              "privateMiB": 72.25
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.609375,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.078125,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.109375,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.78125
+          },
+          "workingSetMiB": 357.875,
+          "privateMiB": 184.2890625
+        },
+        "last": {
+          "elapsedMs": 3941.5202500000005,
+          "timeMs": 5465.97745,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.609375,
+              "workingSetMiB": 115.9375,
+              "privateMiB": 83.49609375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.078125,
+              "workingSetMiB": 67.15234375,
+              "privateMiB": 17.6796875
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 44.78515625,
+              "privateMiB": 10.89453125
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.78125,
+              "workingSetMiB": 130.0390625,
+              "privateMiB": 72.2578125
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.609375,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.078125,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.109375,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.78125
+          },
+          "workingSetMiB": 357.9140625,
+          "privateMiB": 184.328125
+        },
+        "intervalMs": 2615.60195,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "learn-installed-lesson-before-ai",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 5047.96435,
+          "timeMs": 6572.42155,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.703125,
+              "workingSetMiB": 112.13671875,
+              "privateMiB": 78.796875
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 67.2890625,
+              "privateMiB": 17.74609375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 44.7890625,
+              "privateMiB": 10.8984375
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.84375,
+              "workingSetMiB": 134.3515625,
+              "privateMiB": 76.0625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.703125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.109375,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.84375
+          },
+          "workingSetMiB": 358.56640625,
+          "privateMiB": 183.50390625
+        },
+        "last": {
+          "elapsedMs": 6908.8432999999995,
+          "timeMs": 8433.3005,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.703125,
+              "workingSetMiB": 112.13671875,
+              "privateMiB": 78.796875
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 67.0390625,
+              "privateMiB": 17.74609375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 44.7890625,
+              "privateMiB": 10.8984375
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.84375,
+              "workingSetMiB": 134.3515625,
+              "privateMiB": 76.0625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.703125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.109375,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.84375
+          },
+          "workingSetMiB": 358.31640625,
+          "privateMiB": 183.50390625
+        },
+        "intervalMs": 1860.8789499999993,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "tutor-question-only-review",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 8761.4515,
+          "timeMs": 10285.9087,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.765625,
+              "workingSetMiB": 113.2734375,
+              "privateMiB": 79.234375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.1015625,
+              "privateMiB": 18.0859375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 44.8125,
+              "privateMiB": 10.96484375
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.90625,
+              "workingSetMiB": 150.859375,
+              "privateMiB": 82.10546875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.765625,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.109375,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.90625
+          },
+          "workingSetMiB": 382.046875,
+          "privateMiB": 190.390625
+        },
+        "last": {
+          "elapsedMs": 10607.954249999999,
+          "timeMs": 12132.41145,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.765625,
+              "workingSetMiB": 113.28515625,
+              "privateMiB": 79.234375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.1015625,
+              "privateMiB": 18.0859375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.921875,
+              "workingSetMiB": 146.6328125,
+              "privateMiB": 77.21875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.765625,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.921875
+          },
+          "workingSetMiB": 377.8515625,
+          "privateMiB": 185.5078125
+        },
+        "intervalMs": 1846.5027499999997,
+        "cpuPercent": 1.6923884895378578,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "tutor-question-only-reply",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 11461.8262,
+          "timeMs": 12986.2834,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.78125,
+              "workingSetMiB": 113.45703125,
+              "privateMiB": 79.2578125
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.1015625,
+              "privateMiB": 18.0859375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.921875,
+              "workingSetMiB": 148.87109375,
+              "privateMiB": 78.7734375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.78125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.921875
+          },
+          "workingSetMiB": 380.26171875,
+          "privateMiB": 187.0859375
+        },
+        "last": {
+          "elapsedMs": 13334.378,
+          "timeMs": 14858.835200000001,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.78125,
+              "workingSetMiB": 113.4609375,
+              "privateMiB": 79.26171875
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.1015625,
+              "privateMiB": 18.0859375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 0.921875,
+              "workingSetMiB": 147.625,
+              "privateMiB": 78.7734375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.78125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 0.921875
+          },
+          "workingSetMiB": 379.01953125,
+          "privateMiB": 187.08984375
+        },
+        "intervalMs": 1872.551800000001,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "lens-before-analysis",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 14733.09945,
+          "timeMs": 16257.55665,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.90625,
+              "workingSetMiB": 116.58203125,
+              "privateMiB": 79.4453125
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 74.515625,
+              "privateMiB": 18
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.015625,
+              "workingSetMiB": 158.25,
+              "privateMiB": 86.46484375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.90625,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.015625
+          },
+          "workingSetMiB": 394.1796875,
+          "privateMiB": 194.87890625
+        },
+        "last": {
+          "elapsedMs": 16596.08685,
+          "timeMs": 18120.54405,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.90625,
+              "workingSetMiB": 116.58203125,
+              "privateMiB": 79.4453125
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 74.515625,
+              "privateMiB": 18
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.015625,
+              "workingSetMiB": 158,
+              "privateMiB": 86.46484375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.90625,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.015625
+          },
+          "workingSetMiB": 393.9296875,
+          "privateMiB": 194.87890625
+        },
+        "intervalMs": 1862.9874,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "lens-after-analysis",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 17449.71895,
+          "timeMs": 18974.17615,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.9375,
+              "workingSetMiB": 116.17578125,
+              "privateMiB": 79.2265625
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 74.67578125,
+              "privateMiB": 18.0078125
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.83203125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.03125,
+              "workingSetMiB": 159.07421875,
+              "privateMiB": 87.14453125
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.9375,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.03125
+          },
+          "workingSetMiB": 394.7578125,
+          "privateMiB": 195.34765625
+        },
+        "last": {
+          "elapsedMs": 19306.414099999998,
+          "timeMs": 20830.8713,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.9375,
+              "workingSetMiB": 116.15234375,
+              "privateMiB": 79.23046875
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 74.67578125,
+              "privateMiB": 18.0078125
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.37890625,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.03125,
+              "workingSetMiB": 151.890625,
+              "privateMiB": 87.14453125
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.9375,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.03125
+          },
+          "workingSetMiB": 387.09765625,
+          "privateMiB": 195.3515625
+        },
+        "intervalMs": 1856.6951499999996,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "project-selected-evidence-review",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 20315.98325,
+          "timeMs": 21840.440450000002,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.953125,
+              "workingSetMiB": 116.33984375,
+              "privateMiB": 79.45703125
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.359375,
+              "privateMiB": 18.078125
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 44.04296875,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.09375,
+              "workingSetMiB": 161.46875,
+              "privateMiB": 89.234375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.953125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.09375
+          },
+          "workingSetMiB": 395.2109375,
+          "privateMiB": 197.73828125
+        },
+        "last": {
+          "elapsedMs": 22153.9465,
+          "timeMs": 23678.4037,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.953125,
+              "workingSetMiB": 115.109375,
+              "privateMiB": 78.2109375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.09375,
+              "workingSetMiB": 73.359375,
+              "privateMiB": 18.078125
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 43.55078125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.09375,
+              "workingSetMiB": 161.46875,
+              "privateMiB": 89.234375
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.953125,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.09375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.09375
+          },
+          "workingSetMiB": 393.48828125,
+          "privateMiB": 196.4921875
+        },
+        "intervalMs": 1837.963249999997,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "project-selected-evidence-reply",
+        "complete": true,
+        "ui": {
+          "width": 1008,
+          "height": 655,
+          "deviceScaleFactor": 1,
+          "editorWidth": 390,
+          "editorHeight": 523,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 22999.123949999997,
+          "timeMs": 24523.581149999998,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.96875,
+              "workingSetMiB": 115.4453125,
+              "privateMiB": 78.24609375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 74.1484375,
+              "privateMiB": 18.109375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 43.49609375,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.09375,
+              "workingSetMiB": 162.75390625,
+              "privateMiB": 89.90625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.96875,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.109375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.09375
+          },
+          "workingSetMiB": 395.84375,
+          "privateMiB": 197.23046875
+        },
+        "last": {
+          "elapsedMs": 24847.56475,
+          "timeMs": 26372.021950000002,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 9524,
+              "startedMs": 1794736588453,
+              "kind": "main",
+              "cpuSeconds": 0.96875,
+              "workingSetMiB": 115.4453125,
+              "privateMiB": 78.24609375
+            },
+            {
+              "pid": 3732,
+              "startedMs": 1794736588570,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.109375,
+              "workingSetMiB": 74.1484375,
+              "privateMiB": 18.109375
+            },
+            {
+              "pid": 1800,
+              "startedMs": 1794736588571,
+              "kind": "utility",
+              "cpuSeconds": 0.125,
+              "workingSetMiB": 43.17578125,
+              "privateMiB": 10.96875
+            },
+            {
+              "pid": 4036,
+              "startedMs": 1794736588585,
+              "kind": "renderer",
+              "cpuSeconds": 1.09375,
+              "workingSetMiB": 162.47265625,
+              "privateMiB": 89.90625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_525c8b3b58c2555796b2b80c585fae06425557c0cda56627d1ed49d644648f8e": 0.96875,
+            "field_e0d91838ccbc966f0a5ca8993116def92af2588224de434425500033bf568dc0": 0.109375,
+            "field_97584d8fadacf64f3b6595430629fb2bdb4173235f9e95c69460b6d96f7584cc": 0.125,
+            "field_2296e058f0c05df7f76443cc61985a96d17ad8035611269b18d9b63c6bc6ccfb": 1.09375
+          },
+          "workingSetMiB": 395.2421875,
+          "privateMiB": 197.23046875
+        },
+        "intervalMs": 1848.440800000004,
+        "cpuPercent": 0,
+        "nativeChildCount": 0
+      }
+    ]
+  },
+  "failure": {
+    "phase": {
+      "redacted": true,
+      "sha256": "e7d233d7563cdd048599e2495c208d5949c8557f3b4d536f83145028bf09b797"
+    },
+    "fixtureLine": 629,
+    "fixtureColumn": 30,
+    "field_ab530a13e45914982b79f9b7e3fba994cfd1f3fb22f71cea1afbf02b460c6d1d": {
+      "redacted": true,
+      "sha256": "4a0ff74c72458c8d54da41eb6628955bd2b662fd028801506880d3c1cdf4b570"
+    }
+  },
+  "cleanupVerified": false
+}

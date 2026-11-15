@@ -1,77 +1,72 @@
-# Verification — local feature checkpoint
+# Next-generation verification — candidate, not release acceptance
+
+Branch `feature/ion-next-generation`, reviewed base `a108a01`. Product commits A52a7137, B80f89c5, Cf4c6331, Db8132ec, Eceb6b63 and F5489a3c. Subsequent test-only corrections preserve failed evidence. Installed Ion, main, releases and update feed are untouched.
+
+## Current checks
 
 | Check | Actual result | Limit |
-| --- | --- | --- |
-| TypeScript | PASS | Compile-time, not native interaction |
-| Production build | PASS | Production bundles, not installer or OS execution |
-| Full local unit suite | 283 total; 257 pass; 26 skip; 0 fail | Windows-specific checks and flag-gated cases not called passing |
-| Theme/shortcuts | 6pass | Theme contrast guard retained; initial light-hover failure fixed |
-| Direct-selection migration | 7pass; combined pack suite15pass | Real disposable files/Practice records; native Windows execution pending |
-| Baseline renderer | Four size/theme scenarios PASS | Initial strict bridge fixture failure preserved locally |
-| Milestone A renderer | Four size/theme scenarios PASS | Native macOS/Windows not represented by Chrome |
-| Fresh Learn/content settings | Four size/theme scenarios PASS | Actual React/Monaco with explicit test transport; backend disk tests separate |
-| Retina renderer | Four 2× size/theme cases PASS | Browser2× is not native macOS/Windows scaling certification |
-| Desktop regression scripts | Updated and syntax checked | Not executed locally: Electron registration constraint |
-| Native feature CI | Configured, not run | No feature upload authorized |
-| Live AI / Project Lens | Not implemented or tested | No source transmission or keys used |
+|---|---|---|
+| Final local typecheck / production build | PASS | Source E/F5489a3c; laterc35371a changes tests only |
+| Final local full unit suite |370total,344pass,26skip,0fail| Real local filesystem/process tests where applicable; skips are not passes |
+| Evidence sanitizer |12pass,0skip,0fail| Exact fixed resource labels preserved; source/provider/private fields redacted |
+| E context/provider/session/editor tests |PASS within full suite| Real disposable files/vault and synthetic transport; not live provider or OS native UI |
+| F recommendation merge / real repository |6pass| Includes normal ProjectSpec validation, dependencies/collisions and preservation of manual/test evidence |
+| Final compiled renderer |4/4PASS|960×700/1440×900, light/dark,2× headless Chrome; no Electron/native/GPU claim |
+| Native practical Python/Java/C |PASS Mac/Windows atea3e079 and5489a3c|Actual installed tools, samples, paste→Undo→Redo, Save and preserved attempts|
+| Offline Lens / direct-learning migration |PASS Mac/Windows atea3e079 and5489a3c|Actual filesystem/UI/IPC, security boundaries and retained local data|
+| Full nativeea3e079 |12successful jobs,1failed,2unselected| Windows full job failed notebook kernel output and Learning Lens line decoration; Mac/installer/performance/Git/unit jobs passed |
+| Native E/F5489a3c |FAIL before optional work on both platforms| New fixture waited for source inside unexpanded folder; no resource samples. Corrected test setup atc35371a; no product change |
+| Full native5489a3c |Mac/Windows regression, Windows installer and both matched performance jobs PASS|New E/F fixture still failed; historical intermittent failures remain unexplained|
+| Native E/F8c0ae1b |PASS both Mac and Windows|13checks/platform,20review/send/close cycles, invalid-context/provider guards, actual roadmap saves/conflicts, held-request shutdown and zero observed owned processes after exit|
+| Live AI/provider teaching quality |NOT RUN|No user key/context sent; synthetic HTTPS responses only|
+| Human learning/accessibility/hardware study |NOT RUN|No screen-reader, physical8GB, native scaling or four-hour study claim|
 
-Renderer journeys exercise actual unsaved editing, single Undo, stable editor-widget identity, keyboard focus, draft protection, direct selection, import preview/confirm/discard, confirmed removal, export and late-preview cleanup. External browser requests are blocked. These are not mocked native filesystem/terminal/recovery pass claims.
+[Exact historical skip inventory](docs/performance/next-generation-test-skips.json) is scoped to the D checkpoint. Local final E/F still has26skips:25Windows-only checks plus opt-in live Maven/Gradle. Native Windows final8c0ae1b full suite:362total,347pass,15skip,0fail. The current and historical skip inventories are both recorded, with exact test names and reported reasons. Genuine Windows C/ConPTY tests do not turn skipped legacy-tool fixtures into passes.
 
-Native caller scripts were updated for the deliberate removal of Marketplace, retaining path/import/tamper/data-integrity assertions. Historical Marketplace benchmark names remain aliases for explicitly versioned direct-learning/content-settings workloads; their changed measurements must not be mixed with old Marketplace results. Existing Windows benchmark setup failure and rare GCC latency remain open historical issues.
+## Failed evidence and test corrections
 
+-43683773521: Git benchmark setup30s timeout thenEBUSY. RawexecFile lacked descendant ownership. Existing runner/Job ownership fixes test cleanup; original command slowness remains unexplained.
+-43686655436: starter opened asynchronously; fixture edited too early and dirty-window teardown masked primary failure. Model readiness and primary/cleanup evidence now explicit.
+-43687651636: multiline CDPinput Undo differs from coherent paste in both Ion and stockMonaco. Actual paste→Undo→Redo verifies intended behavior; production Undo unchanged.
+-43688556658/43690648826: nativeapp://asset discovery and CDPnative Save accelerator assumptions corrected in fixture; real Save button plus disk evidence used.
+-43691393265: Windows updater teardown. CR marker delivered, socketclosed, oldCIMqueryfailed; launcherPID differed frommain. ExactPID liveness/transport receipts added; later pass is not root-cause proof for that historical intermittent.
+-43693605190: Lens root switch intentionally resets defaultRoadmap. Fixture now asserts reset before explicit reopen.
+-43694512103: actual PythonConPTY framing prevented strict traceback classification. Narrow classifier-copy normalization at ea3e079 retains source/structure/exit/ambiguity guards and original output. Focused native Mac/Windows diagnostic journeys subsequently pass; no blanket classifier relaxation.
+-43696455608: Windows notebook output and existing Learning Lens highlight timed out. Available logs do not identify root cause; bounded failure-only metadata added without increasing deadlines or retrying until green.
+-43700858841: E/F fixture passed initial dormancy checks but waited for nested source before expanding its folder. `openFolder` waits for an immediate child; c35371a waits formain.c and explicitly expandssrc, with per-step failure location. Original failed artifact remains available; zero native AI resource samples are claimed from it.
+-43701268755/c35371a: nested source setup now passes; optional resource inspection imported the editor wrapper, which exports only default, instead of the existing Monaco API. Safe fixture-line203 receipt identifies it; module lookup corrected at2af7d82 with no product change. No complete active-resource result is claimed.
+-Localui-E-final: rebuilding dist during capture removed a loaded lazy asset, causing404. Entire run retained; unchanged tests against stable final assets pass4/4 inui-E-final-stable. That corrected run alone is final renderer evidence.
 
-## C practical-learning checkpoint (local)
+## Native Lens boundary
 
-- Typecheck and production build pass. Full Node suite: 310 tests, 284 passed, 26 platform/tool-specific skips, zero failures. This includes ten unused offline Lens analyzer tests; it does not claim a wired Lens UI.
-- New activity/evidence tests use real disposable local storage, real Node runner output and unchanged Practice source identities. New schema tests verify UTF-8 starter limits and import/export. Shared result rendering tests exercise all four real statuses and escaped output. Historical C/Java/Python examples: 45 actually executed and matched expected outputs, zero skips.
-- Headless production renderer: four light/dark × laptop/desktop cases at scale2 pass. Stop while attempt lookup is held prevents both saving and execution; unmount during a held sample request issues one narrow cancellation. Completed runs do not cancel; broad Run Console Stop remains unused. Source/Undo/single widget and draft protection pass. Browser transport tests do not execute programs or prove native persistence.
-- First C browser attempt failed because the fixture expected a nonexistent `upper` variable in the unchanged Java task (actual starter reads `count`). Corrected the assertion to actual content; retained failed report in `ui-C-first`. No application timeout was raised. Corrected and final runs pass.
-- New `scripts/test-practical-learning.mjs --require-toolchains` will verify real Python/Java/C sample runs, hints, actual Monaco Undo/Redo, stale saved-source evidence and attempts on both native CI platforms. Native execution remains unverified until those jobs run.
-- A/B native run43683773521: ten passed, one failed Windows paired performance fixture setup, two optional jobs skipped. See performance report for the retained failure and actual measurements.
+[Native D evidence](docs/performance/next-generation-D-native.json): Mac and Windows each10checks,7manifest handles opened/closed,0source/outside content reads during offline analysis, no skipped symlink fixtures. Tests cover exact owner/root/reference revision, quotas, explicit action, inert scripts, cancellation and unmount. Portable checks are not an OS sandbox or proof against all hostile concurrent ancestor races.
 
+## Final renderer evidence
 
-### First C native run — retained failure
+`performance-results/ui-EF-accessibility-final/report.json`:17assertions and12captures/case; source→AI→source retains exact original Monaco model/widget and Undo. Explicit review/send/cancel/citations, held configuration cancellation, proposal editing and actual bridge-save flow pass with a synthetic test bridge. One new Not Started milestone is saved; no tests/approvals/evidence are invented. No request/console/static errors. Twenty Content Settings cycles/case retain stable listener counts; native resources measured separately.
 
-Run43686655436 Mac completed the entire existing regression command, then the new practical fixture failed during `open-exercise`. Its finally-close hit the expected unsaved-changes dialog and masked the primary error. This is a fixture failure, not evidence of a production shutdown defect. The fixture typed after its button settled without waiting for the asynchronously opened Monaco model. Added explicit starter-model readiness, granular persisted phases and primary/cleanup error preservation; a disposable recovery-confirmation path handles normal unsaved test content. Native correction remains unverified until a new run. No execution/shutdown deadline was raised.
+All full logs/failed reports remain in local ignored evidence or revision-specific GitHub artifacts. No deadline was raised, failing sample removed, security approval weakened or local Electron launched for this feature task.
 
+## Confirmed roadmap accessibility correction
 
-## D offline foundation, local only
+Detailed primary capture in43702058575/79fadc5 identifiesline441: exact Description label fill times out while the proposal remains present, selected and enabled. The earlier teardown error had hidden this primary failure; the corrected failure path now cancels work, explicitly discards only disposable proposal edits and exits cleanly.
 
-21real-FS analyzer/session tests pass, including a root-replacement test that failed before adding rootdev/ino validation. Earlier whole-tree local suite318total/292pass/26skip/0fail (before three final D guards; final snapshot suite reruns separately); skips retain their platform/tool reasons in the test log. Typecheck/build pass. Four actual compiled-renderer cases (`ui-D-first`,960×700/1440×900,light/dark,scale2) pass; no automatic Analyze, same Monaco, explicit evidence/source links and cancel-on-leave. These use transparent test data, not native analysis results.
+Real headless Chrome reproduces populated nested-textarea label lookup counts: Title1, Description0, Acceptance0; explicit aria-labels make Description1/Acceptance1 and editing succeeds. Minimal production correction adds accessible names to Description, Acceptance criteria and Objective. No timeout or test selector was weakened. The full compiled-renderer journey now edits these fields and checks persisted description/criteria/goal. Native re-verification and repeated active-resource cleanup now pass at8c0ae1b; original failing samples remain retained. The proposed regex diagnosis was rejected after directly parsing source bytes: the actual existing regex was already correct; no such production/test fix is claimed.
 
-New `scripts/test-project-lens.mjs` prepares a real native UI/IPC/filesystem-read observer, verifies no source/secret/document reads or manifest execution, authorization/staleness, held-I/O cancellation/root changes and shutdown. It has only been syntax checked locally: no native D pass is claimed. No local Electron launch, installed application change, release or update-feed mutation.
+## Subsequent native verification progress
 
+At1432c8a, both real roadmap persistence and conflict/reload stages pass, preserving tests/manual status/approvals/evidence. Native Mac then fails the deliberately simulated provider-error stage: the fixture used Page.evaluate's callback convention with ElectronApp.evaluate. The latter passes Electron first and the selected value second; the transport mode therefore never became `http-error`. Test-only8c0ae1b uses the correct argument and asserts the applied mode before proceeding. No production behavior, error assertion or deadline is relaxed. Native verification subsequently passes all E/F checks at8c0ae1b, including20cycles and20/60s natural memory recovery.
 
-### Practical input fixture root cause
+Cancellation was requested for superseded runs43701268755/43701511606/43702058575/43702703220 after their failed focused evidence was collected, to free hosted runners.43701511606 had already completed(409); completed evidence remains intact. Any canceled remaining jobs are coverage gaps for those runs, not successes. Run43700858841 retains the completed full regressions/installers/matched performance; the latest source receives its own gates.
 
-Run43687651636 now preserves the primary failure on both Mac and Windows: `undo-solution`, before compilation. Cleanup successfully honors unsaved recovery; no shutdown timeout now masks it. The wait-for-model correction alone did not fix this. A separate actual compiled-renderer control reproduces multiline CDP `insertText` single-Undo behavior identically in Ion and a temporary stock Monaco widget in all four viewport/theme cases. The temporary stock widget/model/host is disposed before normal single-editor checks. This is not evidence of production Undo corruption. [Control measurements](docs/performance/practical-undo-control.json).
+## Final E/F native evidence
 
-The native fixture now uses the already-existing Monaco paste command, exactly like the established Undo control, for a coherent replacement. Browser actual paste→Undo→Redo restores exact source. Native correction is still pending; failed samples are retained, and no production Undo implementation or deadline was changed.
+Run[43702977386](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43702977386), product8c0ae1b. [Mac](docs/performance/next-generation-EF-native-macos.json) and [Windows](docs/performance/next-generation-EF-native-windows.json) each pass13end-to-end checks,20review/send/close cycles and normal held-request shutdown. Real OS safeStorage is available on both runners; credentials and HTTPS responses are synthetic. Existing unsaved code, saved source hashes, Undo, manual milestone status, tests, approvals and evidence remain intact.20cycle snapshots retain one editor and the same two legitimate open-file models; no added child process and0observed owned processes after shutdown. No live-provider/TLS/model-quality claim. Broader final-candidate regression/installer/paired benchmark jobs subsequently complete successfully in the same run.
 
+## Final selected automated gate verdict
 
-D final guards add prototype-shaped manifest/limit rejection and a deterministic cancel/reanalyze ownership test: ten overlapping pending inspections reproduced before, maximum one after. Payload fitting regression also fails before correction. Native test now observes real FileHandle close counts and forwarded IPC analysis settlement, including cancellation, view unmount and root change; no fake snapshots or execution results.
+Exact source8c0ae1b, run43702977386: **13jobs successful,0failed,2unselected**. Mac full regression, real notebook, DMG verification; Windows full regression, installer/upgrade and recovery; complete Windows units; dependency security; Git/LFS/shutdown; three independent cold-C controls; both focused practical/Lens/E/F jobs; and both matched production benchmark jobs complete. Benchmark completion does not establish absence of a resource regression: the measured renderer footprint increase remains explicitly open.
 
-C native run43690648826 progressed through exact paste/Undo/Redo and real C sample success, then failed the fixture's save step: CDP key dispatch did not exercise Electron's native Save accelerator. The established keyboard suite uses webContents.sendInputEvent. The practical fixture now clicks the actual Save action and waits for actual disk content; native verification is running. No production save, Undo, security or deadline change.
+Two unselected jobs are manually requested909attemptWindowsGCCdiagnostics and the independentpaired-startup diagnostic. The ordinary push does not select these workflow-dispatch lanes; existing four-pair startup measurements and three cold-C controls are different coverage. The rare historicalGCCdelay is not declared fixed. All26localMac and15Windows unit skips, with exact names/reasons, are listed in the current inventory. Optional live Maven/Gradle and consumerWindowsmanual tests, screen readers, physical8GB, four-hour sessions and live-model quality remain unverified.
 
-
-## D exact staged-candidate verification — 15 November 2026
-
-The independently archived staged tree `ec8eff8e06ef31ea665f8f7a0f6dc3288556ff17` passes typecheck, production build and the full local Node suite: **321 total, 295 pass, 26 explicitly skipped, zero failures**. Four actual production-renderer scenarios pass at 960×700/1440×900, light/dark and 2× browser scale. Each includes explicit Lens analysis, source navigation using the existing Monaco widget, draft protection and twenty Content Settings open/close cycles. This is browser renderer evidence with a test bridge, not native filesystem execution or total application RAM. Native Lens verification is prepared in the focused hosted jobs; it has not run at this checkpoint.
-
-Native run43691393265 at `649d2f8` now passes the dedicated practical-learning jobs on **both macOS and Windows**, exercising real C/Python/Java tools, exact paste→Undo→Redo, actual Save, stale evidence and preserved attempts. The whole workflow is **not green**: full Windows checks retain shutdown/Git-LFS-preflight and old direct-learning fixture failures, and the Windows matched benchmark fails during baseline shutdown. These are being investigated; no failed sample is omitted or counted as passing. The earlier balanced four-pair benchmark remains separately identified by its exact source revision.
-
-The offline Lens checkpoint does not implement AI Tutor, project AI explanations or recommendation-to-roadmap integration. The unwired provider/session drafts are excluded from its staged tree and commit.
-
-
-D first native run43693605190 reaches and passes read boundaries, inert scripts, source navigation, stale references, cancellation, view-unmount cleanup and root invalidation on both platforms; it then fails its own wait for the old Lens component. Actual root changes replace the Projects lease and remount the default Roadmap. The fixture now asserts that reset explicitly and chooses Lens in the new root before testing its new snapshot. No production behavior/deadline change. Native completion remains pending; failed receipts are preserved.
-
-
-## Native investigation instrumentation (test infrastructure only)
-
-The retained Windows updater failure closes its inspector WebSocket (CR-terminated marker, one transport close, readyState3); missing newline was ruled out. Actual Electron PID1404 differs from launcherPID1564. A failed2s CIM probe does not establish either process's liveness. The next receipt adds immediate known-PID OS probes before/after CIM and bounded wrapper-exit events. No production shutdown patch is justified by current evidence.
-
-The direct-learning Python diagnostic locator is valid. A runtime-error status was observed, but its raw traceback and selected learning state were not captured, so classification failure remains unexplained. The fixture now correlates each run's IPC completion before examining its result, retains bounded diagnostic evidence, and separates primary and cleanup failures. Existing correlated-run unit tests explicitly reject old runtime-error DOM state and other run IDs. Phase-specific watchdogs distinguish preparation/compilation/execution; no production deadline or Python-classification assertion changes.
-
-35 focused test-infrastructure tests pass, zero skips/failures: startup observer6, sanitized collector11, update-shutdown support9, run completion9. These are not native pass claims. Optional startup observations preserve the original aggregate intervals while splitting controller launch/window/locator and click/tab/text observations. Renderer navigation/resources/clicks use a separate clock; no subtraction across clock origins. Inspector/transport overhead remains inside controller timings. There are no pre-main production marks, physical-display measurements or root-cause conclusions yet.
-
-The Windows baseline and candidate now use the same current test harness with different immutable production builds; protocol fields identify that change. Instrumented runs must be distinguished from prior uninstrumented measurements. Git LFS failure no longer prevents the independent shutdown step from running, and only its exact nested JSON receipt is eligible for sanitized upload. No recursive profile/artifact collection.
+Source and tests were reviewed before their feature-branch pushes; final documentation/numeric evidence passed whitespace, JSON parsing and commoncredential/privatepath scans. Synthetic credential marker strings are tests, not user keys. Documentation-only source handoff skips redundant CI; it does not claim a different application revision was tested. Installed application/profile, main, tags, releases, visibility and update feed remain unchanged.

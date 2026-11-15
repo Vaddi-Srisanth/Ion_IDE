@@ -1,12 +1,11 @@
-# Prioritized continuation
+# Prioritized continuation after the feature checkpoint
 
-1. Run the isolated feature branch on native macOS/Windows, including old-profile migration, real exercise execution, Undo, Git/terminal/recovery and package compatibility. Preserve failed/skipped receipts; do not publish installers.
-2. Milestone C: review small Python/Java/C paths, expose objective/task/starter/expected behavior, progressive hints and follow-up tasks. Join evidence to existing attempt identities; record exploration separately from task success.
-3. Milestone D: real read-only offline Project Lens, exact-root authorization, finite budgets, cancellation, factual manifest/module evidence and source navigation.
-4. Milestone E: approved-context AI Tutor and codebase questions, bounded follow-ups, validated current citations, uncertainty labels and no automatic code/command actions.
-5. Milestone F: review/edit evidence-linked suggestions into existing Projects milestones, preserving manual versus test verification.
-6. Milestone G: native visual/accessibility, resource and learner validation; keep the existing signing/hardware/benchmark limitations explicit.
+A/B/C/D and the bounded E/F explanation/roadmap slice are implemented. This is not a claim of completed academies, universal project understanding or final release readiness. Stop feature expansion until current verification is complete.
 
-After those product gates: opt-in Python/JS/TS intelligence through appropriate existing APIs/services; safer symbol rename only with project-aware preview and revision validation; one reliable debugger; general approved build/test tasks; additional Git workflows; and two editable source panes. Do not implement these all together or start language servers permanently. Existing highlighting is not semantic navigation, F5 Run is not debugging, and sample passes are not complete test coverage.
+1. Resolve or characterize the full Windows notebook-start and Learning Lens highlight failures without raising deadlines or suppressing samples. Native E/F integration,20cycles and20/60s process/resource checks pass; the broader13selected exact-candidate jobs now pass. Historical intermittent failures remain recorded, not retroactively fixed.
+2. Investigate the observed Mac ten-tab footprint difference and variable first-file/startup timings with allocation evidence. Retain all original/matched samples; no arbitrary RAM promise.
+3. Run a human Python/Java/C learning pilot and review content depth before expanding the three introductory practical lessons. Validate actual online provider interoperability/answer usefulness with explicitly authorized synthetic context.
+4. Validate native display scaling, screen-reader flows, low-memory physical hardware and extended coding sessions; existing headless2× captures are not those tests.
+5. Then consider opt-in Python/JS/TS intelligence through existing language interfaces, project-aware rename previews, one reliable debugger, approved build/test discovery, focused Git workflows and two editable source panes. These are separate measured milestones.
 
-No framework migration, Code-OSS subsystem copying, extension host, vector database, compiler bundle, default indexing or broad shallow lesson expansion is planned for this checkpoint.
+No framework migration, Code-OSS copying, extension host, vector database, bundled compiler, default indexer or broad shallow course expansion is planned. Main, installers, the update feed and the installed application remain unchanged by this feature task.

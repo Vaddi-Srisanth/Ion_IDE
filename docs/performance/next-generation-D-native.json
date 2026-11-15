@@ -1,0 +1,63 @@
+{
+  "candidate": "df089aabfc8b5f3f5e19eb1d3372fc12131c7703",
+  "run": 43694512103,
+  "scope": "Actual native Project Lens and practical-learning journeys, no live provider calls",
+  "platforms": {
+    "macos": {
+      "artifact": 14153716747,
+      "sourceSha256": "a431dc944085ac70fd9210fae5d65bedd359a8d444568c6aea24a7104137841a",
+      "complete": true,
+      "cleanupVerified": true,
+      "skipped": [],
+      "checks": {
+        "explicitAnalyze": "passed",
+        "offlineStructureAndNoSourceSecretReads": "passed",
+        "manifestCommandsInert": "passed",
+        "referenceMembershipRevisionAndSourceNavigation": "passed",
+        "hideRevokesSnapshotAndReopenDoesNotAnalyze": "passed",
+        "explicitCancellationRevokesEvidence": "passed",
+        "unmountCancelsAndDrainsAnalysis": "passed",
+        "workspaceChangeCancelsAndRejectsOldEvidence": "passed",
+        "allManifestHandlesReleased": "passed",
+        "noNetworkAndOriginalSecretPreserved": "passed"
+      },
+      "observations": {
+        "manifestReadCalls": 2,
+        "sourceReadCalls": 0,
+        "outsideReadCalls": 0,
+        "snapshotBytes": 5062,
+        "symlinkChecksAvailable": 2,
+        "manifestHandlesOpened": 7,
+        "manifestHandlesClosed": 7
+      }
+    },
+    "windows": {
+      "artifact": 14153317769,
+      "sourceSha256": "26021dfe3f93e4a2c2d1efd7ac68deb585fbb5b7571f3cb180e55b24db2f8887",
+      "complete": true,
+      "cleanupVerified": true,
+      "skipped": [],
+      "checks": {
+        "explicitAnalyze": "passed",
+        "offlineStructureAndNoSourceSecretReads": "passed",
+        "manifestCommandsInert": "passed",
+        "referenceMembershipRevisionAndSourceNavigation": "passed",
+        "hideRevokesSnapshotAndReopenDoesNotAnalyze": "passed",
+        "explicitCancellationRevokesEvidence": "passed",
+        "unmountCancelsAndDrainsAnalysis": "passed",
+        "workspaceChangeCancelsAndRejectsOldEvidence": "passed",
+        "allManifestHandlesReleased": "passed",
+        "noNetworkAndOriginalSecretPreserved": "passed"
+      },
+      "observations": {
+        "manifestReadCalls": 2,
+        "sourceReadCalls": 0,
+        "outsideReadCalls": 0,
+        "snapshotBytes": 5228,
+        "symlinkChecksAvailable": 2,
+        "manifestHandlesOpened": 7,
+        "manifestHandlesClosed": 7
+      }
+    }
+  }
+}

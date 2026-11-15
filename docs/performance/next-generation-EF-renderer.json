@@ -1,0 +1,426 @@
+{
+  "kind": "headless-browser-real-renderer-with-test-bridge",
+  "status": "passed",
+  "limitations": [
+    "Not Electron/native runtime verification.",
+    "No native filesystem writes, execution, terminal, recovery, installer or memory-footprint claims.",
+    "JS heap is Chromium renderer JS heap, not process-tree RSS or macOS attributed footprint.",
+    "Fixture-selected Java pack and synthetic project are test data, not user data."
+  ],
+  "browserVersion": "157.0.8103.51",
+  "deviceScaleFactor": 2,
+  "scenarios": [
+    {
+      "label": "960x700-dark-scale2",
+      "status": "passed",
+      "assertions": [
+        "Welcome visible; Practice remains discoverable; selected theme applied.",
+        "Named learning/project/practice/terminal chunks and services dormant on Welcome.",
+        "Fresh profile chooses Java directly in Learn; no Marketplace rail/install call; Practice is visible. Fixture materialization is test-only.",
+        "Learn selects installed Java; Topics remains first; real bundled lesson renders.",
+        "Real practical React UI: three graduated hints; scaffold beside one Monaco; Stop during held lookup prevents save/run; held sample-run unmount invokes one narrow cancellation; completed run does not cancel. All sample statuses are explicit test transport, not native execution evidence.",
+        "Real Monaco displays fixture source; exactly one code editor exists.",
+        "Existing Find command opens real Monaco Find widget.",
+        "Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.",
+        "Actual optional tutor UI: Full-only explicit open; unchecked context; password cleared; review sends nothing; exact source/metadata rendered; explicit Send uses synthetic JSON; escaped answer; citation reuses existing Monaco; real model edit invalidates answer; explicit review recaptures unsaved source; held Send cancellation releases fixture ownership; Undo preserved. This is browser transport evidence only, not native/provider connectivity.",
+        "Keyboard Tab reaches Learn and computed :focus-visible outline is visible.",
+        "Actual Project Lens \u2192 explicit context review \u2192 synthetic AI reply \u2192 editable milestone review \u2192 explicit save creates one Not started milestone with reviewed evidence labels, no tests/approvals/execution. In-memory fixture persistence only.",
+        "Actual lazy Lens component requires explicit Analyze; renders declared evidence and opens source using the existing widget; leaving it cancels/releases. Snapshot transport is test-only; real filesystem/security tests are separate.",
+        "Actual dirty Projects form blocks Code navigation; input survives until explicit discard.",
+        "Actual dirty Practice form blocks Code navigation and resumes with the original input.",
+        "Existing command alias opens real Content Settings; component export/remove/review/discard/confirm calls work against explicit test data only.",
+        "Closing Content Settings during a pending chooser response discards its late preview token without reopening the dialog.",
+        "20 real Content Settings open/Escape-close cycles preserve source/widget and release preview/project resources; forced-GC browser metrics sampled every five cycles."
+      ],
+      "explanationUndo": {
+        "exactModelRestored": true,
+        "note": "Actual Monaco model equality, avoiding virtualized DOM paint and NBSP matching."
+      },
+      "contentCycles": {
+        "count": 20,
+        "forcedGC": true,
+        "caveat": "Test-only CDP forced garbage collection. Browser JS heap/DOM counters, not native RAM, natural recovery or proof that no leak exists.",
+        "samples": [
+          {
+            "cycle": 0,
+            "jsHeapUsedBytes": 18163028,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 828,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 5,
+            "jsHeapUsedBytes": 18173864,
+            "jsHeapTotalBytes": 19267584,
+            "documents": 2,
+            "nodes": 782,
+            "jsEventListeners": 555
+          },
+          {
+            "cycle": 10,
+            "jsHeapUsedBytes": 18212976,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 15,
+            "jsHeapUsedBytes": 18225604,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 20,
+            "jsHeapUsedBytes": 18235892,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          }
+        ]
+      },
+      "recommendationRoadmap": {
+        "spec": {
+          "version": 1,
+          "title": "study-space",
+          "description": "User-reviewed project improvements.",
+          "goal": "User-reviewed fixture objective with explicit verification.",
+          "technologies": [],
+          "files": [],
+          "milestones": [
+            {
+              "id": "lens-1",
+              "title": "User-reviewed fixture milestone",
+              "description": "User-edited fixture description; verify against the actual source.\n\nReviewed context (not verification):\nFixture structure: lines 1\u20131",
+              "acceptance": [
+                "Observe expected fixture output",
+                "Confirm cleanup without running automatically"
+              ],
+              "dependsOn": [],
+              "status": "not-started"
+            }
+          ],
+          "environment": [],
+          "tests": []
+        },
+        "revision": "fixture-project-r1",
+        "approved": [],
+        "automatic": [],
+        "evidence": []
+      }
+    },
+    {
+      "label": "960x700-light-scale2",
+      "status": "passed",
+      "assertions": [
+        "Welcome visible; Practice remains discoverable; selected theme applied.",
+        "Named learning/project/practice/terminal chunks and services dormant on Welcome.",
+        "Fresh profile chooses Java directly in Learn; no Marketplace rail/install call; Practice is visible. Fixture materialization is test-only.",
+        "Learn selects installed Java; Topics remains first; real bundled lesson renders.",
+        "Real practical React UI: three graduated hints; scaffold beside one Monaco; Stop during held lookup prevents save/run; held sample-run unmount invokes one narrow cancellation; completed run does not cancel. All sample statuses are explicit test transport, not native execution evidence.",
+        "Real Monaco displays fixture source; exactly one code editor exists.",
+        "Existing Find command opens real Monaco Find widget.",
+        "Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.",
+        "Actual optional tutor UI: Full-only explicit open; unchecked context; password cleared; review sends nothing; exact source/metadata rendered; explicit Send uses synthetic JSON; escaped answer; citation reuses existing Monaco; real model edit invalidates answer; explicit review recaptures unsaved source; held Send cancellation releases fixture ownership; Undo preserved. This is browser transport evidence only, not native/provider connectivity.",
+        "Keyboard Tab reaches Learn and computed :focus-visible outline is visible.",
+        "Actual Project Lens \u2192 explicit context review \u2192 synthetic AI reply \u2192 editable milestone review \u2192 explicit save creates one Not started milestone with reviewed evidence labels, no tests/approvals/execution. In-memory fixture persistence only.",
+        "Actual lazy Lens component requires explicit Analyze; renders declared evidence and opens source using the existing widget; leaving it cancels/releases. Snapshot transport is test-only; real filesystem/security tests are separate.",
+        "Actual dirty Projects form blocks Code navigation; input survives until explicit discard.",
+        "Actual dirty Practice form blocks Code navigation and resumes with the original input.",
+        "Existing command alias opens real Content Settings; component export/remove/review/discard/confirm calls work against explicit test data only.",
+        "Closing Content Settings during a pending chooser response discards its late preview token without reopening the dialog.",
+        "20 real Content Settings open/Escape-close cycles preserve source/widget and release preview/project resources; forced-GC browser metrics sampled every five cycles."
+      ],
+      "explanationUndo": {
+        "exactModelRestored": true,
+        "note": "Actual Monaco model equality, avoiding virtualized DOM paint and NBSP matching."
+      },
+      "contentCycles": {
+        "count": 20,
+        "forcedGC": true,
+        "caveat": "Test-only CDP forced garbage collection. Browser JS heap/DOM counters, not native RAM, natural recovery or proof that no leak exists.",
+        "samples": [
+          {
+            "cycle": 0,
+            "jsHeapUsedBytes": 18159324,
+            "jsHeapTotalBytes": 19267584,
+            "documents": 2,
+            "nodes": 828,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 5,
+            "jsHeapUsedBytes": 18179600,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 10,
+            "jsHeapUsedBytes": 18210836,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 15,
+            "jsHeapUsedBytes": 18221648,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 20,
+            "jsHeapUsedBytes": 18231112,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          }
+        ]
+      },
+      "recommendationRoadmap": {
+        "spec": {
+          "version": 1,
+          "title": "study-space",
+          "description": "User-reviewed project improvements.",
+          "goal": "User-reviewed fixture objective with explicit verification.",
+          "technologies": [],
+          "files": [],
+          "milestones": [
+            {
+              "id": "lens-1",
+              "title": "User-reviewed fixture milestone",
+              "description": "User-edited fixture description; verify against the actual source.\n\nReviewed context (not verification):\nFixture structure: lines 1\u20131",
+              "acceptance": [
+                "Observe expected fixture output",
+                "Confirm cleanup without running automatically"
+              ],
+              "dependsOn": [],
+              "status": "not-started"
+            }
+          ],
+          "environment": [],
+          "tests": []
+        },
+        "revision": "fixture-project-r1",
+        "approved": [],
+        "automatic": [],
+        "evidence": []
+      }
+    },
+    {
+      "label": "1440x900-dark-scale2",
+      "status": "passed",
+      "assertions": [
+        "Welcome visible; Practice remains discoverable; selected theme applied.",
+        "Named learning/project/practice/terminal chunks and services dormant on Welcome.",
+        "Fresh profile chooses Java directly in Learn; no Marketplace rail/install call; Practice is visible. Fixture materialization is test-only.",
+        "Learn selects installed Java; Topics remains first; real bundled lesson renders.",
+        "Real practical React UI: three graduated hints; scaffold beside one Monaco; Stop during held lookup prevents save/run; held sample-run unmount invokes one narrow cancellation; completed run does not cancel. All sample statuses are explicit test transport, not native execution evidence.",
+        "Real Monaco displays fixture source; exactly one code editor exists.",
+        "Existing Find command opens real Monaco Find widget.",
+        "Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.",
+        "Actual optional tutor UI: Full-only explicit open; unchecked context; password cleared; review sends nothing; exact source/metadata rendered; explicit Send uses synthetic JSON; escaped answer; citation reuses existing Monaco; real model edit invalidates answer; explicit review recaptures unsaved source; held Send cancellation releases fixture ownership; Undo preserved. This is browser transport evidence only, not native/provider connectivity.",
+        "Keyboard Tab reaches Learn and computed :focus-visible outline is visible.",
+        "Actual Project Lens \u2192 explicit context review \u2192 synthetic AI reply \u2192 editable milestone review \u2192 explicit save creates one Not started milestone with reviewed evidence labels, no tests/approvals/execution. In-memory fixture persistence only.",
+        "Actual lazy Lens component requires explicit Analyze; renders declared evidence and opens source using the existing widget; leaving it cancels/releases. Snapshot transport is test-only; real filesystem/security tests are separate.",
+        "Actual dirty Projects form blocks Code navigation; input survives until explicit discard.",
+        "Actual dirty Practice form blocks Code navigation and resumes with the original input.",
+        "Existing command alias opens real Content Settings; component export/remove/review/discard/confirm calls work against explicit test data only.",
+        "Closing Content Settings during a pending chooser response discards its late preview token without reopening the dialog.",
+        "20 real Content Settings open/Escape-close cycles preserve source/widget and release preview/project resources; forced-GC browser metrics sampled every five cycles."
+      ],
+      "explanationUndo": {
+        "exactModelRestored": true,
+        "note": "Actual Monaco model equality, avoiding virtualized DOM paint and NBSP matching."
+      },
+      "contentCycles": {
+        "count": 20,
+        "forcedGC": true,
+        "caveat": "Test-only CDP forced garbage collection. Browser JS heap/DOM counters, not native RAM, natural recovery or proof that no leak exists.",
+        "samples": [
+          {
+            "cycle": 0,
+            "jsHeapUsedBytes": 18115144,
+            "jsHeapTotalBytes": 19791872,
+            "documents": 2,
+            "nodes": 828,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 5,
+            "jsHeapUsedBytes": 18131776,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 10,
+            "jsHeapUsedBytes": 18163108,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 15,
+            "jsHeapUsedBytes": 18172600,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 20,
+            "jsHeapUsedBytes": 18181188,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          }
+        ]
+      },
+      "recommendationRoadmap": {
+        "spec": {
+          "version": 1,
+          "title": "study-space",
+          "description": "User-reviewed project improvements.",
+          "goal": "User-reviewed fixture objective with explicit verification.",
+          "technologies": [],
+          "files": [],
+          "milestones": [
+            {
+              "id": "lens-1",
+              "title": "User-reviewed fixture milestone",
+              "description": "User-edited fixture description; verify against the actual source.\n\nReviewed context (not verification):\nFixture structure: lines 1\u20131",
+              "acceptance": [
+                "Observe expected fixture output",
+                "Confirm cleanup without running automatically"
+              ],
+              "dependsOn": [],
+              "status": "not-started"
+            }
+          ],
+          "environment": [],
+          "tests": []
+        },
+        "revision": "fixture-project-r1",
+        "approved": [],
+        "automatic": [],
+        "evidence": []
+      }
+    },
+    {
+      "label": "1440x900-light-scale2",
+      "status": "passed",
+      "assertions": [
+        "Welcome visible; Practice remains discoverable; selected theme applied.",
+        "Named learning/project/practice/terminal chunks and services dormant on Welcome.",
+        "Fresh profile chooses Java directly in Learn; no Marketplace rail/install call; Practice is visible. Fixture materialization is test-only.",
+        "Learn selects installed Java; Topics remains first; real bundled lesson renders.",
+        "Real practical React UI: three graduated hints; scaffold beside one Monaco; Stop during held lookup prevents save/run; held sample-run unmount invokes one narrow cancellation; completed run does not cancel. All sample statuses are explicit test transport, not native execution evidence.",
+        "Real Monaco displays fixture source; exactly one code editor exists.",
+        "Existing Find command opens real Monaco Find widget.",
+        "Persistent Code/Learn controls preserve actual unsaved Monaco text, widget identity and one-step Undo.",
+        "Actual optional tutor UI: Full-only explicit open; unchecked context; password cleared; review sends nothing; exact source/metadata rendered; explicit Send uses synthetic JSON; escaped answer; citation reuses existing Monaco; real model edit invalidates answer; explicit review recaptures unsaved source; held Send cancellation releases fixture ownership; Undo preserved. This is browser transport evidence only, not native/provider connectivity.",
+        "Keyboard Tab reaches Learn and computed :focus-visible outline is visible.",
+        "Actual Project Lens \u2192 explicit context review \u2192 synthetic AI reply \u2192 editable milestone review \u2192 explicit save creates one Not started milestone with reviewed evidence labels, no tests/approvals/execution. In-memory fixture persistence only.",
+        "Actual lazy Lens component requires explicit Analyze; renders declared evidence and opens source using the existing widget; leaving it cancels/releases. Snapshot transport is test-only; real filesystem/security tests are separate.",
+        "Actual dirty Projects form blocks Code navigation; input survives until explicit discard.",
+        "Actual dirty Practice form blocks Code navigation and resumes with the original input.",
+        "Existing command alias opens real Content Settings; component export/remove/review/discard/confirm calls work against explicit test data only.",
+        "Closing Content Settings during a pending chooser response discards its late preview token without reopening the dialog.",
+        "20 real Content Settings open/Escape-close cycles preserve source/widget and release preview/project resources; forced-GC browser metrics sampled every five cycles."
+      ],
+      "explanationUndo": {
+        "exactModelRestored": true,
+        "note": "Actual Monaco model equality, avoiding virtualized DOM paint and NBSP matching."
+      },
+      "contentCycles": {
+        "count": 20,
+        "forcedGC": true,
+        "caveat": "Test-only CDP forced garbage collection. Browser JS heap/DOM counters, not native RAM, natural recovery or proof that no leak exists.",
+        "samples": [
+          {
+            "cycle": 0,
+            "jsHeapUsedBytes": 18116300,
+            "jsHeapTotalBytes": 19791872,
+            "documents": 2,
+            "nodes": 828,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 5,
+            "jsHeapUsedBytes": 18133040,
+            "jsHeapTotalBytes": 19267584,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 10,
+            "jsHeapUsedBytes": 18163620,
+            "jsHeapTotalBytes": 19267584,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 15,
+            "jsHeapUsedBytes": 18173184,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          },
+          {
+            "cycle": 20,
+            "jsHeapUsedBytes": 18184484,
+            "jsHeapTotalBytes": 19529728,
+            "documents": 2,
+            "nodes": 822,
+            "jsEventListeners": 564
+          }
+        ]
+      },
+      "recommendationRoadmap": {
+        "spec": {
+          "version": 1,
+          "title": "study-space",
+          "description": "User-reviewed project improvements.",
+          "goal": "User-reviewed fixture objective with explicit verification.",
+          "technologies": [],
+          "files": [],
+          "milestones": [
+            {
+              "id": "lens-1",
+              "title": "User-reviewed fixture milestone",
+              "description": "User-edited fixture description; verify against the actual source.\n\nReviewed context (not verification):\nFixture structure: lines 1\u20131",
+              "acceptance": [
+                "Observe expected fixture output",
+                "Confirm cleanup without running automatically"
+              ],
+              "dependsOn": [],
+              "status": "not-started"
+            }
+          ],
+          "environment": [],
+          "tests": []
+        },
+        "revision": "fixture-project-r1",
+        "approved": [],
+        "automatic": [],
+        "evidence": []
+      }
+    }
+  ]
+}

@@ -7,7 +7,9 @@
 - Three introductory practical Python/Java/C lessons with editable scaffolds, graduated hints, honest local activity/manual/sample evidence and saved-sample execution beside Learn.
 - Explicit offline Project Lens foundation with bounded metadata/manifest inspection, evidence links, cancellation and validated source navigation. No source/docs scanning, project execution or AI upload during analysis.
 - Retained failed native fixtures, corrected test input/cleanup boundaries and benchmark process ownership; performance comparisons include remaining regressions.
-- AI Tutor/project-aware AI and roadmap proposals remain unfinished. No published version, installer/update feed, main merge or installed-app change.
+- Added lazy, explicitly reviewed Tutor/Lens explanation actions using the existing encrypted provider settings, exact bounded context review, one-use revision-bound send/citation capabilities and cancellation/shutdown draining. No live-provider or model-quality claim.
+- Added editable, unselected-by-default roadmap proposals through existing revision-aware Projects saves; manual/test evidence and approvals remain distinct and preserved. No automatic code edits or test execution.
+- Native E/F13checks/platform and20repeated-use cycles pass on Mac/Windows with measured20/60s recovery and process cleanup. All13selected exact-candidate native jobs pass, with2optional diagnostic lanes unselected. Matched measurements retain an observed Mac renderer footprint increase; no blanket optimization claim. No published version, installer/update feed, main merge or installed-app change.
 
 ## 0.9.8 stabilization candidate — 15 November 2026
 

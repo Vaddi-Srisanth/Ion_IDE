@@ -1,12 +1,12 @@
 # Ion IDE
 
-> **Unreleased next-generation feature branch:** Code-first layout, direct offline learning, three practical Python/Java/C lessons and an on-demand offline Project Lens foundation. Native verification and performance gates are still in progress. This branch has no published installer/update; AI Tutor and project-aware AI remain unfinished. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
+> **Unreleased next-generation feature branch:** Code-first layout, direct offline learning, three practical Python/Java/C lessons and an on-demand offline Project Lens foundation. All 13 selected native verification jobs passed; measured resource costs and remaining acceptance limits are documented. This branch has no published installer/update. Explicitly reviewed AI Tutor/Lens explanations and editable roadmap suggestions are implemented and pass focused native Mac/Windows journeys; live-provider quality is unverified. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
 
 **An offline-first desktop IDE for learning by coding.**
 
 *Write code. Understand errors. Learn offline.*
 
-Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
+Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes and progress are stored locally. Optional AI sends only the context you explicitly review and approve. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
 The 0.9.8 source candidate collects the completed notebook-trust, recovery, file-integrity, terminal, Windows process/updater and diagnostic-verification fixes. It retains **Install and Restart** and optional remembered Run-folder approvals from 0.9.7. The rare historical Windows GCC delay remains unexplained; later successful tests do not prove it fixed. [Candidate notes](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Verified scope and limits](diagnostics/windows-gcc/RELEASE_VERIFICATION.md) · [Measured performance](diagnostics/windows-gcc/FINAL_PERFORMANCE.md)
 
@@ -27,7 +27,7 @@ Get publicly published installers and SHA-256 checksums from the [latest GitHub 
 
 The macOS disk image is ad-hoc signed and unnotarized. Gatekeeper may block it on first open. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Compare the installer’s SHA-256 with `SHA256SUMS` from the same release before opening it. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
 
-Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional online planner and update checks use the network.
+Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional planner, reviewed Tutor/Lens explanations and update checks use the network.
 
 | To run | Install separately |
 | --- | --- |
@@ -111,6 +111,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
 - **Make it yours.** Sixteen built-in palettes include two high-contrast options. Open **Preferences → Appearance → Browse Themes** or **Color Theme** in the command palette. Search, preview, favorite, and apply themes offline. Cancel restores the current selection. Automatic appearance, local JSON import/export, and Minimal and Full Mode remain available.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
+- **Ask for an explanation.** In this unreleased branch, Tutor and Project Lens offer optional provider-based explanations. Choose context, inspect exact excerpts/provider/model/size, then explicitly send. No background AI, automatic code edits or test execution. Suggestions can be edited and selected into the existing roadmap as Not Started milestones. [Scope and verification](ION_AI_PROVIDER_INTEGRATION.md)
 - **Update when you choose.** Opt-in GitHub checks, streamed checksum-verified downloads, a single local installer cache, and **Install and Restart** at the existing app location. Unsaved-change protection and local profiles remain intact. Operating-system security approval can still be required.
 - **Remember Run approval optionally.** In a single-file Run confirmation, choose **Trust this folder for future single-file Runs** to avoid repeated prompts in your own workspace. Revoke it in Preferences → Run Console. Project builds, tests, notebooks and Git retain separate approval.
 
