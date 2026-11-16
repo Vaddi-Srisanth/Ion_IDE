@@ -1,6 +1,8 @@
-name: Core backup native verification (no publication)
+name: Core backup Windows follow-up (no publication)
 # The dedicated branch is uploaded only after explicit user approval. A scoped
 # push trigger avoids needing to put this new workflow on main for dispatch.
+# The approved two-platform preflight is preserved in run 43922635358. This
+# locally prepared correction needs fresh approval and runs only the failed OS.
 on:
   push:
     branches: [codex/ion-core-native-acceptance]
@@ -16,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, windows-2025]
+        os: [windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:

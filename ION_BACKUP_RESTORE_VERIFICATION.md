@@ -1,65 +1,96 @@
 # Ion Core Excellence — Milestone 1 verification
 
-## Native acceptance follow-up — 2026-11-16
+## Authorized native preflight and fixture correction — 2026-11-16
 
-**Verdict: CONDITIONAL — LIMITATIONS REMAIN.** No release-critical application defect was confirmed in this follow-up. Full native acceptance has not passed. The explicit upload authorization boundary prevents hosted execution of this local candidate; lack of a physical Windows PC is not treated as a permanent blocker.
+**Verdict: CONDITIONAL — LIMITATIONS REMAIN. Full native acceptance has not passed.** The two approved hosted jobs completed: Mac passed; Windows failed four interruption fixtures. No release-critical application defect was established by this run. The original Windows failure is preserved, and the locally corrected fixture remains unverified on Windows. Do not release from this checkpoint.
 
-**Exact production source:** `881ef00982649b9a26a547b7fab16851e4e04871`, branch `feature/ion-core-excellence`, clean at inspection. The reported checkpoint matched the repository. Only this workflow preparation and the two requested reports changed afterward; no production execution, editor, backup or restore source was modified. The locally rebuilt main/backup bundle hashes match the original implementation evidence below.
+**Exact production source:** `881ef00982649b9a26a547b7fab16851e4e04871`. The uploaded candidate was `97890af677d939b7cdfcc0db0a863018f820ad2d`, containing that implementation plus workflow/report preparation. Local work remains on `feature/ion-core-excellence`. The follow-up changes only the interruption test, the narrowly scoped workflow and these two reports; no production module, dependency, security rule or data format changed.
 
-### Fresh evidence, distinct from previous results
+### Actual hosted evidence
 
-| Step / requirement | This follow-up actually executed | Result / remaining limit |
+The user explicitly approved uploading `97890af` to `codex/ion-core-native-acceptance` and starting two jobs. The single-ref, non-forced push succeeded. [Run 43922635358](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358) tested that exact SHA. No duplicate dispatch or retry was started.
+
+| Check | macOS | Windows |
 | --- | --- | --- |
-| A: focused backing-store / lifecycle checks | `node scripts/test.mjs backup editor-session service-lifecycle` | **31 passed, 0 failed, 0 skipped**, about 7.19 seconds; disposable local profiles and real Node/filesystem/child-process fixtures |
-| Production candidate | `npm run build` | Passed; no Electron application launched; main and backup bundle hashes matched the recorded candidate |
-| Workflow syntax | `actionlint .github/workflows/core-backup-verification.yml` | Passed |
-| Evidence collector controls | Canonical-path redaction, missing-step labels and a 3 MiB synthetic input | Passed after correcting a disposable-fixture /var alias assumption; initial failure retained locally; no collector/source change was needed |
-| Existing native fixture syntax | `node --check scripts/test-backup-desktop.mjs` | Passed; this is syntax, not desktop execution |
-| B: native macOS acceptance | Not launched | Profile isolation alone does not establish safety from the unresolved development-Electron registration crash. No new local GUI launch, packaged launch or installed-app modification was attempted. |
-| C: hosted Windows x64 / macOS | GitHub read-only availability checks only | Not run: GitHub returned `No commit found for the ref feature/ion-core-excellence`; the new workflow also returned 404 on default `main`. Repository access itself was confirmed. |
-| D: full regression after a confirmed fix | Not rerun | No production fix was made; do not spend another full cohort before the native environment is available. The earlier 369-pass/26-skip result remains historical evidence for `881ef00`, not fresh native proof. |
+| Host | macOS 15.8.2 / 24H232, hosted `macos-15-arm64`, image 20261112.0539.3 | Windows Server 2025 Datacenter 10.0.26100 x64, hosted `windows-2025-vs2026`, image 20261103.298.1 |
+| Node | 24.22.2 arm64 | 24.22.2 x64 |
+| Type checking | Passed | Passed |
+| Focused backup/profile/recovery/session/metadata/backend/lifecycle cohort | **62 passed, 0 failed, 0 skipped**, 8319.995875 ms | **49 passed, 4 failed, 9 skipped** of 62, 15979.68 ms |
+| Production build | Passed | **Not run** after focused failure |
+| Actual native backup IPC smoke | Passed: create/archive/preview/prepare/cancel, synthetic settings/draft preservation and clean close | **Not run** |
+| Native Undo control | **9 cases passed**, completion recorded | **Not run** |
+| Dedicated Windows path/sharing lane | Not applicable | **Not run** |
+| Sanitized evidence upload | Passed | Passed, including original failures |
 
-Fresh logs are local under `performance-results/core-native-acceptance/`. The 31-case run establishes the exercised store round trips, collision/conflict and malicious-input rejection, streaming cancellation, injected write failures, actual Node-process interruption/replay and owner draining. It does **not** establish the full Electron Save/Keep/Cancel/relaunch path or Windows behavior. No original failure was suppressed or deadline increased. The existing development failure history remains below and in the audit.
+These are genuine hosted OS executions, not physical-hardware or local desktop measurements. The native bridge smoke is deliberately limited: it does not drive Settings through a completed restore and automatic relaunch. Successful Mac tests cannot establish Windows correctness.
 
-### Critical native coverage gaps
+Artifacts (7-day retention; expiry 2026-11-23):
 
-The current `scripts/test-backup-desktop.mjs` explicitly verifies real native IPC/create/preview/prepare/cancel and preserves a synthetic draft. It does **not** drive Settings through a complete fresh/populated-profile restore or automatic relaunch. A green result from that script must not be called full native acceptance.
+- [Mac logs, artifact 14255196134](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358/artifacts/14255196134), ZIP SHA-256 `25b956c9ac7c14b979cc012a4cd4e611e7c24ab1af3af58943e5a8f607e968a1` (GitHub-reported digest).
+- [Windows logs, artifact 14254483966](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358/artifacts/14254483966), ZIP SHA-256 `10756722d27bb3fd6f6d4472e2f24135c9ce39cf8970763f0c0ff55ac8f98fa9` (GitHub-reported digest).
+- Decoded job logs, including the failed sample, are preserved locally under `performance-results/core-native-acceptance/hosted-43922635358/`. This directory is ignored, not published. No backup/profile/workspace archive was uploaded.
 
-Still unverified: actual Settings backup UI with realistic multi-store data and an unsaved editor buffer; fresh and populated profile restores followed by relaunch; current-data conflicts/changed associations through the desktop flow; recovery collision handling after relaunch; actual desktop kills during startup transaction replay; native metadata and Undo/Redo; no automatic filesystem/run/notebook/Git/test grants; native cleanup and installer/update compatibility. The focused Node cases cover corresponding backing-store logic, not these desktop boundaries. The native fixture must be extended against a working isolated host after its initial smoke succeeds, preserving any first failure instead of building a large untested harness beforehand.
+### Windows failure: exact boundary and correction
 
-### Native performance status
+The four failed cases were `actual process interruption resumes safely at journal`, `previous-moved`, `published` and `committed`. Each failed at the original `test/backup.test.ts:180` close callback with an empty `Error`. That callback rejected `code === 1` before reaching the next assertion, which explicitly permitted a nonzero Windows termination status. Thus exit code 1 could never reach the intended Windows check. The separate multi-category rollback interruption fixture accepted Windows nonzero termination and passed. This establishes a fixture logic defect; it does not independently prove that all four Windows children reached their requested restore boundaries.
 
-| Metric requested | Native macOS before / after | Native Windows before / after |
-| --- | --- | --- |
-| Welcome startup and one-file memory | Not measured | Not measured |
-| Process-tree RSS / macOS-attributed footprint | Not measured; keep these counters separate | Not applicable to the footprint metric |
-| Windows working set / private bytes | Not applicable | Not measured; keep these counters separate |
-| Idle CPU / Settings / backup-panel opening | Not measured | Not measured |
-| Small/large backup duration and peak memory | Prior Node service figures only, not native results | Not measured |
-| Restore validation duration and peak memory | Not measured | Not measured |
-| Cancel/cleanup and memory after closing UI | Node/previous browser controls only | Not measured |
+The local correction in `test/backup.test.ts` adds an exclusively created receipt in the disposable profile immediately before deliberate self-termination. Shared `interruptRestore` / `verifyInterruption` helpers require the exact child PID and requested boundary, empty stderr, and either SIGKILL or Windows exit 1 without a signal. Missing/wrong receipts, successful exit, unrelated exit codes and reported errors fail. The parent removes the receipt before checking restart recovery. All existing real kills, replay assertions and byte-preservation checks remain. Stderr retention is bounded to 4096 characters; unused child streams are ignored. No application timeout increased, retry added or exception suppressed.
 
-The earlier limited folder export (about 8 ms) and comprehensive checksummed backup (about 139 ms) are **different operations**, despite their common synthetic input records. They do not establish a native regression ratio, startup slowdown or full-app RAM result. This follow-up did not rerun unrelated benchmarks or manufacture unavailable values. The dormant implementation still has only a fixed startup-marker check and lazy archive/UI loading by source inspection; no new runtime process, worker, cache or polling was added here.
+A new deterministic status-control test uses a real Node child exiting with 1 and verifies Windows status interpretation plus rejection of missing/wrong receipts and other termination states. It explicitly does not pretend to be a native Windows kill. The five actual local SIGKILL fixtures still exercise transaction recovery. Windows confirmation of the receipt remains a required follow-up.
 
-### Smallest prepared hosted action — permission required
+### Local correction checks
 
-The workflow now has a push trigger restricted to **`codex/ion-core-native-acceptance`**, plus dispatch, two jobs (`macos-15`, `windows-2025`), a 20-minute per-job bound, no automatic retry and no cancellation of an earlier job. Existing repository action pins/Node version are reused. It selects the existing Windows GCC path, uses the existing dependency/build setup and retains bounded sanitized logs even on failure. No installer, backup archive, profile, credential store or workspace is uploaded. Repository permissions are read-only; credentials are not persisted by checkout.
+- `node scripts/test.mjs backup`: **25 passed, 0 failed, 0 skipped**, 6054.280417 ms, including five actual child interruptions and the new status control.
+- `npm run typecheck`: passed.
+- `actionlint .github/workflows/core-backup-verification.yml`: passed.
+- `git diff --check`: passed.
+- `node scripts/test.mjs backup profile-export recovery editor-session file-metadata backend service-lifecycle`: **63 passed, 0 failed, 0 skipped**, 6192.941209 ms on the local Apple M3 / 24 GiB Mac with Node 26.13.1. This includes actual C execution and metadata checks on this Mac; it does not establish their Windows behavior.
+- The earlier full suite remains historical evidence for production source `881ef00`: 369 passed / 26 skipped. No new full suite or production build is claimed for the fixture-only correction; production inputs are unchanged.
 
-The reason for the scoped push trigger is concrete: this new workflow is absent from `main`, and GitHub requires a new dispatch workflow to exist on the default branch before it can be dispatched. See [GitHub's manual workflow documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) and [branch-scoped push triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow). No merge into main is needed for the scoped-push route.
+Local logs: `fixture-correction.log`, `fixture-typecheck.log` and `fixture-focused.log` under `performance-results/core-native-acceptance/`. No local Electron GUI was launched, hidden or visible. The registration-crash precaution remains active.
 
-After explicit approval **only**, inspect the destination and publish the reviewed acceptance checkpoint to that one new ref:
+### All nine Windows skips and their coverage impact
 
-```sh
-git status --short --branch
-git ls-remote github refs/heads/codex/ion-core-native-acceptance
-git push github HEAD:refs/heads/codex/ion-core-native-acceptance
-```
+1. C compilation/stdin/diagnostics/repetition: `No local C compiler detected.`
+2. Detached-output-stream C test: requires a POSIX toolchain.
+3. Linked backup-profile payload rejection: fixture does not assume Windows symlink privileges.
+4. macOS xattr/Finder-tag/quarantine/ACL/ownership/mode preservation: Mac-only.
+5. macOS metadata read-denial protection: Mac-only.
+6. macOS private replacement-stage metadata transfer: Mac-only.
+7. Legacy profile-export symlink rejection: fixture disabled on Windows.
+8. Recovery storage-directory symlink rejection: fixture disabled on Windows.
+9. Saved-snapshot compiler/revalidation test: `No installed C compiler.`
 
-The push itself starts the two jobs. Do not also dispatch a duplicate run. If the destination already exists or push/authentication is rejected, stop and inspect it; never force-push or alter access settings silently. This uploads the actual `881ef00` candidate plus reviewed verification/report changes, not merely a workflow testing old main.
+The GCC setup step did confirm `C:\mingw64\bin\gcc.exe` exists. The two generic compiler fixtures call `detectCompiler(signal)` without a workspace. On Windows that function deliberately performs discovery only when given a `cwd`, then returns null otherwise. Therefore these two skips are a fixture/discovery-interface coverage gap, not evidence that GCC was absent or that Windows execution passed. No compiler-discovery security policy was changed to hide the gap. Existing Windows-specific execution evidence remains attached to its original revisions, not this run. Archive symlink-entry rejection and other malicious-ZIP tests did execute, but do not substitute for real filesystem-link tests.
 
-Initial hosted sequence: type check and focused backup/integrity tests → production build → **limited native bridge smoke** → Windows path/sharing cases and native Undo control. This is a bounded environment/preflight run, not the complete acceptance campaign. Preserve every result. Full restore/relaunch, native resource accounting and upgrade/rollback remain explicit gates after a working host is established; do not issue NATIVE ACCEPTANCE PASSED from the smoke alone.
+Build, native bridge, native Undo and dedicated Windows filesystem checks were separate steps skipped after failure, not part of the nine unit-test skips. The entire full-suite historical list of 26 local skips is retained below.
 
-**Git / safety:** the preparation is committed locally on the existing Core Excellence branch. No upload or hosted run is authorized yet. Installed Ion, its live profile, real projects, main, releases, tags and update feed are unchanged. Stop at this acceptance checkpoint pending the narrow branch/CI authorization. Milestone 2 remains unstarted.
+### Safety, restore behavior and remaining gates
+
+Focused native-host Node tests exercised normal-store round trips with meaningful synthetic data, detached draft collisions, stale historical evidence, category conflicts, explicit copied/reference/excluded workspace choices, relocation, credential/trust exclusion, malicious archives, cancellation, ENOSPC and rollback. Mac also verified its actual metadata fixtures and all four apply interruption boundaries plus rollback. Windows passed other backup cases and the rollback interruption; four apply interruptions remain unverified until corrected fixtures run there. None of this is ZIP extraction alone, and none is a full desktop restore/relaunch acceptance claim.
+
+Still required: genuine Windows follow-up; actual Settings backup/restore with unsaved Monaco content; fresh and populated profiles restored and reopened through automatic relaunch; Save/Keep Drafts/Cancel; native application interruption during startup repair; actual desktop permission/conflict handling; installer/update compatibility; full-process memory/CPU and closed-panel cleanup measurements. Maximum-size archives, hardware power loss, external filesystems without hard-link publication and 8 GB hardware remain unverified. No additional GUI fixture expansion was attempted while Windows preflight is failing.
+
+### Performance: measured limits, no invented improvements
+
+| Metric | Before / after in this follow-up |
+| --- | --- |
+| Production source/dependency delta | None; only test/workflow/report changes |
+| Startup, one-file RAM, idle CPU, Settings/backup UI latency | **Not measured** |
+| macOS process-tree RSS / attributed footprint | **Not measured**; distinct counters |
+| Windows working set / private bytes | **Not measured**; distinct counters |
+| Native backup/restore latency, peak memory, post-close recovery | **Not measured** |
+| Focused suite wall time | Mac 8.320 s / Windows 15.980 s on different hosts; test duration, not an application performance comparison |
+
+Earlier Node service figures remain below: common comprehensive backup median 139.45 ms, 10 MiB workspace median 516.28 ms. The approximately 8 ms limited folder export does less work and is not an equivalent baseline. No native RAM reduction, zero-overhead guarantee or platform performance percentage is claimed. No background process, worker, poller, Monaco model, application cache or runtime dependency was added by the correction.
+
+### Next minimal action — fresh authorization required
+
+The original approval was for `97890af` and two jobs, both now completed. The correction has not been uploaded. The prepared workflow now selects **only `windows-2025`**, retaining the 20-minute bound, read-only permissions, pinned actions, exact revision capture and always-preserved bounded logs. Mac's successful run is preserved; repeating it unchanged would waste CI. This prospective Windows job runs the corrected focused fixtures, then production build, limited native bridge smoke, Windows paths/sharing and native Undo if prior steps pass. It still cannot establish full native acceptance.
+
+After fresh explicit approval only, inspect the remote ref (expected `97890af`) and push the reviewed local follow-up to the **same** dedicated verification branch, without force. The scoped push starts one Windows job; do not dispatch a duplicate. Main, releases, installers, tags, update feed and installed Ion must remain untouched. Further complete restore/relaunch testing is a separate gate, not implicitly authorized by one recheck.
+
+**Git / safety:** one reviewed candidate was pushed only to `codex/ion-core-native-acceptance`; this local follow-up stays on `feature/ion-core-excellence`. No merge, release, installation or Milestone 2 work occurred. The user's live profile and real projects were not used for testing.
 
 ---
 

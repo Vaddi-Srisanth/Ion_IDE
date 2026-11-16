@@ -66,13 +66,55 @@ async function archive(t: TestContext) {
   return { ...f, file, folder }
 }
 
+// Windows reports forced termination as an exit code, not necessarily a signal.
+// A nonzero code alone cannot distinguish our deliberate kill from a restore error.
+function verifyInterruption(status: { code: number | null; signal: string | null }, receipt: unknown, pid: number | undefined, boundary: string, platform: string) {
+  assert.deepEqual(receipt, { pid, boundary }, 'Child did not reach the requested interruption boundary')
+  assert.ok(status.signal === 'SIGKILL' || (platform === 'win32' && status.signal === null && status.code === 1), 'Child did not report the expected forced termination')
+}
+
+async function interruptRestore(profile: string, boundary: string) {
+  const receiptPath = join(profile, 'test-interruption.json')
+  await new Promise<void>((yes, no) => {
+    const child = spawn(process.execPath, [__filename], { env: { ...process.env, ION_RESTORE_CRASH_CHILD: profile, ION_RESTORE_CRASH_BOUNDARY: boundary }, stdio: ['ignore', 'ignore', 'pipe'] })
+    let errors = ''
+    child.stderr.on('data', d => { errors = (errors + String(d)).slice(0, 4096) })
+    child.once('error', no)
+    child.once('close', (code, signal) => {
+      void (async () => {
+        assert.equal(errors, '', 'Restore child reported an error: ' + errors)
+        const receipt = JSON.parse(await readFile(receiptPath, 'utf8')) as unknown
+        verifyInterruption({ code, signal }, receipt, child.pid, boundary, process.platform)
+      })().then(yes, no)
+    })
+  })
+  await rm(receiptPath)
+}
+
 if (process.env.ION_RESTORE_CRASH_CHILD) {
   void finishPendingRestore(process.env.ION_RESTORE_CRASH_CHILD, async stage => {
     if (process.env.ION_RESTORE_CRASH_BOUNDARY === 'rollback-after-publication' && stage === 'published') throw new Error('Injected publication failure')
-    if (process.env.ION_RESTORE_CRASH_BOUNDARY === 'rollback-after-publication' && stage === 'rolled-back') process.kill(process.pid, 'SIGKILL')
-    if (stage === process.env.ION_RESTORE_CRASH_BOUNDARY) process.kill(process.pid, 'SIGKILL')
+    if ((process.env.ION_RESTORE_CRASH_BOUNDARY === 'rollback-after-publication' && stage === 'rolled-back') || stage === process.env.ION_RESTORE_CRASH_BOUNDARY) {
+      await writeFile(join(process.env.ION_RESTORE_CRASH_CHILD!, 'test-interruption.json'), JSON.stringify({ pid: process.pid, boundary: process.env.ION_RESTORE_CRASH_BOUNDARY }), { flag: 'wx', mode: 0o600 })
+      process.kill(process.pid, 'SIGKILL')
+    }
   }).then(() => process.exit(0), error => { process.stderr.write(String(error)); process.exit(1) })
 } else {
+  test('interruption fixture accepts Windows exit 1 only with the exact child boundary receipt', async () => {
+    // Status control only: this is not a substitute for native Windows execution.
+    const status = await new Promise<{ code: number | null; signal: string | null }>((yes, no) => {
+      const child = spawn(process.execPath, ['-e', 'process.exit(1)'], { stdio: 'ignore' })
+      child.once('error', no); child.once('close', (code, signal) => yes({ code, signal }))
+    })
+    assert.deepEqual(status, { code: 1, signal: null })
+    verifyInterruption(status, { pid: 123, boundary: 'published' }, 123, 'published', 'win32')
+    for (const receipt of [undefined, { pid: 124, boundary: 'published' }, { pid: 123, boundary: 'journal' }]) {
+      assert.throws(() => verifyInterruption(status, receipt, 123, 'published', 'win32'), /requested interruption boundary/)
+    }
+    assert.throws(() => verifyInterruption(status, { pid: 123, boundary: 'published' }, 123, 'published', 'darwin'), /forced termination/)
+    assert.throws(() => verifyInterruption({ code: 0, signal: null }, { pid: 123, boundary: 'published' }, 123, 'published', 'win32'), /forced termination/)
+    assert.throws(() => verifyInterruption({ code: 2, signal: null }, { pid: 123, boundary: 'published' }, 123, 'published', 'win32'), /forced termination/)
+  })
   test('full archive round-trip restores normal stores, detached drafts and stale evidence, excluding credentials', async t => {
     const f = await archive(t), service = new BackupService({ profile: f.target, appVersion: '0.9.8' })
     const local = new RecoveryStore(join(f.target, 'recovery'))
@@ -174,12 +216,7 @@ if (process.env.ION_RESTORE_CRASH_CHILD) {
     const f = await archive(t), prefs = new PreferenceStore(join(f.target, 'preferences.json')); await prefs.updateSettings({ fontSize: 12 })
     const service = new BackupService({ profile: f.target, appVersion: '0.9.8' }), review = await service.openRestore(f.file)
     const ready = await service.prepareRestore(review.token, { replace: ['preferences'], mappings: [], copyFolders: [] }); await service.finalize(ready.token)
-    const status = await new Promise<{ code: number | null; signal: string | null }>((yes, no) => {
-      const child = spawn(process.execPath, [__filename], { env: { ...process.env, ION_RESTORE_CRASH_CHILD: f.target, ION_RESTORE_CRASH_BOUNDARY: boundary }, stdio: 'pipe' })
-      let errors = ''; child.stderr.on('data', d => { errors += String(d).slice(0, 4096) }); child.on('error', no)
-      child.on('close', (code, signal) => code === 1 ? no(new Error(errors)) : yes({ code, signal }))
-    })
-    assert.ok(status.signal === 'SIGKILL' || (process.platform === 'win32' && status.code !== 0))
+    await interruptRestore(f.target, boundary)
     assert.equal(await finishPendingRestore(f.target), 'applied')
     assert.equal((await new PreferenceStore(join(f.target, 'preferences.json')).get()).settings.fontSize, 19)
     assert.ok(!(await readdir(f.target)).includes(pendingName))
@@ -264,11 +301,7 @@ if (process.env.ION_RESTORE_CRASH_CHILD) {
     const before = await Promise.all(['preferences.json', 'learning.json'].map(n => treeHash(f.target, n)))
     const service = new BackupService({ profile: f.target, appVersion: '0.9.8' }), review = await service.openRestore(f.file)
     const ready = await service.prepareRestore(review.token, { replace: ['preferences', 'learning'], mappings: [], copyFolders: [] }); await service.finalize(ready.token)
-    await new Promise<void>((yes, no) => {
-      const child = spawn(process.execPath, [__filename], { env: { ...process.env, ION_RESTORE_CRASH_CHILD: f.target, ION_RESTORE_CRASH_BOUNDARY: 'rollback-after-publication' }, stdio: 'pipe' })
-      let errors = ''; child.stderr.on('data', d => { errors += String(d).slice(0, 4096) }); child.on('error', no)
-      child.on('close', (code, signal) => signal === 'SIGKILL' || process.platform === 'win32' && code !== 0 ? yes() : no(new Error(errors || 'Child did not stop at rollback boundary')))
-    })
+    await interruptRestore(f.target, 'rollback-after-publication')
     assert.equal(await finishPendingRestore(f.target), 'rolled-back')
     assert.deepEqual(await Promise.all(['preferences.json', 'learning.json'].map(n => treeHash(f.target, n))), before)
   })

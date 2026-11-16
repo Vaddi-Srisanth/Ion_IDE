@@ -1,14 +1,21 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
-## Native acceptance follow-up — 2026-11-16
+## Authorized hosted results and local fixture correction — 2026-11-16
 
-**CONDITIONAL — LIMITATIONS REMAIN.** Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`; the branch was clean at inspection. A fresh focused cohort passed **31/31** with no skips, and the production build passed with matching artifact hashes. No new application defect or production fix was confirmed.
+**CONDITIONAL — LIMITATIONS REMAIN.** Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`. The explicitly approved candidate `97890af677d939b7cdfcc0db0a863018f820ad2d` was pushed only to `codex/ion-core-native-acceptance`. [The two hosted jobs completed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358): Mac passed; Windows failed. This is not full native acceptance or a release-readiness declaration.
 
-Native acceptance is still open. The current desktop fixture covers create/preview/prepare/cancel, not full Settings restore/relaunch. The unresolved registration incident still makes local development-Electron launches unsafe to assume. GitHub returned 404 for the Core Excellence branch and the new workflow on main, so neither hosted OS can execute this candidate yet. These are authorization/environment gaps, not passing tests or a claim that physical Windows hardware is required.
+- **Hosted Mac arm64:** macOS 15.8.2, Node 24.22.2; type check, 62 focused tests (zero failures/skips), production build, limited native backup IPC smoke and all nine native Undo controls passed.
+- **Hosted Windows x64:** Windows Server 2025 10.0.26100, Node 24.22.2; type check passed; focused tests reported 49 passes, four interruption failures and nine skips. Production build, desktop smoke, dedicated path/sharing lane and Undo did not run after the failure. Original failure logs were preserved and uploaded.
+- **Confirmed test defect:** the four interruption fixtures rejected exit code 1 before checking their intended Windows nonzero-termination rule. The local correction requires a private child PID/boundary receipt immediately before intentional termination, empty stderr and an expected termination status. This preserves real kill/replay tests and prevents arbitrary restore errors being accepted. A real-child exit-status control covers rejection paths. No production restore bug was established and no production code changed.
+- **Local correction:** 25 backup tests passed, including five real interruptions; type check and workflow lint passed. Combined focused results and exact logs are in the verification report. Windows confirmation of the new receipt is pending.
 
-Prepared only the smallest hosted preflight: a single exact verification-branch push trigger, existing pinned setup, two bounded OS jobs, Windows toolchain selection, focused checks and sanitized evidence. The workflow does not build/publish installers or modify main. It must not be confused with complete fresh/populated restore acceptance. Full automatic relaunch, native interruption/rollback, permission handling, matched full-process memory/CPU and installer/update checks remain unverified. No broad repeat CI or unrelated benchmark was run.
+Full Settings restore/relaunch into fresh/populated profiles, desktop startup interruption/repair, native resource accounting, Windows filesystem follow-up and installer/update compatibility remain open. The current bridge smoke covers create/preview/prepare/cancel, not complete restore/relaunch. Do not convert the passing Mac smoke into a claim of complete acceptance.
 
-See the dated section in `ION_BACKUP_RESTORE_VERIFICATION.md` for current evidence, remaining tasks and the exact approval-gated command. The local acceptance preparation changes test configuration and these two reports only. Installed Ion, live data and projects are untouched; there is no push, release, tag, update-feed change or Milestone 2 work.
+No native before/after performance claim is possible from this run. The previous 139 ms service backup is not a native full-app RAM/CPU measurement or an equivalent comparison with the old limited export. The correction adds no production dependency or module and does not change startup work. No local Electron GUI launch was attempted; the registration-crash precaution remains in force.
+
+**Permission boundary:** the approved upload and two jobs are finished. The local Windows-only follow-up workflow and fixture correction require fresh upload authorization. If approved, push only the reviewed follow-up to the same verification branch for one Windows job; do not rerun unchanged Mac CI or merge main. The installed application, live profile, projects, releases, tags and update feed remain untouched. No Milestone 2 work started.
+
+See `ION_BACKUP_RESTORE_VERIFICATION.md` for exact hosts, failed test names and source location, artifact links/digests, all nine Windows skips and their coverage impact, performance limits, remaining gates and the follow-up action. Historical implementation evidence below retains its original revision/scope; earlier statements about an unrun workflow describe the pre-authorization checkpoint, not the current hosted state.
 
 ---
 
