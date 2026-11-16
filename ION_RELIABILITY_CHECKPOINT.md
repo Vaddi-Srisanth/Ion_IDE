@@ -1,5 +1,17 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Remaining-gates run completed — 2026-11-17
+
+**CONDITIONAL — native acceptance is incomplete.** [Run 43937220557](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557) tested the approved `2590f99` in exactly two hosted jobs. Both confirmed production identity, passed the four new Node-only controls and built the candidate. Mac also built the exact ancestor and created a real Settings backup, then failed an added Undo assertion. Windows stopped at a drive-letter path/tar mismatch in baseline extraction. Restore/relaunch and paired RAM/CPU measurements did not complete.
+
+The local corrections affect tests only: run extraction inside the chosen directory instead of giving its Windows path to tar; create one explicitly bounded Monaco edit before expecting one Undo; retain intermediate backup and editor-state evidence. A local archive extraction control and three safe headless-renderer controls passed. The latter reproduced the same insertText Undo grouping before/after backup, then verified the corrected single-edit Undo/Redo control. No production Undo defect or production fix is claimed; native confirmation remains pending.
+
+Both original failures, run links, artifact digests, decoded logs, skips and the exact Mac structured report are preserved in the verification report. The Mac main artifact hash matches the local production artifact; source tree remains `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`. No RAM/CPU improvement or successful native relaunch is claimed from skipped steps.
+
+The two-job approval is consumed. A reviewed follow-up needs fresh permission before upload to the same verification branch. Its unchanged controls will not be repeated. Installed Ion, live profile, user projects, main, installers, releases and update feed remain untouched. No local Electron launch or Milestone 2 work occurred. Stop at the local correction checkpoint pending authorization.
+
+---
+
 ## Remaining native gates prepared — authorization pending
 
 **CONDITIONAL.** Continued from clean `c22e625`. Production source and dependencies remain unchanged: the current `src` tree, Windows-tested `ce035cb` and implemented `881ef00` all resolve to `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`.

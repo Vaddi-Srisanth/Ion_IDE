@@ -1,5 +1,57 @@
 # Ion Core Excellence — Milestone 1 verification
 
+## Executed remaining-gates run and local fixture corrections — 2026-11-17
+
+**Verdict: CONDITIONAL — native acceptance remains incomplete.** The two explicitly approved jobs ran at `2590f99bb471394cbdeb2c77fd12d0bd961eb540` and both failed before the resource lane. No release, installation or production fix is claimed. [Exact run 43937220557](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557) preserves the failures.
+
+| Gate | macOS job 133544880845 | Windows job 133544879324 |
+| --- | --- | --- |
+| Host | macOS 15.8.2 / 24H232 arm64, image 20261112.0539.3 | Windows Server 2025 Datacenter 10.0.26100 x64, image 20261103.298.1 |
+| Node | 24.22.2 | 24.22.2 |
+| Production identity check | Passed | Passed |
+| New Node-only harness controls | **4 passed, 0 failed, 0 skipped** | **4 passed, 0 failed, 0 skipped** |
+| Candidate ordinary production build | Passed | Passed |
+| Exact ancestor ordinary production build | Passed | Failed during archive extraction, before compilation |
+| Settings backup with actual unsaved editor | Creation returned successfully before the later Undo assertion, including status and ZIP-header checks; old coarse case record stayed empty | Not run |
+| Added one-Undo assertion | Timed out at `test-core-backup-acceptance.mjs:125` | Not run |
+| Controlled restore / native relaunch / restored data / rollback | Not reached | Not reached |
+| Paired resources | Not run after acceptance failure | Not run after baseline preparation failure |
+
+The Mac application used the disposable profile and reached its real production page. Its built main SHA-256, **`c422e06afd10c3d87941745b2b8fc4f6b1ae2d06573286cd21ef44575e741a95`**, matches the local production artifact. Both CI identity checks confirmed the same production source tree `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`. Application source/dependencies remain unchanged after the local corrections.
+
+### Root causes and smallest local corrections
+
+**Windows baseline transport:** the job logged `tar: D\:\a\_temp/ion-pre-core-baseline: Cannot open: No such file or directory`, followed by exit 2. Passing the drive-letter path through tar's `-C` argument failed in the Git Bash/tar boundary. The local workflow now changes the extraction child's working directory first and runs `tar -xf -` there, so tar receives no Windows directory argument. A local extraction control using spaces/backslashes/colon in its disposable path verified that the extracted ancestor source equals `git show d67613a:src/main/index.ts`. **Native Windows confirmation is still pending.** This was not a failure of Ion's archive parser, path validation or application installer.
+
+**Undo fixture assumption:** the test used a multiline `page.keyboard.insertText` replacement and assumed one Undo would restore the entire source file. Safe headless Chrome isolation against the production renderer reproduced identical behavior **before and after backup**: one Undo removed only the last newline, while the same Monaco model retained further Undo/Redo history. This proves the one-operation assumption was invalid under that input method; the first native artifact did not capture enough editor state to independently establish its exact Undo stack.
+
+The local edit fixture now deliberately applies one `executeEdits` operation between explicit Undo stops. A third headless control verifies that, after the backup dialog, one keyboard Undo restores the original source, Redo restores the unsaved edit and the model stays identical. This is a **fixture correction**, not a production Undo rewrite or complete native proof. Future native evidence now records successful backup creation before Undo and captures editor/model/Undo state around the assertion, preserving useful partial progress on failure. No deadline increased and no failure ignored.
+
+The three renderer controls are at `performance-results/core-native-acceptance/undo-controls.json`; their reproducible local script is `undo-control-local.mjs` in the same ignored directory. They use an explicit fixture bridge and headless Chrome, **not Electron**. The first raw isolation result and original CI failures remain preserved.
+
+### Preserved evidence and cleanup
+
+- [Mac artifact 14261855788](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557/artifacts/14261855788): ZIP SHA-256 `0c966efac8d9faa26c4760fcb715b6cce5d4091f77b584bfdded1ebc453d4554`, downloaded and locally verified; expiry 2026-11-23T19:15:20Z.
+- [Windows artifact 14261400964](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557/artifacts/14261400964): GitHub-reported SHA-256 `497da9052b22b84c55531eea51cc069e9666ed17abea0161cbde110d3d6af0a9`; expiry 2026-11-23T19:15:21Z.
+- Decoded full job logs and the exact Mac archive/structured failure report remain locally under `performance-results/core-native-acceptance/hosted-43937220557/`. No original failing sample was changed or excluded.
+- Mac failure teardown completed without a reported cleanup error; this was failure cleanup, **not** a normal restart/shutdown acceptance result. Windows did not launch Ion in this run. No local Electron GUI was launched. Existing installed Ion, live data and real projects were untouched.
+
+### Resource impact and remaining acceptance gaps
+
+**No native before/after RAM, attributed footprint, working-set/private-byte, idle-CPU, startup or cleanup-growth measurement was completed.** The resource steps were skipped, not passing. Build durations, Node-control durations and native startup receipts are not substituted for application performance measurements. The four-pair ordinary-production protocol against exact ancestor `d67613a1e9b77c7d677bd304628d57c58542fa71` remains prepared below.
+
+Actual restore and relaunch, normal-interface access after restore, fresh/preserved approval boundaries, startup interruption/reopen, populated rollback and the resource comparison all remain open. Installer/update compatibility, hardware power loss, maximum-size archives, long sessions and 8 GB physical hardware also remain unverified. No new application defect has been confirmed by this run.
+
+### Follow-up boundary
+
+The two approved jobs are complete. Only the baseline extraction workflow and the Undo fixture/diagnostics changed locally, with these two reports. The unchanged four harness controls passed on both OSs and are removed from the follow-up lane to avoid repeating them; earlier focused/Undo suites remain untouched. Syntax, workflow lint, extraction control and the three headless renderer controls pass. Production source and dependencies still match the CI-tested candidate.
+
+A further upload of the reviewed local correction to `codex/ion-core-native-acceptance` requires fresh explicit authorization. It would run only the two remaining-gates jobs again, retaining the same 20-minute bounds and original failures, with no arbitrary retries. Main remains `a108a01bad53a6008761049c28a86e90bdd0374e`; no tags, installers, release, update-feed or Milestone 2 action occurred. This local correction is not automatically pushed.
+
+---
+
+Earlier preparation and executed checkpoints are preserved below; their pending statements describe their original scope.
+
 ## Remaining native acceptance gates — prepared, not executed
 
 **Current verdict: CONDITIONAL.** Continuation began from clean local `c22e625824e1dd58595bb9a044ec7e143fe124f5`. The previously successful [Mac preflight](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358) and [Windows recheck](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585) remain valid for their exact scope and revisions. Their focused cohorts, filesystem tests and nine-case Undo controls were not repeated.

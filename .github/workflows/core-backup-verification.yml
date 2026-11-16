@@ -52,15 +52,18 @@ jobs:
           git fetch --depth=1 origin d67613a1e9b77c7d677bd304628d57c58542fa71
           git diff --exit-code 881ef00982649b9a26a547b7fab16851e4e04871 HEAD -- src package.json package-lock.json
           git rev-parse HEAD HEAD:src 881ef00982649b9a26a547b7fab16851e4e04871:src d67613a1e9b77c7d677bd304628d57c58542fa71:src >> performance-results/core-native-acceptance/revision.log
-      - name: New harness controls only (no repeated regression cohort)
-        run: node --test scripts/test-core-native-harness.mjs 2>&1 | tee performance-results/core-native-acceptance/harness.log
+      # The unchanged four harness controls passed on both OSs in run 43937220557.
+      # This follow-up does not repeat them or the earlier regression/Undo cohorts.
       - name: Build the exact production candidate
         run: npm run build 2>&1 | tee performance-results/core-native-acceptance/build.log
       - name: Build the ancestor's ordinary production configuration (not build baseline mode)
         run: |
           baseline_dir="$RUNNER_TEMP/ion-pre-core-baseline"
           mkdir "$baseline_dir"
-          git archive d67613a1e9b77c7d677bd304628d57c58542fa71 | tar -xf - -C "$baseline_dir"
+          git archive d67613a1e9b77c7d677bd304628d57c58542fa71 | (
+            cd "$baseline_dir"
+            tar -xf -
+          )
           node --input-type=module - "$baseline_dir" <<'NODE'
           import { symlink } from 'node:fs/promises';
           import { resolve, join } from 'node:path';

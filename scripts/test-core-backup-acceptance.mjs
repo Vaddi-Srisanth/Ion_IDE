@@ -77,9 +77,23 @@ async function apply(s, dialog, disposition = 'keep', fault = null) {
 }
 async function edit(page, marker) {
   await page.getByTestId('open-file').first().click(); await editorShows(page, '#include');
-  await page.locator('.monaco-editor .view-lines').click();
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
-  await page.keyboard.insertText('/* ' + marker + ' */\nint main(void) { return 0; }\n'); await editorShows(page, marker);
+  // insertText may split a multiline CDP replacement into many native edits.
+  // Define one edit deliberately; this fixture tests preservation across backup,
+  // rather than assuming a particular browser input/Undo grouping policy.
+  await page.evaluate(async text => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+    const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));
+    widget.pushUndoStop(); widget.executeEdits('core-acceptance', [{ range: widget.getModel().getFullModelRange(), text }]); widget.pushUndoStop(); widget.focus();
+  }, '/* ' + marker + ' */\nint main(void) { return 0; }\n');
+  await editorShows(page, marker);
+}
+async function editorState(page) {
+  return page.evaluate(async () => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+    const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));
+    const model = widget.getModel();
+    return { text: widget.getValue().slice(0, 8192), model: model.id, uri: String(model.uri), canUndo: model.canUndo(), canRedo: model.canRedo() };
+  });
 }
 async function verify(s, f, workspace, currentDraft = null, explicitlySaved = false) {
   const result = await s.page.evaluate(async ({ f, currentDraft }) => {
@@ -121,10 +135,16 @@ try {
   const workspace = join(root, 'Workspace Ω'), source = join(root, 'Source'), archive = join(root, 'Study.ionbackup');
   const f = await seed(source, workspace); await control(source, { workspace, archive });
   const origin = await start(source); await edit(origin.page, 'ION_UNSAVED_EDITOR'); await createBackup(origin, archive);
+  report.cases.push({ name: 'Settings backup with real unsaved editor content', passed: true });
+  report.editorUndo = { before: await editorState(origin.page) }; await save();
   await origin.page.locator('.monaco-editor .view-line').first().click();
-  await origin.page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z'); await editorShows(origin.page, '#include');
+  await origin.page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  report.editorUndo.after = await editorState(origin.page); await save(); await editorShows(origin.page, '#include');
+  report.editorUndo.settled = await editorState(origin.page);
+  assert.equal(report.editorUndo.settled.model, report.editorUndo.before.model, 'Backup replaced the editor model');
+  assert.equal(report.editorUndo.settled.text, '#include <stdio.h>\nint main(void) { return 0; }\n');
   await origin.page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+y'); await editorShows(origin.page, 'ION_UNSAVED_EDITOR');
-  await finish(origin); report.cases.push({ name: 'Settings backup with real unsaved editor content', passed: true }); await save();
+  await finish(origin); report.cases.push({ name: 'Undo and Redo preserved across backup', passed: true }); await save();
   for (const scenario of ['fresh', 'populated', 'previous-moved', 'published', 'rollback', 'save']) {
     const profile = join(root, scenario); await mkdir(profile);
     const prior = scenario === 'rollback' ? await seed(profile, workspace) : null;
