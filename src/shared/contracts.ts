@@ -1,3 +1,4 @@
+import type { BackupBridge } from './backup'
 import type { CompilerProblem, LearningBridge, LearningFeedback } from './learning'
 import type { LearningPacksBridge } from './learning-packs'
 import type { PracticeBridge } from './practice'
@@ -156,6 +157,7 @@ export interface RunResult {
 }
 
 export interface IonBridge {
+  backup: BackupBridge
   readonly firstLaunch: boolean
   languageTools: LanguageToolsBridge
   formatting: FormatBridge

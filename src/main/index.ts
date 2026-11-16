@@ -1,3 +1,5 @@
+import { hasPendingRestore } from './backup/pending'
+import type { BackupScope, RestoreChoices } from '../shared/backup'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, protocol, session, shell, type IpcMainInvokeEvent } from 'electron'
 import { createHash } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -199,7 +201,7 @@ const projects = () => import('./projects/ipc').then(({ createProjectHandlers })
   files: () => files,
   runner,
   isCurrent: (target) => target === window,
-  isBusy: () => activeRun !== null || practiceRun !== null,
+  isBusy: () => restoreClosing || activeRun !== null || practiceRun !== null,
   isFull: () => resourceProfile === 'full',
 }))
 
@@ -696,6 +698,8 @@ function createWindow(): BrowserWindow {
     target.webContents.send('ion:close-request')
   })
   target.on('closed', () => {
+    const closingBackup = backupService
+    backupService = undefined
     quickSearch?.abort()
     quickSearch = undefined
     workspaceSearch?.controller.abort()
@@ -729,11 +733,12 @@ function createWindow(): BrowserWindow {
     ignoreTerminalAccelerators = false
     // A failed process cleanup must not skip another owner's pending file or
     // recovery publication. Wait for every owner before choosing what follows.
-    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, preferences.drain(), recovery.drain(), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
+    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), formatting?.done,
-      updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup])
+      updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup, pendingRestore ? undefined : closingBackup?.then(s => s.cancel())])
     void cleanup.then(async (results) => {
+      await drainProfileWrites()
       const failed = results.some((result) => result.status === 'rejected')
       if (failed) {
         console.warn('Ion IDE cleanup could not be fully verified. Automatic restart and update installation were canceled.')
@@ -746,11 +751,27 @@ function createWindow(): BrowserWindow {
         }
         // Preserve the explicit failure instead of starting more work on top of
         // unverified resources. All persistence owners have now settled.
+        const restore = pendingRestore; pendingRestore = undefined
+        if (restore) await restore.service.cancel()
         quitRequested = true
         app.quit()
         return
       }
       if (window) return
+      if (pendingRestore) {
+        const restore = pendingRestore; pendingRestore = undefined
+        try {
+          if (!closeApproved || !quitRequested) throw new Error('Restore restart was not confirmed.')
+          await restore.service.finalize(restore.token)
+          app.relaunch(); app.quit(); return
+        } catch (error) {
+          if (restore.service.restartRequired) { app.relaunch(); app.quit(); return }
+          restoreClosing = false; quitRequested = false; closeApproved = false; await restore.service.cancel()
+          createWindow()
+          void dialog.showMessageBox(window!, { type: 'error', message: 'Restore was not applied', detail: error instanceof Error ? error.message : 'Your existing profile is unchanged.' })
+          return
+        }
+      }
       if (restartAfterCrash) {
         if (!quitRequested) createWindow()
       } else if (quitRequested || resourceProfile === 'minimal' || process.platform !== 'darwin') {
@@ -1022,9 +1043,44 @@ async function runPracticeSamples(
   }
 }
 
+let backupService: Promise<import('./backup/service').BackupService> | undefined
+let pendingRestore: { token: string; service: import('./backup/service').BackupService } | undefined
+let restoreClosing = false
+const acceptedRequests = new Set<Promise<unknown>>()
+async function drainAcceptedRequests() {
+  while (acceptedRequests.size) await Promise.allSettled([...acceptedRequests])
+}
+function backup(target: BrowserWindow) {
+  return backupService ??= import('./backup/service').then(async ({ BackupService }) => new BackupService({
+    profile: await realpath(app.getPath('userData')), appVersion: app.getVersion(),
+    progress: value => { if (window === target && !target.isDestroyed()) target.webContents.send('ion:backup-progress', value) },
+  }))
+}
+async function drainProfileWrites() {
+  await Promise.all([preferences.drain(), recovery.drain(), editorSession.drain(), themeStore.drain(),
+    learningService?.drain(), packStore?.drain(), practiceStore?.drain(), projectHandlers?.drain()])
+}
+async function requireStoppedTools() {
+  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
+    || await terminalService?.then(s => s.hasSessions) || await notebookKernels?.then(s => s.hasSessions)) {
+    throw new Error('Stop running programs, tests, notebook kernels and terminal sessions before restoring. Your work is unchanged.')
+  }
+}
+
 function registerIpc(): void {
   const handle = <T>(channel: string, operation: (target: BrowserWindow, ...args: unknown[]) => T) => {
-    ipcMain.handle('ion:' + channel, (event, ...args: unknown[]) => operation(owner(event), ...args))
+    ipcMain.handle('ion:' + channel, (event, ...args: unknown[]) => {
+      const target = owner(event)
+      if (restoreClosing && !['confirm-window-close', 'recovery-write', 'recovery-remove', 'editor-session-save', 'save-file', 'save-file-as', 'get-preferences'].includes(channel)) {
+        throw new Error('Restore is waiting for the save, keep-drafts or cancel decision.')
+      }
+      const request = Promise.resolve(operation(target, ...args))
+      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|set-optional-panel)/.test(channel)
+      if (!writesProfile) return request
+      acceptedRequests.add(request)
+      void request.then(() => acceptedRequests.delete(request), () => acceptedRequests.delete(request))
+      return request
+    })
   }
 
   async function remember<T extends Entry>(entry: T): Promise<T> {
@@ -1153,6 +1209,62 @@ function registerIpc(): void {
       return completion
     } finally { updatePreparation = undefined }
   })
+  handle('backup-folders', async target => {
+    const service = await backup(target)
+    if (files.rootPath) await service.addFolder(files.rootPath)
+    const saved = await preferences.get()
+    for (const entry of saved.recents.filter(e => e.kind === 'folder').slice(0, 15)) {
+      await service.addFolder(entry.path).catch(() => {})
+    }
+    return service.listFolders()
+  })
+  handle('backup-choose-folder', async target => {
+    const answer = await dialog.showOpenDialog(target, { title: 'Choose a folder for backup or explicit relinking', properties: ['openDirectory'] })
+    if (target !== window || answer.canceled || !answer.filePaths[0]) return null
+    return (await backup(target)).addFolder(answer.filePaths[0])
+  })
+  handle('backup-review', async (target, scope) => { await drainAcceptedRequests(); await drainProfileWrites(); return (await backup(target)).review(scope as BackupScope) })
+  handle('backup-create', async (target, token) => {
+    if (typeof token !== 'string') throw new Error('Invalid backup token.')
+    const answer = await dialog.showSaveDialog(target, { title: 'Back Up My Ion Data', defaultPath: 'Ion Data ' + new Date().toISOString().slice(0, 10) + '.ionbackup', filters: [{ name: 'Ion backup', extensions: ['ionbackup'] }] })
+    if (target !== window || answer.canceled || !answer.filePath) return null
+    return (await backup(target)).create(token, answer.filePath)
+  })
+  handle('backup-open-restore', async (target, legacy) => {
+    if (legacy !== undefined && typeof legacy !== 'boolean') throw new Error('Invalid backup input.')
+    const answer = await dialog.showOpenDialog(target, { title: legacy ? 'Open Legacy Ion Profile Export' : 'Restore From Backup', properties: legacy ? ['openDirectory'] : ['openFile'],
+      ...(legacy ? {} : { filters: [{ name: 'Ion backup', extensions: ['ionbackup'] }] }) })
+    if (target !== window || answer.canceled || !answer.filePaths[0]) return null
+    await drainAcceptedRequests(); await drainProfileWrites()
+    return (await backup(target)).openRestore(answer.filePaths[0], legacy === true)
+  })
+  handle('backup-prepare-restore', async (target, token, choices) => {
+    if (typeof token !== 'string') throw new Error('Invalid restore token.')
+    await requireStoppedTools(); await drainAcceptedRequests(); await drainProfileWrites()
+    // This is only a chooser decision, not an extraction path supplied by the renderer.
+    const copied = choices && typeof choices === 'object' && 'copyFolders' in choices && Array.isArray(choices.copyFolders) && choices.copyFolders.length > 0
+    let parent: string | undefined
+    if (copied) {
+      const answer = await dialog.showOpenDialog(target, { title: 'Choose parent for NEW restored workspace folders', properties: ['openDirectory', 'createDirectory'] })
+      if (target !== window || answer.canceled || !answer.filePaths[0]) throw new Error('Workspace destination selection cancelled.')
+      parent = answer.filePaths[0]
+    }
+    return (await backup(target)).prepareRestore(token, choices as RestoreChoices, parent)
+  })
+  handle('backup-apply-restore', async (target, token) => {
+    if (restoreClosing || pendingUpdate) throw new Error('Another restart operation is pending.')
+    restoreClosing = true // Freeze new tool launches before awaiting availability checks.
+    try {
+      await requireStoppedTools()
+      const service = await backup(target); service.assertPrepared(token)
+      if (target !== window || pendingUpdate) throw new Error('Another restart operation is pending.')
+      await requireStoppedTools()
+      projectHandlers?.stopAutomatic()
+      pendingRestore = { token: token as string, service }
+      app.quit() // Existing Save / Keep Drafts / Cancel flow owns this decision.
+    } catch (error) { restoreClosing = false; throw error }
+  })
+  handle('backup-cancel', async () => { if (!restoreClosing) await backupService?.then(s => s.cancel()) })
   let profileExportPending = false
   handle('export-local-profile', async (target) => {
     if (profileExportPending) throw new Error('A local profile export is already in progress.')
@@ -1745,6 +1857,9 @@ function registerIpc(): void {
     closePending = false
     if (!allow) {
       quitRequested = false
+      restoreClosing = false
+      const restore = pendingRestore; pendingRestore = undefined
+      if (restore) void restore.service.cancel()
       const update = pendingUpdate
       pendingUpdate = undefined
       if (update) void update.prepared.dispose()
@@ -1779,6 +1894,7 @@ async function openFromSystem(path: string): Promise<void> {
 function queueSystemFile(path: string) {
   if (!isAbsolute(path)) return
   systemFileRequested = true
+  if (restoreClosing) return
   if (initialized) void openFromSystem(path)
   else if (earlyFiles.length < 20) earlyFiles.push(path)
 }
@@ -1802,7 +1918,7 @@ app.on('before-quit', (event) => {
 })
 
 app.on('second-instance', (_event, argv) => {
-  if (pendingUpdate && quitRequested) return
+  if ((pendingUpdate || pendingRestore || restoreClosing) && quitRequested) return
   openWindowsArguments(argv)
   if (!initialized) return
   const target = window ?? createWindow()
@@ -1820,6 +1936,13 @@ app.on('window-all-closed', () => {})
 
 void app.whenReady().then(async () => {
   if (!primaryInstance) return
+  if (await hasPendingRestore(app.getPath('userData'))) {
+    const { finishPendingRestore } = await import('./backup/transaction')
+    try { await finishPendingRestore(app.getPath('userData')) }
+    catch (error) {
+      throw new Error('Ion stopped before opening your editor because restore repair could not finish. Quit Ion and keep both versions. Copy the entire profile before manual repair. Restore journals and original files are in .ion-restores; verified rollback archives are in .ion-backups. Profile: ' + app.getPath('userData') + '\n\n' + (error instanceof Error ? error.message : String(error)), { cause: error })
+    }
+  }
   preferences = new PreferenceStore(join(app.getPath('userData'), 'preferences.json'))
   recovery = new RecoveryStore(join(app.getPath('userData'), 'recovery'))
   editorSession = new EditorSessionStore(join(app.getPath('userData'), 'editor-session.json'))

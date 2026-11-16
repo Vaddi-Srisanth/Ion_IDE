@@ -1,0 +1,27 @@
+name: Core backup and restore verification (manual only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup:
+    name: Disposable ${{ matrix.os }} profile
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node scripts/test.mjs backup profile-export recovery editor-session file-metadata backend
+      - run: npm run build
+      - run: node scripts/test-backup-desktop.mjs
+      - name: Existing focused Undo regression
+        run: node scripts/test-undo-control.mjs

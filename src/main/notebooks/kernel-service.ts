@@ -258,6 +258,7 @@ export class NotebookKernels {
   private readonly launching = new Set<symbol>()
   private readonly closing = new Map<string, Promise<void>>()
   private readonly confirmAgain = new Set<string>()
+  get hasSessions() { return this.sessions.size > 0 || this.launching.size > 0 || this.operations.size > 0 || this.closing.size > 0 }
   private disposed = false
   private cleanupFailed = false
 

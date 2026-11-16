@@ -41,6 +41,7 @@ export interface ProjectSpec {
 }
 
 export interface TestEvidence {
+  restored?: boolean
   testId: string
   outcome: TestOutcome
   kind: EvidenceKind

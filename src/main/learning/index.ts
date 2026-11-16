@@ -110,7 +110,7 @@ function validActivity(value: unknown): value is Record<string, ActivityStats> {
   })
 }
 
-function parseState(text: string): State {
+export function validateLearningHistory(text: string): State {
   const state = JSON.parse(text) as State
   if (!state || state.version !== 1 || !state.files || !state.categories || !state.topics) {
     throw new Error('Learning history could not be read. You can clear it in the History panel.')
@@ -154,6 +154,8 @@ function trackingKey(diagnostic: ClassifiedDiagnostic, result: RunResult): strin
 export class LearningService {
   private data: State | undefined
   private queue: Promise<void> = Promise.resolve()
+
+  drain(): Promise<void> { return this.queue }
 
   constructor(private readonly file: string, private readonly packs = join(__dirname, 'learning-packs')) {}
 
@@ -365,7 +367,7 @@ export class LearningService {
         if (!bytesRead) break
         offset += bytesRead
       }
-      this.data = parseState(bytes.toString('utf8', 0, offset))
+      this.data = validateLearningHistory(bytes.toString('utf8', 0, offset))
       return this.data
     } finally {
       await handle.close()

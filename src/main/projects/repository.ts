@@ -11,7 +11,7 @@ export type SavedEvidence = Omit<TestEvidence, 'stale' | 'location'> & {
   sourceRevision: string | null
   location?: { line: number; column: number }
 }
-export type SavedProject = Omit<ProjectRecord, 'evidence' | 'automatic'> & { evidence: SavedEvidence[] }
+export type SavedProject = Omit<ProjectRecord, 'evidence' | 'automatic'> & { evidence: SavedEvidence[]; restoredEvidence?: SavedEvidence[] }
 
 function readEvidence(value: unknown): SavedEvidence {
   const extras = ['stderr', 'programMs', 'location'].filter((key) => value && typeof value === 'object' && Object.hasOwn(value, key))
@@ -53,6 +53,25 @@ function readEvidence(value: unknown): SavedEvidence {
   return evidence
 }
 
+export function validateSavedProject(value: unknown): SavedProject {
+  const restored = value !== null && typeof value === 'object' && Object.hasOwn(value, 'restoredEvidence')
+  const data = exactObject(value, ['schema', 'spec', 'revision', 'approved', 'evidence', ...(restored ? ['restoredEvidence'] : [])], 'Stored project')
+  if (data.schema !== 1 || typeof data.revision !== 'string' || !uuid.test(data.revision)) throw new Error('Invalid stored project version.')
+  const spec = validateProject(data.spec)
+  const ids = new Set(spec.tests.map(test => test.id))
+  const approved = data.approved
+  if (!Array.isArray(approved) || approved.length > 16
+    || approved.some(testId => typeof testId !== 'string' || !ids.has(testId))
+    || !Array.isArray(data.evidence) || data.evidence.length > 16) throw new Error('Invalid stored test records.')
+  const evidence = data.evidence.map(readEvidence)
+  if (evidence.some(item => !approved.includes(item.testId))) throw new Error('Invalid stored test approvals.')
+  const restoredEvidence = restored ? data.restoredEvidence : undefined
+  if (restored && (!Array.isArray(restoredEvidence) || restoredEvidence.length > 16)) throw new Error('Invalid restored test history.')
+  const historical = restoredEvidence === undefined ? undefined : (restoredEvidence as unknown[]).map(readEvidence)
+  if (historical?.some(item => !ids.has(item.testId))) throw new Error('Invalid restored test history.')
+  return { spec, revision: data.revision, approved, evidence, ...(historical ? { restoredEvidence: historical } : {}) }
+}
+
 export class ProjectRepository {
   private queue: Promise<void> = Promise.resolve()
 
@@ -66,17 +85,7 @@ export class ProjectRepository {
   async read(root: string): Promise<SavedProject | null> {
     const value = await readJson(this.file(root), storageLimit)
     if (value === null) return null
-    const data = exactObject(value, ['schema', 'spec', 'revision', 'approved', 'evidence'], 'Stored project')
-    if (data.schema !== 1 || typeof data.revision !== 'string' || !uuid.test(data.revision)) throw new Error('Invalid stored project version.')
-    const spec = validateProject(data.spec)
-    const ids = new Set(spec.tests.map(test => test.id))
-    const approved = data.approved
-    if (!Array.isArray(approved) || approved.length > 16
-      || approved.some(testId => typeof testId !== 'string' || !ids.has(testId))
-      || !Array.isArray(data.evidence) || data.evidence.length > 16) throw new Error('Invalid stored test records.')
-    const evidence = data.evidence.map(readEvidence)
-    if (evidence.some(item => !approved.includes(item.testId))) throw new Error('Invalid stored test approvals.')
-    return { spec, revision: data.revision, approved, evidence }
+    return validateSavedProject(value)
   }
 
   async save(root: string, value: unknown, expected: unknown): Promise<SavedProject> {
@@ -126,11 +135,16 @@ export class ProjectRepository {
     const operation = this.queue.then(async () => {
       const previous = await this.read(root)
       if ((previous?.revision ?? null) !== expected) throw new Error('The saved project changed. Reload it and try again.')
-      const record = { ...change(previous), revision: randomUUID() }
+      const next = change(previous)
+      const testIds = new Set(next.spec.tests.map(test => test.id))
+      const historical = previous?.restoredEvidence?.filter(item => testIds.has(item.testId))
+      const record = { ...next, ...(historical?.length ? { restoredEvidence: historical } : {}), revision: randomUUID() }
       await writeJson(this.file(root), { schema: 1, ...record }, storageLimit)
       return record
     })
     this.queue = operation.then(() => undefined, () => undefined)
     return operation
   }
+
+  drain(): Promise<void> { return this.queue }
 }

@@ -38,7 +38,7 @@ export function Modal({ title, className = '', children, onClose, busy = false, 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThemePreview, onThemeFavorite, startBrowsing, onLanguageSupport, onChange, onUpdateLaunchChange,
-  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onReplayIntro, onLearningContent, onClose }: {
+  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onBackup, onReplayIntro, onLearningContent, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string, loaded?: ThemeData): Promise<void>;
@@ -53,6 +53,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
   onInstallUpdate(): void;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
+  onBackup(mode: 'backup' | 'restore'): void;
   onReplayIntro(): void;
   onLearningContent(): void;
   onClose(): void;
@@ -247,6 +248,9 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
       <ShortcutSettings overrides={settings.shortcuts} platform={window.ion.platform} onSave={onShortcutChange}/>
       <div className="settings-group">
         <h3>Local Data</h3>
+        <div className="setting"><div><b>Protect and restore your work</b><p>Back up notes, practice, roadmaps, custom content and unsaved drafts. Review every restore before replacing data.</p></div></div>
+        <div className="setting"><button className="button" data-testid="backup-data" onClick={() => onBackup('backup')}>Back Up My Ion Data</button>
+          <button className="button" data-testid="restore-data" onClick={() => onBackup('restore')}>Restore From Backup</button></div>
         <div className="setting">
           <div>
             <b>Portable profile</b>

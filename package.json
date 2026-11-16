@@ -77,7 +77,10 @@
     "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs",
     "stats:live": "node scripts/sample-live-runtime.mjs",
     "test:shutdown-failure": "node scripts/test-shutdown-cleanup-failure.mjs",
-    "test:notebook-cleanup": "node scripts/test-notebook-cleanup-ownership.mjs"
+    "test:notebook-cleanup": "node scripts/test-notebook-cleanup-ownership.mjs",
+    "test:backup": "node scripts/test.mjs backup",
+    "test:backup:ui": "node scripts/test-backup-ui.mjs",
+    "bench:backup": "node scripts/benchmark-backup.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
@@ -92,7 +95,8 @@
     "react-dom": "19.3.1",
     "sax": "1.6.1",
     "vscode-jsonrpc": "10.0.0",
-    "yauzl": "3.4.0"
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1"
   },
   "devDependencies": {
     "@electron/fuses": "2.1.3",

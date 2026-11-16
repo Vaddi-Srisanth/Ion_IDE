@@ -79,6 +79,8 @@ async function buildDesktop() {
       'main/format/service': 'src/main/format/service.ts',
       'main/web-preview': 'src/main/web-preview.ts',
       'main/profile-export': 'src/main/profile-export.ts',
+      'main/backup/service': 'src/main/backup/service.ts',
+      'main/backup/transaction': 'src/main/backup/transaction.ts',
       'main/workspace-search': 'src/main/workspace-search.ts',
       'main/update-install': 'src/main/update-install.ts',
       'main/run-trust': 'src/main/run-trust.ts',
@@ -87,12 +89,12 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|explanations\/(?:session|context)|provider-vault|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|explanations\/(?:session|context)|provider-vault|viewers|run-console|(?:terminal|java|format)\/service|web-preview|profile-export|backup\/(?:service|transaction)|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
           const singleFile = path.endsWith('/ipc') || path === './project-lens/session' || path.startsWith('./explanations/')
             || path === './provider-vault' || path === './web-preview' || path === './profile-export'
             || path === './notebooks/kernel-service' || path === './learning/catalog-store'
-            || path === './workspace-search' || path === './update-install' || path === './run-trust' || path.endsWith('/service')
+            || path.startsWith('./backup/') || path === './workspace-search' || path === './update-install' || path === './run-trust' || path.endsWith('/service')
           return { path: path + (singleFile ? '.cjs' : '/index.cjs'), external: true }
         })
       },
@@ -118,7 +120,7 @@ async function buildDesktop() {
     cp('src/main/learning/packs', resolve(output, 'main/learning-packs'), { recursive: true }),
     compileLearningCatalog(resolve('src/main/learning/catalog'), resolve(output, 'main/learning-catalog'), version),
     cp('src/main/themes/palettes', resolve(output, 'main/themes'), { recursive: true }),
-    ...[['csv-parse', 'LICENSE'], ['sax', 'LICENSE.md'], ['yauzl', 'LICENSE'], ['pend', 'LICENSE']]
+    ...[['csv-parse', 'LICENSE'], ['sax', 'LICENSE.md'], ['yauzl', 'LICENSE'], ['pend', 'LICENSE'], ['yazl', 'LICENSE'], ['buffer-crc32', 'LICENSE']]
       .map(([name, license]) => cp(resolve('node_modules', name, license), resolve(output, 'main/viewers/licenses', name + '.txt'))),
   ])
 }

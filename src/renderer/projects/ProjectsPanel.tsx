@@ -367,7 +367,7 @@ function ProjectTestRow({ test, evidence, approved, busy, automatic, onAutomatic
         <label>Expected standard output ({test.match})<pre>{test.expectedOutput || '(empty)'}</pre></label>
         {evidence && <div className="project-evidence" data-testid="project-evidence"
           data-status={evidence.stale ? 'unable-to-verify' : evidence.outcome}>
-          <strong>{evidence.stale ? 'Stale evidence' : labels[evidence.outcome]}</strong>
+          <strong>{evidence.restored ? 'Restored historical result · rerun to verify' : evidence.stale ? 'Stale evidence' : labels[evidence.outcome]}</strong>
           <p>{evidenceLabels[evidence.kind]} · {new Date(evidence.checkedAt).toLocaleString()} · {evidence.durationMs} ms</p>
           <p>{evidence.message}</p>
           {evidence.exitCode !== null && <p>Observed exit code <code>{evidence.exitCode}</code></p>}

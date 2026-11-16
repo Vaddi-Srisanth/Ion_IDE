@@ -172,6 +172,8 @@ export class LearningPackStore {
   private readonly directory: string
   private readonly registryPath: string
   private pending = Promise.resolve()
+
+  drain(): Promise<void> { return this.pending }
   private preview?: PendingImport
 
   constructor(profile: string, private readonly catalogPath: string, private readonly current = '0.9.4') {

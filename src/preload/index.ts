@@ -38,6 +38,17 @@ function buffered<T>(channel: string): (callback: (value: T) => void) => () => v
 }
 
 const bridge: IonBridge = {
+  backup: {
+    folders: () => ipcRenderer.invoke('ion:backup-folders'),
+    chooseFolder: () => ipcRenderer.invoke('ion:backup-choose-folder'),
+    review: scope => ipcRenderer.invoke('ion:backup-review', scope),
+    create: token => ipcRenderer.invoke('ion:backup-create', token),
+    openRestore: legacy => ipcRenderer.invoke('ion:backup-open-restore', legacy),
+    prepareRestore: (token, choices) => ipcRenderer.invoke('ion:backup-prepare-restore', token, choices),
+    applyRestore: token => ipcRenderer.invoke('ion:backup-apply-restore', token),
+    cancel: () => ipcRenderer.invoke('ion:backup-cancel'),
+    onProgress: callback => subscribe('ion:backup-progress', callback),
+  },
   platform: process.platform === 'darwin' || process.platform === 'win32' ? process.platform : 'linux',
   firstLaunch: process.argv.includes('--ion-first-launch'),
   languageTools: {

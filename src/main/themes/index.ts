@@ -66,6 +66,8 @@ export class ThemeStore {
   private readonly directory: string
   private mutations = Promise.resolve()
 
+  drain(): Promise<void> { return this.mutations }
+
   constructor(userDataPath: string, private readonly builtinThemeDir: string) {
     this.directory = join(userDataPath, 'themes')
     this.registryPath = join(this.directory, 'registry.json')

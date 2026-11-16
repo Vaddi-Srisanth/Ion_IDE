@@ -96,10 +96,18 @@ function settingsPatch(value: unknown, strict: boolean): Partial<Settings> {
   ]))
 }
 
-function isRecent(value: unknown): value is RecentEntry {
+export function isRecent(value: unknown): value is RecentEntry {
   return isRecord(value) && typeof value.path === 'string' && value.path.length <= 4096 && isAbsolute(value.path)
     && typeof value.name === 'string' && (value.kind === 'file' || value.kind === 'folder')
     && typeof value.lastOpened === 'number' && Number.isSafeInteger(value.lastOpened) && value.lastOpened >= 0
+}
+
+export function validateBackupPreferences(value: unknown) {
+  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.recents) || value.recents.length > maxRecents
+    || value.recents.some(v => !isRecord(v) || typeof v.path !== 'string' || v.path.length > 4096 || /[\u0000-\u001f]/.test(v.path)
+      || typeof v.name !== 'string' || v.name.length > 4096 || !['file', 'folder'].includes(String(v.kind))
+      || !Number.isSafeInteger(v.lastOpened) || Number(v.lastOpened) < 0)) throw new Error('Invalid backup preferences.')
+  return { version: 1 as const, settings: settingsPatch(value.settings, true), recents: value.recents as RecentEntry[] }
 }
 
 function defaults(): Preferences {

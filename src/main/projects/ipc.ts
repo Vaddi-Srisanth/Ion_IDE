@@ -174,11 +174,15 @@ export function createProjectHandlers({ profile, provider, files, runner, isCurr
       return { ...item, stale, ...(!stale && latest && location ? { location: { ...location, path: latest.path } } : {}) }
     }))
     const automaticTests = isFull() && opened?.path === path ? [...automatic.keys()] : []
-    return { ...record, evidence, automatic: automaticTests }
+    const currentIds = new Set(evidence.map(item => item.testId))
+    const historical = (record.restoredEvidence ?? []).filter(item => !currentIds.has(item.testId))
+      .map(({ sourceRevision: _revision, location: _location, ...item }) => ({ ...item, stale: true, restored: true }))
+    return { ...record, evidence: [...evidence, ...historical], automatic: automaticTests }
   }
 
   return {
-    get busy() { return running || suite !== undefined },
+    get busy() { return running || suite !== undefined || savedTests.running },
+    drain: async () => { await savedTests.settle(); await store.drain() },
     async setActive(target: BrowserWindow, root: unknown) {
       if (root === null) {
         close()

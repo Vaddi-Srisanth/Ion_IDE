@@ -30,6 +30,7 @@ import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, Explan
 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
+  | { kind: 'backup'; mode: 'backup' | 'restore' }
   | { kind: 'language-support' }
   | { kind: 'learning-content' }
   | { kind: 'explanation'; request: ExplanationRequest; tabId: string | null; root: string | null; mode: WorkspaceMode; epoch?: number; learningPack: string | null }
@@ -66,6 +67,7 @@ const Commands = lazy(async () => ({ default: (await import('./CommandPicker')).
 const QuickOpen = lazy(async () => ({ default: (await import('./CommandPicker')).QuickOpen }));
 const WorkspaceSearch = lazy(() => import('./WorkspaceSearch'));
 const LanguageSupport = lazy(() => import('./LanguageSupport'));
+const BackupDialog = lazy(async () => ({ default: (await import('./backup/BackupDialog')).BackupDialog }));
 const LearningContentSettings = lazy(async () => ({ default: (await import('./learning/LearningContentSettings')).LearningContentSettings }));
 const ExplanationDialog = lazy(async () => ({ default: (await import('./explanations/ExplanationDialog')).ExplanationDialog }));
 const ReviewRecommendations = lazy(async () => ({ default: (await import('./projects/ReviewRecommendations')).ReviewRecommendations }));
@@ -113,6 +115,7 @@ function isReportLocation(report: RunReport, problem: CompilerProblem) {
 }
 
 export function App() {
+  const [restoreRequest, setRestoreRequest] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => ({ ...defaultSettings, autoSave: false }));
   const settingsRef = useRef(settings);
   const preferencesLoaded = useRef(false);
@@ -878,6 +881,18 @@ export function App() {
     else documents.close(id);
   }
 
+  async function checkpointBackup() {
+    const resume = await documents.checkpointDrafts();
+    try { await sessionWriter.flush(true); } finally { resume(); }
+  }
+  useEffect(() => {
+    if (!restoreRequest || dialog) return;
+    const token = restoreRequest; setRestoreRequest(null);
+    void bridge.backup.applyRestore(token).catch(reason => {
+      notify(errorMessage(reason), true); void bridge.backup.cancel();
+    });
+  }, [restoreRequest, dialog]);
+
   async function confirmClose(allow: boolean, disposition: 'save' | 'discard' | 'keep' = 'save') {
     let resumeAutosave: (() => void) | undefined;
     try {
@@ -1492,10 +1507,14 @@ export function App() {
         onInstallUpdate={() => { setDialog(null); void updates.install().then((error) => { if (error) notify(error, true); }); }}
         onThemeChange={changeTheme} onThemePreview={setPreviewTheme} onThemeFavorite={changeThemeFavorite}
         startBrowsing={dialog.browseThemes} onLanguageSupport={() => setDialog({ kind: 'language-support' })}
-        onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile}
+        onShortcutChange={changeShortcuts} onExportProfile={exportLocalProfile} onBackup={mode => setDialog({ kind: 'backup', mode })}
         onReplayIntro={() => { setDialog(null); setOnboarding('replay'); }}
         onClose={() => setDialog(null)}/>}
-      {dialog?.kind === 'learning-content' && <Modal title="Learning Content" className="preferences" onClose={() => setDialog(null)}>
+      {dialog?.kind === 'backup' && <Suspense fallback={<Modal title="Opening backup tools" onClose={() => setDialog(null)}><p role="status">Loading local backup tools…</p></Modal>}>
+        <BackupDialog mode={dialog.mode} checkpoint={checkpointBackup} onClose={() => setDialog(null)}
+          onApply={token => { setDialog(null); setRestoreRequest(token); }}/>
+      </Suspense>}
+      {dialog?.kind === 'learning-content'  && <Modal title="Learning Content" className="preferences" onClose={() => setDialog(null)}>
         <Suspense fallback={<p role="status">Opening learning content…</p>}>
           <LearningContentSettings packs={bridge.learningPacks} onLibraryChange={applyPackLibrary}/>
         </Suspense>

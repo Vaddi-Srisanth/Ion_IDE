@@ -1,4 +1,4 @@
-import { basename, isAbsolute, resolve } from 'node:path'
+import { basename, isAbsolute, resolve, win32, posix } from 'node:path'
 import {
   editorSessionTabLimit, editorViewSelectionLimit,
   type EditorSelection, type EditorSessionSnapshot, type EditorSessionTab, type EditorViewState, type ResumedEditorSession,
@@ -20,6 +20,13 @@ function pathOrNull(value: unknown): string | null {
   if (value === null) return null
   if (typeof value !== 'string' || Buffer.byteLength(value) > 4096 || value.includes('\0')
     || !isAbsolute(value) || resolve(value) !== value) throw new Error('Invalid editor session path.')
+  return value
+}
+
+function inertReference(value: unknown): string | null {
+  if (value === null) return null
+  if (typeof value !== 'string' || value.length > 4096 || /[\x00-\x1f]/.test(value)
+    || !(posix.isAbsolute(value) || win32.isAbsolute(value))) throw new Error('Invalid restored file reference.')
   return value
 }
 
@@ -57,20 +64,29 @@ function parseView(value: unknown): EditorViewState | undefined {
   }
 }
 
-function parseSnapshot(value: unknown): EditorSessionSnapshot {
-  const { rootPath, activeIndex, tabs } = record(value)
+export function validateEditorSnapshot(value: unknown, parsePath = pathOrNull): EditorSessionSnapshot {
+  const { rootPath, activeIndex, tabs, restoredReferences, restoredRoot } = record(value)
   if (!Array.isArray(tabs) || tabs.length > editorSessionTabLimit || typeof activeIndex !== 'number'
     || !Number.isInteger(activeIndex) || activeIndex < -1 || activeIndex >= tabs.length) {
     throw new Error('Invalid editor session tabs.')
   }
+  let references: EditorSessionTab[] | undefined
+  if (restoredReferences !== undefined) {
+    if (!Array.isArray(restoredReferences) || restoredReferences.length > 64) throw new Error('Invalid restored session references.')
+    references = validateEditorSnapshot({ rootPath: null, activeIndex: -1, tabs: restoredReferences }, inertReference).tabs
+    if (references.some(t => t.path === null || t.draftId)) throw new Error('Invalid restored session reference.')
+  }
+  const restored = restoredRoot === undefined ? undefined : inertReference(restoredRoot)
   const paths = new Set<string>()
   const drafts = new Set<string>()
   return {
-    rootPath: pathOrNull(rootPath),
+    ...(references ? { restoredReferences: references } : {}),
+    ...(restored ? { restoredRoot: restored } : {}),
+    rootPath: parsePath(rootPath),
     activeIndex,
     tabs: tabs.map((value: unknown): EditorSessionTab => {
       const { path, name, draftId, view, notebookMode } = record(value)
-      const parsed = pathOrNull(path)
+      const parsed = parsePath(path)
       if (parsed !== null) {
         if (paths.has(parsed)) throw new Error('Duplicate file in editor session.')
         paths.add(parsed)
@@ -84,7 +100,7 @@ function parseSnapshot(value: unknown): EditorSessionSnapshot {
       if (notebookMode !== undefined && notebookMode !== 'notebook' && notebookMode !== 'json') {
         throw new Error('Invalid notebook mode in editor session.')
       }
-      return { path: parsed, name: parsed === null ? draftName(name) : basename(parsed), draftId, notebookMode, view: parseView(view) }
+      return { path: parsed, name: parsed === null ? draftName(name) : (win32.isAbsolute(parsed) && !posix.isAbsolute(parsed) ? win32.basename(parsed) : basename(parsed)), draftId, notebookMode, view: parseView(view) }
     }),
   }
 }
@@ -94,6 +110,8 @@ export class EditorSessionStore {
   private pending = Promise.resolve()
   private encoded?: string
 
+  drain(): Promise<void> { return this.pending }
+
   constructor(private readonly path: string) {}
 
   private read(): Promise<EditorSessionSnapshot | null> {
@@ -101,7 +119,7 @@ export class EditorSessionStore {
       if (data === null) return null
       const stored = record(data)
       if (stored.version !== 1) throw new Error('Unsupported editor session version.')
-      const snapshot = parseSnapshot(stored)
+      const snapshot = validateEditorSnapshot(stored)
       this.encoded = JSON.stringify(snapshot)
       return snapshot
     })
@@ -114,7 +132,7 @@ export class EditorSessionStore {
   }
 
   save(value: unknown, scope: WorkspaceFiles): Promise<void> {
-    const { rootPath, activeIndex, tabs } = parseSnapshot(value)
+    const { rootPath, activeIndex, tabs } = validateEditorSnapshot(value)
     if (rootPath !== null && rootPath !== scope.rootPath) throw new Error('The editor session folder is no longer open.')
     const authorized: EditorSessionTab[] = []
     let selected = -1
@@ -128,8 +146,11 @@ export class EditorSessionStore {
     const encoded = JSON.stringify(snapshot)
     const write = this.pending.then(async () => {
       if (encoded === this.encoded) return
-      await writeJson(this.path, { version: 1, ...snapshot }, maxSessionBytes)
-      this.snapshot = Promise.resolve(snapshot)
+      const previous = await this.read().catch(() => null)
+      const saved = { ...snapshot, ...(previous?.restoredReferences ? { restoredReferences: previous.restoredReferences } : {}),
+        ...(previous?.restoredRoot ? { restoredRoot: previous.restoredRoot } : {}) }
+      await writeJson(this.path, { version: 1, ...saved }, maxSessionBytes)
+      this.snapshot = Promise.resolve(saved)
       this.encoded = encoded
     })
     this.pending = write.catch(() => undefined)

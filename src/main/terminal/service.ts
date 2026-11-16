@@ -78,6 +78,7 @@ function dimension(value: unknown): number {
 
 export class TerminalService {
   private readonly sessions = new Map<string, TerminalSession>()
+  get hasSessions() { return this.sessions.size > 0 }
   private disposed = false
 
   constructor(private readonly helper: string, private readonly publish: (event: TerminalEvent) => void) {}

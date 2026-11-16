@@ -34,6 +34,7 @@ const starters: Record<RunLanguage, string> = {
 type RunSamples = (path: string, inputs: readonly string[], sourceRevision: string) => Promise<readonly RunResult[]>
 
 interface StoredReport {
+  restored?: boolean
   version: 1
   testedAt: number
   sourceRevision: string
@@ -145,11 +146,12 @@ function parseAttempt(value: unknown): StoredAttempt {
   }
 }
 
-function parseReport(value: unknown): StoredReport {
+export function validatePracticeReport(value: unknown): StoredReport {
   const item = record(value)
   if (item.version !== 1) throw new Error('Unsupported practice result format.')
   return {
     version: 1,
+    ...(item.restored === true ? { restored: true } : {}),
     testedAt: integer(item.testedAt, 'test date'),
     sourceRevision: text(item.sourceRevision, 'Source revision', 256, true),
     samplesKey: text(item.samplesKey, 'Sample signature', 64, true),
@@ -192,10 +194,23 @@ function skipped(sample: PracticeSample, message: string): PracticeSampleResult 
   return { id: sample.id, label: sample.label, status: 'skipped', message, expected: preview(sample.expectedOutput), stdout: '', stderr: '' }
 }
 
+export function validatePracticeProblem(input: unknown, id: string): StoredProblem {
+  const value = record(input)
+  if (value.version !== 1 || value.id !== id) throw new Error('Unsupported practice problem format.')
+  return {
+    ...fields(value), id, version: 1, revision: integer(value.revision, 'practice revision'),
+    language: value.language === undefined ? 'c' : choice(value.language, supportedLanguages, 'practice language'),
+    ...(value.catalogId === undefined ? {} : { catalogId: catalogIdentifier(value.catalogId) }),
+    attempts: uniqueIds(list(value.attempts, maxAttempts, parseAttempt)),
+  }
+}
+
 export class PracticeStore {
   private root: Promise<string> | undefined
   private pending: Promise<void> = Promise.resolve()
   private running = false
+
+  drain(): Promise<void> { return this.pending }
 
   constructor(private readonly path: string) {}
 
@@ -256,14 +271,7 @@ export class PracticeStore {
 
   private async readProblem(id: string, root?: string): Promise<StoredProblem> {
     const directory = await this.problemDirectory(id, root)
-    const value = record(await this.readJson(join(directory, 'problem.json')))
-    if (value.version !== 1 || value.id !== id) throw new Error('Unsupported practice problem format.')
-    return {
-      ...fields(value), id, version: 1, revision: integer(value.revision, 'practice revision'),
-      language: value.language === undefined ? 'c' : choice(value.language, supportedLanguages, 'practice language'),
-      ...(value.catalogId === undefined ? {} : { catalogId: catalogIdentifier(value.catalogId) }),
-      attempts: uniqueIds(list(value.attempts, maxAttempts, parseAttempt)),
-    }
+    return validatePracticeProblem(await this.readJson(join(directory, 'problem.json')), id)
   }
 
   private reportName(attempt: StoredAttempt): string {
@@ -273,7 +281,7 @@ export class PracticeStore {
   private async readReport(problem: StoredProblem, attempt: StoredAttempt, root?: string): Promise<StoredReport | undefined> {
     try {
       const directory = await this.problemDirectory(problem.id, root)
-      return parseReport(await this.readJson(join(directory, this.reportName(attempt))))
+      return validatePracticeReport(await this.readJson(join(directory, this.reportName(attempt))))
     } catch {
       // A missing or unreadable result should not prevent access to the source or problem.
       return undefined
@@ -338,7 +346,7 @@ export class PracticeStore {
           ...attempt,
           lastRun: {
             testedAt: lastRun.testedAt, results: lastRun.results,
-            current: source?.token === lastRun.sourceRevision && lastRun.samplesKey === key,
+            current: !lastRun.restored && source?.token === lastRun.sourceRevision && lastRun.samplesKey === key,
           },
         }
       })),

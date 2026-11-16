@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -69,6 +69,26 @@ test('new source revisions and closing abort active automatic tests', async cont
   assert.deepEqual(revisions, ['first', 'second'])
   queue.clear()
   assert.equal(signals[1].aborted, true)
+})
+
+test('shutdown waits for an automatic test owner through its final evidence publication', async context => {
+  context.mock.timers.enable({ apis: ['setTimeout'] })
+  const directory = await mkdtemp(join(tmpdir(), 'ion-evidence-drain-'))
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const queue = new SavedTestQueue(async () => { await held; await writeFile(join(directory, 'evidence.json'), '{"complete":true}') }, 10)
+  try {
+    queue.push('first.c', saved('one')); context.mock.timers.tick(10)
+    assert.equal(queue.running, true)
+    queue.push('second.c', saved('two')); context.mock.timers.tick(10)
+    queue.clear()
+    let settled = false
+    const drain = queue.settle().then(() => { settled = true })
+    await Promise.resolve(); assert.equal(settled, false)
+    release(); await drain
+    assert.equal(await readFile(join(directory, 'evidence.json'), 'utf8'), '{"complete":true}')
+    assert.equal(queue.running, false)
+  } finally { release(); queue.clear(); await queue.settle(); await rm(directory, { recursive: true, force: true }) }
 })
 
 test('saved-snapshot compilation uses checked bytes and revalidates before process launch', async context => {

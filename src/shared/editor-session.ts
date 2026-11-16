@@ -31,6 +31,9 @@ export interface EditorSessionSnapshot {
   rootPath: string | null
   activeIndex: number
   tabs: EditorSessionTab[]
+  /** Inert imported metadata; resume never grants these paths. */
+  restoredReferences?: EditorSessionTab[]
+  restoredRoot?: string
 }
 
 export interface ResumedEditorSession {
