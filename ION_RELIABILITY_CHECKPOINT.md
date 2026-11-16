@@ -1,5 +1,19 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Remaining native gates prepared — authorization pending
+
+**CONDITIONAL.** Continued from clean `c22e625`. Production source and dependencies remain unchanged: the current `src` tree, Windows-tested `ce035cb` and implemented `881ef00` all resolve to `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`.
+
+Prepared only the missing acceptance cases: actual Settings restore and `app.relaunch()`, fresh/populated store access, detached collisions, exclusion of real source trust/synthetic credentials/test approvals, actual Electron startup interruption/reopen, and populated pre-restore rollback. A separate bounded harness compares ordinary production builds against exact pre-feature ancestor `d67613a1e9b77c7d677bd304628d57c58542fa71`, using four serialized pairs per OS with one C file and editor/Settings/backup open/closed phases. The old artificial eager-editor baseline mode is excluded.
+
+Four new Node-only controls, script syntax and workflow lint pass. The first path-alias fixture failure remains preserved; review found and corrected harness cleanup/evidence/shadowing issues before upload. No local Electron launch, successful regression-suite repetition or native measurement occurred. RAM, startup, CPU, full desktop restore/relaunch and lifecycle rollback remain **unverified**, not passing. Prior successful Mac/Windows links and all documented skips remain below.
+
+The CI-only observer/fault entry imports unchanged production files; it is not shipped. It requires an owned disposable root/token and GitHub Actions. Process identities are retained before readiness; failure evidence is saved independently of cleanup. Source/notes/credentials from the real user profile are never accessed.
+
+The revised existing workflow is prepared for exactly two bounded hosted jobs on the same verification branch. A new explicit upload authorization is required before running it. No changes to main, installed Ion, releases, installers, update feed or Milestone 2 are included. See the verification report for the concrete cases, exact comparison protocol, current unavailable measurements and upload boundary. Stop at this local preparation checkpoint pending approval; do not issue PASS before native execution.
+
+---
+
 ## Windows recheck verified — 2026-11-16
 
 **CONDITIONAL — LIMITATIONS REMAIN.** [The single authorized Windows recheck passed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585) at `ce035cb8bfb009196f88c04d69cf0e824b9155f8`. It ran on hosted Windows Server 2025 x64 / Node 24.22.2: type checking, 54 focused passes (zero failures, nine documented skips), production build, native backup smoke, five Windows path/sharing tests and nine native Undo cases passed.

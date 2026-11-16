@@ -1,5 +1,64 @@
 # Ion Core Excellence — Milestone 1 verification
 
+## Remaining native acceptance gates — prepared, not executed
+
+**Current verdict: CONDITIONAL.** Continuation began from clean local `c22e625824e1dd58595bb9a044ec7e143fe124f5`. The previously successful [Mac preflight](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358) and [Windows recheck](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585) remain valid for their exact scope and revisions. Their focused cohorts, filesystem tests and nine-case Undo controls were not repeated.
+
+No new native run has started. A new upload is required to make the remaining lifecycle and resource checks available to both hosted operating systems; the user's latest brief explicitly requires authorization first. All entries below marked prepared or unmeasured remain acceptance gaps, not successful tests.
+
+### Concrete prepared checks
+
+- `scripts/test-core-backup-acceptance.mjs` creates meaningful synthetic data through normal stores, then uses actual Settings backup/review/apply controls in an unpackaged production build. It edits a real Monaco buffer without saving, checks Undo/Redo across backup, and uses the production Save All / Keep Drafts / Cancel flow. It observes the real `app.relaunch()` path, requires a different native PID, and reattaches to that new process; it does not substitute a harness restart for a normal restore's relaunch.
+- Fresh and populated target profiles verify lessons, personal notes, edited practice source, stale historical sample results, custom themes, settings, roadmap progress/history and collision-remapped detached drafts through normal preload/main-process APIs. Drafts are also opened into real editor tabs. Explicit folder selection/relinking is required. Source code on disk must stay unchanged for Keep Drafts; the separate Save All case expects the explicitly saved synthetic edit.
+- Actual source `run-trust.json` is seeded through `RunTrustStore`, alongside synthetic credential sentinels. The archive excludes those files, restored project approvals/automatic tests stay cleared, historical evidence stays stale, smart-tool activation is cleared, and a normal C Run must request fresh approval, which the fixture always denies. No real credentials or code from untrusted locations are used.
+- Two controlled cases terminate the **actual new Electron process** after previous-data movement and after publication during startup repair. Receipts include real creation identities and process metrics. The harness then performs an explicit user-equivalent reopen of that crashed disposable profile and verifies recovery. It does not call the transaction helper directly from a standalone Node child in place of application startup.
+- A third case injects a publication error in the actual startup filesystem path, verifies rollback to populated prior stores, rejects incoming practice data and validates the retained pre-restore archive through Ion's normal archive bridge. This is deterministic fault injection, not hardware power-loss evidence.
+- The CI-only observer entry loads the unmodified built main. It provides native-file-picker responses, logs and denies native execution prompts, observes ownership and optionally injects the stated filesystem fault. It leaves application Save/Keep/Cancel, persistence validation, shutdown, `app.relaunch()` and startup transaction handling intact. It is not included in production build inputs, and no renderer privilege or production test hook was added.
+
+`bootstrap.cjs` requires CI, GitHub Actions, an exclusively owned temporary root/token and a profile beneath it. Native launch scripts also refuse non-Actions execution. Normal and failed sessions retain creation identities before readiness, track relaunches and verify owned-family exit; inability to establish cleanup remains a failure. Nothing is installed or run against the local Mac's live profile.
+
+### Exact source and baseline
+
+Current, Windows-tested `ce035cb` and implemented `881ef00` have identical `src` tree object **`5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`**. `git diff --exit-code c22e625 -- src package.json package-lock.json` passed before preparation; application source and dependency files remain unchanged. The prepared workflow independently verifies those paths against `881ef00982649b9a26a547b7fab16851e4e04871`, records exact CI revision/tree IDs, and freshly builds that revision. Each native report records the built main SHA-256.
+
+The matched pre-Milestone-1 baseline is **`d67613a1e9b77c7d677bd304628d57c58542fa71`**, whose source tree is `0f1c4e073166bc12919793c7285786576bcfd087`. CI builds an isolated archive of that ancestor with its **ordinary** `node scripts/build.mjs`. It must not use `build:baseline`, which artificially forces eager editor loading. Both builds share the exact installed Electron/compiler/dependency toolchain; the added candidate ZIP-writer dependency is present on disk but unused by the ancestor. This is explicitly a same-current-toolchain source comparison.
+
+### Resource protocol and current measurements
+
+`benchmark-core-backup-native.mjs` prepares **four paired AB/BA observations per OS**, serialized on the same host. Each build gets a fresh disposable profile and process-cold launch followed by a same-profile warm launch; OS caches are not purged. One fixed 80-line C file is opened, with Minimal mode, no compiler runs or terminal/learning panels. Shared phases are editor/Settings closed, Settings open, Settings closed. Candidate-only phases add backup UI open, ten open/close cycles and a final closed window. Baseline backup-open is **not applicable**, not an invented equivalent.
+
+Each phase settles two seconds and observes ten seconds at nominal two-second intervals, recording actual acquisition times. Identity-owned family accounting reuses the existing Mac native probe and Windows CIM/Get-Process adapter. Mac summed RSS and attributed footprint are separate; Windows summed working set and private bytes are separate. CPU is percent of one logical core. Membership churn makes CPU unavailable with retained raw identities. Startup includes visible toolbar readiness and CDP attachment; test-observer overhead is matched and disclosed. Display/window geometry, scale and visibility are recorded. This is hosted-VM/unpackaged-build evidence, not ordinary-laptop hardware, installer, physical display latency or a long-session leak guarantee.
+
+The final closed-backup observation requires stable backup IPC/filesystem counters, no active staging/pending marker, the same editor/model/content and model count, and complete owned-process cleanup after quit. Before first use, the backup service must be absent from the require cache. This combines source evidence with measured bounded observations; it cannot prove that every possible future workload has no background work.
+
+| Required metric | Current before / after status |
+| --- | --- |
+| Process-cold / warm startup, one-file opening | **Not measured**; prepared paired native lane |
+| Mac full-family RSS / attributed footprint | **Not measured**; separate counters required |
+| Windows working set / private bytes | **Not measured**; separate counters required |
+| Idle CPU with editor, Settings and backup UI open/closed | **Not measured** |
+| Cleanup and closed-feature background activity | Native lifecycle lane prepared; local Node control only has run |
+| Backup-open cost | Candidate-only measurement pending; no baseline equivalent |
+
+Four pairs will support a bounded median/range comparison, not p95 claims. Every attempt/phase/sample is recorded incrementally, including incomplete and failing samples; cleanup errors cannot skip report publication. No unsuccessful sample is automatically excluded. JSON evidence is retained whole within 16 MiB; text logs are bounded to 2 MiB with explicit truncation labels. No native RAM or CPU improvement is claimed at this checkpoint.
+
+### New local verification only
+
+- Four new Node-only harness controls passed: ownership guard, real Node inspector request/exception/connection disposal, meaningful normal-store seed, and actual owned Node parent/child teardown. **No Electron binary was launched.** Latest result: 4 passed / 0 failed / 0 skipped, about 0.83 seconds; `performance-results/core-native-acceptance/harness-controls-reviewed-final.log`.
+- The initial seed control failed because its expected macOS `/var` path differed from the canonical `/private/var` identity. The test was corrected to use `realpath`; the original 2-pass/1-failure log remains at `harness-controls.log`. This was a new fixture assertion error, not an Ion defect.
+- Focused static review corrected premature ownership loss, failure-evidence publication ordering and a shadowed launcher variable before upload. No production defect was claimed from that review.
+- Syntax checks for the new scripts, fixture bundling/normal-store loading, workflow `actionlint` and whitespace checks passed. No full application unit suite, old native Undo cohort, installer check or broad benchmark was repeated for these test-only changes.
+
+### Authorization boundary
+
+The smallest prepared action is one reviewed fast-forward upload to **`codex/ion-core-native-acceptance`**, starting **two** focused jobs (`macos-15`, `windows-2025`), each bounded to 20 minutes. They check production identity, run only the new harness controls, build candidate and exact ancestor, execute the remaining lifecycle scenarios, then run serialized resource pairs. Failure preserves partial artifacts and stops dependent work; there is no retry, release, merge, installer or update-feed action. No new push is authorized yet. Request approval for the exact local preparation commit before uploading it.
+
+This checkpoint is **not** the requested final native acceptance verdict: full restore/relaunch, lifecycle rollback and real resource results remain conditional until those jobs actually execute. The installed Ion, user data, main, releases and Milestone 2 remain untouched.
+
+---
+
+The sections below preserve earlier executed results and their scope.
+
 ## Windows-only recheck completed — 2026-11-16
 
 **Current verdict: CONDITIONAL — LIMITATIONS REMAIN.** The Windows interruption-fixture correction is now verified on genuine hosted Windows x64. The single approved follow-up job passed. Full Settings restore/relaunch acceptance, installer/update compatibility and native performance measurements are still open; this is not a release-readiness declaration.

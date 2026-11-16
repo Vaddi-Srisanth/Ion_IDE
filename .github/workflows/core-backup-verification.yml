@@ -1,8 +1,8 @@
-name: Core backup Windows follow-up (no publication)
+name: Core backup lifecycle and matched resources (no publication)
 # The dedicated branch is uploaded only after explicit user approval. A scoped
 # push trigger avoids needing to put this new workflow on main for dispatch.
-# The approved two-platform preflight is preserved in run 43922635358. This
-# locally prepared correction needs fresh approval and runs only the failed OS.
+# Prior preflight/Undo cohorts are preserved in runs 43922635358/43925166585.
+# This prepared remaining-gates lane requires fresh explicit upload approval.
 on:
   push:
     branches: [codex/ion-core-native-acceptance]
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025]
+        os: [macos-15, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -46,41 +46,59 @@ jobs:
           $gcc = 'C:\mingw64\bin'
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'The runner GCC toolchain is unavailable; do not substitute or retry.' }
           $gcc >> $env:GITHUB_PATH
-      - name: Step A — focused backup, integrity and owner tests
+      - name: Confirm production identity and exact pre-feature baseline
         run: |
-          npm run typecheck 2>&1 | tee performance-results/core-native-acceptance/typecheck.log
-          node scripts/test.mjs backup profile-export recovery editor-session file-metadata backend service-lifecycle 2>&1 | tee performance-results/core-native-acceptance/focused.log
-      - name: Build the production candidate (no packaging or installation)
+          git fetch --depth=1 origin 881ef00982649b9a26a547b7fab16851e4e04871
+          git fetch --depth=1 origin d67613a1e9b77c7d677bd304628d57c58542fa71
+          git diff --exit-code 881ef00982649b9a26a547b7fab16851e4e04871 HEAD -- src package.json package-lock.json
+          git rev-parse HEAD HEAD:src 881ef00982649b9a26a547b7fab16851e4e04871:src d67613a1e9b77c7d677bd304628d57c58542fa71:src >> performance-results/core-native-acceptance/revision.log
+      - name: New harness controls only (no repeated regression cohort)
+        run: node --test scripts/test-core-native-harness.mjs 2>&1 | tee performance-results/core-native-acceptance/harness.log
+      - name: Build the exact production candidate
         run: npm run build 2>&1 | tee performance-results/core-native-acceptance/build.log
-      - name: Step B — first native bridge smoke, not full restore/relaunch acceptance
-        run: node scripts/test-backup-desktop.mjs 2>&1 | tee performance-results/core-native-acceptance/desktop.log
-      - name: Step C — genuine Windows paths and sharing locks
-        if: runner.os == 'Windows'
-        run: node scripts/test.mjs workspace-files-windows preferences-windows 2>&1 | tee performance-results/core-native-acceptance/windows-filesystem.log
-      - name: Existing focused native Undo control
-        run: node scripts/test-undo-control.mjs 2>&1 | tee performance-results/core-native-acceptance/undo.log
+      - name: Build the ancestor's ordinary production configuration (not build baseline mode)
+        run: |
+          baseline_dir="$RUNNER_TEMP/ion-pre-core-baseline"
+          mkdir "$baseline_dir"
+          git archive d67613a1e9b77c7d677bd304628d57c58542fa71 | tar -xf - -C "$baseline_dir"
+          node --input-type=module - "$baseline_dir" <<'NODE'
+          import { symlink } from 'node:fs/promises';
+          import { resolve, join } from 'node:path';
+          await symlink(resolve('node_modules'), join(process.argv[2], 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
+          NODE
+          (
+            cd "$baseline_dir"
+            node scripts/build.mjs
+          ) 2>&1 | tee performance-results/core-native-acceptance/baseline-build.log
+          echo "ION_CORE_BASELINE_DIST=$baseline_dir/dist" >> "$GITHUB_ENV"
+      - name: Actual Settings restore, native relaunch, interruption and rollback
+        run: node scripts/test-core-backup-acceptance.mjs dist 2>&1 | tee performance-results/core-native-acceptance/acceptance.log
+      - name: Serialized paired one-file and backup lifecycle resources
+        run: node scripts/benchmark-core-backup-native.mjs "$ION_CORE_BASELINE_DIST" dist 2>&1 | tee performance-results/core-native-acceptance/metrics.log
       - name: Preserve bounded sanitized logs even on failure
         if: always()
         run: |
           node --input-type=module <<'NODE'
-          import { mkdir, open, writeFile } from 'node:fs/promises';
+          import { mkdir, open, writeFile, realpath } from 'node:fs/promises';
           import { tmpdir, homedir } from 'node:os';
           import { join } from 'node:path';
           const source = 'performance-results/core-native-acceptance', destination = 'performance-results/core-native-safe';
           await mkdir(destination, {recursive:true});
-          for (const name of ['revision.log','typecheck.log','focused.log','build.log','desktop.log','windows-filesystem.log','undo.log']) {
+          for (const name of ['revision.log','harness.log','build.log','baseline-build.log','acceptance.log','metrics.log','restore-lifecycle.json','paired-resources.json']) {
             let handle;
             try { handle = await open(join(source,name), 'r'); }
             catch (error) { if (error.code === 'ENOENT') { await writeFile(join(destination,name), 'NOT RUN / no log produced\n'); continue; } throw error; }
-            const limit = 2 * 1024 * 1024;
+            const limit = (name.endsWith('.json') ? 16 : 2) * 1024 * 1024;
             let text;
             try {
-              const size = (await handle.stat()).size, buffer = Buffer.alloc(Math.min(size,limit));
+              const size = (await handle.stat()).size;
+              if (name.endsWith('.json') && size > limit) throw new Error('Structured evidence exceeded its 16 MiB bound; do not silently truncate samples.');
+              const buffer = Buffer.alloc(Math.min(size,limit));
               let offset = 0;
               while (offset < buffer.length) { const read = await handle.read(buffer,offset,buffer.length-offset,offset); if (!read.bytesRead) break; offset += read.bytesRead; }
               text = buffer.subarray(0,offset).toString() + (size > limit ? '\n[TRUNCATED: log exceeded 2 MiB; preserve original failure in the job console]\n' : '');
             } finally { await handle.close(); }
-            for (const [path,label] of [[process.cwd(),'<checkout>'],[tmpdir(),'<tmp>'],[homedir(),'<home>']]) {
+            for (const [path,label] of [[process.cwd(),'<checkout>'],[tmpdir(),'<tmp>'],[await realpath(tmpdir()),'<tmp>'],[homedir(),'<home>']]) {
               for (const spelling of new Set([path,path.replaceAll('\\','/')])) text = text.split(spelling).join(label);
             }
             await writeFile(join(destination,name),text);
@@ -90,6 +108,6 @@ jobs:
         if: always()
         with:
           name: core-native-${{ matrix.os }}-${{ github.sha }}
-          path: performance-results/core-native-safe/*.log
+          path: performance-results/core-native-safe/*
           if-no-files-found: error
           retention-days: 7
