@@ -1,5 +1,19 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Windows recheck verified — 2026-11-16
+
+**CONDITIONAL — LIMITATIONS REMAIN.** [The single authorized Windows recheck passed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585) at `ce035cb8bfb009196f88c04d69cf0e824b9155f8`. It ran on hosted Windows Server 2025 x64 / Node 24.22.2: type checking, 54 focused passes (zero failures, nine documented skips), production build, native backup smoke, five Windows path/sharing tests and nine native Undo cases passed.
+
+All four previously failing transaction interruption cases now pass with the exact child PID/boundary receipt; the real rollback interruption and rejection controls pass too. This verifies the fixture correction and exercised Windows recovery behavior. No production-code change, timeout increase, arbitrary retry or failure suppression was needed. The original failed run `43922635358` remains preserved. Prior successful Mac evidence applies to `97890af`, which has the same production source `881ef00`.
+
+Full Settings restore followed by automatic relaunch into fresh/populated profiles, native application-kill repair, packaged upgrade/update compatibility and native memory/CPU measurements remain unverified. The Windows build and smoke do not satisfy these separate gates. No RAM improvement or full acceptance is claimed.
+
+Only the approved verification branch was fast-forwarded to `ce035cb`; main remained `a108a01bad53a6008761049c28a86e90bdd0374e`. The installed application, live profile, real projects, releases, installers and update feed were untouched. No local Electron launch or Milestone 2 work occurred. This evidence update stays in a local commit; no further push or CI run is authorized by the completed one-job approval.
+
+See `ION_BACKUP_RESTORE_VERIFICATION.md` for exact counts, hosts, receipt evidence, timings, artifact digest/expiry, all skips and remaining gates. The section below records the original preflight before the successful recheck, rather than the current pending state.
+
+---
+
 ## Authorized hosted results and local fixture correction — 2026-11-16
 
 **CONDITIONAL — LIMITATIONS REMAIN.** Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`. The explicitly approved candidate `97890af677d939b7cdfcc0db0a863018f820ad2d` was pushed only to `codex/ion-core-native-acceptance`. [The two hosted jobs completed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358): Mac passed; Windows failed. This is not full native acceptance or a release-readiness declaration.

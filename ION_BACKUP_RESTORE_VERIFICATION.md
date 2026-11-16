@@ -1,5 +1,41 @@
 # Ion Core Excellence — Milestone 1 verification
 
+## Windows-only recheck completed — 2026-11-16
+
+**Current verdict: CONDITIONAL — LIMITATIONS REMAIN.** The Windows interruption-fixture correction is now verified on genuine hosted Windows x64. The single approved follow-up job passed. Full Settings restore/relaunch acceptance, installer/update compatibility and native performance measurements are still open; this is not a release-readiness declaration.
+
+The user explicitly approved uploading `ce035cb8bfb009196f88c04d69cf0e824b9155f8` only to `codex/ion-core-native-acceptance` and running one Windows-only job. That fast-forward push succeeded. [Run 43925166585](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585), job `133502572673`, completed successfully at that exact candidate. No second job, manual dispatch or retry was started. Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`; only fixtures, workflow and reports differ.
+
+| Verified Windows check | Actual result |
+| --- | --- |
+| Exact host | Windows Server 2025 Datacenter 10.0.26100 x64; image `windows-2025-vs2026` / `20261103.298.1`; Node 24.22.2 |
+| Type checking | Passed |
+| Focused backup/profile/recovery/session/metadata/backend/lifecycle tests | **54 passed, 0 failed, 9 skipped** of 63; 13391.4887 ms |
+| Previously failing apply-interruption boundaries | **All four passed:** journal, previous-moved, published, committed; exact child PID/boundary receipt required before accepting termination |
+| Multi-category rollback interruption | Passed with actual child termination and original-byte preservation |
+| New exit-status rejection control | Passed; missing/wrong receipts, successful exit and unrelated exit codes remain rejected |
+| Production build | Passed; no installer produced or installed |
+| Real native backup bridge | Passed: archive creation, untrusted preview, prepared-restore cancellation, settings/draft preservation and application close; **controlled restart is not covered** |
+| Dedicated Windows filesystem lane | **5 passed, 0 failed, 0 skipped**, 3225.0678 ms: transient/persistent preference sharing locks, canonical Unicode/case-alias Save As, junction/device/ADS rejection, long Unicode paths, atomic-save sharing recovery and external-conflict preservation |
+| Native Undo control | **9 cases passed**, completion recorded |
+| Evidence collection | Passed; logs retained even though this run succeeded |
+
+This resolves the confirmed **test-fixture** defect without changing the application, loosening assertions to any nonzero code, adding retries or extending application deadlines. Unlike the original failure, the recheck proves that the deliberately killed Windows children reached their requested transaction boundaries and recovery completed afterward. The original four failures remain preserved in run `43922635358`; a successful recheck does not erase them.
+
+The nine skips are unchanged and individually explained in the original preflight section below: two generic C-toolchain fixture/discovery gaps, one POSIX-only C case, three Mac-only metadata cases and three filesystem-symlink fixtures that do not assume Windows privilege. They were **not** counted as passes. The new Windows-specific path/junction/sharing coverage narrows the previous filesystem gap but does not substitute for all three skipped profile/recovery-link fixtures. No full C-run, GCC-latency, updater or packaged-installer acceptance claim follows from this run.
+
+[Windows evidence artifact 14255996096](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585/artifacts/14255996096): GitHub-reported ZIP SHA-256 `4bd8a301d44295b69ae503987dfba29c5804356c914cdcf0536d1155878f4e41`, 5933 bytes; expires 2026-11-23T18:07:05Z. The decoded job log is also retained locally under `performance-results/core-native-acceptance/hosted-43925166585/windows-job.log` (ignored). No user profile, backup payload or workspace was uploaded.
+
+**Performance interpretation:** the original Windows cohort took 15979.68 ms with four failures; this cohort took 13391.4887 ms with a new status-control case and all executed cases passing. These are suite durations, not comparable app-performance samples or evidence of an optimization. Startup, process-tree RAM/working set/private bytes, attributed footprint, idle CPU and post-close memory recovery were **not measured**. No production source/dependency delta was introduced. The successful Mac build/smoke/nine-case Undo evidence remains tied to `97890af`; Mac CI was not repeated for the test-only correction.
+
+**Remaining acceptance gates:** actual Settings UI and unsaved Monaco buffer backup; completed fresh/populated profile restore followed by automatic relaunch and normal-store access; Save/Keep Drafts/Cancel; actual Electron interruption during startup repair; desktop conflict/permission flows; installer/update compatibility; matched native full-process resource measurements. Earlier maximum-capacity, power-loss, external-filesystem and 8 GB hardware limitations remain. No additional workflow or broad test campaign was started under this single-job approval.
+
+**Git and safety:** the verification ref is `ce035cb`; `main` remained `a108a01bad53a6008761049c28a86e90bdd0374e` at both recorded inspections. Installed Ion, its live data and real projects were untouched. No local Electron window, merge, tag, release, installer, update-feed change or Milestone 2 work occurred. The result-report update is committed locally on `feature/ion-core-excellence` and is not automatically pushed.
+
+---
+
+The following section records the earlier failed preflight and local correction **before** the successful recheck. Its pending-state statements describe that earlier checkpoint; use the result above for current status.
+
 ## Authorized native preflight and fixture correction — 2026-11-16
 
 **Verdict: CONDITIONAL — LIMITATIONS REMAIN. Full native acceptance has not passed.** The two approved hosted jobs completed: Mac passed; Windows failed four interruption fixtures. No release-critical application defect was established by this run. The original Windows failure is preserved, and the locally corrected fixture remains unverified on Windows. Do not release from this checkpoint.
