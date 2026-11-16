@@ -1,5 +1,68 @@
 # Ion Core Excellence — Milestone 1 verification
 
+## Native acceptance follow-up — 2026-11-16
+
+**Verdict: CONDITIONAL — LIMITATIONS REMAIN.** No release-critical application defect was confirmed in this follow-up. Full native acceptance has not passed. The explicit upload authorization boundary prevents hosted execution of this local candidate; lack of a physical Windows PC is not treated as a permanent blocker.
+
+**Exact production source:** `881ef00982649b9a26a547b7fab16851e4e04871`, branch `feature/ion-core-excellence`, clean at inspection. The reported checkpoint matched the repository. Only this workflow preparation and the two requested reports changed afterward; no production execution, editor, backup or restore source was modified. The locally rebuilt main/backup bundle hashes match the original implementation evidence below.
+
+### Fresh evidence, distinct from previous results
+
+| Step / requirement | This follow-up actually executed | Result / remaining limit |
+| --- | --- | --- |
+| A: focused backing-store / lifecycle checks | `node scripts/test.mjs backup editor-session service-lifecycle` | **31 passed, 0 failed, 0 skipped**, about 7.19 seconds; disposable local profiles and real Node/filesystem/child-process fixtures |
+| Production candidate | `npm run build` | Passed; no Electron application launched; main and backup bundle hashes matched the recorded candidate |
+| Workflow syntax | `actionlint .github/workflows/core-backup-verification.yml` | Passed |
+| Evidence collector controls | Canonical-path redaction, missing-step labels and a 3 MiB synthetic input | Passed after correcting a disposable-fixture /var alias assumption; initial failure retained locally; no collector/source change was needed |
+| Existing native fixture syntax | `node --check scripts/test-backup-desktop.mjs` | Passed; this is syntax, not desktop execution |
+| B: native macOS acceptance | Not launched | Profile isolation alone does not establish safety from the unresolved development-Electron registration crash. No new local GUI launch, packaged launch or installed-app modification was attempted. |
+| C: hosted Windows x64 / macOS | GitHub read-only availability checks only | Not run: GitHub returned `No commit found for the ref feature/ion-core-excellence`; the new workflow also returned 404 on default `main`. Repository access itself was confirmed. |
+| D: full regression after a confirmed fix | Not rerun | No production fix was made; do not spend another full cohort before the native environment is available. The earlier 369-pass/26-skip result remains historical evidence for `881ef00`, not fresh native proof. |
+
+Fresh logs are local under `performance-results/core-native-acceptance/`. The 31-case run establishes the exercised store round trips, collision/conflict and malicious-input rejection, streaming cancellation, injected write failures, actual Node-process interruption/replay and owner draining. It does **not** establish the full Electron Save/Keep/Cancel/relaunch path or Windows behavior. No original failure was suppressed or deadline increased. The existing development failure history remains below and in the audit.
+
+### Critical native coverage gaps
+
+The current `scripts/test-backup-desktop.mjs` explicitly verifies real native IPC/create/preview/prepare/cancel and preserves a synthetic draft. It does **not** drive Settings through a complete fresh/populated-profile restore or automatic relaunch. A green result from that script must not be called full native acceptance.
+
+Still unverified: actual Settings backup UI with realistic multi-store data and an unsaved editor buffer; fresh and populated profile restores followed by relaunch; current-data conflicts/changed associations through the desktop flow; recovery collision handling after relaunch; actual desktop kills during startup transaction replay; native metadata and Undo/Redo; no automatic filesystem/run/notebook/Git/test grants; native cleanup and installer/update compatibility. The focused Node cases cover corresponding backing-store logic, not these desktop boundaries. The native fixture must be extended against a working isolated host after its initial smoke succeeds, preserving any first failure instead of building a large untested harness beforehand.
+
+### Native performance status
+
+| Metric requested | Native macOS before / after | Native Windows before / after |
+| --- | --- | --- |
+| Welcome startup and one-file memory | Not measured | Not measured |
+| Process-tree RSS / macOS-attributed footprint | Not measured; keep these counters separate | Not applicable to the footprint metric |
+| Windows working set / private bytes | Not applicable | Not measured; keep these counters separate |
+| Idle CPU / Settings / backup-panel opening | Not measured | Not measured |
+| Small/large backup duration and peak memory | Prior Node service figures only, not native results | Not measured |
+| Restore validation duration and peak memory | Not measured | Not measured |
+| Cancel/cleanup and memory after closing UI | Node/previous browser controls only | Not measured |
+
+The earlier limited folder export (about 8 ms) and comprehensive checksummed backup (about 139 ms) are **different operations**, despite their common synthetic input records. They do not establish a native regression ratio, startup slowdown or full-app RAM result. This follow-up did not rerun unrelated benchmarks or manufacture unavailable values. The dormant implementation still has only a fixed startup-marker check and lazy archive/UI loading by source inspection; no new runtime process, worker, cache or polling was added here.
+
+### Smallest prepared hosted action — permission required
+
+The workflow now has a push trigger restricted to **`codex/ion-core-native-acceptance`**, plus dispatch, two jobs (`macos-15`, `windows-2025`), a 20-minute per-job bound, no automatic retry and no cancellation of an earlier job. Existing repository action pins/Node version are reused. It selects the existing Windows GCC path, uses the existing dependency/build setup and retains bounded sanitized logs even on failure. No installer, backup archive, profile, credential store or workspace is uploaded. Repository permissions are read-only; credentials are not persisted by checkout.
+
+The reason for the scoped push trigger is concrete: this new workflow is absent from `main`, and GitHub requires a new dispatch workflow to exist on the default branch before it can be dispatched. See [GitHub's manual workflow documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) and [branch-scoped push triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow). No merge into main is needed for the scoped-push route.
+
+After explicit approval **only**, inspect the destination and publish the reviewed acceptance checkpoint to that one new ref:
+
+```sh
+git status --short --branch
+git ls-remote github refs/heads/codex/ion-core-native-acceptance
+git push github HEAD:refs/heads/codex/ion-core-native-acceptance
+```
+
+The push itself starts the two jobs. Do not also dispatch a duplicate run. If the destination already exists or push/authentication is rejected, stop and inspect it; never force-push or alter access settings silently. This uploads the actual `881ef00` candidate plus reviewed verification/report changes, not merely a workflow testing old main.
+
+Initial hosted sequence: type check and focused backup/integrity tests → production build → **limited native bridge smoke** → Windows path/sharing cases and native Undo control. This is a bounded environment/preflight run, not the complete acceptance campaign. Preserve every result. Full restore/relaunch, native resource accounting and upgrade/rollback remain explicit gates after a working host is established; do not issue NATIVE ACCEPTANCE PASSED from the smoke alone.
+
+**Git / safety:** the preparation is committed locally on the existing Core Excellence branch. No upload or hosted run is authorized yet. Installed Ion, its live profile, real projects, main, releases, tags and update feed are unchanged. Stop at this acceptance checkpoint pending the narrow branch/CI authorization. Milestone 2 remains unstarted.
+
+---
+
 This report covers the local feature candidate based on `d67613a`; it is not a release or installed-app benchmark. The installed Ion, live profile, main, releases and update feed were not changed. All exercised data was synthetic and disposable.
 
 ## Executed checks

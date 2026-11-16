@@ -1,5 +1,17 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Native acceptance follow-up — 2026-11-16
+
+**CONDITIONAL — LIMITATIONS REMAIN.** Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`; the branch was clean at inspection. A fresh focused cohort passed **31/31** with no skips, and the production build passed with matching artifact hashes. No new application defect or production fix was confirmed.
+
+Native acceptance is still open. The current desktop fixture covers create/preview/prepare/cancel, not full Settings restore/relaunch. The unresolved registration incident still makes local development-Electron launches unsafe to assume. GitHub returned 404 for the Core Excellence branch and the new workflow on main, so neither hosted OS can execute this candidate yet. These are authorization/environment gaps, not passing tests or a claim that physical Windows hardware is required.
+
+Prepared only the smallest hosted preflight: a single exact verification-branch push trigger, existing pinned setup, two bounded OS jobs, Windows toolchain selection, focused checks and sanitized evidence. The workflow does not build/publish installers or modify main. It must not be confused with complete fresh/populated restore acceptance. Full automatic relaunch, native interruption/rollback, permission handling, matched full-process memory/CPU and installer/update checks remain unverified. No broad repeat CI or unrelated benchmark was run.
+
+See the dated section in `ION_BACKUP_RESTORE_VERIFICATION.md` for current evidence, remaining tasks and the exact approval-gated command. The local acceptance preparation changes test configuration and these two reports only. Installed Ion, live data and projects are untouched; there is no push, release, tag, update-feed change or Milestone 2 work.
+
+---
+
 Local feature delivery based on `d67613a`, on `feature/ion-core-excellence`. Application version stays 0.9.8: this is a source checkpoint, not a new public release. Installed Ion, its live profile, user projects, main, releases and the update feed were not modified. No push, installer, application launch or Milestone 2 work is part of this checkpoint.
 
 ## Implemented
