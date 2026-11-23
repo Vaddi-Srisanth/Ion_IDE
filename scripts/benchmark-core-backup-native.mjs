@@ -65,17 +65,21 @@ try {
     await writeFile(join(workspace, 'main.c'), '#include <stdio.h>\nint main(void) { return 0; }\n' + '/* fixed source line */\n'.repeat(77));
     await control(profile, { workspace, archive: join(root, 'unused.ionbackup') });
     const target = label === 'baseline' ? baseline : candidate;
+    const editorApiAssets = (await readdir(join(target, 'renderer/assets'))).filter(name => /^editor\.api-[^/]+\.js$/.test(name));
+    assert.equal(editorApiAssets.length, 1, `Expected exactly one ${label} editor API chunk`);
+    const editorApiAsset = editorApiAssets[0];
     current = await launch(target, profile, root, token); attempt.processColdStartupMs = current.startupMs;
     await stop(current); current = await launch(target, profile, root, token); attempt.warmStartupMs = current.startupMs;
     const s = current, page = s.page;
     let began = performance.now();
     await page.getByTestId('open-file').first().click(); await page.locator('.monaco-editor .view-lines').getByText('#include', { exact: false }).waitFor();
     attempt.fileOpenMs = performance.now() - began;
-    await page.evaluate(async () => {
-      const url = performance.getEntriesByType('resource').map(e => e.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+    await page.evaluate(async asset => {
+      const url = new URL(`assets/${asset}`, document.baseURI).href;
       const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));
+      if (!widget?.getModel()) throw new Error('The active Monaco editor model is unavailable');
       globalThis.__coreEditor = { editor, widget, model: widget.getModel(), value: widget.getValue(), models: editor.getModels().length };
-    });
+    }, editorApiAsset);
     await phase(s, attempt, 'oneFileClosed');
     assert.equal(attempt.phases.oneFileClosed.diagnostics.after.backupLoaded, false, 'Unused backup code was eagerly loaded');
     began = performance.now(); await page.getByTestId('settings').first().click();
