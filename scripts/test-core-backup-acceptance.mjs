@@ -12,6 +12,9 @@ import { launch, attach, retain, stop, cleanupFailed, control, events, eventEvid
 assert.equal(process.env.CI, 'true', 'Native acceptance is restricted to an approved CI host');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Use the approved isolated GitHub Actions host');
 const target = resolve(process.argv[2] ?? 'dist'), out = resolve('performance-results/core-native-acceptance');
+const editorApiAssets = (await readdir(join(target, 'renderer/assets'))).filter(name => /^editor\.api-[^/]+\.js$/.test(name));
+assert.equal(editorApiAssets.length, 1, 'Expected exactly one production editor API chunk');
+const editorApiAsset = editorApiAssets[0];
 const root = await realpath(await mkdtemp(join(tmpdir(), 'ion-core-native-'))), token = randomUUID();
 await writeFile(join(root, 'owner'), token, { flag: 'wx', mode: 0o600 }); await mkdir(out, { recursive: true });
 const report = { schema: 1, complete: false, source: process.env.GITHUB_SHA, productionMainSha256: createHash('sha256').update(await readFile(join(target, 'main/index.cjs'))).digest('hex'), cases: [], failures: [], limitations: ['Unpackaged production files with a CI-only observer/fault-injection entry, not an installer test.'] };
@@ -80,20 +83,22 @@ async function edit(page, marker) {
   // insertText may split a multiline CDP replacement into many native edits.
   // Define one edit deliberately; this fixture tests preservation across backup,
   // rather than assuming a particular browser input/Undo grouping policy.
-  await page.evaluate(async text => {
-    const url = performance.getEntriesByType('resource').map(e => e.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+  await page.evaluate(async ({ text, asset }) => {
+    const url = new URL(`assets/${asset}`, document.baseURI).href;
     const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));
+    if (!widget?.getModel()) throw new Error('The active Monaco editor model is unavailable');
     widget.pushUndoStop(); widget.executeEdits('core-acceptance', [{ range: widget.getModel().getFullModelRange(), text }]); widget.pushUndoStop(); widget.focus();
-  }, '/* ' + marker + ' */\nint main(void) { return 0; }\n');
+  }, { text: '/* ' + marker + ' */\nint main(void) { return 0; }\n', asset: editorApiAsset });
   await editorShows(page, marker);
 }
 async function editorState(page) {
-  return page.evaluate(async () => {
-    const url = performance.getEntriesByType('resource').map(e => e.name).find(name => /\/editor\.api-[^/]+\.js$/.test(name));
+  return page.evaluate(async asset => {
+    const url = new URL(`assets/${asset}`, document.baseURI).href;
     const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));
+    if (!widget?.getModel()) throw new Error('The active Monaco editor model is unavailable');
     const model = widget.getModel();
     return { text: widget.getValue().slice(0, 8192), model: model.id, uri: String(model.uri), canUndo: model.canUndo(), canRedo: model.canRedo() };
-  });
+  }, editorApiAsset);
 }
 async function verify(s, f, workspace, currentDraft = null, explicitlySaved = false) {
   const result = await s.page.evaluate(async ({ f, currentDraft }) => {
