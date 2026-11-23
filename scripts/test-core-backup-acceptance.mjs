@@ -78,6 +78,25 @@ async function apply(s, dialog, disposition = 'keep', fault = null) {
   await exited(s); live.delete(s); await s.browser.close();
   return next;
 }
+async function saveAndRequireRenewedReview(s, dialog) {
+  const before = (await events(s.profile)).filter(event => event.kind === 'start').map(event => event.pid);
+  await dialog.getByRole('button', { name: 'Continue to Safe Restart', exact: true }).click();
+  const confirmation = s.page.getByRole('dialog', { name: 'Unsaved changes', exact: true });
+  await confirmation.waitFor();
+  await confirmation.getByRole('button', { name: 'Save All', exact: true }).click();
+  await eventually(async () => (await events(s.profile)).some(event => event.kind === 'native-message' && event.message === 'Restore was not applied'),
+    'A save after restore review did not reject the stale restore confirmation', 20_000);
+  const context = s.browser.contexts()[0]; let page;
+  await eventually(async () => {
+    page = context.pages().find(candidate => !candidate.isClosed() && candidate.url() === 'app://workbench/index.html');
+    return Boolean(page && await page.getByTestId('settings').first().isVisible().catch(() => false));
+  }, 'The original application did not recover after rejecting stale restore confirmation', 20_000);
+  page.setDefaultTimeout(8_000); page.on('pageerror', error => s.errors.push(error.message)); s.page = page;
+  const after = (await events(s.profile)).filter(event => event.kind === 'start').map(event => event.pid);
+  assert.deepEqual(after, before, 'Rejecting stale restore confirmation unexpectedly started another application');
+  report.cases.push({ name: 'Save requires renewed restore review', passed: true });
+  return s;
+}
 async function edit(page, marker) {
   await page.getByTestId('open-file').first().click(); await editorShows(page, '#include');
   // insertText may split a multiline CDP replacement into many native edits.
@@ -166,8 +185,13 @@ try {
     if (scenario === 'save') await edit(s.page, 'ION_EXPLICIT_SAVE');
     const fault = scenario === 'rollback' ? { boundary: 'published', action: 'throw' } :
       ['previous-moved', 'published'].includes(scenario) ? { boundary: scenario, action: 'kill' } : null;
-    const dialog = await review(s, archive);
-    s = await apply(s, dialog, scenario === 'populated' ? 'keep' : scenario === 'save' ? 'save' : null, fault);
+    let dialog = await review(s, archive);
+    if (scenario === 'save') {
+      s = await saveAndRequireRenewedReview(s, dialog);
+      assert.equal(await readFile(join(workspace, 'main.c'), 'utf8'), '/* ION_EXPLICIT_SAVE */\nint main(void) { return 0; }\n');
+      dialog = await review(s, archive);
+    }
+    s = await apply(s, dialog, scenario === 'populated' ? 'keep' : null, fault);
     if (scenario === 'rollback') {
       assert.equal((await s.page.evaluate(() => window.ion.getPreferences())).settings.fontSize, 12);
       assert.ok((await events(profile)).some(e => e.kind === 'fault' && e.action === 'throw'));
