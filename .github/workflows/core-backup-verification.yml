@@ -5,7 +5,7 @@ name: Core backup lifecycle and matched resources (no publication)
 # This prepared remaining-gates lane requires fresh explicit upload approval.
 on:
   push:
-    branches: [codex/ion-core-native-acceptance]
+    branches: [codex/ion-master-plan-phase-0]
   workflow_dispatch:
 permissions:
   contents: read
