@@ -80,7 +80,7 @@ jobs:
           node --input-type=module - "$ION_CORE_BASELINE_DIST" dist "$comparison_root" <<'NODE'
           import { cp, lstat, mkdir, rm } from 'node:fs/promises';
           import { join, resolve } from 'node:path';
-          const [baseline, candidate, root] = process.argv.slice(2).map(resolve);
+          const [baseline, candidate, root] = process.argv.slice(2).map(value => resolve(value));
           const temporaryPrefix = resolve(process.env.RUNNER_TEMP) + (process.platform === 'win32' ? '\\' : '/');
           if (!root.startsWith(temporaryPrefix)) throw new Error('Unsafe comparison root.');
           await rm(root, { recursive: true, force: true });
