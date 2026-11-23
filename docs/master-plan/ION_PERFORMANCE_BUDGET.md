@@ -70,24 +70,37 @@ The installed comparison editor is Visual Studio Code `1.147.0` arm64, approxima
 14. Repeated workspace, theme, panel, viewer, and tab lifecycle.
 15. Four-hour mixed coding endurance.
 
-## Core backup acceptance budget
+## Core backup acceptance result — `c530644`
 
-The exact current candidate has no native backup resource result because the last approved jobs failed before the resource lane. The focused workflow is already designed to compare the exact candidate to `d67613a` using production builds and disposable profiles.
+[Run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) completed four serialized alternating baseline/candidate pairs on both native hosted platforms. It compared ordinary production builds of exact baseline `d67613a` and candidate `c530644`; every one of the 16 application attempts completed and left an empty owned process family.
 
-Acceptance requires:
+The acceptance contract was evaluated as follows:
 
-- backup UI closed: no backup service import, operation, timer, worker, file handle, or continuing CPU attributable to backup;
-- backup UI open: bounded renderer/main delta and zero work after close;
+- backup UI closed before first use: the lazy backup chunk was not loaded and zero backup bridge calls were observed;
+- backup UI open/closed: ten cycles preserved the same Monaco model, backend call/storage counters stopped changing after close, and no owned helper survived;
 - common profile backup/restore: streamed operation with bounded peak memory, cancellable progress, no abandoned staging or handles;
-- startup: only the minimal pending-restore check, with measured delta;
+- startup: Windows was effectively flat; macOS cold startup regressed materially and remains under investigation;
 - repeated operations: no monotonic process-tree growth or orphaned children;
 - exact source identity recorded for candidate and baseline.
 
+| Metric (median, n=4 per build) | macOS baseline | macOS candidate | Windows baseline | Windows candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Cold startup | 1,061.12 ms | **1,441.56 ms** | 1,149.27 ms | 1,152.82 ms |
+| Warm startup | 760.29 ms | 758.56 ms | 1,117.77 ms | 1,147.28 ms |
+| First C file | 678.52 ms | **1,401.06 ms** | 353.13 ms | 358.71 ms |
+| One-file attributed footprint/private bytes | 163.95 MiB | 159.84 MiB | 179.62 MiB | 180.76 MiB |
+| One-file summed RSS/working set | 445.29 MiB | 446.02 MiB | 350.02 MiB | 348.87 MiB |
+| One-file CPU, percent of one core | 1.64% | 1.58% | 0.32% | 0.13% |
+
+Candidate backup-open median was 444.72 ms on macOS and 832.51 ms on Windows. The post-cycle closed phase was bounded but, because the lazy code remains resident after first use, its memory cannot be compared to the never-loaded baseline as an idle-cost claim: macOS measured 170.85 MiB footprint / 477.39 MiB summed RSS and Windows 188.88 MiB private / 343.26 MiB working set. The meaningful unused-feature result is the ordinary one-file phase, where candidate memory was within approximately 1% of baseline and the chunk was not loaded.
+
+The macOS cold-start delta was +380.44 ms (+35.85%) and first-file delta was +722.54 ms (+106.49%), both beyond the provisional regression gate. One candidate first-file sample was faster than baseline, but three were 1.389–1.516 seconds, so the result is not dismissed as a single outlier. No production change was made without a confirmed stage-level cause.
+
 ## Investigation order
 
-1. Finish the exact Core native gate; do not optimize against incomplete samples.
-2. Trace first-file latency into IPC read/validation, recovery/conflict checks, model creation, React commit, Monaco layout, and graphics allocation.
-3. Trace warm macOS startup regression before changing cache policy.
+1. Trace the candidate-only hosted macOS first-file slowdown into IPC read/validation, recovery/conflict checks, model creation, React commit, Monaco layout, and graphics allocation.
+2. Separate the minimal pending-restore filesystem check from other cold-start work before changing cache policy.
+3. Repeat the same four-pair protocol only after instrumentation or a justified correction; do not rerun until the result can answer a specific question.
 4. Measure tab-switch input-to-paint and React/Monaco work; optimize only the confirmed dominant stage.
 5. Add 50-tab, large-repository, energy, and four-hour coverage.
 6. Measure each future language server/debugger/AI process as a separate optional budget.

@@ -1,7 +1,7 @@
 # Ion master audit
 
 Audit date: 23 November 2026
-Audited revision: `26eff2a78bf6c577cc787137b2977fb1c2530b3f`
+Audited revision: `c5306449445e16090c81d8396003b9885b710fd0`
 Audit branch: `codex/ion-master-plan-phase-0`
 Release verdict: **BLOCKED for a new release; current product remains usable at its previously verified scope.**
 
@@ -9,7 +9,7 @@ Release verdict: **BLOCKED for a new release; current product remains usable at 
 
 Ion is a real offline-first Electron IDE, not a mock-up. Its strongest systems are local editing and recovery, controlled execution, the integrated terminal, optional document/notebook viewers, local learning/practice data, declarative themes, and narrow main-process ownership of privileged work. It already uses extensive demand loading and bounded caches.
 
-Ion is not yet a general replacement for VS Code. The largest missing professional capabilities are universal project-aware language services, debugging, multi-root workspaces, broad build/test discovery, remote Git/GitHub workflows, and a supported extension platform. The largest immediate risk is narrower: Core Excellence backup/restore exists in source, but the corrected exact candidate has not completed native restore/relaunch and matched resource acceptance. Shipping more features before closing that gate would increase risk without improving trust.
+Ion is not yet a general replacement for VS Code. The largest missing professional capabilities are universal project-aware language services, debugging, multi-root workspaces, broad build/test discovery, remote Git/GitHub workflows, and a supported extension platform. Core Excellence backup/restore has now completed native restore/relaunch, interruption, rollback, exclusion and cleanup acceptance on hosted macOS and Windows. The largest immediate blocker is narrower: the same matched run found a material macOS candidate regression in cold startup and first-file opening, and the focused workflow was not a packaged installer/update migration gate. Shipping more features before resolving those release gates would increase risk without improving trust.
 
 ## Scope and evidence
 
@@ -43,8 +43,8 @@ The comparison installation is Visual Studio Code `1.147.0` arm64 (`com.microsof
 
 | Priority | Gap | Evidence | Required next action |
 | --- | --- | --- | --- |
-| P0 | Core backup/restore native acceptance is incomplete | Run `43937220557` failed before restore/relaunch and resource lanes. Current `26eff2a` corrects the Windows archive path and Undo fixture, but those corrections have not run as the exact native candidate. | With explicit upload authorization, run the already focused macOS/Windows acceptance workflow. Preserve failures. No release before it passes or is consciously scoped out. |
-| P0 | No exact-current-candidate packaged release gate | Most strong execution, installer, and lifecycle evidence belongs to earlier revisions. | Tie release artifacts, source SHA, native tests, and performance samples to one immutable candidate. |
+| P0 | Hosted macOS startup/file-opening regression | Exact run `45205283873` passed safety/lifecycle acceptance but measured +35.85% cold startup and +106.49% median first-file latency against `d67613a`; Windows was approximately flat. | Add stage timings, reproduce with a focused matched protocol, and change production only after the responsible stage is demonstrated. |
+| P0 | Packaged exact-candidate release gate is incomplete | The successful Core workflow used ordinary production builds and disposable profiles, not installer upgrade/update/rollback paths. | Tie release artifacts, source SHA, installer migration, update rollback, native tests, and performance samples to one immutable candidate. |
 | P1 | Professional language intelligence is narrow | C/C++ is limited to a scoped clangd translation unit; Java uses a bounded compiler worker; most registered languages have syntax only. | Build a capability lifecycle for opt-in per-workspace LSPs before adding servers. |
 | P1 | No integrated debugger | No DAP adapter, session ownership, breakpoints, stack/variable UI, or cleanup acceptance. | Implement one reliable C/C++ DAP path first, gated by installed tools and resource tests. |
 | P1 | Git is local-only | Status/diff/stage/unstage/commit exist; fetch/pull/push/merge/rebase/conflict/PR workflows do not. | Add remote operations behind explicit user action, credential boundaries, and conflict-safe UI. |
@@ -67,7 +67,7 @@ The most recent broad native baseline predates the Core backup source and theref
 
 macOS interaction medians: first file 413.64 ms, typing proxy 24.60 ms, scroll proxy 40.24 ms, and tab switch 75.32 ms. Balanced startup measured 892.50 ms fresh and 945.29 ms warm, with the warm result approximately 54 ms slower than its compared baseline and still unexplained. These miss the provisional first-file and tab-switch targets. Windows hosted interaction medians were 384.49 ms first file, 19.10 ms typing proxy, 35.06 ms scroll proxy, and 62.68 ms tab switching.
 
-No valid current-branch measurement exists yet for the backup UI closed/open comparison, four-hour endurance, energy, 50 tabs, a large repository, debugger, AI, or physical 8 GB hardware. Those remain unverified.
+Current-branch backup UI closed/open measurements now exist at `c530644`; ordinary one-file memory stayed within approximately 1% of the exact baseline and no backup code or calls were active before use. After first use the lazy chunk remained resident, backend counters stopped while closed, and cleanup passed. The same run found the macOS latency regression described above. Four-hour endurance, energy, 50 tabs, a large repository, debugger, AI, and physical 8 GB hardware remain unverified.
 
 ## Security findings
 
@@ -86,4 +86,4 @@ Static inspection found no application `setInterval` calls and 38 `setTimeout` p
 
 ## Phase decision
 
-Phase 0 documentation and baseline consolidation begins on this branch. Phase 1 begins by closing the already prepared Core backup/restore native gate. No Phase 2 feature work should start until that gate and exact-candidate release identity are resolved. The installed application, public release, update feed, user profile, and projects are outside this branch's mutation scope.
+Phase 0 documentation and baseline consolidation is complete on this branch. Core backup/restore native acceptance passed, but Phase 1 remains conditional on the macOS latency investigation and packaged exact-candidate release gates. No Phase 2 feature work should start. The installed application, public release, update feed, user profile, and projects remained outside this branch's mutation scope.

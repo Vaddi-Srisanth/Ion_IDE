@@ -1,5 +1,17 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Final Phase 0 / Core native checkpoint — 2026-11-23
+
+**Phase 0 is complete. Core backup/restore native acceptance is PASS. Overall Phase 1 remains CONDITIONAL and is not release-ready.** The exact candidate `c5306449445e16090c81d8396003b9885b710fd0` passed [run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) on hosted macOS 15 arm64 and Windows Server 2025 x64. Both jobs completed actual Settings backup, current unsaved editor/Undo checks, fresh and populated restore/relaunch, normal-store access, trust/credential/approval exclusions, two real startup-kill recovery boundaries, populated rollback and four serialized candidate/baseline resource pairs. All owned application families cleaned up.
+
+The successful evidence closes the previously open native backup lifecycle gate. It does not close the whole release gate: macOS cold startup measured 1,441.56 ms versus 1,061.12 ms (+35.85%), and first-file opening measured 1,401.06 ms versus 678.52 ms (+106.49%). Windows cold startup, first-file memory and first-file latency stayed within approximately 2% of baseline. One-file memory on both platforms stayed within approximately 1% by the primary counters, and no backup code or calls were active before first use.
+
+Three earlier failed runs are retained in the verification report with root causes and minimal harness corrections. None was hidden or converted into a production defect. The final run had zero failed lifecycle cases and no skipped job step other than the inapplicable Windows-GCC-selection step on macOS.
+
+`main`, releases, installers, update feed, installed Ion, live profile, real projects and user files remained untouched. No Milestone 2 work started. The next permissible work is a focused, stage-instrumented macOS regression investigation plus exact packaged migration/rollback verification; it is not new feature development.
+
+---
+
 ## Remaining-gates run completed — 2026-11-17
 
 **CONDITIONAL — native acceptance is incomplete.** [Run 43937220557](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557) tested the approved `2590f99` in exactly two hosted jobs. Both confirmed production identity, passed the four new Node-only controls and built the candidate. Mac also built the exact ancestor and created a real Settings backup, then failed an added Undo assertion. Windows stopped at a drive-letter path/tar mismatch in baseline extraction. Restore/relaunch and paired RAM/CPU measurements did not complete.

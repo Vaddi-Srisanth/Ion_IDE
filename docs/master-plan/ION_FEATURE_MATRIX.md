@@ -19,7 +19,7 @@ Status vocabulary is deliberately strict:
 | New/open/save/save as/autosave | Verified | Revision-aware saves and existing save policy. |
 | External-change protection | Verified | Conflict banner, reload/save-as behavior, and atomic publication tests. |
 | Crash recovery and session resume | Verified | Local drafts and session metadata; full upgrade/endurance acceptance remains release-gate work. |
-| Backup and reviewed restore | Unreliable | Production source is implemented; corrected exact-candidate native restore/relaunch and resource acceptance is incomplete. |
+| Backup and reviewed restore | Verified at hosted native scope | Exact candidate `c530644` passed fresh/populated restore, actual relaunch, interruption recovery, rollback, trust exclusion and cleanup on hosted macOS/Windows. Installer migration, maximum limits and physical power-loss testing remain release gates. |
 | Multi-tab editing | Verified | Bounded live Monaco models; hidden tab text/view state retained. |
 | Split source/document view | Verified | Document/Markdown preview split is available. General source-to-source editor groups are incomplete. |
 | Source-to-source editor groups | Incomplete | Keyboard split controls and document split exist; full group management is missing. |

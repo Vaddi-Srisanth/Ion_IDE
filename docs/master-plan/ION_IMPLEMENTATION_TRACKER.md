@@ -1,81 +1,86 @@
 # Ion implementation tracker
 
-Current branch: `codex/ion-master-plan-phase-0`
-Starting revision: `26eff2a78bf6c577cc787137b2977fb1c2530b3f`
-Public release: `0.9.6`
-Local source version: `0.9.8`
-Installed application: inspected only; untouched
+Current branch: `codex/ion-master-plan-phase-0`<br>
+Current verified candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
+Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
+Public release: `0.9.6`<br>
+Local source version: `0.9.8`<br>
+Installed application and live profile: untouched
 
 ## Phase status
 
 | Phase | Status | Exit gate |
 | --- | --- | --- |
-| 0 — Audit and baseline | In progress | Six master-plan documents reviewed; baseline commands/tests recorded; exact known/unverified scope established. |
-| 1 — Stability and data safety | In progress, release-blocked | Exact-current-candidate native backup restore/relaunch, rollback/interruption, trust exclusion, resource comparison, migrations/lifecycle, and package identity pass. |
-| 2 — Core editor excellence | Deferred | Phase 1 gate passes; then representative project journey defines workspace/LSP/debug/test scope. |
-| 3 — Git and GitHub | Deferred | Core workspace/tool lifecycle stable; official auth and conflict-safe design reviewed. |
-| 4 — Practice Arena | Deferred | Local judge threat/resource model and original content policy approved. |
-| 5 — AI infrastructure | Deferred | Provider/context/permission architecture and authenticated acceptance available. |
-| 6 — GitHub Copilot | Deferred, official agent SDK identified | Run a separately approved proof of concept for official SDK auth, runtime cost, permissions, and lifecycle. Inline completion remains unsupported without a documented official API. |
-| 7 — Ion AI experiences | Deferred | Phase 5 complete and ordinary editor remains independent. |
-| 8 — Advanced education | Deferred | Evidence model and curated content quality established. |
-| 9 — Extensibility/platforms | Deferred | Extension isolation/API and platform ownership approved. |
-| 10 — Production hardening | Deferred | All intended release features pass native, security, endurance, accessibility, installer, and performance gates. |
+| 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
+| 1 — Stability and data safety | **In progress — performance blocked** | Core backup/restore acceptance passed on macOS and Windows, but the macOS cold-start and first-file regressions must be explained or corrected; packaged upgrade/migration gates also remain. |
+| 2 — Core editor excellence | Deferred | Phase 1 must pass first. No Phase 2 work is authorized. |
+| 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
-## Phase 0 checklist
+## Phase 0 completion
 
-- [x] Inspect repository/Git state and current candidate identity.
-- [x] Inspect installed app metadata without launching or changing it.
-- [x] Review architecture, product/security/test audits, performance history, and Core backup reports.
-- [x] Inventory source/test/script/doc/workflow surface and major production chunks.
-- [x] Confirm `npm audit --omit=dev`: zero known production advisories on 23 November 2026.
-- [x] Record that nested parent `node_modules` makes local `npm ls --omit=dev` non-reproducible/noisy.
-- [x] Classify master-directive capabilities in the feature matrix.
-- [x] Define architecture, performance, and security contracts.
-- [x] Run focused local Phase 1 tests against this branch: 25 backup tests passed; dark/light backup UI fixtures completed 10 cycles each with zero errors, zero listeners after close, and no closed-background bridge calls.
-- [x] Run typecheck and production build once after the documentation checkpoint is stable: both passed on 23 November 2026.
-- [x] Review working-tree diff and whitespace; do not commit/push automatically.
+- Commit `c1267b6` added only the six reviewed Phase 0 audit documents after diff and credential/personal-data scans.
+- Commits `df62239`, `c5217ff` and `c530644` corrected deterministic acceptance/benchmark harness defects exposed by native runs. They do not change production `src`.
+- The verification branch alone was pushed. `main`, tags, releases, installers, update feed, installed Ion, live profile and user projects were not changed.
+- Local boundary checks passed before native execution: 25/25 backup tests, backup UI dark/light ten-cycle fixtures, type checking, production build and zero production `npm audit` advisories.
 
-## Phase 1 active gate
+## Exact native acceptance
 
-| Item | State | Evidence / next step |
-| --- | --- | --- |
-| Backup/restore production implementation | Implemented | Source commit `881ef00`; production `src` unchanged through the starting revision. |
-| Windows focused filesystem/interruption correction | Verified at `ce035cb` | Hosted Windows recheck passed 54 focused tests, 5 path/sharing checks, and 9 Undo controls. |
-| Remaining native acceptance workflow | Prepared | `.github/workflows/core-backup-verification.yml` builds candidate and `d67613a` baseline on macOS/Windows. |
-| Last approved remaining-gates run | Failed, preserved | Run `43937220557`: Windows baseline extraction path defect; macOS Undo fixture assertion. It did not reach restore/resource gates. |
-| Local fixture/workflow corrections | Implemented, not natively rerun | Starting revision `26eff2a` changes test/workflow behavior only. |
-| Actual restore + relaunch | BLOCKED | Requires authorized push of exact reviewed candidate and two focused native jobs. |
-| Normal-interface access to restored data | BLOCKED | Same focused native acceptance. |
-| Trust/credentials/active approvals excluded after relaunch | BLOCKED | Same focused native acceptance. |
-| Interrupted startup recovery + rollback | BLOCKED | Same focused native acceptance. |
-| Backup UI closed/open resource comparison | BLOCKED | Previous run failed before resource lane. |
-| Release | BLOCKED | No merge, installer, update-feed change, installation, or release is authorized. |
+Final run: [45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873)<br>
+Candidate: `c5306449445e16090c81d8396003b9885b710fd0`
 
-## Phase 1 acceptance matrix
+| Gate | macOS 15 arm64 | Windows Server 2025 x64 | Result |
+| --- | --- | --- | --- |
+| Candidate/baseline source identity and ordinary production builds | [Passed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218970) | [Passed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218249) | PASS |
+| Settings backup with current unsaved editor content | Passed | Passed | PASS |
+| Undo/redo and editor/model identity | Passed | Passed | PASS |
+| Fresh and populated restore, actual quit/relaunch | Passed | Passed | PASS |
+| Lessons, practice source/attempts/evidence, settings, roadmaps and detached drafts through normal stores/interfaces | Passed | Passed | PASS |
+| Credentials, execution trust and active test approvals excluded | Passed | Passed | PASS |
+| Save requires renewed review after current data changes | Passed | Passed | PASS |
+| Cancel preserves current process and edits | Passed | Passed | PASS |
+| Real startup interruption at `previous-moved` and `published`, then recovery | Passed | Passed | PASS |
+| Injected publication failure and populated pre-restore rollback | Passed | Passed | PASS |
+| Four alternating baseline/candidate resource pairs | 8/8 attempts passed | 8/8 attempts passed | PASS with macOS regression below |
+| Process-family cleanup | Empty after every attempt | Empty after every attempt | PASS |
 
-| Requirement | Automated local | Native macOS | Native Windows | Status |
-| --- | --- | --- | --- | --- |
-| Archive validation, bounds, corruption, traversal, links, duplicates | Existing focused tests | Earlier scoped evidence | Earlier scoped evidence | Conditional on exact-candidate rerun |
-| Store round-trip and legacy input | Existing focused tests | Earlier scoped evidence | Earlier scoped evidence | Conditional |
-| Detached draft collisions and recovery limits | Existing focused tests | Earlier scoped evidence | Earlier scoped evidence | Conditional |
-| Workspace copy/reference/exclude/relocate | Existing focused tests | Earlier scoped evidence | Earlier scoped evidence | Conditional |
-| Credentials/trust/approval exclusion | Existing focused tests | Relaunch not complete | Relaunch not complete | BLOCKED |
-| Actual production restore/relaunch | Node/bridge controls only | Not complete | Not complete | BLOCKED |
-| Interrupted application lifecycle and rollback | Node transaction controls | Not complete on corrected candidate | Not complete on corrected candidate | BLOCKED |
-| Candidate/baseline RAM, startup, idle CPU, cleanup | Harness prepared | No completed sample | No completed sample | BLOCKED |
-| Physical 8 GB and hardware power loss | unavailable | Unverified | Unverified | Deferred limitation, not a pass |
+Each platform recorded 12 lifecycle cases, seven disposable-profile observations and zero failures. The artifacts are [macOS 14834197418](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/artifacts/14834197418) and [Windows 14834177738](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/artifacts/14834177738). They contain bounded sanitized logs and raw structured measurements.
 
-## Next concrete action
+## Failures preserved and investigated
 
-1. Finish this local documentation checkpoint and run focused non-GUI tests, typecheck, and production build.
-2. Review the exact diff and source identity.
-3. If the user authorizes the narrow upload, push only the reviewed verification branch/candidate and run the two focused native Core jobs. Do not merge, publish, install, or alter the update feed.
-4. If either job fails, preserve artifacts and correct only the demonstrated root cause.
-5. If both pass, update the reports with exact measurements and decide Phase 1's next durability/lifecycle gate. Do not begin Phase 2 automatically.
+| Run | Failure | Root cause | Correction |
+| --- | --- | --- | --- |
+| [45203328964](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45203328964) | Both acceptance jobs failed before lifecycle execution with `import(undefined)`. | Harness inferred the hashed Monaco editor chunk from browser performance entries, where it is not guaranteed to appear. | Resolve the exact single `editor.api-*.js` artifact from each production build and import that app-origin URL. |
+| [45203815424](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45203815424) | Both jobs expected a new process after Save All, but Ion kept the current process and rejected restore. | The test expected stale confirmation to remain valid after Save All changed selected current data. Product behavior was correct. | Assert rejection and durability, perform a fresh review, reconfirm, then require relaunch. No timeout increase or production weakening. |
+| [45204705215](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45204705215) | All lifecycle cases passed; both resource lanes failed at the same Monaco lookup. | Benchmark retained the already-corrected performance-entry assumption. | Apply the deterministic artifact resolution to the benchmark as well. |
 
-## Reporting ledger
+No final-run failure, slow sample or skip was removed. The macOS resource timing issue below remains open rather than being relabeled as noise.
 
-| Date | Change | Verification | Performance | Git/external effect |
-| --- | --- | --- | --- | --- |
-| 2026-11-23 | Completed initial master audit and controlled Phase 0/1 plan | `test:backup` 25/25; backup UI dark/light 10 cycles each; typecheck passed; production build passed | Historical baseline consolidated. Static lazy chunk remains 8.56 KiB JS + 0.89 KiB CSS. No new native process-tree result. | New local branch and uncommitted docs only; no push/install/release |
+## Matched performance summary
+
+Medians are across four serialized AB/BA pairs on each hosted OS. Memory is the median of each attempt's settled phase; counters are platform-specific and not cross-compared.
+
+| Metric | macOS baseline | macOS candidate | Delta | Windows baseline | Windows candidate | Delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold start | 1,061.12 ms | 1,441.56 ms | **+380.44 ms / +35.85%** | 1,149.27 ms | 1,152.82 ms | +3.55 ms / +0.31% |
+| Warm start | 760.29 ms | 758.56 ms | -1.73 ms / -0.23% | 1,117.77 ms | 1,147.28 ms | +29.51 ms / +2.64% |
+| First file | 678.52 ms | 1,401.06 ms | **+722.54 ms / +106.49%** | 353.13 ms | 358.71 ms | +5.58 ms / +1.58% |
+| One-file attributed footprint / private bytes | 163.95 MiB | 159.84 MiB | -4.11 MiB / -2.51% | 179.62 MiB | 180.76 MiB | +1.14 MiB / +0.63% |
+| One-file summed RSS / working set | 445.29 MiB | 446.02 MiB | +0.74 MiB / +0.17% | 350.02 MiB | 348.87 MiB | -1.16 MiB / -0.33% |
+| One-file idle CPU, one core | 1.64% | 1.58% | -0.06 pp | 0.32% | 0.13% | -0.19 pp |
+
+The macOS candidate first-file samples were 642.75, 1,389.00, 1,413.12 and 1,516.30 ms; the baseline range was 658.77–721.40 ms. Because three of four candidate samples were slow while Windows remained flat, this is a material, platform-specific regression signal. The current evidence does not isolate the cause. Phase 1 therefore remains performance-blocked.
+
+Opening backup after Settings took a 444.72 ms macOS median and 832.51 ms Windows median. After ten open/close cycles, backend call and storage counters stopped changing while closed, the existing Monaco model remained identical, and every owned process family cleaned up. Code stayed unloaded during ordinary one-file editing (`backupLoaded: false`, zero backup calls). After first use the lazy chunk remains resident by design; this is not ongoing background work.
+
+## Remaining Phase 1 gates
+
+- Trace the hosted macOS cold-start and first-file regression with stage timings; do not remove recovery or integrity checks to win the number.
+- Verify packaged installer/update migration, rollback and profile preservation on the exact release candidate. This workflow used ordinary production builds, not installers.
+- Exercise maximum archive limits, external-filesystem publication behavior, physical power interruption and long-duration/physical 8 GB workloads where available.
+- Run the full release regression/security/package gate against one immutable candidate. The focused workflow is not a substitute for every release test.
+
+## Verdict
+
+**Core backup/restore native acceptance: PASS at `c530644`.**<br>
+**Phase 0: COMPLETE.**<br>
+**Phase 1: CONDITIONAL / NOT RELEASE-READY.** Native safety and cleanup criteria passed, but the unexplained macOS latency regression and broader packaged-release gates prevent a genuine Phase 1 completion claim. Phase 2 remains deferred.

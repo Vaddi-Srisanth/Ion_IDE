@@ -1,5 +1,56 @@
 # Ion Core Excellence — Milestone 1 verification
 
+## Final hosted native acceptance — 2026-11-23
+
+**Core backup/restore verdict: PASS at `c5306449445e16090c81d8396003b9885b710fd0`. Overall Phase 1 verdict: CONDITIONAL / NOT RELEASE-READY.** [Run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) passed its complete lifecycle and resource workflow on [macOS 15 arm64](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218970) and [Windows Server 2025 x64](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218249). The exact comparison ancestor was `d67613a1e9b77c7d677bd304628d57c58542fa71`.
+
+Both jobs built the ordinary production candidate and baseline, then used uniquely owned disposable profiles. Each recorded 12 passing lifecycle cases, seven profile observations, zero lifecycle failures, four passing baseline resource attempts, four passing candidate resource attempts and an empty owned process family after every attempt.
+
+The actual application path verified:
+
+- backup from Settings while Monaco contained unsaved work;
+- one coherent Undo and Redo after backup without replacing the editor/model;
+- fresh and populated reviewed restore followed by actual quit and relaunch;
+- restored settings, custom content/lessons, practice notes/source/attempts/stale evidence, project roadmaps/history and detached recovery drafts through normal stores/interfaces;
+- absent synthetic credential storage, execution trust and active automatic-test approvals;
+- Cancel preserving the running process and current edit;
+- Save All changing current data, invalidating stale restore confirmation, preserving the saved bytes, then succeeding only after renewed review;
+- process termination at the `previous-moved` and `published` startup boundaries followed by successful journal recovery;
+- injected publication failure followed by verified populated-profile rollback and retained rollback archive.
+
+No real user profile, installed application, project or credential was read or modified. The fixtures represent those data categories; this is not a claim that personal user files were inspected. Raw bounded artifacts are [macOS 14834197418](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/artifacts/14834197418) and [Windows 14834177738](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/artifacts/14834177738).
+
+### Matched resource evidence
+
+Medians below use four alternating serialized pairs. macOS reports attributed footprint and summed RSS; Windows reports private bytes and working set. These counters are not interchangeable.
+
+| Metric | macOS baseline | macOS candidate | Windows baseline | Windows candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Cold startup | 1,061.12 ms | **1,441.56 ms** | 1,149.27 ms | 1,152.82 ms |
+| Warm startup | 760.29 ms | 758.56 ms | 1,117.77 ms | 1,147.28 ms |
+| First file | 678.52 ms | **1,401.06 ms** | 353.13 ms | 358.71 ms |
+| One-file footprint/private | 163.95 MiB | 159.84 MiB | 179.62 MiB | 180.76 MiB |
+| One-file RSS/working set | 445.29 MiB | 446.02 MiB | 350.02 MiB | 348.87 MiB |
+| One-file CPU, one-core basis | 1.64% | 1.58% | 0.32% | 0.13% |
+
+Before first use, the candidate reported `backupLoaded: false`, zero backup calls and no backup-owned process. Opening backup took a 444.72 ms macOS median and 832.51 ms Windows median. Ten open/close cycles left bridge and storage counters unchanged while closed and preserved the original editor/model. The lazy chunk remains resident after first use by design, but no continuing backend work was observed.
+
+The macOS candidate cold-start median regressed 380.44 ms (+35.85%) and first-file median regressed 722.54 ms (+106.49%). Candidate first-file samples were 642.75, 1,389.00, 1,413.12 and 1,516.30 ms versus a 658.77–721.40 ms baseline range. Three slow samples make this a material signal, not a discarded outlier. Windows remained approximately flat. The responsible macOS stage is not established, so no production change or performance-success claim is made.
+
+### Preserved failed runs
+
+- [45203328964](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45203328964): deterministic test-harness defect resolving the hashed Monaco chunk from browser performance entries.
+- [45203815424](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45203815424): test incorrectly expected stale restore approval to survive Save All; product rejection was correct.
+- [45204705215](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45204705215): lifecycle passed on both OSs; resource harness retained the first Monaco lookup defect.
+
+The corrections resolve exact build artifacts and strengthen the stale-review assertion. They do not weaken timeouts or alter production behavior.
+
+### Remaining release gates
+
+Phase 1 remains open because the hosted macOS latency regression is unexplained and this was not an installer/update migration run. Maximum 2 GiB/10,000-entry archives, external-filesystem publication, physical power loss, long endurance, physical 8 GB hardware and a complete immutable-candidate release suite also remain unverified. No skipped or unavailable item is labeled passing, and Phase 2 remains deferred.
+
+---
+
 ## Executed remaining-gates run and local fixture corrections — 2026-11-17
 
 **Verdict: CONDITIONAL — native acceptance remains incomplete.** The two explicitly approved jobs ran at `2590f99bb471394cbdeb2c77fd12d0bd961eb540` and both failed before the resource lane. No release, installation or production fix is claimed. [Exact run 43937220557](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557) preserves the failures.
