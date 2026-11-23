@@ -79,6 +79,8 @@ try {
       const started = performance.now(), state = { started, tabCommitMs: null, monacoMountedMs: null, sourceVisibleMs: null,
         firstAnimationFrameMs: null, secondAnimationFrameMs: null, forcedLayoutMs: null, longTasks: [], resources: [] };
       globalThis.__ionFirstFileTrace = state;
+      const open = document.querySelector('[data-testid="open-file"]');
+      open?.addEventListener('click', () => { state.clickEventMs = performance.now() - started; }, { capture: true, once: true });
       const inspect = () => {
         const now = performance.now();
         if (state.tabCommitMs === null && document.querySelector('[data-testid="editor"]')) state.tabCommitMs = now - started;
@@ -108,6 +110,7 @@ try {
     attempt.fileOpenMs = performance.now() - began;
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     attempt.firstFileRendererTrace = await page.evaluate(() => { globalThis.__ionFirstFileStop(); return globalThis.__ionFirstFileTrace; });
+    attempt.firstFileRendererTrace.postClickSourceVisibleMs = attempt.firstFileRendererTrace.sourceVisibleMs - attempt.firstFileRendererTrace.clickEventMs;
     attempt.firstFileMainTrace = (await rpc(s.inspector, 'globalThis.__ionAcceptance.snapshot()')).trace;
     await page.evaluate(async asset => {
       const url = new URL(`assets/${asset}`, document.baseURI).href;

@@ -74,10 +74,30 @@ jobs:
             node scripts/build.mjs
           ) 2>&1 | tee performance-results/core-native-acceptance/baseline-build.log
           echo "ION_CORE_BASELINE_DIST=$baseline_dir/dist" >> "$GITHUB_ENV"
+      - name: Place both immutable build artifacts on the same benchmark filesystem
+        run: |
+          comparison_root="$RUNNER_TEMP/ion-core-comparison"
+          node --input-type=module - "$ION_CORE_BASELINE_DIST" dist "$comparison_root" <<'NODE'
+          import { cp, lstat, mkdir, rm } from 'node:fs/promises';
+          import { join, resolve } from 'node:path';
+          const [baseline, candidate, root] = process.argv.slice(2).map(resolve);
+          const temporaryPrefix = resolve(process.env.RUNNER_TEMP) + (process.platform === 'win32' ? '\\' : '/');
+          if (!root.startsWith(temporaryPrefix)) throw new Error('Unsafe comparison root.');
+          await rm(root, { recursive: true, force: true });
+          await mkdir(root, { recursive: true });
+          await Promise.all([
+            cp(baseline, join(root, 'baseline'), { recursive: true }),
+            cp(candidate, join(root, 'candidate'), { recursive: true }),
+          ]);
+          const devices = await Promise.all([root, join(root, 'baseline'), join(root, 'candidate')].map(async path => (await lstat(path)).dev));
+          if (new Set(devices).size !== 1) throw new Error('Benchmark artifacts are not on one filesystem.');
+          NODE
+          echo "ION_CORE_BASELINE_DIST=$comparison_root/baseline" >> "$GITHUB_ENV"
+          echo "ION_CORE_CANDIDATE_DIST=$comparison_root/candidate" >> "$GITHUB_ENV"
       # The complete lifecycle already passed at c530644 in run 45205283873.
       # This diagnostic cohort isolates performance and does not repeat it.
       - name: Serialized paired one-file and backup lifecycle resources
-        run: node scripts/benchmark-core-backup-native.mjs "$ION_CORE_BASELINE_DIST" dist 2>&1 | tee performance-results/core-native-acceptance/metrics.log
+        run: node scripts/benchmark-core-backup-native.mjs "$ION_CORE_BASELINE_DIST" "$ION_CORE_CANDIDATE_DIST" 2>&1 | tee performance-results/core-native-acceptance/metrics.log
       - name: Preserve bounded sanitized logs even on failure
         if: always()
         run: |
