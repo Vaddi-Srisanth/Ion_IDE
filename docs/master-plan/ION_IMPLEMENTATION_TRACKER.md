@@ -34,7 +34,7 @@ Candidate: `c5306449445e16090c81d8396003b9885b710fd0`
 | Settings backup with current unsaved editor content | Passed | Passed | PASS |
 | Undo/redo and editor/model identity | Passed | Passed | PASS |
 | Fresh and populated restore, actual quit/relaunch | Passed | Passed | PASS |
-| Lessons, practice source/attempts/evidence, settings, roadmaps and detached drafts through normal stores/interfaces | Passed | Passed | PASS |
+| Settings, custom themes, lessons, practice source/attempts/evidence, roadmaps and detached drafts through normal stores/interfaces | Passed | Passed | PASS |
 | Credentials, execution trust and active test approvals excluded | Passed | Passed | PASS |
 | Save requires renewed review after current data changes | Passed | Passed | PASS |
 | Cancel preserves current process and edits | Passed | Passed | PASS |

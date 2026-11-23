@@ -11,7 +11,7 @@ The actual application path verified:
 - backup from Settings while Monaco contained unsaved work;
 - one coherent Undo and Redo after backup without replacing the editor/model;
 - fresh and populated reviewed restore followed by actual quit and relaunch;
-- restored settings, custom content/lessons, practice notes/source/attempts/stale evidence, project roadmaps/history and detached recovery drafts through normal stores/interfaces;
+- restored settings, custom themes, content/lessons, practice notes/source/attempts/stale evidence, project roadmaps/history and detached recovery drafts through normal stores/interfaces;
 - absent synthetic credential storage, execution trust and active automatic-test approvals;
 - Cancel preserving the running process and current edit;
 - Save All changing current data, invalidating stale restore confirmation, preserving the saved bytes, then succeeding only after renewed review;
