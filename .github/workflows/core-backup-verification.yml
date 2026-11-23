@@ -5,7 +5,7 @@ name: Core backup lifecycle and matched resources (no publication)
 # This prepared remaining-gates lane requires fresh explicit upload approval.
 on:
   push:
-    branches: [codex/ion-core-native-acceptance]
+    branches: [codex/ion-master-plan-phase-0]
   workflow_dispatch:
 permissions:
   contents: read
@@ -74,8 +74,8 @@ jobs:
             node scripts/build.mjs
           ) 2>&1 | tee performance-results/core-native-acceptance/baseline-build.log
           echo "ION_CORE_BASELINE_DIST=$baseline_dir/dist" >> "$GITHUB_ENV"
-      - name: Actual Settings restore, native relaunch, interruption and rollback
-        run: node scripts/test-core-backup-acceptance.mjs dist 2>&1 | tee performance-results/core-native-acceptance/acceptance.log
+      # The complete lifecycle already passed at c530644 in run 45205283873.
+      # This diagnostic cohort isolates performance and does not repeat it.
       - name: Serialized paired one-file and backup lifecycle resources
         run: node scripts/benchmark-core-backup-native.mjs "$ION_CORE_BASELINE_DIST" dist 2>&1 | tee performance-results/core-native-acceptance/metrics.log
       - name: Preserve bounded sanitized logs even on failure

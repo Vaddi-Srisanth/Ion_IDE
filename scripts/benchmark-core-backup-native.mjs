@@ -69,11 +69,46 @@ try {
     assert.equal(editorApiAssets.length, 1, `Expected exactly one ${label} editor API chunk`);
     const editorApiAsset = editorApiAssets[0];
     current = await launch(target, profile, root, token); attempt.processColdStartupMs = current.startupMs;
+    attempt.coldStartupStages = current.startupStages;
+    attempt.coldStartupTrace = (await rpc(current.inspector, 'globalThis.__ionAcceptance.snapshot()')).trace;
     await stop(current); current = await launch(target, profile, root, token); attempt.warmStartupMs = current.startupMs;
+    attempt.warmStartupStages = current.startupStages;
     const s = current, page = s.page;
+    await rpc(s.inspector, 'globalThis.__ionAcceptance.resetTrace(); true');
+    await page.evaluate(() => {
+      const started = performance.now(), state = { started, tabCommitMs: null, monacoMountedMs: null, sourceVisibleMs: null,
+        firstAnimationFrameMs: null, secondAnimationFrameMs: null, forcedLayoutMs: null, longTasks: [], resources: [] };
+      globalThis.__ionFirstFileTrace = state;
+      const inspect = () => {
+        const now = performance.now();
+        if (state.tabCommitMs === null && document.querySelector('[data-testid="editor"]')) state.tabCommitMs = now - started;
+        if (state.monacoMountedMs === null && document.querySelector('.monaco-editor')) state.monacoMountedMs = now - started;
+        const lines = document.querySelector('.monaco-editor .view-lines');
+        if (state.sourceVisibleMs === null && lines?.textContent?.includes('#include')) {
+          state.sourceVisibleMs = now - started;
+          const layoutStarted = performance.now(); lines.getBoundingClientRect(); state.forcedLayoutMs = performance.now() - layoutStarted;
+          requestAnimationFrame(() => { state.firstAnimationFrameMs = performance.now() - started;
+            requestAnimationFrame(() => { state.secondAnimationFrameMs = performance.now() - started; }); });
+        }
+      };
+      const observer = new MutationObserver(inspect); observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      globalThis.__ionFirstFileStop = () => { observer.disconnect();
+        state.resources = performance.getEntriesByType('resource').filter(entry => entry.startTime >= started)
+          .map(entry => ({ name: entry.name.split('/').at(-1)?.split('?')[0] ?? 'unknown', startTime: entry.startTime - started,
+            duration: entry.duration, responseEnd: entry.responseEnd - started, transferSize: entry.transferSize })); };
+      let longTaskObserver;
+      try { longTaskObserver = new PerformanceObserver(list => { for (const entry of list.getEntries()) state.longTasks.push({ startTime: entry.startTime - started, duration: entry.duration }); });
+        longTaskObserver.observe({ type: 'longtask', buffered: true }); } catch {}
+      const stop = globalThis.__ionFirstFileStop;
+      globalThis.__ionFirstFileStop = () => { stop(); longTaskObserver?.disconnect(); };
+      inspect();
+    });
     let began = performance.now();
     await page.getByTestId('open-file').first().click(); await page.locator('.monaco-editor .view-lines').getByText('#include', { exact: false }).waitFor();
     attempt.fileOpenMs = performance.now() - began;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    attempt.firstFileRendererTrace = await page.evaluate(() => { globalThis.__ionFirstFileStop(); return globalThis.__ionFirstFileTrace; });
+    attempt.firstFileMainTrace = (await rpc(s.inspector, 'globalThis.__ionAcceptance.snapshot()')).trace;
     await page.evaluate(async asset => {
       const url = new URL(`assets/${asset}`, document.baseURI).href;
       const { editor } = await import(url), widget = editor.getEditors().find(e => e.getDomNode()?.closest('[data-testid="editor"]'));

@@ -52,20 +52,25 @@ async function retainReceipts(session) {
   for (const record of log.filter(e => e.pid === session.pid && e.processes)) rememberLaunchMetrics(session, record.processes);
 }
 export async function attach(profile, previousPids = [], onOwned = () => {}, provided = {}) {
+  const attachStarted = performance.now();
   const seen = new Set(previousPids); let start;
   await eventually(async () => {
     start = (await events(profile)).findLast(e => e.kind === 'start' && !seen.has(e.pid));
     return Boolean(start);
   }, 'No new application process started', 20_000);
   const session = await retain(profile, start, provided); onOwned(session);
+  const startObservedAt = performance.now();
   await tree(session); // Retain early descendants before waiting for renderer readiness.
   await eventually(async () => {
     await retainReceipts(session);
     return (await events(profile)).some(e => e.kind === 'loaded' && e.pid === start.pid);
   }, 'A new production application did not load after startup/relaunch', 20_000);
+  const loadObservedAt = performance.now();
   const port = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]);
+  const portReadAt = performance.now();
   assert.ok(Number.isInteger(port) && port > 0);
   const browser = await chromium.connectOverCDP('http://127.0.0.1:' + port, { timeout: 8000 });
+  const cdpConnectedAt = performance.now();
   session.browser = browser;
   try {
     const context = browser.contexts()[0], page = context.pages()[0] ?? await context.waitForEvent('page', { timeout: 8000 });
@@ -74,7 +79,12 @@ export async function attach(profile, previousPids = [], onOwned = () => {}, pro
     assert.equal(page.url(), 'app://workbench/index.html'); await context.setOffline(true);
     const state = await rpc(start.inspector, 'globalThis.__ionAcceptance.snapshot()');
     assert.equal(state.profile, profile); assert.equal(state.pid, start.pid);
-    Object.assign(session, { browser, page, uiReadyAt, errors: [], requests: [] });
+    Object.assign(session, { browser, page, uiReadyAt, errors: [], requests: [], attachStages: {
+      attachStarted, startObservedAt, loadObservedAt, portReadAt, cdpConnectedAt, uiReadyAt,
+      waitForStartMs: startObservedAt - attachStarted, waitForLoadMs: loadObservedAt - startObservedAt,
+      portReadMs: portReadAt - loadObservedAt, cdpConnectMs: cdpConnectedAt - portReadAt,
+      settingsLocatorMs: uiReadyAt - cdpConnectedAt,
+    } });
     rememberLaunchMetrics(session, state.processes);
     page.on('pageerror', e => session.errors.push(e.message));
     context.on('request', r => { if (/^(https?|wss?):/.test(r.url())) session.requests.push(r.url()); });
@@ -89,13 +99,25 @@ export async function launch(target, profile, root, token) {
   const env = { ...process.env, ION_CORE_ACCEPTANCE_ROOT: root, ION_CORE_ACCEPTANCE_TOKEN: token, ION_CORE_PRODUCTION_ENTRY: resolve(target, 'main/index.cjs') };
   delete env.ELECTRON_RUN_AS_NODE; delete env.ION_DEV_URL;
   const child = spawn(require('electron'), ['--remote-debugging-port=0', '--user-data-dir=' + profile, resolve('scripts/core-native/bootstrap.cjs')], { env, stdio: ['ignore', 'ignore', 'pipe'] });
-  const owned = { pid: child.pid, profile, executablePath, child };
+  const owned = { pid: child.pid, profile, executablePath, child, launchBegan: began };
   let stderr = '', spawnError;
   child.stderr.on('data', data => { stderr = (stderr + String(data)).slice(-8192); }); child.once('error', error => { spawnError = error; });
   try {
     if (child.pid) await tree(owned);
     const session = await attach(profile, seen, () => {}, owned);
-    session.startupMs = session.uiReadyAt - began; return session;
+    const startupEvents = (await events(profile)).filter(event => event.pid === session.pid);
+    const event = kind => startupEvents.find(item => item.kind === kind)?.monotonicMs;
+    const start = event('start'), ready = event('ready'), window = event('window'), loaded = event('loaded');
+    session.startupMs = session.uiReadyAt - began;
+    session.startupStages = {
+      spawnToStartObservedMs: session.attachStages.startObservedAt - began,
+      mainStartToReadyMs: ready - start,
+      readyToWindowMs: window - ready,
+      windowToLoadedMs: loaded - window,
+      loadedToUiReadyObservedMs: session.uiReadyAt - session.attachStages.loadObservedAt,
+      ...session.attachStages,
+    };
+    return session;
   } catch (error) {
     const failure = new Error('Native acceptance startup failed: ' + (spawnError?.message ?? error.message) + '\n' + stderr, { cause: error });
     try { if (child.pid) await cleanupFailed(owned); } catch (cleanup) { throw new AggregateError([failure, cleanup], 'Startup failed and owned-process cleanup is unverified'); }
