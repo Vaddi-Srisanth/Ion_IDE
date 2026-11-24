@@ -59,6 +59,7 @@
     "bench:resources": "node scripts/benchmark-resources.mjs",
     "bench:session": "node scripts/benchmark-session-lifecycle.mjs",
     "bench:editor-residency": "node scripts/benchmark-editor-residency.mjs",
+    "bench:editor-split": "node scripts/benchmark-editor-split.mjs",
     "bench:notebooks": "node scripts/benchmark-notebooks.mjs",
     "bench:markdown": "node scripts/benchmark-markdown-preview.mjs",
     "check:performance": "node scripts/check-performance-regression.mjs",

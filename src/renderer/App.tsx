@@ -1206,6 +1206,8 @@ export function App() {
           else editor.current?.focus();
           break;
         }
+        case 'toggle-editor-split': if (screen === 'editor') splitActions.current?.source?.toggle(); break;
+        case 'focus-editor-split': if (screen === 'editor') splitActions.current?.source?.focusSecond(); break;
         case 'markdown-preview': if (screen === 'editor') splitActions.current?.markdown?.togglePreview(); break;
         case 'markdown-split': if (screen === 'editor') splitActions.current?.markdown?.toggleSplit(); break;
         case 'toggle-document-split': splitActions.current?.toggle(); break;
@@ -1335,6 +1337,8 @@ export function App() {
       case 'markdown-preview':
       case 'markdown-split': return Boolean(splitActions.current?.markdown);
       case 'focus-editor': return tabs.some((tab) => !tab.viewer);
+      case 'toggle-editor-split': return Boolean(splitActions.current?.source);
+      case 'focus-editor-split': return Boolean(splitActions.current?.source?.active);
       case 'next-tab':
       case 'previous-tab': return tabs.length > 1;
       case 'move-tab-left':

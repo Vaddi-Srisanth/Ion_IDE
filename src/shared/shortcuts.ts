@@ -29,6 +29,8 @@ const commands = {
   'choose-theme': { label: 'Color Theme…' },
   'go-to-line': { label: 'Go to Line…', key: 'Ctrl+G', other: 'Mod+G' },
   'focus-editor': { label: 'Focus Code Editor', key: 'Mod+1' },
+  'toggle-editor-split': { label: 'Split Code Editor', key: 'Mod+BACKSLASH' },
+  'focus-editor-split': { label: 'Focus Second Editor', key: 'Mod+2' },
   'markdown-preview': { label: 'Toggle Markdown Preview', key: 'Mod+Shift+M' },
   'markdown-split': { label: 'Toggle Markdown Split View', key: 'Mod+Alt+Shift+M' },
   'toggle-document-split': { label: 'Toggle Document Split' },
@@ -61,7 +63,7 @@ export function commandLabel(command: MenuCommand): string {
 }
 
 const modifiers = ['Mod', 'Ctrl', 'Alt', 'Shift'] as const
-const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER|ARROW(?:UP|DOWN|LEFT|RIGHT))$/
+const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER|BACKSLASH|ARROW(?:UP|DOWN|LEFT|RIGHT))$/
 const roleKeys = new Set(['Mod+A', 'Mod+C', 'Mod+V', 'Mod+X', 'Mod+Z', 'Mod+Shift+Z'])
 const macRoleKeys = new Set(['Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+Ctrl+F', 'Ctrl+Mod+F'])
 
@@ -69,7 +71,8 @@ export function normalizeShortcut(value: string, platform: ShortcutPlatform): st
   if (value.length > 64) return null
   if (!value.trim()) return ''
   const parts = value.split('+').map((part) => part.trim().toUpperCase())
-  const key = parts.pop()
+  const rawKey = parts.pop()
+  const key = rawKey === '\\' ? 'BACKSLASH' : rawKey
   if (!key || !keyPattern.test(key)) return null
   const seen = new Set<string>()
   for (const part of parts) {
@@ -90,6 +93,7 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
   const fallback = platform !== 'darwin' && entry.other ? entry.other : entry.key ?? ''
   if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search' || command === 'format-document'
     || command === 'toggle-terminal' || command === 'focus-terminal'
+    || command === 'toggle-editor-split' || command === 'focus-editor-split'
     || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
@@ -137,16 +141,19 @@ export function displayShortcut(command: MenuCommand, overrides: ShortcutOverrid
   const binding = effectiveShortcut(command, overrides, platform)
   if (!binding) return ''
   if (platform !== 'darwin') return binding.replace('Mod', 'Ctrl')
+    .replace(/BACKSLASH/g, '\\')
     .replace(/ARROWUP/g, '↑').replace(/ARROWDOWN/g, '↓')
     .replace(/ARROWLEFT/g, '←').replace(/ARROWRIGHT/g, '→')
   return binding.split('+').map((part) => ({
     Mod: '⌘', Ctrl: '⌃', Shift: '⇧', Alt: '⌥', Enter: '↩',
     ARROWUP: '↑', ARROWDOWN: '↓', ARROWLEFT: '←', ARROWRIGHT: '→',
+    BACKSLASH: '\\',
   })[part] ?? part).join('')
 }
 
 export function menuAccelerator(binding: string): string | undefined {
   return binding ? binding.replace(/\bMod\b/g, 'CmdOrCtrl')
+    .replace(/BACKSLASH/g, 'Backslash')
     .replace(/ARROWUP/g, 'Up').replace(/ARROWDOWN/g, 'Down')
     .replace(/ARROWLEFT/g, 'Left').replace(/ARROWRIGHT/g, 'Right') : undefined
 }
@@ -160,7 +167,7 @@ interface ShortcutInput {
   shift: boolean
 }
 
-const punctuation: Record<string, string> = { Comma: ',', Period: '.', Slash: '/', BracketLeft: '[', BracketRight: ']', Minus: '-' }
+const punctuation: Record<string, string> = { Comma: ',', Period: '.', Slash: '/', Backslash: 'BACKSLASH', BracketLeft: '[', BracketRight: ']', Minus: '-' }
 
 export function inputShortcut(input: ShortcutInput, platform: ShortcutPlatform): string {
   if (platform !== 'darwin' && input.meta) return ''

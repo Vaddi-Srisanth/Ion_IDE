@@ -107,7 +107,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | Milestone | Status | Evidence / remaining gate |
 | --- | --- | --- |
 | 2.1A — Multi-cursor commands and tab ordering | **Implemented; focused verification passing** | Standard add-above/add-below/select-next/select-all commands are configurable and discoverable. Monaco's 19.36 kB multi-cursor contribution loads only on first use. Reordering preserves the active tab, dirty buffer and model identity. Unit, native keyboard, type and production-build checks pass. |
-| 2.1B — Source editor splits/groups | In progress | Existing document/Markdown split is verified; general source-to-source model ownership, independent view state, focus and session restoration still require implementation. |
+| 2.1B — Source editor splits/groups | **Foundation verified; full groups in progress** | An on-demand same-document split shares one model/undo stack, keeps independent view state, supports keyboard focus/resize and disposes on close. Different-file groups and persisted group restoration remain. |
 | 2.1C — Workspace reviewed replace | Not started | Existing bounded, cancellable search is verified. Multi-file preview, revision checks, conflicts and partial-failure reporting are required before replace can be claimed. |
 | 2.1D — Navigation/tab polish | In progress | Quick Open, Go to Line, definition/references, back/forward, close, cycle and move are present. Group-aware navigation and broader tab commands remain. |
 | 2.2 — Multi-root workspace | Not started | Requires versioned descriptors, per-root grants/settings and restored trust boundaries. |
@@ -117,3 +117,5 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
 
 Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in 2.1A. The contribution is a separate lazy chunk and ordinary one-file editing does not request it. Native Windows runtime acceptance for this Phase 2 slice is still unverified until an authorized focused CI run.
+
+The 2.1B macOS disposable-profile benchmark exercised five open/close cycles. Median split creation was 22.60 ms and close was 27.98 ms. Opening the second editor increased median attributed footprint from 216.61 MiB to 277.29 MiB and summed RSS from 509.78 MiB to 521.63 MiB. Five seconds after the final close, attributed footprint was 185.26 MiB (-31.36 MiB from the pre-cycle sample), summed RSS was 522.05 MiB (+12.27 MiB allocator/working-set retention), and observed owned-tree CPU was 0.22% of one core. This five-cycle result establishes disposal and bounded short-run behavior, not a long-session leak claim. No extra process was created.

@@ -32,10 +32,27 @@ Implemented as the smallest independently testable editor slice:
 - `npm run test:keyboard` — pass for native multi-cursor loading/action, tab reordering, Quick Open, Go to Line, command palette, document split and remapped Run/Stop.
 - Initial test attempt intentionally edited the fixture and reached Ion's unsaved-change quit guard; the product was not weakened. The acceptance assertion was corrected to inspect secondary cursor state without editing.
 
-The production build keeps the ordinary Monaco surface at 611,671 bytes versus the Phase 1 build's 611,106 bytes (+565 bytes / +0.09%). The 19,364-byte JavaScript and 1,180-byte CSS multi-cursor payloads are separate on-demand chunks. These are uncompressed artifact bytes, not RAM measurements.
+At the 2.1A checkpoint, the production build kept the ordinary Monaco surface at 611,671 bytes versus the Phase 1 build's 611,106 bytes (+565 bytes / +0.09%). The 19,364-byte JavaScript and 1,183-byte CSS multi-cursor payloads are separate on-demand chunks. These are uncompressed artifact bytes, not RAM measurements.
+
+## Milestone 2.1B — source split foundation
+
+Ion now supports an on-demand second view of the active source document:
+
+- both editor widgets use the exact same Monaco text model and undo stack;
+- each widget owns its cursor, selection and scroll view; the secondary view state is retained per tab while the workbench remains open;
+- focus can move explicitly to the second editor and Find/multi-cursor commands follow the focused widget;
+- the divider supports pointer and keyboard resizing with accessible separator semantics;
+- closing the split detaches the model before disposing the second widget; no process, worker or duplicate source buffer is created;
+- source splitting is suspended while Markdown preview/source is hidden, so an invisible second editor does not remain active.
+
+Focused Electron acceptance proves that an edit made in the second widget appears in both views, one Undo restores the shared model, save clears the disposable dirty state, keyboard resize works, and the secondary DOM/editor is removed on close.
+
+Matched production artifact sizes against Phase 1 `005c402` are 614,284 versus 611,106 bytes for the lazy Monaco surface (+3,178 bytes / +0.52%) and 370,792 versus 368,346 bytes for the renderer shell (+2,446 bytes / +0.66%). No dependency or startup process was added.
+
+The macOS disposable-profile benchmark recorded startup 306.95 ms and first-file 185.58 ms for this local run. Across five split cycles, median creation was 22.60 ms and close was 27.98 ms. Attributed footprint was 216.61 MiB before the cycles, 277.29 MiB median while open and 185.26 MiB after a five-second final recovery. Summed RSS was 509.78 MiB before, 521.63 MiB median while open and 522.05 MiB after recovery; the retained 12.27 MiB is reported as allocator/working-set retention, not called a leak. Final closed CPU was 0.22% of one logical core. Raw output is locally generated under ignored `performance-results/`; the reusable harness is `scripts/benchmark-editor-split.mjs`.
 
 ## Next bounded work
 
-Milestone 2.1B must establish source split ownership before UI expansion: one text model per open document, independent group view state, explicit focus, group-aware commands, session persistence, bounded model retention, and deterministic disposal. It must not duplicate buffers or lose undo history. Workspace reviewed replace follows only after revision-aware preview/apply semantics and conflict tests are defined.
+The source split ownership foundation is verified. Completing professional groups still requires different-file group assignment, group-aware tab selection/navigation and persisted group restoration. Workspace reviewed replace follows only after revision-aware preview/apply semantics and conflict tests are defined.
 
 No Phase 2 code has been pushed, installed, released or merged into `main` at this checkpoint.

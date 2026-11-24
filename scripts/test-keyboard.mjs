@@ -76,6 +76,31 @@ await withScratch('keyboard', async (scratch) => {
     await page.waitForFunction(() => document.querySelectorAll('.monaco-editor .cursor').length === 1)
     console.log('PASS keyboard multi-cursor action adds and clears a secondary cursor without editing')
 
+    await page.getByTestId('source-split-toggle').click()
+    const sourceSplit = page.locator('[data-source-split="true"]')
+    await sourceSplit.waitFor()
+    assert.equal(await sourceSplit.locator('.monaco-editor').count(), 2)
+    await command(session, 'Focus Second Editor')
+    await page.waitForFunction(() => Boolean(document.activeElement?.closest('.secondary-monaco-host')))
+    await page.keyboard.insertText('Z')
+    await page.waitForFunction(() => [...document.querySelectorAll('.monaco-editor')]
+      .every((editor) => editor.textContent?.includes('Z')))
+    await shortcut(app, 'Z', ['meta'])
+    await page.waitForFunction(() => [...document.querySelectorAll('.monaco-editor')]
+      .every((editor) => !editor.textContent?.includes('Z')))
+    await shortcut(app, 'S', ['meta'])
+    await eventually(async () => !/\btab-dirty\b/.test(await atPath(page, 'close-tab', source).getAttribute('class') ?? ''),
+      'Saving after split-editor Undo did not clear the disposable tab.')
+    const sourceDivider = page.getByRole('separator', { name: 'Resize code editor split' })
+    const sourcePercent = Number(await sourceDivider.getAttribute('aria-valuenow'))
+    await sourceDivider.focus()
+    await page.keyboard.press('ArrowRight')
+    assert.equal(Number(await sourceDivider.getAttribute('aria-valuenow')), sourcePercent + 3)
+    await page.getByTestId('source-split-toggle').click()
+    await sourceSplit.waitFor({ state: 'detached' })
+    assert.equal(await page.locator('.secondary-monaco-host').count(), 0)
+    console.log('PASS source split shares one undoable model, resizes by keyboard, and disposes on close')
+
     await shortcut(app, 'G', ['control'])
     const line = page.getByTestId('goto-line-input')
     await line.fill('99')

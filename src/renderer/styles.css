@@ -311,6 +311,11 @@ svg { flex: none; }
 .empty-actions { display: flex; gap: 7px; margin-top: 15px; }
 .editor-surface { flex: 1; position: relative; min-height: 0; }
 .monaco-host { position: absolute; inset: 0; }
+.editor-surface.source-editor-split .primary-monaco-host { right: calc(100% - var(--source-split)); }
+.secondary-monaco-host { position: absolute; inset: 0 0 0 calc(var(--source-split) + 5px); }
+.source-splitter { position: absolute; z-index: 6; top: 0; bottom: 0; left: var(--source-split); width: 5px;
+  background: var(--border); cursor: col-resize; transform: translateX(-2px); }
+.source-splitter:hover, .source-splitter:focus-visible { background: var(--accent); outline: none; }
 .editor-loading { display: flex; flex: 1; justify-content: center; align-items: center; flex-direction: column; color: var(--muted); gap: 9px; padding: 20px; text-align: center; }
 .editor-surface > .editor-loading { position: absolute; inset: 0; background: var(--background); }
 .java-tool-status { position: absolute; right: 18px; bottom: 14px; max-width: calc(100% - 36px); padding: 6px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }

@@ -16,6 +16,7 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
   assert.equal(resolveShortcuts({}, 'win32').get('Mod+Alt+ARROWDOWN'), 'add-cursor-below')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+D'), 'select-next-occurrence')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+L'), 'select-all-occurrences')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+BACKSLASH'), 'toggle-editor-split')
   for (const platform of ['darwin', 'win32', 'linux'] as const) {
     assert.equal(resolveShortcuts({}, platform).get('Alt+Shift+F'), 'format-document')
     assert.deepEqual(parseShortcutOverrides({ 'format-document': 'Mod+Shift+G' }, platform), { 'format-document': 'Mod+Shift+G' })
@@ -33,6 +34,7 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
   assert.equal(displayShortcut('add-cursor-above', {}, 'darwin'), '⌘⌥↑')
   assert.equal(displayShortcut('add-cursor-above', {}, 'win32'), 'Ctrl+Alt+↑')
   assert.equal(menuAccelerator('Mod+Alt+ARROWUP'), 'CmdOrCtrl+Alt+Up')
+  assert.equal(normalizeShortcut('cmd+\\', 'darwin'), 'Mod+BACKSLASH')
 })
 
 test('shortcut validation protects native roles, normal typing, and conflicting bindings', () => {
@@ -58,4 +60,5 @@ test('physical keys recover shifted punctuation and option-modified shortcuts', 
   assert.equal(inputShortcut({ ...input, key: 'g', code: 'KeyG', control: true }, 'darwin'), 'Ctrl+G')
   assert.equal(inputShortcut({ ...input, control: true }, 'linux'), 'Mod+P')
   assert.equal(inputShortcut({ ...input, key: 'ArrowUp', code: 'ArrowUp', meta: true, alt: true }, 'darwin'), 'Mod+Alt+ARROWUP')
+  assert.equal(inputShortcut({ ...input, key: '\\', code: 'Backslash', meta: true }, 'darwin'), 'Mod+BACKSLASH')
 })

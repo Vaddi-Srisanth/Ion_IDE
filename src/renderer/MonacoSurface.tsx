@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ProblemMarker } from './Problems';
 import { editor, languages, Selection, Uri } from 'monaco-editor/editor/editor.api.js';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
@@ -62,6 +62,7 @@ languages.setMonarchTokensProvider('json', {
 export interface EditorActions {
   find(replace?: boolean): void;
   focus(): void;
+  focusSecondary(): void;
   lineCount(): number;
   goToDefinition(): void;
   multiCursor(action: 'above' | 'below' | 'next' | 'all'): void;
@@ -80,6 +81,9 @@ interface Props {
   activeTheme: ThemeData | null;
   accentColor?: string;
   sourceHidden?: boolean;
+  split?: boolean;
+  splitPercent?: number;
+  onSplitPercent?(percent: number): void;
   workspacePath?: string;
   problemMarkers?: readonly ProblemMarker[];
   onActions(actions: EditorActions | null): void;
@@ -135,10 +139,14 @@ function revealLocation(instance: editor.IStandaloneCodeEditor, model: editor.IT
 
 export default function MonacoSurface({
   documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
-  onActions, onCursor, onLanguageReport, onNavigateSource,
+  split = false, splitPercent = 50, onSplitPercent, onActions, onCursor, onLanguageReport, onNavigateSource,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const secondaryHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
+  const secondaryRef = useRef<editor.IStandaloneCodeEditor>(null);
+  const commandEditor = useRef<editor.IStandaloneCodeEditor>(null);
+  const secondaryViews = useRef(new Map<string, editor.ICodeEditorViewState>());
   const cache = useRef(new Map<string, CachedModel>());
   const displayed = useRef<string | null>(null);
   const initialSettings = useRef(settings);
@@ -150,6 +158,7 @@ export default function MonacoSurface({
   }, [sourceHidden]);
   const tabSizeRef = useRef(settings.tabSize);
   const [loaded, setLoaded] = useState<string | null>(null);
+  const id = tab?.id ?? null;
   const [languageStatus, setLanguageStatus] = useState<string | null>(null);
   const navigateSource = useRef(onNavigateSource);
   navigateSource.current = onNavigateSource;
@@ -197,6 +206,8 @@ export default function MonacoSurface({
     });
 
     editorRef.current = instance;
+    commandEditor.current = instance;
+    const focusListener = instance.onDidFocusEditorWidget(() => { commandEditor.current = instance; });
     const rememberActiveView = () => {
       const id = displayed.current;
       if (id && !sourceHiddenRef.current) rememberView(documents, id, instance);
@@ -250,11 +261,13 @@ export default function MonacoSurface({
     });
     onActions({
       find(replace = false) {
-        if (!instance.getModel()) return;
-        instance.focus();
-        void instance.getAction(replace ? 'editor.action.startFindReplaceAction' : 'actions.find')?.run();
+        const target = commandEditor.current ?? instance;
+        if (!target.getModel()) return;
+        target.focus();
+        void target.getAction(replace ? 'editor.action.startFindReplaceAction' : 'actions.find')?.run();
       },
       focus: () => instance.focus(),
+      focusSecondary: () => secondaryRef.current?.focus(),
       lineCount: () => instance.getModel()?.getLineCount() ?? 0,
       goToDefinition() {
         if (!instance.getModel() || sourceHiddenRef.current) return;
@@ -262,16 +275,17 @@ export default function MonacoSurface({
         void instance.getAction('editor.action.revealDefinition')?.run();
       },
       multiCursor(action) {
-        const model = instance.getModel();
+        const target = commandEditor.current ?? instance;
+        const model = target.getModel();
         if (!model || sourceHiddenRef.current) return;
         const id = {
           above: 'editor.action.insertCursorAbove', below: 'editor.action.insertCursorBelow',
           next: 'editor.action.addSelectionToNextFindMatch', all: 'editor.action.selectHighlights',
         }[action];
-        instance.focus();
+        target.focus();
         void import('monaco-editor/editor/contrib/multicursor/browser/multicursor.js').then(() => {
-          if (instance.getModel() === model && !model.isDisposed() && !sourceHiddenRef.current) {
-            instance.trigger('ion-multi-cursor', id, undefined);
+          if (target.getModel() === model && !model.isDisposed() && !sourceHiddenRef.current) {
+            target.trigger('ion-multi-cursor', id, undefined);
           }
         });
       },
@@ -397,6 +411,7 @@ export default function MonacoSurface({
       opener.dispose();
       cursorListener.dispose();
       scrollListener.dispose();
+      focusListener.dispose();
       displayed.current = null;
       instance.setModel(null);
       for (const [id, cached] of models) releaseModel(documents, id, cached);
@@ -404,6 +419,7 @@ export default function MonacoSurface({
       documents.attachModels(null);
       instance.dispose();
       editorRef.current = null;
+      commandEditor.current = null;
     };
   }, [documents, onActions, onCursor]);
 
@@ -417,12 +433,48 @@ export default function MonacoSurface({
       lineNumbers: lineNumbers ? 'on' : 'off',
     });
   }, [fontSize, lineNumbers, wordWrap]);
+
+  useEffect(() => {
+    const primary = editorRef.current;
+    const model = primary?.getModel();
+    const element = secondaryHost.current;
+    if (!split || !primary || !model || !element || !id || loaded !== id) return;
+    const secondary = editor.create(element, {
+      model, automaticLayout: true, ariaLabel: 'Second code editor', accessibilitySupport: 'auto',
+      contextmenu: true, minimap: { enabled: false }, disableLayerHinting: true,
+      guides: { bracketPairs: false }, renderLineHighlight: 'line', scrollBeyondLastLine: false,
+      scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 }, padding: { top: 14, bottom: 14 },
+      fontFamily: 'SFMono-Regular, Menlo, Consolas, monospace', fontLigatures: false, fontSize,
+      lineNumbers: lineNumbers ? 'on' : 'off', wordWrap: wordWrap ? 'on' : 'off',
+      renderValidationDecorations: 'off', quickSuggestions: false, suggestOnTriggerCharacters: false,
+      wordBasedSuggestions: 'off', inlineSuggest: { enabled: false }, codeLens: false,
+      stickyScroll: { enabled: false }, links: false, tabCompletion: 'off', overviewRulerLanes: 0,
+      occurrencesHighlight: 'off', smoothScrolling: false, cursorBlinking: 'solid', cursorSmoothCaretAnimation: 'off',
+    });
+    secondaryRef.current = secondary;
+    const view = secondaryViews.current.get(id);
+    if (view) secondary.restoreViewState(view);
+    else secondary.setScrollTop(primary.getScrollTop());
+    const cursor = secondary.onDidChangeCursorSelection(({ selection }) => {
+      onCursor(selection.positionLineNumber, selection.positionColumn);
+    });
+    const focus = secondary.onDidFocusEditorWidget(() => { commandEditor.current = secondary; });
+    return () => {
+      const saved = secondary.saveViewState();
+      if (saved) secondaryViews.current.set(id, saved);
+      cursor.dispose();
+      focus.dispose();
+      if (commandEditor.current === secondary) commandEditor.current = primary;
+      secondary.setModel(null);
+      secondary.dispose();
+      if (secondaryRef.current === secondary) secondaryRef.current = null;
+    };
+  }, [split, id, loaded, fontSize, lineNumbers, wordWrap, onCursor]);
   useEffect(() => {
     tabSizeRef.current = tabSize;
     for (const { model } of cache.current.values()) model.updateOptions({ tabSize });
   }, [tabSize]);
 
-  const id = tab?.id ?? null;
   const epoch = tab?.epoch ?? 0;
   const capability = fileLanguage(tab?.name ?? '');
   const language = capability.syntax ?? 'plaintext';
@@ -569,9 +621,22 @@ export default function MonacoSurface({
 
   const retry = () => { if (tab) void documents.reload(tab.id); };
   return (
-    <div className={`editor-surface${tab ? "" : " editor-parked"}`} data-testid="editor"
+    <div className={`editor-surface${tab ? "" : " editor-parked"}${split ? ' source-editor-split' : ''}`} data-testid="editor"
+      data-source-split={split || undefined} style={split ? { '--source-split': `${splitPercent}%` } as CSSProperties : undefined}
       data-smart-java={smart || undefined} aria-hidden={!tab || undefined}>
-      <div className="monaco-host" ref={host}/>
+      <div className="monaco-host primary-monaco-host" ref={host}/>
+      {split && <><div className="source-splitter" role="separator" tabIndex={0} aria-orientation="vertical"
+        aria-label="Resize code editor split" aria-valuemin={25} aria-valuemax={75} aria-valuenow={splitPercent}
+        onPointerDown={(event) => { if (event.button === 0) event.currentTarget.setPointerCapture(event.pointerId); }}
+        onPointerMove={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+          if (bounds?.width) onSplitPercent?.(Math.max(25, Math.min(75, Math.round(100 * (event.clientX - bounds.left) / bounds.width))));
+        }} onKeyDown={(event) => {
+          const delta = event.key === 'ArrowLeft' ? -3 : event.key === 'ArrowRight' ? 3 : 0;
+          if (delta) { event.preventDefault(); onSplitPercent?.(Math.max(25, Math.min(75, splitPercent + delta))); }
+          if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); onSplitPercent?.(event.key === 'Home' ? 25 : 75); }
+        }}/><div className="secondary-monaco-host" ref={secondaryHost}/></>}
       {java && languageStatus && <div className="java-tool-status" role="status">{languageStatus}</div>}
       {tab && loaded !== tab.id && (
         <div className="editor-loading" role={tab.error ? 'alert' : 'status'}>

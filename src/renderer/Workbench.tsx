@@ -166,6 +166,7 @@ export interface DocumentSplitActions {
   focusDivider(): void;
   showSource(path: string): void;
   markdown?: { mode: MarkdownMode; togglePreview(): void; toggleSplit(): void };
+  source?: { active: boolean; toggle(): void; focusSecond(): void };
 }
 
 export interface WorkbenchProps {
@@ -248,6 +249,8 @@ export function Workbench(props: WorkbenchProps) {
   } = props;
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(50);
+  const [sourceSplit, setSourceSplit] = useState(false);
+  const [sourceSplitPercent, setSourceSplitPercent] = useState(50);
   const [markdownPercent, setMarkdownPercent] = useState(50);
   const [markdownModes, setMarkdownModes] = useState(readMarkdownModes);
   const [languageReport, setLanguageReport] = useState<LiveToolReport | null>(null);
@@ -310,6 +313,7 @@ export function Workbench(props: WorkbenchProps) {
   }, [activeCode]);
   const isCodeTab = (tab: Tab) => !tab.viewer && tab.notebookMode !== 'notebook';
   const previousCode = tabs.find((tab) => isCodeTab(tab) && tab.id === lastCodeId.current);
+  const codeTab = activeCode ?? previousCode;
   const pinned = pinnedId ? tabs.find((tab) => tab.id === pinnedId && tab.viewer) : undefined;
   const activePreview = notebook || showMarkdown ? undefined : active?.viewer ? active : pinned;
   const documentSplit = Boolean(activeCode && activePreview);
@@ -339,11 +343,15 @@ export function Workbench(props: WorkbenchProps) {
         writeMarkdownModes(modes);
       },
       markdown: markdown && { mode: markdownMode, togglePreview: toggleMarkdownPreview, toggleSplit: toggleMarkdownSplit },
+      source: activeCode && {
+        active: sourceSplit, toggle: () => setSourceSplit((value) => !value),
+        focusSecond: () => editorActions.current?.focusSecondary(),
+      },
     });
     return () => onSplitActions(null);
   });
-  const codeTab = activeCode ?? previousCode;
   const hasActiveTab = Boolean(codeTab);
+  useEffect(() => { if (!codeTab) setSourceSplit(false); }, [codeTab]);
   const keepEditorWarm = settings.resourceProfile === 'full';
   const [editorStarted, setEditorStarted] = useState(hasActiveTab && keepEditorWarm);
   useEffect(() => {
@@ -443,6 +451,10 @@ export function Workbench(props: WorkbenchProps) {
                   title={hint('markdown-split', 'Toggle Markdown split view')} aria-pressed={markdownSplit}
                   onClick={toggleMarkdownSplit}><Icon name="columns" size={16}/></button>
               </div>}
+              {activeCode && !largeText && !sourceHidden && <button className="icon-button tab-add" type="button"
+                data-testid="source-split-toggle" aria-label="Split Code Editor" aria-pressed={sourceSplit}
+                title={hint('toggle-editor-split', 'Split Code Editor')} onClick={() => setSourceSplit((value) => !value)}>
+                <Icon name="columns" size={15}/></button>}
             </div>
             <div className="editor-view-row" data-testid={markdownSplit ? 'markdown-split' : documentSplit ? 'document-split' : undefined}
               data-markdown-mode={markdown && markdownMode}
@@ -472,6 +484,7 @@ export function Workbench(props: WorkbenchProps) {
                 )}
                 {(codeTab || (editorStarted && keepEditorWarm)) && <EditorContent documents={documents} tab={largeText ? undefined : activeCode} settings={settings}
                   activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden || hidden} problemMarkers={problemMarkers}
+                  split={sourceSplit && Boolean(activeCode) && !sourceHidden && !hidden} splitPercent={sourceSplitPercent} onSplitPercent={setSourceSplitPercent}
                   workspacePath={root?.path} onLanguageReport={setLanguageReport} onNavigateSource={onNavigateSource}
                   onActions={registerEditorActions} onCursor={onCursor}/>}
                 {largeText?.path && <LargeTextPreview key={`${largeText.id}:${largeText.epoch}`} path={largeText.path}/>}
