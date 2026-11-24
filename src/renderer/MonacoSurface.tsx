@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ProblemMarker } from './Problems';
-import { editor, languages, Selection, Uri } from 'monaco-editor/editor/editor.api.js';
+import { editor, languages, Selection } from 'monaco-editor/editor/editor.api.js';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import 'monaco-editor/editor/contrib/find/browser/findController.js';
 import 'monaco-editor/editor/contrib/folding/browser/folding.js';
@@ -43,6 +43,7 @@ import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
 import { sourcePathFromUri } from '../shared/source-path';
 import { applyEditorTheme, clearEditorTheme } from './themes/editor-theme';
+import { MonacoModelPool } from './monaco-model-pool';
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
 
@@ -92,31 +93,6 @@ interface Props {
   onNavigateSource(path: string, line: number, column: number): void;
 }
 
-interface CachedModel {
-  model: editor.ITextModel;
-  listener: { dispose(): void };
-  view?: editor.ICodeEditorViewState;
-}
-
-const MODEL_LIMIT = 3;
-const textOf = (model: editor.ITextModel) => model.getValue(undefined, true);
-
-function discardModel(model: editor.ITextModel) {
-  if (model.canUndo() || model.canRedo()) model.setValue('');
-  model.dispose();
-}
-
-function releaseModel(documents: Documents, id: string, { model, listener }: CachedModel) {
-  listener.dispose();
-  const { uri } = model;
-  const discardUndo = model.canUndo() || model.canRedo() ? () => {
-    // Reopen without a widget to let Monaco remove this URI's detached history.
-    discardModel(editor.createModel('', 'plaintext', uri));
-  } : undefined;
-  documents.releaseModel(id, () => textOf(model), discardUndo);
-  model.dispose();
-}
-
 function rememberView(documents: Documents, id: string, instance: editor.IStandaloneCodeEditor) {
   const selections = instance.getSelections();
   if (!selections?.length) return;
@@ -137,17 +113,29 @@ function revealLocation(instance: editor.IStandaloneCodeEditor, model: editor.IT
   instance.revealPositionInCenterIfOutsideViewport(position);
 }
 
+const modelPools = new WeakMap<Documents, MonacoModelPool>();
+function modelPoolFor(documents: Documents, tabSize: number) {
+  let pool = modelPools.get(documents);
+  if (!pool) {
+    pool = new MonacoModelPool(documents, tabSize);
+    modelPools.set(documents, pool);
+  }
+  return pool;
+}
+
 export default function MonacoSurface({
   documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
   split = false, splitPercent = 50, onSplitPercent, onActions, onCursor, onLanguageReport, onNavigateSource,
 }: Props) {
+  const modelPool = modelPoolFor(documents, settings.tabSize);
+  const ownerKey = useRef(crypto.randomUUID()).current;
   const host = useRef<HTMLDivElement>(null);
   const secondaryHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
   const secondaryRef = useRef<editor.IStandaloneCodeEditor>(null);
   const commandEditor = useRef<editor.IStandaloneCodeEditor>(null);
   const secondaryViews = useRef(new Map<string, editor.ICodeEditorViewState>());
-  const cache = useRef(new Map<string, CachedModel>());
+  const localViews = useRef(new Map<string, editor.ICodeEditorViewState>());
   const displayed = useRef<string | null>(null);
   const initialSettings = useRef(settings);
   const sourceHiddenRef = useRef(sourceHidden);
@@ -156,7 +144,6 @@ export default function MonacoSurface({
   useEffect(() => {
     if (sourceHidden) activeFormat.current?.abort('view');
   }, [sourceHidden]);
-  const tabSizeRef = useRef(settings.tabSize);
   const [loaded, setLoaded] = useState<string | null>(null);
   const id = tab?.id ?? null;
   const [languageStatus, setLanguageStatus] = useState<string | null>(null);
@@ -170,7 +157,6 @@ export default function MonacoSurface({
 
   useEffect(() => {
     if (!host.current) return;
-    const models = cache.current;
     const instance = editor.create(host.current, {
       model: null,
       automaticLayout: true,
@@ -219,32 +205,10 @@ export default function MonacoSurface({
     const scrollListener = instance.onDidScrollChange(({ scrollTopChanged, scrollLeftChanged }) => {
       if (scrollTopChanged || scrollLeftChanged) rememberActiveView();
     });
-    const drop = (id: string) => {
-      const cached = models.get(id);
-      if (cached) {
-        if (instance.getModel() === cached.model) {
-          displayed.current = null;
-          instance.setModel(null);
-        }
-        cached.listener.dispose();
-        discardModel(cached.model);
-        models.delete(id);
-      }
-    };
-
-    documents.attachModels({
-      getText(id) {
-        const model = models.get(id)?.model;
-        return model ? textOf(model) : undefined;
-      },
-      getTextPrefix(id, length) {
-        const model = models.get(id)?.model;
-        if (!model) return;
-        if (model.getValueLength() <= length) return model.getValue();
-        const end = model.getPositionAt(length);
-        return model.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: end.lineNumber, endColumn: end.column });
-      },
-      drop,
+    const unregister = modelPool.register((id) => {
+      if (displayed.current !== id || instance.getModel() !== modelPool.get(id)) return;
+      displayed.current = null;
+      instance.setModel(null);
     });
     const opener = editor.registerEditorOpener({
       openCodeEditor(source, resource, location) {
@@ -324,7 +288,7 @@ export default function MonacoSurface({
       insertStarter({ text, line, column }) {
         const id = documents.getSnapshot().activeId;
         const model = instance.getModel();
-        if (!id || !model || models.get(id)?.model !== model || sourceHiddenRef.current
+        if (!id || !model || modelPool.get(id) !== model || sourceHiddenRef.current
           || model.getValueLength(undefined, true) !== 0 || !text) return false;
         instance.pushUndoStop();
         const inserted = instance.executeEdits('ion-insert-starter', [{
@@ -412,16 +376,15 @@ export default function MonacoSurface({
       cursorListener.dispose();
       scrollListener.dispose();
       focusListener.dispose();
+      unregister();
+      if (displayed.current) modelPool.release(displayed.current, ownerKey);
       displayed.current = null;
       instance.setModel(null);
-      for (const [id, cached] of models) releaseModel(documents, id, cached);
-      models.clear();
-      documents.attachModels(null);
       instance.dispose();
       editorRef.current = null;
       commandEditor.current = null;
     };
-  }, [documents, onActions, onCursor]);
+  }, [documents, modelPool, onActions, onCursor, ownerKey]);
 
   useEffect(() => clearEditorTheme, []);
 
@@ -471,9 +434,8 @@ export default function MonacoSurface({
     };
   }, [split, id, loaded, fontSize, lineNumbers, wordWrap, onCursor]);
   useEffect(() => {
-    tabSizeRef.current = tabSize;
-    for (const { model } of cache.current.values()) model.updateOptions({ tabSize });
-  }, [tabSize]);
+    modelPool.updateTabSize(tabSize);
+  }, [modelPool, tabSize]);
 
   const epoch = tab?.epoch ?? 0;
   const capability = fileLanguage(tab?.name ?? '');
@@ -485,13 +447,11 @@ export default function MonacoSurface({
   useEffect(() => {
     const instance = editorRef.current;
     if (!instance) return;
-    const models = cache.current;
     const oldId = displayed.current;
     if (oldId && oldId !== id) {
-      const previous = models.get(oldId);
-      if (previous && instance.getModel() === previous.model) {
-        previous.view = instance.saveViewState() ?? undefined;
-      }
+      const view = instance.saveViewState();
+      if (view) localViews.current.set(oldId, view);
+      modelPool.release(oldId, ownerKey);
     }
     displayed.current = null;
     if (!id) {
@@ -504,35 +464,20 @@ export default function MonacoSurface({
 
     async function show() {
       if (!instance) return;
-      let cached = models.get(tabId);
-      if (!cached) {
-        instance.setModel(null);
-        setLoaded(null);
-        let value: string;
-        try {
-          value = await documents.loadText(tabId);
-        } catch {
-          return;
-        }
-        if (cancelled || !documents.getSnapshot().tabs.some((entry) => entry.id === tabId && entry.epoch === epoch)) return;
-        // Monaco retains bounded edit deltas for file-model URIs and restores
-        // them only when the recreated buffer matches. This URI is a tab key.
-        const uri = Uri.file(`/ion/editor/${tabId}/${epoch}`);
-        const model = editor.createModel(value, language, uri);
-        model.updateOptions({ tabSize: tabSizeRef.current, insertSpaces: true });
-        cached = { model, listener: model.onDidChangeContent(() => documents.changed(tabId)) };
-        models.set(tabId, cached);
-        documents.modelReady(tabId);
-      } else {
-        if (cached.model.getLanguageId() !== language) editor.setModelLanguage(cached.model, language);
-        models.delete(tabId);
-        models.set(tabId, cached);
+      instance.setModel(null);
+      setLoaded(null);
+      const selected = documents.getSnapshot().tabs.find((entry) => entry.id === tabId && entry.epoch === epoch);
+      if (!selected) return;
+      const model = await modelPool.acquire(selected, language, ownerKey);
+      if (!model || cancelled || !documents.getSnapshot().tabs.some((entry) => entry.id === tabId && entry.epoch === epoch)) {
+        if (model) modelPool.release(tabId, ownerKey);
+        return;
       }
-      if (instance.getModel() !== cached.model) {
-        instance.setModel(cached.model);
-        if (cached.view) {
-          instance.restoreViewState(cached.view);
-          cached.view = undefined;
+      if (instance.getModel() !== model) {
+        instance.setModel(model);
+        const localView = localViews.current.get(tabId);
+        if (localView) {
+          instance.restoreViewState(localView);
         } else {
           const previousView = documents.getEditorView(tabId);
           if (previousView) {
@@ -542,16 +487,9 @@ export default function MonacoSurface({
         }
       }
       const cursor = documents.takeInitialCursor(tabId);
-      if (cursor) revealLocation(instance, cached.model, cursor.line, cursor.column);
+      if (cursor) revealLocation(instance, model, cursor.line, cursor.column);
       displayed.current = tabId;
       if (!sourceHiddenRef.current) rememberView(documents, tabId, instance);
-      while (models.size > MODEL_LIMIT) {
-        const first = models.entries().next().value;
-        if (!first) break;
-        const [old, item] = first;
-        releaseModel(documents, old, item);
-        models.delete(old);
-      }
       const position = instance.getPosition();
       if (position) onCursor(position.lineNumber, position.column);
       if (!sourceHiddenRef.current) instance.focus();
@@ -560,7 +498,7 @@ export default function MonacoSurface({
 
     void show();
     return () => { cancelled = true; };
-  }, [documents, id, language, epoch, onCursor]);
+  }, [documents, id, language, epoch, modelPool, onCursor, ownerKey]);
 
   useEffect(() => {
     editorRef.current?.updateOptions({
