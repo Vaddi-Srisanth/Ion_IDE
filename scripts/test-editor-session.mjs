@@ -235,7 +235,13 @@ await withScratch('editor-group-session', async (scratch) => {
       'The second workspace root was not added.')
     await stubDialogs(first.app, { save: workspaceConfiguration })
     await first.page.getByRole('button', { name: 'Save workspace configuration' }).click()
-    await eventually(async () => JSON.parse(await readFile(workspaceConfiguration, 'utf8')).roots.length === 2,
+    await eventually(async () => {
+      const stored = await readFile(workspaceConfiguration, 'utf8').catch((error) => {
+        if (error?.code === 'ENOENT') return null
+        throw error
+      })
+      return stored !== null && JSON.parse(stored).roots.length === 2
+    },
       'The reviewed workspace configuration was not saved.')
     await openFromExplorer(first.page, firstPath, 'int first')
     await atPath(first.page, 'explorer-entry', firstPath).dblclick()
