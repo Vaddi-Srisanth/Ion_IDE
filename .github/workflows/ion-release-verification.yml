@@ -141,23 +141,6 @@ jobs:
           if (Test-Path (Join-Path $llvm 'clangd.exe')) { $llvm >> $env:GITHUB_PATH }
           elseif (!(Get-Command clangd -ErrorAction SilentlyContinue)) { throw 'clangd is unavailable.' }
           Get-Command java, javac, python, mvn, gradle, git
-      - name: Pin GCC first for production discovery
-        shell: pwsh
-        run: |
-          $gcc = 'C:\mingw64\bin'
-          # GITHUB_PATH does not guarantee precedence over runner-image LLVM.
-          # Persist a final explicit GCC-first PATH after all tool additions.
-          "PATH=$gcc;$env:PATH" >> $env:GITHUB_ENV
-      - name: Verify GCC-first production discovery
-        shell: pwsh
-        run: |
-          $expected = 'C:\mingw64\bin'
-          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
-          $gxx = (Get-Command g++.exe -ErrorAction Stop).Source
-          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
-          if ((Split-Path $gxx) -ne $expected) { throw "Unexpected C++ compiler: $gxx" }
-          & $gcc --version
-          & $gxx --version
       - name: Install optional formatter for desktop fixtures
         shell: pwsh
         run: |
@@ -165,6 +148,21 @@ jobs:
           npm install --global --prefix $tools --ignore-scripts --no-audit --no-fund prettier@3.6.2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $tools >> $env:GITHUB_PATH
+      - name: Pin and verify GCC first for production discovery
+        shell: pwsh
+        run: |
+          $expected = 'C:\mingw64\bin'
+          # This must run after every GITHUB_PATH mutation. Otherwise the
+          # assertion can validate a different PATH from the test process.
+          $remaining = ($env:PATH -split ';' | Where-Object { $_ -and $_ -ne $expected }) -join ';'
+          "PATH=$expected;$remaining" >> $env:GITHUB_ENV
+          $env:PATH = "$expected;$remaining"
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          $gxx = (Get-Command g++.exe -ErrorAction Stop).Source
+          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
+          if ((Split-Path $gxx) -ne $expected) { throw "Unexpected C++ compiler: $gxx" }
+          & $gcc --version
+          & $gxx --version
       - name: Verify native filesystem conflicts and scoped mutation
         run: npm test -- workspace-files-windows file-mutation-races
       - name: Run portable and Windows-specific unit tests
