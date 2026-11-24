@@ -11,7 +11,7 @@ concurrency:
 jobs:
   editor-windows:
     runs-on: windows-2022
-    timeout-minutes: 25
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -34,14 +34,16 @@ jobs:
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-editor-windows/typecheck.log
           npm run build 2>&1 | tee performance-results/phase2-editor-windows/build.log
-      - name: Native Windows editor and file-integrity unit acceptance
-        run: node scripts/test.mjs shortcuts documents workspace-search workspace-files-windows 2>&1 | tee performance-results/phase2-editor-windows/unit.log
+      - name: Full native Windows unit, security, recovery and backup regression
+        run: npm test 2>&1 | tee performance-results/phase2-editor-windows/unit.log
       - name: Native Windows production editor workflow
         run: npm run test:keyboard 2>&1 | tee performance-results/phase2-editor-windows/keyboard.log
       - name: Session, recovery and model-retention regression
         run: npm run test:editor-session 2>&1 | tee performance-results/phase2-editor-windows/session.log
       - name: Ten split lifecycle cycles with native process-tree resources
         run: node scripts/benchmark-editor-split.mjs --target dist --label windows-native --rounds 10 --settle 700 2>&1 | tee performance-results/phase2-editor-windows/metrics.log
+      - name: Multi-root, tabs, groups, search, replace and restore resources
+        run: node scripts/benchmark-editor-foundations.mjs --target dist --label windows-native --cycles 5 --settle 700 2>&1 | tee performance-results/phase2-editor-windows/foundations.log
       - name: Collect bounded sanitized evidence
         if: always()
         shell: pwsh
@@ -58,6 +60,10 @@ jobs:
           }
           Get-ChildItem -LiteralPath (Join-Path $PWD 'performance-results') -Filter 'editor-split-windows-native-*.json' -File | ForEach-Object {
             if ($_.Length -gt 16777216) { throw "Metrics exceeded 16 MiB" }
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $safe $_.Name)
+          }
+          Get-ChildItem -LiteralPath (Join-Path $PWD 'performance-results') -Filter 'editor-foundations-windows-native-*.json' -File | ForEach-Object {
+            if ($_.Length -gt 16777216) { throw "Foundation metrics exceeded 16 MiB" }
             Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $safe $_.Name)
           }
           if (!(Get-ChildItem -LiteralPath $safe -File)) { throw 'No evidence was collected.' }
