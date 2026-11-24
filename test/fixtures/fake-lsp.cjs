@@ -20,7 +20,9 @@ process.stdin.on('data', chunk => {
       (message.method || (message.id === 99 && message.result && message.result.applied === false ? 'apply-rejected' : 'response')) + '\n')
     buffer = buffer.subarray(end)
     if (message.method === 'initialize') send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {} } })
-    else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: { changes: {} } } })
+    else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: {
+      changes: { 'file:///outside/not-authorized.c': [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: 'unsafe' }] },
+    } } })
     else if (message.method === 'ion/echo') send({ jsonrpc: '2.0', id: message.id, result: message.params })
     else if (message.method === 'ion/huge') process.stdout.write('Content-Length: 9000000\r\n\r\n')
     else if (message.method === 'shutdown') send({ jsonrpc: '2.0', id: message.id, result: null })

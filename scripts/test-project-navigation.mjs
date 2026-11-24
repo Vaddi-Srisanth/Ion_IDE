@@ -5,9 +5,9 @@ import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
   artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, openFromExplorer,
-  resourceSnapshot, stubDialogs, withScratch,
+  cpuPercent, resourceSnapshot, sleep, stubDialogs, withScratch,
 } from './desktop-harness.mjs'
-import { windowsProcessTree } from './windows/process-tree.mjs'
+import { windowsProcessTree, windowsTreeCPU } from './windows/process-tree.mjs'
 
 const snapshot = process.platform === 'win32' ? windowsProcessTree : resourceSnapshot
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
@@ -99,11 +99,14 @@ await withScratch('project-navigation', async (scratch) => {
     await settings.waitFor({ state: 'detached' })
     assert.deepEqual(await clangd(), [], 'Opening a source with Smart C/C++ enabled must not start clangd')
 
+    const beforeClangd = await snapshot(session, { details: true })
+    const clangdStart = performance.now()
     const symbol = page.locator('.monaco-editor .view-lines').getByText('increment', { exact: true }).first()
     await symbol.click()
     await page.keyboard.press('F12')
     await atPath(page, 'tab', header).waitFor()
     await editorShows(page, 'static inline int increment')
+    const definitionMs = performance.now() - clangdStart
     assert.match(await page.locator('.editor-breadcrumb').innerText(), /project\/include\/arithmetic\.h/)
     const goBack = page.getByRole('button', { name: 'Go Back', exact: true })
     const goForward = page.getByRole('button', { name: 'Go Forward', exact: true })
@@ -127,6 +130,9 @@ await withScratch('project-navigation', async (scratch) => {
 
     const workers = await clangd()
     assert.equal(workers.length, 1)
+    const activeA = await snapshot(session, { details: true })
+    await sleep(750)
+    const activeB = await snapshot(session, { details: true })
     if (process.platform === 'darwin') {
       const probe = join(scratch, 'proc-rusage')
       execFileSync('/usr/bin/clang', ['-O2', 'scripts/benchmark-resources-probe.c', '-o', probe])
@@ -138,13 +144,23 @@ await withScratch('project-navigation', async (scratch) => {
     await page.keyboard.press('F12')
     await editorShows(page, 'static inline int increment')
     assert.equal((await clangd()).length, 1, 'C and C++ reuse the workspace clangd process')
+    const stopStart = performance.now()
     await atPath(page, 'close-tab', cpp).click()
     await atPath(page, 'close-tab', header).click()
     await atPath(page, 'close-tab', project.program).click()
     await eventually(async () => (await clangd()).length === 0, 'clangd remained after closing its last source.')
+    const shutdownObservedMs = performance.now() - stopStart
+    const afterClangd = await snapshot(session, { details: true })
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
     completed = true
+    console.log(JSON.stringify({ definitionMs: Number(definitionMs.toFixed(2)),
+      startProcessCount: beforeClangd.members.length, activeProcessCount: activeB.members.length,
+      afterProcessCount: afterClangd.members.length,
+      serviceMemoryMiB: process.platform === 'win32' ? Number((workers[0].workingSet / 1024 ** 2).toFixed(2)) : workers[0].rssMiB,
+      servicePrivateMiB: process.platform === 'win32' ? Number((workers[0].privateBytes / 1024 ** 2).toFixed(2)) : null,
+      activeCpuPercent: Number((process.platform === 'win32' ? windowsTreeCPU(activeA, activeB) : cpuPercent(activeA, activeB)).toFixed(2)),
+      shutdownObservedMs: Number(shutdownObservedMs.toFixed(2)) }))
     console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
   } catch (error) {
     primaryError = error

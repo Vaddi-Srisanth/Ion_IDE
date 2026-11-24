@@ -84,3 +84,36 @@ test('language manager stops an inactive service without an editor disposal even
   assert.equal(stops, 1)
   assert.equal(manager.statuses().at(-1)?.state, 'stopped')
 })
+
+test('workspace removal cancels an active request and drains its owned service', async () => {
+  let complete!: (value: { version: number; rows: string[][] }) => void
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: item => new Promise(resolve => { complete = value => resolve({ ...value, version: item.version }) }),
+    stop: async () => { stops++ },
+  }))
+  const pending = manager.query(descriptor('/removed'), { ...snapshot(), path: '/removed/a.c' })
+  await new Promise(resolve => setImmediate(resolve))
+  const releasing = manager.release(true)
+  complete({ version: 1, rows: [['must-not-escape']] })
+  assert.equal(await pending, null)
+  await releasing
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})
+
+test('repeated start and stop cycles retain no active service', async () => {
+  let starts = 0, stops = 0
+  const manager = new LanguageServiceManager(async () => {
+    starts++
+    return { closed: false, query: async item => ({ version: item.version, rows: [] }), stop: async () => { stops++ } }
+  })
+  for (let cycle = 1; cycle <= 5; cycle++) {
+    await manager.query(descriptor(), snapshot(cycle))
+    await manager.release(true)
+  }
+  assert.equal(starts, 5)
+  assert.equal(stops, 5)
+  assert.equal(manager.statuses().filter(({ state }) => state !== 'stopped').length, 0)
+})

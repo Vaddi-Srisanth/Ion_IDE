@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.22.2
@@ -35,6 +36,10 @@ jobs:
           node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-language-services/revision.log
       - run: npm ci
       - run: node node_modules/electron/install.js
+      - name: Prove production application identity
+        run: |
+          test "$(git rev-parse e155323564174a185a42b9f56755f09e09cfba84)" = e155323564174a185a42b9f56755f09e09cfba84
+          git diff --exit-code e155323564174a185a42b9f56755f09e09cfba84 HEAD -- src package.json package-lock.json
       - name: Install pinned disposable Python and TypeScript servers
         run: npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0
       - name: Select trusted host clangd and record every tool version
@@ -82,6 +87,9 @@ jobs:
       - name: Matched Mac unused-feature resource comparison
         if: runner.os == 'macOS'
         run: node scripts/benchmark.mjs --compare "$ION_LSP_BASELINE" --target dist --trials 3 --scenarios 3 --idle-seconds 3 --executions 3 --out performance-results/phase2-language-services 2>&1 | tee performance-results/phase2-language-services/benchmark.log
+      - name: Matched Mac Java adapter resources
+        if: runner.os == 'macOS'
+        run: node scripts/benchmark-java-tools.mjs --baseline "$ION_LSP_BASELINE" --target dist --trials 1 --out performance-results/phase2-language-services/java-resources.json 2>&1 | tee performance-results/phase2-language-services/java-resources.log
       - name: Preserve bounded sanitized evidence
         if: always()
         run: |
