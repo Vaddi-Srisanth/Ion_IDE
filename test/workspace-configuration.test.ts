@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { defaultSettings } from '../src/shared/contracts'
 import { readWorkspaceConfiguration, validateWorkspaceConfiguration, writeWorkspaceConfiguration } from '../src/main/workspace-configuration'
@@ -23,10 +23,12 @@ test('workspace configurations persist only bounded editor preferences and expli
 
 test('workspace configurations reject duplicate, relative, oversized, and executable metadata', () => {
   const settings = { fontSize: 13, tabSize: 4, wordWrap: false, lineNumbers: true, showExplorer: true, explorerWidth: 260 }
+  const duplicate = resolve(tmpdir(), 'ion-workspace-duplicate')
   assert.throws(() => validateWorkspaceConfiguration({ version: 1, roots: ['relative'], settings }), /folder path/)
-  assert.throws(() => validateWorkspaceConfiguration({ version: 1, roots: ['/one', '/one'], settings }), /Duplicate/)
-  assert.throws(() => validateWorkspaceConfiguration({ version: 1, roots: Array(9).fill(0).map((_, index) => `/root-${index}`), settings }), /Invalid/)
-  const parsed = validateWorkspaceConfiguration({ version: 1, roots: ['/one'], settings,
+  assert.throws(() => validateWorkspaceConfiguration({ version: 1, roots: [duplicate, duplicate], settings }), /Duplicate/)
+  assert.throws(() => validateWorkspaceConfiguration({ version: 1,
+    roots: Array.from({ length: 9 }, (_, index) => resolve(tmpdir(), `ion-workspace-root-${index}`)), settings }), /Invalid/)
+  const parsed = validateWorkspaceConfiguration({ version: 1, roots: [duplicate], settings,
     trust: { run: true }, tasks: [{ command: 'danger' }], credentials: 'secret' })
   assert.deepEqual(Object.keys(parsed).sort(), ['roots', 'settings', 'version'])
 })
