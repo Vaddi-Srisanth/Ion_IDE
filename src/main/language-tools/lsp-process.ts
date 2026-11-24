@@ -22,6 +22,7 @@ export interface LspProcessOptions {
 export class LspProcess {
   private readonly connection: MessageConnection
   private readonly closed: Promise<void>
+  private readonly exited: Promise<void>
   private stopped = false
   private stopping?: Promise<void>
   private stderrBytes = 0
@@ -29,6 +30,7 @@ export class LspProcess {
   private constructor(private readonly child: ChildProcessWithoutNullStreams) {
     this.connection = createMessageConnection(child.stdout, child.stdin)
     this.closed = new Promise(resolve => child.once('close', () => resolve()))
+    this.exited = new Promise(resolve => child.once('exit', () => resolve()))
     child.stderr.on('data', (chunk: Buffer) => {
       this.stderrBytes += chunk.byteLength
       if (this.stderrBytes > stderrLimit) this.child.stderr.pause()
@@ -36,6 +38,9 @@ export class LspProcess {
     child.once('error', () => this.abort())
     child.stdin.once('error', () => this.abort())
     this.connection.onClose(() => this.abort())
+    // A server cannot write files through LSP. Ion applies reviewed edits only
+    // through its own authorized filesystem and Monaco edit paths.
+    this.connection.onRequest('workspace/applyEdit', () => ({ applied: false, failureReason: 'Ion requires user-reviewed workspace edits.' }))
     this.connection.listen()
   }
 
@@ -112,13 +117,16 @@ export class LspProcess {
     // that miss `exit` must still observe EOF rather than remain orphaned.
     this.child.stdin.end()
     await Promise.race([
-      this.closed,
+      this.exited,
       new Promise<void>(resolve => {
         const timer = setTimeout(() => { this.abort(); resolve() }, stopDeadlineMs)
         timer.unref()
       }),
     ])
     this.disposeConnection()
+    this.child.stdin.destroy()
+    this.child.stdout.destroy()
+    this.child.stderr.destroy()
   }
 
   private abort() {

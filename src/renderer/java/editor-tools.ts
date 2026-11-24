@@ -1,5 +1,5 @@
 import { editor, languages, MarkerSeverity, Range, type IDisposable } from 'monaco-editor/editor/editor.api.js';
-import { createToolQuery, sourceNavigationProviders } from '../language-editor-tools';
+import { createToolQuery, sourceNavigationProviders, type LiveToolReport } from '../language-editor-tools';
 import type { ProblemRow } from '../Problems';
 
 const owner = 'ion-java-live';
@@ -22,11 +22,6 @@ const kinds: Record<string, languages.CompletionItemKind> = {
   variable: languages.CompletionItemKind.Variable,
   package: languages.CompletionItemKind.Module,
 };
-
-export interface LiveToolReport {
-  path: string;
-  rows: ProblemRow[];
-}
 
 interface Options {
   smart: boolean;

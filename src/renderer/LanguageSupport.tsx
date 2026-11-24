@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatterFamily, languageCapabilities, languageCapability, type SemanticOperation } from '../shared/languages';
+import type { LanguageToolStatus } from '../shared/language-tools';
 import { Modal } from './Dialogs';
 
 const operationLabels: Record<SemanticOperation, string> = {
@@ -9,7 +10,11 @@ const operationLabels: Record<SemanticOperation, string> = {
 
 export default function LanguageSupport({ initial, onClose }: { initial?: string; onClose(): void }) {
   const [id, setId] = useState(initial && languageCapability(initial) ? initial : 'c');
+  const [statuses, setStatuses] = useState<LanguageToolStatus[]>([]);
+  const refresh = () => window.ion.languageTools.status().then(setStatuses, () => setStatuses([]));
+  useEffect(() => { void refresh(); }, []);
   const language = languageCapability(id)!;
+  const status = statuses.filter((entry) => entry.language === id).at(-1);
   const extensions = (values: readonly string[]) => values.map((ext) => '.' + ext).join(', ');
   const formatExtensions = language.extensions.filter((ext) => formatterFamily('file.' + ext));
   const detail = [
@@ -36,6 +41,13 @@ export default function LanguageSupport({ initial, onClose }: { initial?: string
       <dl>
         {detail.map(([label, value]) => <div className="setting" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
+      {language.semantic && <div className="setting">
+        <span><b>Current service</b><small>{status ? `${status.state}${status.detail ? ` · ${status.detail}` : ''}` : 'Not started'}</small></span>
+        <span className="inline-actions"><button className="button" type="button" onClick={refresh}>Refresh</button>
+          <button className="button" type="button" disabled={!status || status.state === 'stopped'} onClick={() => {
+            void window.ion.languageTools.restart(id).then(refresh);
+          }}>Stop / Restart</button></span>
+      </div>}
     </div>
     <div className="modal-actions"><button className="button primary" type="button" onClick={onClose}>Done</button></div>
   </Modal>;

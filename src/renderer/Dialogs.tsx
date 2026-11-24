@@ -184,6 +184,19 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
             onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'java'] : settings.smartLanguages.filter((id) => id !== 'java') })}/>
         </label>
         <label className="setting">
+          <span><b>Smart Python</b><small>Use an installed Pyright or Python LSP Server. Ion never downloads or starts it until a Python semantic action is requested.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('python')}
+            onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'python'] : settings.smartLanguages.filter((id) => id !== 'python') })}/>
+        </label>
+        <label className="setting">
+          <span><b>Smart JavaScript/TypeScript</b><small>Use an installed TypeScript Language Server on demand. JavaScript and TypeScript share one project service.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('javascript') && settings.smartLanguages.includes('typescript')}
+            onChange={(event) => {
+              const others = settings.smartLanguages.filter((id) => id !== 'javascript' && id !== 'typescript');
+              onChange({ smartLanguages: event.target.checked ? [...others, 'javascript', 'typescript'] : others });
+            }}/>
+        </label>
+        <label className="setting">
           <span><b>Automatic suggestions</b><small>Show language suggestions as you type. Press Ctrl+Space for manual suggestions.</small></span>
           <input type="checkbox" checked={settings.automaticSuggestions}
             onChange={(event) => onChange({ automaticSuggestions: event.target.checked })}/>

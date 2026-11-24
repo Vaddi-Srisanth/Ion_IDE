@@ -1,4 +1,5 @@
 let buffer = Buffer.alloc(0)
+const { appendFileSync } = require('node:fs')
 function send(value) {
   const body = Buffer.from(JSON.stringify(value))
   process.stdout.write(`Content-Length: ${body.length}\r\n\r\n`)
@@ -15,8 +16,11 @@ process.stdin.on('data', chunk => {
     const end = headerEnd + 4 + length
     if (buffer.length < end) return
     const message = JSON.parse(buffer.subarray(headerEnd + 4, end).toString())
+    if (process.env.ION_FAKE_LSP_LOG) appendFileSync(process.env.ION_FAKE_LSP_LOG,
+      (message.method || (message.id === 99 && message.result && message.result.applied === false ? 'apply-rejected' : 'response')) + '\n')
     buffer = buffer.subarray(end)
     if (message.method === 'initialize') send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {} } })
+    else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: { changes: {} } } })
     else if (message.method === 'ion/echo') send({ jsonrpc: '2.0', id: message.id, result: message.params })
     else if (message.method === 'shutdown') send({ jsonrpc: '2.0', id: message.id, result: null })
     else if (message.method === 'exit') process.exit(0)

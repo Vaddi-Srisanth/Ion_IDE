@@ -54,6 +54,8 @@ const bridge: IonBridge = {
   languageTools: {
     query: (snapshot) => ipcRenderer.invoke('ion:language-query', snapshot),
     release: (immediate, language) => ipcRenderer.invoke('ion:language-release', immediate, language),
+    status: () => ipcRenderer.invoke('ion:language-status'),
+    restart: (language) => ipcRenderer.invoke('ion:language-restart', language),
   },
   formatting: {
     run: (request) => ipcRenderer.invoke('ion:format-source', request),

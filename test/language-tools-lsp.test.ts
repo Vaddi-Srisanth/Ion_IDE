@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -18,13 +18,14 @@ test('LSP process host initializes, requests, and stops its owned process', asyn
       executable: process.execPath,
       args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')],
       cwd: scratch,
-      env: { ...process.env },
+      env: { ...process.env, ION_FAKE_LSP_LOG: join(scratch, 'methods.log') },
       root: scratch,
     }, new AbortController().signal)
     assert.ok(host.pid)
     assert.deepEqual(await host.request('ion/echo', { ready: true }), { ready: true })
     await host.stop()
     assert.equal(host.isClosed, true)
+    assert.match(await readFile(join(scratch, 'methods.log'), 'utf8'), /initialized\n.*apply-rejected\n.*shutdown\nexit\n/s)
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }

@@ -38,7 +38,7 @@ import { maxEditableTextBytes } from '../shared/large-text';
 import type { FormatResult } from '../shared/format-code';
 import type { ThemeData } from '../shared/themes';
 import { Documents, type Tab } from './documents';
-import type { LiveToolReport } from './java/editor-tools';
+import type { LiveToolReport } from './language-editor-tools';
 import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
 import { sourcePathFromUri } from '../shared/source-path';
@@ -448,7 +448,8 @@ export default function MonacoSurface({
   const java = capability.id === 'java' && !sourceHidden;
   const semantic = !sourceHidden && settings.smartLanguages.includes(capability.id) ? capability.semantic : undefined;
   const smart = java && Boolean(semantic);
-  const automaticSuggestions = java && settings.automaticSuggestions;
+  const semanticEnabled = Boolean(semantic);
+  const automaticSuggestions = semanticEnabled && settings.automaticSuggestions;
   useEffect(() => {
     const instance = editorRef.current;
     if (!instance) return;
@@ -509,11 +510,11 @@ export default function MonacoSurface({
     editorRef.current?.updateOptions({
       quickSuggestions: automaticSuggestions ? { other: 'on', comments: 'off', strings: 'off' } : false,
       suggestOnTriggerCharacters: automaticSuggestions,
-      parameterHints: { enabled: Boolean(smart) },
-      renderValidationDecorations: smart ? 'on' : 'off',
+      parameterHints: { enabled: semanticEnabled },
+      renderValidationDecorations: semanticEnabled ? 'on' : 'off',
       lightbulb: { enabled: editor.ShowLightbulbIconMode.Off },
     });
-  }, [automaticSuggestions, smart]);
+  }, [automaticSuggestions, semanticEnabled]);
 
   const path = tab?.path;
   useEffect(() => {
@@ -529,12 +530,17 @@ export default function MonacoSurface({
         tools = attachJavaTools(instance, model, {
           smart, path: path ?? undefined, onReport: onLanguageReport, onStatus: setLanguageStatus,
         });
-      } else if (semantic?.adapter === 'clangd' && path) {
-        const { attachSourceNavigation } = await import('./language-editor-tools');
+      } else if (semantic && path) {
+        const { attachLspTools, attachSourceNavigation } = await import('./language-editor-tools');
         if (cancelled || instance.getModel() !== model) return;
-        tools = attachSourceNavigation(instance, model, {
-          language: capability.id, label: 'Smart C/C++', path, onStatus: setLanguageStatus,
-        });
+        tools = semantic.adapter === 'clangd'
+          ? attachSourceNavigation(instance, model, { language: capability.id, label: 'Smart C/C++', path, onStatus: setLanguageStatus })
+          : attachLspTools(instance, model, {
+            language: capability.id, label: `Smart ${capability.label}`, path,
+            diagnostics: semantic.operations.includes('diagnostics'), complete: semantic.operations.includes('complete'),
+            signature: semantic.operations.includes('signature'), hover: semantic.operations.includes('hover'),
+            onReport: onLanguageReport, onStatus: setLanguageStatus,
+          });
       }
     };
     void attach().catch(() => { if (!cancelled) setLanguageStatus('Language tools could not be loaded.'); });
@@ -580,7 +586,7 @@ export default function MonacoSurface({
           if (delta) { event.preventDefault(); onSplitPercent?.(Math.max(25, Math.min(75, splitPercent + delta))); }
           if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); onSplitPercent?.(event.key === 'Home' ? 25 : 75); }
         }}/><div className="secondary-monaco-host" ref={secondaryHost}/></>}
-      {java && languageStatus && <div className="java-tool-status" role="status">{languageStatus}</div>}
+      {semanticEnabled && languageStatus && <div className="java-tool-status" role="status">{languageStatus}</div>}
       {tab && loaded !== tab.id && (
         <div className="editor-loading" role={tab.error ? 'alert' : 'status'}>
           {tab.error

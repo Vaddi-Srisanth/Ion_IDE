@@ -10,7 +10,7 @@ import { Icon } from './icons';
 import { loadEditor, loadedEditor } from './load-editor';
 import type MonacoSurface from './MonacoSurface';
 import type { EditorActions } from './MonacoSurface';
-import type { LiveToolReport } from './java/editor-tools';
+import type { LiveToolReport } from './language-editor-tools';
 import { Output } from './Output';
 import { Problems, type ProblemMarker, type ProblemRow } from './Problems';
 import type { RunConsoleStore } from './run-console/store';
@@ -556,7 +556,8 @@ export function Workbench(props: WorkbenchProps) {
     '--explorer-width': `${settings.explorerWidth}px`,
     '--output-height': `${settings.outputHeight}px`, ...(hidden && { display: 'none' }),
   } as CSSProperties;
-  const live = settings.smartLanguages.includes('java') && languageReport && activeCode?.path === languageReport.path ? languageReport : null;
+  const live = activeCode && settings.smartLanguages.includes(fileLanguage(activeCode.name).id)
+    && languageReport && activeCode.path === languageReport.path ? languageReport : null;
   const bottomTabs = <BottomTabs active={bottomTab} count={problemRows.length + (live?.rows.length ?? 0)} onSelect={onBottomTab}/>;
   return (
     <>

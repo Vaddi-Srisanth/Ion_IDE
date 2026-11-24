@@ -69,6 +69,9 @@ test('all bundled learning, diagnostic, practice, and semantic claims match thei
   assert.deepEqual(languageCapabilities.flatMap(({ id, semantic }) => semantic ? [[id, semantic.adapter, ...semantic.operations]] : []), [
     ['c', 'clangd', 'definition', 'references'], ['cpp', 'clangd', 'definition', 'references'],
     ['java', 'java', 'diagnostics', 'complete', 'signature', 'definition', 'references'],
+    ['python', 'python-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
+    ['javascript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
+    ['typescript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
   ])
   assert.ok(languageCapabilities.every(({ debugAdapter, quizzes }) => !debugAdapter && !quizzes))
 })

@@ -1,6 +1,7 @@
-import { editor, languages, Range, Uri, type Position } from 'monaco-editor/editor/editor.api.js';
+import { editor, languages, MarkerSeverity, Range, Uri, type Position } from 'monaco-editor/editor/editor.api.js';
 import { toolTextLimit, type SourceReference, type ToolOperation } from '../shared/language-tools';
 import { errorMessage } from './documents';
+import type { ProblemRow } from './Problems';
 
 const encoder = new TextEncoder();
 type Query = (operation: ToolOperation, position?: Position, cancelled?: () => boolean) => Promise<string[][] | undefined>;
@@ -71,6 +72,107 @@ export function attachSourceNavigation(instance: editor.IStandaloneCodeEditor, m
     dispose() {
       active = false;
       handles.forEach((handle) => handle.dispose());
+      void window.ion.languageTools.release(false, options.language).catch(() => {});
+    },
+  };
+}
+
+export interface LiveToolReport {
+  path: string;
+  rows: ProblemRow[];
+}
+
+const completionKinds: Record<number, languages.CompletionItemKind> = {
+  2: languages.CompletionItemKind.Method, 3: languages.CompletionItemKind.Function,
+  4: languages.CompletionItemKind.Constructor, 5: languages.CompletionItemKind.Field,
+  6: languages.CompletionItemKind.Variable, 7: languages.CompletionItemKind.Class,
+  8: languages.CompletionItemKind.Interface, 9: languages.CompletionItemKind.Module,
+  10: languages.CompletionItemKind.Property, 13: languages.CompletionItemKind.Enum,
+  14: languages.CompletionItemKind.Keyword, 15: languages.CompletionItemKind.Snippet,
+  21: languages.CompletionItemKind.Constant, 22: languages.CompletionItemKind.Struct,
+};
+
+export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: editor.ITextModel, options: {
+  language: string; label: string; path: string; diagnostics: boolean; complete: boolean; signature: boolean; hover: boolean;
+  onReport(report: LiveToolReport | null): void; onStatus(status: string | null): void;
+}) {
+  let active = true;
+  let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+  const owner = `ion-lsp-${options.language}`;
+  const current = () => active && !model.isDisposed() && instance.getModel() === model;
+  const query = createToolQuery(model, current, options);
+  const handles = sourceNavigationProviders(model, options.path, query);
+
+  if (options.complete) handles.push(languages.registerCompletionItemProvider(model.getLanguageId(), {
+    triggerCharacters: ['.', ':'],
+    async provideCompletionItems(item, position, _context, token) {
+      if (item !== model) return { suggestions: [] };
+      const word = model.getWordUntilPosition(position);
+      const range = new Range(position.lineNumber, word.startColumn, position.lineNumber,
+        model.getWordAtPosition(position)?.endColumn ?? position.column);
+      const rows = await query('complete', position, () => token.isCancellationRequested);
+      return { suggestions: (rows ?? []).flatMap(([label, kind, detail, insertText]) => label ? [{
+        label, kind: completionKinds[Number(kind)] ?? languages.CompletionItemKind.Text,
+        detail, insertText: insertText || label, range,
+      }] : []) };
+    },
+  }));
+
+  if (options.signature) handles.push(languages.registerSignatureHelpProvider(model.getLanguageId(), {
+    signatureHelpTriggerCharacters: ['(', ','],
+    async provideSignatureHelp(item, position, token) {
+      if (item !== model) return null;
+      const rows = await query('signature', position, () => token.isCancellationRequested);
+      if (!rows?.length) return null;
+      return { value: { activeSignature: 0, activeParameter: Number(rows[0][0]) || 0,
+        signatures: rows.map(([, label, ...parameters]) => ({ label, parameters: parameters.map(label => ({ label })) })) }, dispose() {} };
+    },
+  }));
+
+  if (options.hover) handles.push(languages.registerHoverProvider(model.getLanguageId(), {
+    async provideHover(item, position, token) {
+      if (item !== model) return null;
+      const rows = await query('hover', position, () => token.isCancellationRequested);
+      return rows?.[0]?.[1] ? { contents: [{ value: rows[0][1] }] } : null;
+    },
+  }));
+
+  function diagnostics() {
+    clearTimeout(diagnosticTimer);
+    if (!options.diagnostics) return;
+    diagnosticTimer = setTimeout(async () => {
+      const rows = await query('diagnostics');
+      if (!rows || !current()) return;
+      const markers: editor.IMarkerData[] = [];
+      const problems: ProblemRow[] = [];
+      for (const [level, start, end, message, source] of rows) {
+        const offset = Number(start), finish = Number(end);
+        if (!Number.isSafeInteger(offset) || offset < 0 || offset > model.getValueLength() || !message) continue;
+        const from = model.getPositionAt(offset);
+        const to = model.getPositionAt(Number.isSafeInteger(finish) && finish > offset ? finish : offset + 1);
+        const severity = level === 'error' ? MarkerSeverity.Error : level === 'warning' ? MarkerSeverity.Warning : MarkerSeverity.Info;
+        markers.push({ startLineNumber: from.lineNumber, startColumn: from.column, endLineNumber: to.lineNumber,
+          endColumn: to.column, severity, message, source: `${source || options.label} · ${level}` });
+        problems.push({ problem: { raw: message, severity: level === 'error' || level === 'warning' ? level : 'note',
+          location: { file: options.path, line: from.lineNumber, column: from.column } }, canReveal: true });
+      }
+      editor.setModelMarkers(model, owner, markers);
+      options.onReport({ path: options.path, rows: problems });
+    }, 400);
+  }
+  if (options.diagnostics) {
+    handles.push(model.onDidChangeContent(diagnostics));
+    diagnostics();
+  }
+
+  return {
+    dispose() {
+      active = false;
+      clearTimeout(diagnosticTimer);
+      handles.forEach(handle => handle.dispose());
+      if (!model.isDisposed()) editor.setModelMarkers(model, owner, []);
+      options.onReport(null);
+      options.onStatus(null);
       void window.ion.languageTools.release(false, options.language).catch(() => {});
     },
   };

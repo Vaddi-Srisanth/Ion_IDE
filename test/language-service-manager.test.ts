@@ -23,7 +23,7 @@ test('language manager is inert until the first request and isolates workspace r
   assert.equal(manager.statuses().length, 2)
   await manager.release(true)
   assert.equal(stops, 2)
-  assert.deepEqual(manager.statuses(), [])
+  assert.equal(manager.statuses().filter(status => status.state === 'stopped').length, 2)
 })
 
 test('language manager rejects stale adapter versions', async () => {

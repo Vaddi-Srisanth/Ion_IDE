@@ -106,6 +106,10 @@ const languageServices = new LanguageServiceManager(async (descriptor: LanguageS
     const { ClangdService } = await import('./language-tools/clangd')
     return ClangdService.start(descriptor.root, descriptor.path, signal)
   }
+  if (descriptor.adapter === 'python-lsp' || descriptor.adapter === 'typescript-lsp') {
+    const { ExternalLspService } = await import('./language-tools/lsp-adapter')
+    return ExternalLspService.start(descriptor.adapter, descriptor.root, descriptor.path, signal)
+  }
   throw new Error('No language service adapter is available for this language.')
 })
 let formatJob: { id: string; controller: AbortController; done: Promise<FormatResult> } | undefined
@@ -1129,6 +1133,11 @@ function registerIpc(): void {
     return result
   })
   handle('language-query', queryLanguage)
+  handle('language-status', () => languageServices.statuses())
+  handle('language-restart', (_target, language) => {
+    if (language !== undefined && typeof language !== 'string') throw new Error('Invalid language service restart request.')
+    return languageServices.release(true, language)
+  })
   handle('format-source', formatDocument)
   handle('format-cancel', (_target, id) => {
     if (typeof id === 'string' && formatJob?.id === id) formatJob.controller.abort()
