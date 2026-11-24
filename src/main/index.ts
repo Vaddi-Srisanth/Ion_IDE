@@ -1079,6 +1079,9 @@ function registerIpc(): void {
   function workspaceChanged(previous: string | null, force = false) {
     if (!force && previous === files.rootPath) return
     cancelExplanations()
+    // Workspace grants define every language-service filesystem boundary.
+    // Stop existing sessions before any request can reuse stale root state.
+    void languageServices.release(true)
     void projectLensService?.then(service => service.close(), () => undefined)
     trustedGitRoot = undefined
     void closeSourceControl()

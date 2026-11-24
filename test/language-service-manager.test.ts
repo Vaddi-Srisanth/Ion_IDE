@@ -62,3 +62,25 @@ test('language manager cancels a renderer-owned request without stopping the reu
   assert.equal(manager.statuses().at(-1)?.state, 'ready')
   await manager.stopAll()
 })
+
+test('language manager stops an inactive service without an editor disposal event', async () => {
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    executable: '/trusted/fake',
+    version: '1.0',
+    capabilities: ['definition'],
+    query: async item => ({ version: item.version, rows: [] }),
+    stop: async () => { stops++ },
+  }), Date.now, 10)
+  await manager.query(descriptor(), snapshot())
+  await new Promise(resolve => setImmediate(resolve))
+  const ready = manager.statuses().at(-1)
+  assert.equal(ready?.state, 'ready')
+  assert.equal(ready?.executable, '/trusted/fake')
+  assert.equal(ready?.version, '1.0')
+  assert.deepEqual(ready?.capabilities, ['definition'])
+  await new Promise(resolve => setTimeout(resolve, 30))
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})

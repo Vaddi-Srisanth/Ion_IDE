@@ -47,11 +47,14 @@ export class LanguageServiceManager {
   private generation = 0
   private drain = Promise.resolve()
 
-  constructor(private readonly factory: LanguageServiceFactory, private readonly now = Date.now) {}
+  constructor(private readonly factory: LanguageServiceFactory, private readonly now = Date.now,
+    private readonly idleDelay = idleMs) {}
 
   statuses(): LanguageServiceStatus[] {
     const values = new Map(this.history)
-    for (const [key, { descriptor, state, detail }] of this.sessions) values.set(key, { ...descriptor, state, detail })
+    for (const [key, { descriptor, state, detail }] of this.sessions) {
+      values.set(key, { ...values.get(key), ...descriptor, state, detail })
+    }
     return [...values.values()]
   }
 
@@ -80,7 +83,7 @@ export class LanguageServiceManager {
       const service = await session.service
       if (this.sessions.get(key) !== session || generation !== session.generation) return null
       session.state = 'busy'
-      this.record(key, session)
+      this.record(key, session, service)
       const work = service.query(snapshot, request?.signal)
       const reply = request ? await Promise.race([work, new Promise<null>(resolve => {
         request.signal.addEventListener('abort', () => resolve(null), { once: true })
@@ -90,9 +93,10 @@ export class LanguageServiceManager {
         this.record(key, session)
         return null
       }
-      if (this.sessions.get(key) !== session || generation !== session.generation || reply?.version !== snapshot.version) return null
+      if (this.sessions.get(key) !== session || generation !== session.generation) return null
       session.state = 'ready'
-      this.record(key, session)
+      this.record(key, session, service)
+      if (reply?.version !== snapshot.version) return null
       return reply
     } catch (error) {
       if (this.sessions.get(key) !== session) return null
@@ -106,6 +110,7 @@ export class LanguageServiceManager {
       throw error
     } finally {
       if (snapshot.requestId && this.requests.get(snapshot.requestId) === request) this.requests.delete(snapshot.requestId)
+      if (this.sessions.get(key) === session && session.state === 'ready') this.scheduleIdle(key, session)
     }
   }
 
@@ -123,11 +128,7 @@ export class LanguageServiceManager {
   release(immediate: boolean, language?: string) {
     const targets = [...this.sessions.entries()].filter(([, session]) => !language || session.descriptor.language === language)
     if (immediate) return Promise.all(targets.map(([key, session]) => this.stopSession(key, session))).then(() => undefined)
-    for (const [key, session] of targets) {
-      clearTimeout(session.idle)
-      session.idle = setTimeout(() => { void this.stopSession(key, session) }, idleMs)
-      session.idle.unref()
-    }
+    for (const [key, session] of targets) this.scheduleIdle(key, session)
     return Promise.resolve()
   }
 
@@ -150,7 +151,7 @@ export class LanguageServiceManager {
         throw new Error('Language service start was cancelled.')
       }
       session.state = 'ready'
-      this.record(this.key(descriptor), session)
+      this.record(this.key(descriptor), session, service)
       return service
     }, error => {
       session.state = 'error'
@@ -180,21 +181,28 @@ export class LanguageServiceManager {
     await this.stopSession(candidate[0], candidate[1])
   }
 
+  private scheduleIdle(key: string, session: Session) {
+    clearTimeout(session.idle)
+    session.idle = setTimeout(() => { void this.stopSession(key, session) }, this.idleDelay)
+    session.idle.unref()
+  }
+
   private key({ adapter, root, path }: LanguageServiceDescriptor) {
     return adapter + ':' + (root ?? path)
   }
 
-  private record(key: string, session: Session) {
+  private record(key: string, session: Session, service?: ManagedLanguageService) {
+    const previous = this.history.get(key)
     this.history.delete(key)
     const active = this.sessions.get(key) === session ? session.service : undefined
-    const previous = this.history.get(key)
     this.history.set(key, { ...session.descriptor, state: session.state, detail: session.detail,
-      executable: previous?.executable, version: previous?.version, capabilities: previous?.capabilities })
-    if (active) void active.then(service => {
+      executable: service?.executable ?? previous?.executable, version: service?.version ?? previous?.version,
+      capabilities: service?.capabilities ? [...service.capabilities] : previous?.capabilities })
+    if (!service && active) void active.then(resolved => {
       const current = this.history.get(key)
       if (!current) return
-      this.history.set(key, { ...current, executable: service.executable, version: service.version,
-        capabilities: service.capabilities ? [...service.capabilities] : undefined })
+      this.history.set(key, { ...current, executable: resolved.executable, version: resolved.version,
+        capabilities: resolved.capabilities ? [...resolved.capabilities] : undefined })
     }, () => {})
     if (this.history.size > 32) this.history.delete(this.history.keys().next().value!)
   }
