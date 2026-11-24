@@ -77,15 +77,15 @@ Ion will not auto-download a server, execute a workspace-provided binary, or cla
 
 ## Local macOS acceptance checkpoint
 
-Candidate `b160ce62bab3dcf677d2de8021a6542578a13f61` passed type checking, the production build, all 420 unit tests (**394 passed, 0 failed, 26 platform/toolchain skips**), the existing production Java semantic workflow, the existing production clangd navigation workflow, and the new offline Python LSP lifecycle workflow.
+Application-source candidate `0fb89148b02e507d3414360378a38e73fa50f359` passed type checking, the production build, all 420 unit tests (**394 passed, 0 failed, 26 platform/toolchain skips**), the existing production Java semantic workflow, the existing production clangd navigation workflow, and the new offline Python LSP lifecycle workflow. Focused cancellation tests additionally verify renderer ownership, main-process cancellation and the JSON-RPC `$/cancelRequest` notification.
 
 The Java check preserved basic snippets with Smart Java disabled, then verified JDK diagnostics, completion, signatures, definitions, references, current-buffer Problems and cleanup. The clangd check verified definitions/references, workspace boundaries, process reuse and cleanup; the active clangd fixture measured **19.08 MiB attributed footprint and 34.58 MiB RSS**. The Python check verified no service before opt-in, no service merely from enabling the setting, definition lookup through installed `pylsp`, offline operation, status reporting and cleanup after the last source closed. The Mac has no installed `typescript-language-server`; the JavaScript path produced the expected local setup guidance and remained unverified for actual semantic results.
 
-One Python sample recorded 1,537.96 ms cold service start/request, 1,013.96 ms from close through verified stopped state and settlement, and a **221.20 MiB** active process-tree RSS increase from the locally installed Anaconda `pylsp` stack. After cleanup, the owned process tree was 66.97 MiB below its pre-service sample. This demonstrates cleanup but is not a claim that every Python server will use the same resources.
+Two Python samples recorded 1,537.96–1,696.30 ms cold service start/request, 1,013.96–1,020.08 ms from close through verified stopped state and settlement, and a **220.70–221.20 MiB** active process-tree RSS increase from the locally installed Anaconda `pylsp` stack. After cleanup, the owned process tree was 65.59–66.97 MiB below its pre-service sample. This demonstrates cleanup but is not a claim that every Python server will use the same resources.
 
 ### Matched unused-feature benchmark
 
-Three production trials compared the exact accepted source `0718aa7b35894474e1932efba7cee3286dcf0aab` against candidate `b160ce6` using disposable profiles and identical workloads. Every sample is retained in ignored raw evidence at `performance-results/lsp-milestone/desktop-2026-11-24T09-45-59.921Z.json`.
+Three production trials compared the exact accepted source `0718aa7b35894474e1932efba7cee3286dcf0aab` against the pre-cancellation candidate `b160ce62bab3dcf677d2de8021a6542578a13f61` using disposable profiles and identical workloads. The later cancellation patch affects only active semantic requests; its focused production workflows pass, but the exact final candidate still requires the native matched gate. Every local benchmark sample is retained in ignored raw evidence at `performance-results/lsp-milestone/desktop-2026-11-24T09-45-59.921Z.json`.
 
 | Metric | Accepted baseline | LSP candidate | Delta |
 | --- | ---: | ---: | ---: |
