@@ -155,8 +155,10 @@ jobs:
           # This must run after every GITHUB_PATH mutation. Otherwise the
           # assertion can validate a different PATH from the test process.
           $remaining = ($env:PATH -split ';' | Where-Object { $_ -and $_ -ne $expected }) -join ';'
-          "PATH=$expected;$remaining" >> $env:GITHUB_ENV
           $env:PATH = "$expected;$remaining"
+          # Actions prepends accumulated GITHUB_PATH entries after applying
+          # GITHUB_ENV. Add GCC last so the following process sees it first.
+          $expected >> $env:GITHUB_PATH
           $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
           $gxx = (Get-Command g++.exe -ErrorAction Stop).Source
           if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }

@@ -25,7 +25,8 @@ try {
       file: canonical ? await stat(canonical).then(value => value.isFile(), () => false) : false })
   }
   const selected = await tools.findWindowsCompiler(safe, scratch, true)
-  console.log(JSON.stringify({ pathEntries: (process.env.PATH ?? '').split(';'), raw, safe, candidates, selected }, null, 2))
+  console.log(JSON.stringify({ pathEntries: (process.env.PATH ?? '').split(';').slice(0, 12),
+    raw: raw.slice(0, 12), safe: safe.slice(0, 12), candidates: candidates.filter(value => value.canonical), selected }, null, 2))
   const expectedDirectory = await realpath(process.env.ION_EXPECT_WINDOWS_GXX_DIRECTORY ?? 'C:\\mingw64\\bin')
   assert.ok(selected, 'Ion did not select an installed C++ compiler.')
   assert.equal(dirname(selected).toLowerCase(), expectedDirectory.toLowerCase(),
