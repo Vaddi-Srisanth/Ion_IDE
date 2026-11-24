@@ -2,6 +2,11 @@ name: Ion isolated release verification (no publication)
 
 on:
   workflow_dispatch:
+    inputs:
+      windows_follow_up_only:
+        description: Re-run only the two Windows lanes that previously failed
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       performance_only:
@@ -13,13 +18,16 @@ on:
       retain_installers:
         type: boolean
         default: true
+      windows_follow_up_only:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   macos:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: macOS Apple silicon
     runs-on: macos-15
     timeout-minutes: 35
@@ -125,7 +133,6 @@ jobs:
           $gcc = 'C:\mingw64\bin'
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
           if (!(Test-Path (Join-Path $gcc 'g++.exe'))) { throw 'MinGW-w64 G++ is unavailable.' }
-          $gcc >> $env:GITHUB_PATH
           $jdk = $env:JAVA_HOME_21_X64
           if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 is unavailable.' }
           "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
@@ -134,6 +141,23 @@ jobs:
           if (Test-Path (Join-Path $llvm 'clangd.exe')) { $llvm >> $env:GITHUB_PATH }
           elseif (!(Get-Command clangd -ErrorAction SilentlyContinue)) { throw 'clangd is unavailable.' }
           Get-Command java, javac, python, mvn, gradle, git
+      - name: Pin GCC first for production discovery
+        shell: pwsh
+        run: |
+          $gcc = 'C:\mingw64\bin'
+          # GITHUB_PATH does not guarantee precedence over runner-image LLVM.
+          # Persist a final explicit GCC-first PATH after all tool additions.
+          "PATH=$gcc;$env:PATH" >> $env:GITHUB_ENV
+      - name: Verify GCC-first production discovery
+        shell: pwsh
+        run: |
+          $expected = 'C:\mingw64\bin'
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          $gxx = (Get-Command g++.exe -ErrorAction Stop).Source
+          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
+          if ((Split-Path $gxx) -ne $expected) { throw "Unexpected C++ compiler: $gxx" }
+          & $gcc --version
+          & $gxx --version
       - name: Install optional formatter for desktop fixtures
         shell: pwsh
         run: |
@@ -315,7 +339,7 @@ jobs:
           retention-days: 14
 
   windows-run-diagnostic:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.windows_follow_up_only }}
     name: Windows cold C diagnostic ${{ matrix.cold }} (not a benchmark)
     runs-on: windows-2025
     timeout-minutes: 15
@@ -379,7 +403,7 @@ jobs:
           retention-days: 14
 
   windows-installer:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: Windows x64 installer and upgrade
     runs-on: windows-2025
     timeout-minutes: 25
@@ -464,7 +488,14 @@ jobs:
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
           & (Join-Path $gcc 'gcc.exe') --version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $gcc >> $env:GITHUB_PATH
+          "PATH=$gcc;$env:PATH" >> $env:GITHUB_ENV
+      - name: Verify GCC-first production discovery
+        shell: pwsh
+        run: |
+          $expected = 'C:\mingw64\bin'
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
+          & $gcc --version
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run build
@@ -510,7 +541,7 @@ jobs:
 
 
   security-audit:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: Dependency security review
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -525,6 +556,7 @@ jobs:
       - run: npm audit --audit-level=high
 
   macos-performance:
+    if: ${{ !inputs.windows_follow_up_only }}
     env:
       ION_STARTUP_PHASE_DIAGNOSTICS: '1'
     name: macOS matched production performance
@@ -575,7 +607,7 @@ jobs:
           retention-days: 14
 
   windows-unit:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.windows_follow_up_only }}
     name: Complete native Windows unit suite
     runs-on: windows-2025
     timeout-minutes: 30
