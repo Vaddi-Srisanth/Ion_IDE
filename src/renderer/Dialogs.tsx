@@ -189,7 +189,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
             onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'python'] : settings.smartLanguages.filter((id) => id !== 'python') })}/>
         </label>
         <label className="setting">
-          <span><b>Smart JavaScript/TypeScript</b><small>Use an installed TypeScript Language Server on demand. JavaScript and TypeScript share one project service.</small></span>
+          <span><b>Smart JS/TypeScript</b><small>Use an installed TypeScript Language Server on demand. JavaScript and TypeScript share one project service.</small></span>
           <input type="checkbox" checked={settings.smartLanguages.includes('javascript') && settings.smartLanguages.includes('typescript')}
             onChange={(event) => {
               const others = settings.smartLanguages.filter((id) => id !== 'javascript' && id !== 'typescript');

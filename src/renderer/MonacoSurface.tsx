@@ -449,7 +449,7 @@ export default function MonacoSurface({
   const semantic = !sourceHidden && settings.smartLanguages.includes(capability.id) ? capability.semantic : undefined;
   const smart = java && Boolean(semantic);
   const semanticEnabled = Boolean(semantic);
-  const automaticSuggestions = semanticEnabled && settings.automaticSuggestions;
+  const automaticSuggestions = (java || semanticEnabled) && settings.automaticSuggestions;
   useEffect(() => {
     const instance = editorRef.current;
     if (!instance) return;
