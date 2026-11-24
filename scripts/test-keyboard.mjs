@@ -56,6 +56,7 @@ await withScratch('keyboard', async (scratch) => {
     symlink(external, join(nested, 'secret alias.c')),
   ])
   const session = await launch(target, profile)
+  let workflowError
   try {
     const { app, page } = session
     await page.context().setOffline(true)
@@ -163,13 +164,16 @@ await withScratch('keyboard', async (scratch) => {
 
     await page.locator('.monaco-editor .view-line').first().click()
     await page.keyboard.insertText('X')
+    await eventually(async () => /\btab-dirty\b/.test(await atPath(page, 'close-tab', source).getAttribute('class') ?? ''),
+      'The source tab did not report its modified buffer before workspace replacement review.')
     await command(session, 'Search in Files')
     let search = page.getByRole('dialog', { name: 'Search in Files' })
     await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
     await search.getByRole('button', { name: 'Replace in files…' }).click()
     await search.getByText(/Save or close 1 modified workspace file/).waitFor()
     assert.equal(await search.getByRole('button', { name: 'Review replacements' }).isDisabled(), true)
-    await search.getByRole('button', { name: 'Close' }).click()
+    await search.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await search.waitFor({ state: 'detached' })
     await command(session, 'Focus Code Editor')
     await shortcut(app, 'Z', [modifier])
     await shortcut(app, 'S', [modifier])
@@ -183,7 +187,8 @@ await withScratch('keyboard', async (scratch) => {
     await search.getByText(/Review 2 replacements in 1 files/).waitFor()
     await search.getByRole('button', { name: 'Replace in 1 files' }).click()
     await eventually(async () => (await readFile(replaceTarget, 'utf8')).includes('ION-REVIEWED-NEW'), 'Reviewed replacement was not published.')
-    await search.getByRole('button', { name: 'Close' }).click()
+    await search.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await search.waitFor({ state: 'detached' })
     console.log('PASS workspace replacement reviews the exact selection and publishes through the safe save path')
 
     await quickOpen(session, 'reference.csv', /reference\.csv/)
@@ -230,8 +235,15 @@ await withScratch('keyboard', async (scratch) => {
     console.log('PASS keyboard document split, reserved shortcut detection, remapped Run and Stop')
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
+  } catch (error) {
+    workflowError = error
+    throw error
   } finally {
-    await close(session)
+    try { await close(session) }
+    catch (closeError) {
+      if (workflowError) throw new AggregateError([workflowError, closeError], 'Editor workflow and cleanup both failed.')
+      throw closeError
+    }
   }
 
   const reopened = await launch(target, profile)
