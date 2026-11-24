@@ -1,33 +1,35 @@
-import { editor, languages, MarkerSeverity, Range, Uri, type Position } from 'monaco-editor/editor/editor.api.js';
+import { editor, languages, MarkerSeverity, Range, Uri, type CancellationToken, type Position } from 'monaco-editor/editor/editor.api.js';
 import { toolTextLimit, type SourceReference, type ToolOperation } from '../shared/language-tools';
 import { errorMessage } from './documents';
 import type { ProblemRow } from './Problems';
 
 const encoder = new TextEncoder();
-type Query = (operation: ToolOperation, position?: Position, cancelled?: () => boolean) => Promise<string[][] | undefined>;
+type Query = (operation: ToolOperation, position?: Position, cancellation?: CancellationToken) => Promise<string[][] | undefined>;
 
 export function createToolQuery(model: editor.ITextModel, current: () => boolean, options: {
   language: string; label: string; path?: string; onStatus(status: string | null): void;
 }): Query {
   const { language, label, path, onStatus } = options;
-  return async (operation, position, cancelled = () => false) => {
-    if (!path || !current() || cancelled()) return;
+  return async (operation, position, cancellation) => {
+    if (!path || !current() || cancellation?.isCancellationRequested) return;
     const overLimit = () => { onStatus(`${label} is limited to files up to 256 KiB.`); return undefined; };
     if (model.getValueLength() > toolTextLimit) return overLimit();
     const version = model.getVersionId();
-    const valid = () => current() && !cancelled() && model.getVersionId() === version;
+    const valid = () => current() && !cancellation?.isCancellationRequested && model.getVersionId() === version;
+    const requestId = crypto.randomUUID();
+    const subscription = cancellation?.onCancellationRequested(() => { void window.ion.languageTools.cancel(requestId).catch(() => {}); });
     try {
       const text = model.getValue();
       if (encoder.encode(text).length > toolTextLimit) return overLimit();
       const result = await window.ion.languageTools.query({
-        language, path, operation, version, text, offset: position ? model.getOffsetAt(position) : 0,
+        requestId, language, path, operation, version, text, offset: position ? model.getOffsetAt(position) : 0,
       });
       if (!valid() || result?.version !== version) return;
       onStatus(null);
       return result.rows;
     } catch (error) {
       if (valid()) onStatus(errorMessage(error));
-    }
+    } finally { subscription?.dispose(); }
   };
 }
 
@@ -45,19 +47,19 @@ export function sourceReferences(rows: string[][]): SourceReference[] {
 }
 
 export function sourceNavigationProviders(model: editor.ITextModel, path: string, query: Query) {
-  const locations = async (operation: 'definition' | 'references', position: Position, cancelled: () => boolean) =>
-    sourceReferences(await query(operation, position, cancelled) ?? []).map(({ path: file, line, column }) => ({
+  const locations = async (operation: 'definition' | 'references', position: Position, cancellation: CancellationToken) =>
+    sourceReferences(await query(operation, position, cancellation) ?? []).map(({ path: file, line, column }) => ({
       uri: file === path ? model.uri : Uri.file(file), range: new Range(line, column, line, column + 1),
     }));
   const language = model.getLanguageId();
   return [
     languages.registerDefinitionProvider(language, {
       provideDefinition: (item, position, token) => item === model
-        ? locations('definition', position, () => token.isCancellationRequested) : [],
+        ? locations('definition', position, token) : [],
     }),
     languages.registerReferenceProvider(language, {
       provideReferences: (item, position, _context, token) => item === model
-        ? locations('references', position, () => token.isCancellationRequested) : [],
+        ? locations('references', position, token) : [],
     }),
   ];
 }
@@ -110,7 +112,7 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
       const word = model.getWordUntilPosition(position);
       const range = new Range(position.lineNumber, word.startColumn, position.lineNumber,
         model.getWordAtPosition(position)?.endColumn ?? position.column);
-      const rows = await query('complete', position, () => token.isCancellationRequested);
+      const rows = await query('complete', position, token);
       return { suggestions: (rows ?? []).flatMap(([label, kind, detail, insertText]) => label ? [{
         label, kind: completionKinds[Number(kind)] ?? languages.CompletionItemKind.Text,
         detail, insertText: insertText || label, range,
@@ -122,7 +124,7 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
     signatureHelpTriggerCharacters: ['(', ','],
     async provideSignatureHelp(item, position, token) {
       if (item !== model) return null;
-      const rows = await query('signature', position, () => token.isCancellationRequested);
+      const rows = await query('signature', position, token);
       if (!rows?.length) return null;
       return { value: { activeSignature: 0, activeParameter: Number(rows[0][0]) || 0,
         signatures: rows.map(([, label, ...parameters]) => ({ label, parameters: parameters.map(label => ({ label })) })) }, dispose() {} };
@@ -132,7 +134,7 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
   if (options.hover) handles.push(languages.registerHoverProvider(model.getLanguageId(), {
     async provideHover(item, position, token) {
       if (item !== model) return null;
-      const rows = await query('hover', position, () => token.isCancellationRequested);
+      const rows = await query('hover', position, token);
       return rows?.[0]?.[1] ? { contents: [{ value: rows[0][1] }] } : null;
     },
   }));

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createMessageConnection, type MessageConnection } from 'vscode-jsonrpc/node'
+import { CancellationTokenSource, createMessageConnection, type MessageConnection } from 'vscode-jsonrpc/node'
 import { stopWindowsProcessTree } from '../windows-process'
 
 const requestDeadlineMs = 8_000
@@ -89,12 +89,16 @@ export class LspProcess {
     return this.connection.sendNotification(method, params)
   }
 
-  async request(method: string, params: unknown, timeoutMs = requestDeadlineMs): Promise<unknown> {
+  async request(method: string, params: unknown, timeoutMs = requestDeadlineMs, signal?: AbortSignal): Promise<unknown> {
     if (this.stopped) throw new Error('The language server has stopped.')
     let timer: ReturnType<typeof setTimeout> | undefined
+    const cancellation = new CancellationTokenSource()
+    const abort = () => cancellation.cancel()
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) cancellation.cancel()
     try {
       return await Promise.race([
-        this.connection.sendRequest(method, params),
+        this.connection.sendRequest(method, params, cancellation.token),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(new Error('Language server request timed out.')), timeoutMs)
           timer.unref()
@@ -102,6 +106,8 @@ export class LspProcess {
       ])
     } finally {
       clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      cancellation.dispose()
     }
   }
 

@@ -130,7 +130,7 @@ export class ExternalLspService {
     await rm(this.directory, { recursive: true, force: true })
   }
 
-  async query(snapshot: ToolSnapshot): Promise<ToolReply> {
+  async query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply> {
     const uri = pathToFileURL(snapshot.path).href
     const version = (this.versions.get(uri) ?? 0) + 1
     const open = this.versions.has(uri)
@@ -146,14 +146,14 @@ export class ExternalLspService {
     let rows: string[][] = []
     if (snapshot.operation === 'definition' || snapshot.operation === 'references') {
       const result = await this.host.request(`textDocument/${snapshot.operation}`, snapshot.operation === 'references'
-        ? { ...location, context: { includeDeclaration: true } } : location)
+        ? { ...location, context: { includeDeclaration: true } } : location, undefined, signal)
       rows = locationRows(result, snapshot.path)
     } else if (snapshot.operation === 'hover') {
-      const result = await this.host.request('textDocument/hover', location) as { contents?: unknown } | null
+      const result = await this.host.request('textDocument/hover', location, undefined, signal) as { contents?: unknown } | null
       const text = markup(result?.contents)
       if (text) rows = [['hover', text]]
     } else if (snapshot.operation === 'complete') {
-      const result = await this.host.request('textDocument/completion', location) as { items?: unknown } | unknown[] | null
+      const result = await this.host.request('textDocument/completion', location, undefined, signal) as { items?: unknown } | unknown[] | null
       const items = Array.isArray(result) ? result : Array.isArray(result?.items) ? result.items : []
       rows = items.slice(0, maxRows).flatMap(item => {
         if (!item || typeof item !== 'object') return []
@@ -163,7 +163,7 @@ export class ExternalLspService {
           typeof value.insertText === 'string' ? value.insertText.slice(0, 4_096) : value.label.slice(0, 300)]]
       })
     } else if (snapshot.operation === 'signature') {
-      const result = await this.host.request('textDocument/signatureHelp', location) as { activeParameter?: unknown; signatures?: unknown } | null
+      const result = await this.host.request('textDocument/signatureHelp', location, undefined, signal) as { activeParameter?: unknown; signatures?: unknown } | null
       const signatures = Array.isArray(result?.signatures) ? result.signatures : []
       rows = signatures.slice(0, 20).flatMap(item => {
         if (!item || typeof item !== 'object' || typeof (item as { label?: unknown }).label !== 'string') return []

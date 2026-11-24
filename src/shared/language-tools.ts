@@ -3,6 +3,7 @@ import { languageCapabilities, type SemanticOperation } from './languages'
 export type ToolOperation = SemanticOperation
 
 export interface ToolSnapshot {
+  requestId?: string
   language: string
   path: string
   version: number
@@ -23,6 +24,7 @@ export const smartLanguageIds = languageCapabilities.filter(({ semantic }) => se
 
 export interface LanguageToolsBridge {
   query(snapshot: ToolSnapshot): Promise<ToolReply | null>
+  cancel(requestId: string): Promise<void>
   release(immediate: boolean, language?: string): Promise<void>
   status(): Promise<LanguageToolStatus[]>
   restart(language?: string): Promise<void>

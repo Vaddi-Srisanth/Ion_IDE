@@ -53,6 +53,7 @@ const bridge: IonBridge = {
   firstLaunch: process.argv.includes('--ion-first-launch'),
   languageTools: {
     query: (snapshot) => ipcRenderer.invoke('ion:language-query', snapshot),
+    cancel: (requestId) => ipcRenderer.invoke('ion:language-cancel', requestId),
     release: (immediate, language) => ipcRenderer.invoke('ion:language-release', immediate, language),
     status: () => ipcRenderer.invoke('ion:language-status'),
     restart: (language) => ipcRenderer.invoke('ion:language-restart', language),

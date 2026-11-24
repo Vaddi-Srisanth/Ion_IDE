@@ -51,6 +51,7 @@ function locationRows(result: unknown, source: string): string[][] {
 
 interface Query {
   snapshot: ToolSnapshot
+  signal?: AbortSignal
   resolve(reply: ToolReply | null): void
   reject(reason: unknown): void
 }
@@ -98,11 +99,11 @@ export class ClangdService {
 
   get closed() { return this.stopped || this.process.isClosed }
 
-  query(snapshot: ToolSnapshot): Promise<ToolReply | null> {
+  query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply | null> {
     if (this.stopped) return Promise.reject(new Error('The local clangd process stopped.'))
     return new Promise((resolve, reject) => {
       this.queued?.resolve(null)
-      this.queued = { snapshot, resolve, reject }
+      this.queued = { snapshot, signal, resolve, reject }
       this.advance()
     })
   }
@@ -123,8 +124,8 @@ export class ClangdService {
     void this.process.stop()
   }
 
-  private async request(method: string, params: object): Promise<unknown> {
-    return this.process.request(method, params)
+  private async request(method: string, params: object, signal?: AbortSignal): Promise<unknown> {
+    return this.process.request(method, params, undefined, signal)
   }
 
   private advance() {
@@ -132,13 +133,14 @@ export class ClangdService {
     const query = this.queued
     this.current = query
     this.queued = undefined
-    void this.lookup(query.snapshot).then(query.resolve, query.reject).finally(() => {
+    void this.lookup(query).then(query.resolve, query.reject).finally(() => {
       if (this.current === query) this.current = undefined
       this.advance()
     })
   }
 
-  private async lookup(snapshot: ToolSnapshot): Promise<ToolReply> {
+  private async lookup(query: Query): Promise<ToolReply> {
+    const { snapshot, signal } = query
     const uri = pathToFileURL(snapshot.path).href
     const version = ++this.version
     if (this.document !== uri) {
@@ -154,8 +156,8 @@ export class ClangdService {
     }
     const location = { textDocument: { uri }, position: positionAt(snapshot.text, snapshot.offset) }
     const result = snapshot.operation === 'references'
-      ? await this.request('textDocument/references', { ...location, context: { includeDeclaration: true } })
-      : await this.request('textDocument/definition', location)
+      ? await this.request('textDocument/references', { ...location, context: { includeDeclaration: true } }, signal)
+      : await this.request('textDocument/definition', location, signal)
     return { version: snapshot.version, rows: locationRows(result, snapshot.path) }
   }
 }

@@ -1,6 +1,6 @@
 # Ion Phase 2 — On-Demand Language Services
 
-Status: implementation in progress on `codex/ion-core-excellence-phase-2-lsp`.
+Status: local macOS implementation accepted; native Windows and installed TypeScript-server acceptance remain pending on `codex/ion-core-excellence-phase-2-lsp`.
 
 ## Accepted baseline
 
@@ -74,4 +74,38 @@ Ion will not auto-download a server, execute a workspace-provided binary, or cla
 | Monaco providers and generalized Problems | Pending |
 | Status/settings/commands | Pending |
 | Native acceptance and performance | Pending |
+
+## Local macOS acceptance checkpoint
+
+Candidate `b160ce62bab3dcf677d2de8021a6542578a13f61` passed type checking, the production build, all 420 unit tests (**394 passed, 0 failed, 26 platform/toolchain skips**), the existing production Java semantic workflow, the existing production clangd navigation workflow, and the new offline Python LSP lifecycle workflow.
+
+The Java check preserved basic snippets with Smart Java disabled, then verified JDK diagnostics, completion, signatures, definitions, references, current-buffer Problems and cleanup. The clangd check verified definitions/references, workspace boundaries, process reuse and cleanup; the active clangd fixture measured **19.08 MiB attributed footprint and 34.58 MiB RSS**. The Python check verified no service before opt-in, no service merely from enabling the setting, definition lookup through installed `pylsp`, offline operation, status reporting and cleanup after the last source closed. The Mac has no installed `typescript-language-server`; the JavaScript path produced the expected local setup guidance and remained unverified for actual semantic results.
+
+One Python sample recorded 1,537.96 ms cold service start/request, 1,013.96 ms from close through verified stopped state and settlement, and a **221.20 MiB** active process-tree RSS increase from the locally installed Anaconda `pylsp` stack. After cleanup, the owned process tree was 66.97 MiB below its pre-service sample. This demonstrates cleanup but is not a claim that every Python server will use the same resources.
+
+### Matched unused-feature benchmark
+
+Three production trials compared the exact accepted source `0718aa7b35894474e1932efba7cee3286dcf0aab` against candidate `b160ce6` using disposable profiles and identical workloads. Every sample is retained in ignored raw evidence at `performance-results/lsp-milestone/desktop-2026-11-24T09-45-59.921Z.json`.
+
+| Metric | Accepted baseline | LSP candidate | Delta |
+| --- | ---: | ---: | ---: |
+| Fresh startup median | 320.47 ms | 297.62 ms | -22.85 ms / -7.13% |
+| Warm startup median | 321.38 ms | 324.31 ms | +2.93 ms / +0.91% |
+| Idle summed RSS median | 428.76 MiB | 428.64 MiB | -0.12 MiB |
+| Idle CPU | 0.00% median | 0.31% median | within the observed 0–0.31% sample range |
+| One-tab summed RSS | 518.34 MiB | 518.44 MiB | +0.10 MiB / +0.02% |
+| Ten-tab summed RSS | 530.91 MiB | 531.72 MiB | +0.81 MiB / +0.15% |
+| First file | 179.41 ms | 179.53 ms | +0.12 ms / +0.07% |
+| Subsequent file median | 49.88 ms | 49.81 ms | -0.07 ms |
+| Typing key-to-second-frame median | 32.00 ms | 32.00 ms | 0.00 ms |
+
+The unused feature therefore adds no measured persistent process, material memory cost, or meaningful startup/file-open regression in this matched sample. This remains a three-trial local result, not a substitute for native Windows acceptance or longer endurance.
+
+## Remaining acceptance gates
+
+- Run the immutable candidate on native Windows with known installed clangd, JDK, Python LSP and TypeScript Language Server versions.
+- Exercise real JavaScript and TypeScript semantic results; the current Mac verifies only missing-tool guidance.
+- Measure each installed service separately on Windows and retain crash/cleanup/rapid-switch samples.
+- Run the applicable production regression and matched Windows resource workload.
+- Preserve any failure and update this report and the implementation tracker with exact CI links before declaring Milestone 2.3 complete.
 

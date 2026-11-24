@@ -100,7 +100,7 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
       }
       // Exact snippet shortcuts remain responsive even while the JDK is busy.
       if (member || !snippetRows.some(([label]) => label === prefix)) {
-        const rows = await query('complete', position, () => token.isCancellationRequested);
+        const rows = await query('complete', position, token);
         for (const [label, kind, detail, insertText] of rows ?? []) {
           if (kinds[kind] !== undefined && label && insertText) {
             suggestions.push({ label, kind: kinds[kind], detail, insertText, range, sortText: '1' + label });
@@ -118,7 +118,7 @@ export function attachJavaTools(instance: editor.IStandaloneCodeEditor, model: e
       signatureHelpTriggerCharacters: ['(', ','],
       async provideSignatureHelp(item, position, token) {
         if (item !== model) return null;
-        const rows = await query('signature', position, () => token.isCancellationRequested);
+        const rows = await query('signature', position, token);
         if (!rows?.length) return null;
         return { value: { activeSignature: 0, activeParameter: Number(rows[0][0]) || 0,
           signatures: rows.map(([, label, ...parameters]) => ({ label, parameters: parameters.map((label) => ({ label })) })) },

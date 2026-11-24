@@ -23,9 +23,14 @@ test('LSP process host initializes, requests, and stops its owned process', asyn
     }, new AbortController().signal)
     assert.ok(host.pid)
     assert.deepEqual(await host.request('ion/echo', { ready: true }), { ready: true })
+    const cancellation = new AbortController()
+    const slow = host.request('ion/slow', {}, 1_000, cancellation.signal).catch(() => null)
+    cancellation.abort()
+    await new Promise(resolve => setTimeout(resolve, 20))
     await host.stop()
+    await slow
     assert.equal(host.isClosed, true)
-    assert.match(await readFile(join(scratch, 'methods.log'), 'utf8'), /initialized\n.*apply-rejected\n.*shutdown\nexit\n/s)
+    assert.match(await readFile(join(scratch, 'methods.log'), 'utf8'), /initialized\n.*apply-rejected\n.*ion\/slow\n\$\/cancelRequest\n.*shutdown\nexit\n/s)
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }

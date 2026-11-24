@@ -4,7 +4,7 @@ export type LanguageServiceState = LanguageToolState
 
 export interface ManagedLanguageService {
   readonly closed: boolean
-  query(snapshot: ToolSnapshot): Promise<ToolReply | null>
+  query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply | null>
   stop(): Promise<void>
 }
 
@@ -39,6 +39,7 @@ export class LanguageServiceManager {
   private readonly sessions = new Map<string, Session>()
   private readonly failureHistory = new Map<string, number[]>()
   private readonly history = new Map<string, LanguageServiceStatus>()
+  private readonly requests = new Map<string, AbortController>()
   private generation = 0
   private drain = Promise.resolve()
 
@@ -66,12 +67,25 @@ export class LanguageServiceManager {
     const generation = session.generation
     session.state = 'busy'
     this.record(key, session)
+    const request = snapshot.requestId ? new AbortController() : undefined
+    if (snapshot.requestId) {
+      if (this.requests.has(snapshot.requestId)) throw new Error('Duplicate language service request.')
+      this.requests.set(snapshot.requestId, request!)
+    }
     try {
       const service = await session.service
       if (this.sessions.get(key) !== session || generation !== session.generation) return null
       session.state = 'busy'
       this.record(key, session)
-      const reply = await service.query(snapshot)
+      const work = service.query(snapshot, request?.signal)
+      const reply = request ? await Promise.race([work, new Promise<null>(resolve => {
+        request.signal.addEventListener('abort', () => resolve(null), { once: true })
+      })]) : await work
+      if (request?.signal.aborted) {
+        session.state = 'ready'
+        this.record(key, session)
+        return null
+      }
       if (this.sessions.get(key) !== session || generation !== session.generation || reply?.version !== snapshot.version) return null
       session.state = 'ready'
       this.record(key, session)
@@ -86,7 +100,13 @@ export class LanguageServiceManager {
       this.failureHistory.set(key, failures)
       if (await session.service.then(service => service.closed, () => true)) await this.stopSession(key, session)
       throw error
+    } finally {
+      if (snapshot.requestId && this.requests.get(snapshot.requestId) === request) this.requests.delete(snapshot.requestId)
     }
+  }
+
+  cancel(requestId: string) {
+    this.requests.get(requestId)?.abort()
   }
 
   release(immediate: boolean, language?: string) {
@@ -101,6 +121,8 @@ export class LanguageServiceManager {
   }
 
   async stopAll() {
+    for (const request of this.requests.values()) request.abort()
+    this.requests.clear()
     await Promise.all([...this.sessions.entries()].map(([key, session]) => this.stopSession(key, session)))
     await this.drain
   }

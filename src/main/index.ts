@@ -592,6 +592,7 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
   if (typeof snapshot.path !== 'string' || fileLanguage(snapshot.path).id !== language.id
     || typeof snapshot.text !== 'string' || Buffer.byteLength(snapshot.text) > toolTextLimit || snapshot.text.includes('\0')
     || typeof snapshot.version !== 'number' || !Number.isSafeInteger(snapshot.version) || snapshot.version < 1
+    || (snapshot.requestId !== undefined && (typeof snapshot.requestId !== 'string' || !/^[a-f0-9-]{8,64}$/i.test(snapshot.requestId)))
     || typeof snapshot.offset !== 'number' || !Number.isSafeInteger(snapshot.offset)
     || snapshot.offset < 0 || snapshot.offset > snapshot.text.length
     || !snapshot.operation || !semantic.operations.includes(snapshot.operation)) {
@@ -1133,6 +1134,10 @@ function registerIpc(): void {
     return result
   })
   handle('language-query', queryLanguage)
+  handle('language-cancel', (_target, requestId) => {
+    if (typeof requestId !== 'string' || !/^[a-f0-9-]{8,64}$/i.test(requestId)) throw new Error('Invalid language cancellation request.')
+    languageServices.cancel(requestId)
+  })
   handle('language-status', () => languageServices.statuses())
   handle('language-restart', (_target, language) => {
     if (language !== undefined && typeof language !== 'string') throw new Error('Invalid language service restart request.')

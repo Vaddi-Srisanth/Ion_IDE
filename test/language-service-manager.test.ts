@@ -45,3 +45,20 @@ test('language manager rate-limits repeatedly crashing services', async () => {
   now++
   await assert.rejects(() => manager.query(descriptor(), snapshot()), /restart limit/)
 })
+
+test('language manager cancels a renderer-owned request without stopping the reusable service', async () => {
+  let complete!: (value: { version: number; rows: string[][] }) => void
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: item => new Promise(resolve => { complete = value => resolve({ ...value, version: item.version }) }),
+    stop: async () => {},
+  }))
+  const requestId = '12345678-abcd-4321-abcd-123456789abc'
+  const pending = manager.query(descriptor(), { ...snapshot(), requestId })
+  await new Promise(resolve => setImmediate(resolve))
+  manager.cancel(requestId)
+  assert.equal(await pending, null)
+  complete({ version: 1, rows: [] })
+  assert.equal(manager.statuses().at(-1)?.state, 'ready')
+  await manager.stopAll()
+})

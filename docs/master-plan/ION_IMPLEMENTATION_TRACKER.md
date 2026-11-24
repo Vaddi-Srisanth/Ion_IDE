@@ -1,7 +1,8 @@
 # Ion implementation tracker
 
-Current branch: `codex/ion-core-excellence-phase-2`<br>
-Current Phase 2 verified source candidate: `0718aa7b35894474e1932efba7cee3286dcf0aab`<br>
+Current branch: `codex/ion-core-excellence-phase-2-lsp`<br>
+Current Phase 2 language-services candidate: `b160ce62bab3dcf677d2de8021a6542578a13f61` (local macOS accepted; native Windows pending)<br>
+Accepted editor/workspace foundation: `0718aa7b35894474e1932efba7cee3286dcf0aab`<br>
 Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
@@ -15,7 +16,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **Editor/workspace foundation accepted on macOS and Windows** | LSP/DAP remain deliberately unstarted at this checkpoint. |
+| 2 — Core editor excellence | **Editor/workspace foundation accepted; LSP local checkpoint conditional** | Reusable LSP host and macOS checks pass. Native Windows and installed TypeScript-server acceptance remain required. DAP has not started. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -113,7 +114,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.1D — Different-file editor groups | **Accepted on macOS and Windows** | Nested horizontal/vertical layouts, up to four groups, same/different files, shared models, independent view state, drag/move/focus/close/rebalance, keyboard resize and production relaunch persistence pass. |
 | 2.1E — Restored editor-group layouts | **Accepted on macOS and Windows** | Orientation, 56% resize ratio, membership and active files survived production relaunch. Invalid/older layouts fail closed. |
 | 2.2 — Multi-root workspace | **Accepted on macOS and Windows** | Explicit grants, add/remove/reorder, bounded saved descriptors/settings, root-aware search/replace/Quick Open/breadcrumbs/terminal/Git/run/projects/notebooks and session restoration pass. Windows casing, junction, Unicode, long-path and sharing-lock gates passed. |
-| 2.3 — Reusable LSP host | Not started | Existing clangd/Java adapters will be migrated behind an owned on-demand lifecycle before Python/JS/TS additions. |
+| 2.3 — Reusable LSP host | **Conditional — local macOS PASS, native Windows pending** | Central lazy manager, bounded JSON-RPC owner, per-root isolation, stale rejection, crash rate limit, safe edit rejection, status/stop controls, migrated clangd/Java and opt-in installed Python/JS/TS adapters are implemented. Candidate `b160ce6`: 394/420 unit tests passed with 26 preserved skips; production Java, clangd and Python workflows pass. Matched unused-feature deltas: +0.10 MiB one-tab RSS, +0.12 ms first file, +0.91% warm start; no server before use. See `ION_PHASE_2_LANGUAGE_SERVICES.md`. |
 | 2.4 — DAP | Not started | No production debug adapter host yet. |
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
