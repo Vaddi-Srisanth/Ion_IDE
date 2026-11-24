@@ -174,6 +174,10 @@ await withScratch('development-bench', async (scratch) => {
 
         const root = project.directory
         const spec = testSpec({ waits: 'waiting.c', waitingOutput: 'done\n' })
+        // The resource sample needs the deliberately long-running case, not a
+        // race against three preceding compiler invocations. Keep the same four
+        // cases and expected aggregate, but put the observable process first.
+        spec.tests = [...spec.tests].sort((left, right) => Number(right.id === 'waiting') - Number(left.id === 'waiting'))
         await page.evaluate(async ({ root, spec }) => {
           const api = window.ion.projects
           let record = await api.save(root, spec, null)
@@ -193,10 +197,22 @@ await withScratch('development-bench', async (scratch) => {
         await tests.getByTestId('project-stop-suite').waitFor()
         let running
         const hasProgram = ({ members }) => members.some(({ name }) => /^program(?:\.exe)?$/i.test(name))
+        result.suiteLaunchTrace = []
+        const observationStarted = performance.now()
+        // Compilation owns a 15 second product deadline and up to four seconds
+        // of verified Windows cleanup. The previous generic 8 second observer
+        // could fail before Ion's own boundary, especially after three earlier
+        // C cases. Sample the actual stage instead; do not extend Ion's limit.
         await eventually(async () => {
           running = await snapshot(session)
+          const elapsedMs = performance.now() - observationStarted
+          if (!result.suiteLaunchTrace.length || elapsedMs - result.suiteLaunchTrace.at(-1).elapsedMs >= 250) {
+            result.suiteLaunchTrace.push({ elapsedMs, status: (await status.textContent())?.trim().slice(0, 160) ?? '',
+              children: running.members.filter(({ kind }) => kind === 'child').map(({ name }) => name).slice(0, 16) })
+          }
           return hasProgram(running)
-        }, 'No native C program was observed during the approved suite.')
+        }, 'No native C program was observed before Ion\'s compilation and cleanup boundary.', 19_000)
+        result.suiteProgramObservedMs = performance.now() - observationStarted
         await sleep(350)
         const latest = await snapshot(session)
         result.suiteActive = hasProgram(latest) ? withCpu(running, latest) : running
