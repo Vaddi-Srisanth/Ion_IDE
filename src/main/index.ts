@@ -31,8 +31,8 @@ import type { TerminalService } from './terminal/service'
 import type { SourceControlService } from './source-control'
 import type { SourceControlStatus } from '../shared/source-control'
 import { fileLanguage, languageCapability } from '../shared/languages'
-import type { ToolReply } from '../shared/language-tools'
 import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
+import { LanguageServiceManager, type LanguageServiceDescriptor } from './language-tools/manager'
 import { workspaceSearchResultLimit } from '../shared/workspace-search'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
@@ -97,14 +97,17 @@ let initialized = false
 let window: BrowserWindow | null = null
 let openFullScreen = defaultSettings.openFullScreen
 let smartLanguages = defaultSettings.smartLanguages
-interface LanguageService {
-  readonly closed: boolean
-  query(snapshot: ToolSnapshot): Promise<ToolReply | null>
-  stop(): Promise<void>
-}
-let languageSession: { key: string; language: string; controller: AbortController; service: Promise<LanguageService> } | undefined
-let languageIdle: ReturnType<typeof setTimeout> | undefined
-let languageDrain = Promise.resolve()
+const languageServices = new LanguageServiceManager(async (descriptor: LanguageServiceDescriptor, signal: AbortSignal) => {
+  if (descriptor.adapter === 'java') {
+    const { JavaService } = await import('./java/service')
+    return JavaService.start(descriptor.root, descriptor.path, signal)
+  }
+  if (descriptor.adapter === 'clangd') {
+    const { ClangdService } = await import('./language-tools/clangd')
+    return ClangdService.start(descriptor.root, descriptor.path, signal)
+  }
+  throw new Error('No language service adapter is available for this language.')
+})
 let formatJob: { id: string; controller: AbortController; done: Promise<FormatResult> } | undefined
 let closeApproved = false
 let closePending = false
@@ -574,14 +577,7 @@ function formatDocument(target: BrowserWindow, value: unknown): Promise<FormatRe
 }
 
 async function stopLanguageTools() {
-  clearTimeout(languageIdle)
-  const session = languageSession
-  languageSession = undefined
-  if (session) {
-    session.controller.abort()
-    languageDrain = session.service.then((service) => service.stop(), () => {})
-  }
-  await languageDrain
+  await languageServices.stopAll()
 }
 
 async function queryLanguage(target: BrowserWindow, value: unknown) {
@@ -600,25 +596,11 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
   const scope = files
   const { path } = await scope.inspect(snapshot.path, 'file')
   const root = scope.rootFor(path)
-  const key = semantic.adapter + ':' + (root ?? path)
-  if (languageSession?.key !== key) await stopLanguageTools()
   if (target !== window || files !== scope || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || !smartLanguages.includes(language.id)
-    || (languageSession && languageSession.key !== key)) return null
-  clearTimeout(languageIdle)
-  if (!languageSession) {
-    const controller = new AbortController()
-    const service = semantic.adapter === 'java'
-      ? import('./java/service').then(({ JavaService }) => JavaService.start(root, path, controller.signal))
-      : import('./language-tools/clangd').then(({ ClangdService }) => ClangdService.start(root, path, controller.signal))
-    languageSession = { key, language: language.id, controller, service }
-  }
-  const session = languageSession
-  session.language = language.id
+    ) return null
   try {
-    const service = await session.service
-    if (languageSession !== session || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window) return null
-    const reply = await service.query({ ...snapshot, path } as ToolSnapshot)
-    if (languageSession !== session || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window) return null
+    const reply = await languageServices.query({ adapter: semantic.adapter, language: language.id, root, path }, { ...snapshot, path } as ToolSnapshot)
+    if ((root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window || files !== scope) return null
     if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'references')) {
       const locations = await Promise.all(reply.rows.map(async ([file, line, column]) => {
         if (file === path) return [file, line, column]
@@ -629,8 +611,6 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
     }
     return reply
   } catch (error) {
-    if (session !== languageSession) return null
-    if (await session.service.then((service) => service.closed, () => true) && languageSession === session) await stopLanguageTools()
     throw error
   }
 }
@@ -1141,7 +1121,9 @@ function registerIpc(): void {
     learningLensEnabled = result.learningLens
     openFullScreen = result.openFullScreen
     smartLanguages = result.smartLanguages
-    if (languageSession && !smartLanguages.includes(languageSession.language)) void stopLanguageTools()
+    for (const status of languageServices.statuses()) {
+      if (!smartLanguages.includes(status.language)) void languageServices.release(true, status.language)
+    }
     applyProfile(result.resourceProfile)
     applyShortcuts(result.shortcuts)
     return result
@@ -1152,11 +1134,8 @@ function registerIpc(): void {
     if (typeof id === 'string' && formatJob?.id === id) formatJob.controller.abort()
   })
   handle('language-release', (_target, immediate, language) => {
-    if (typeof immediate !== 'boolean' || !languageSession
-      || (language !== undefined && languageSession.language !== language)) return
-    clearTimeout(languageIdle)
-    if (immediate) return stopLanguageTools()
-    languageIdle = setTimeout(() => void stopLanguageTools(), 15_000)
+    if (typeof immediate !== 'boolean' || (language !== undefined && typeof language !== 'string')) return
+    return languageServices.release(immediate, language)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const updateCache = join(app.getPath('userData'), 'updates')

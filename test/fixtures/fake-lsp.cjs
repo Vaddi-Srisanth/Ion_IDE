@@ -1,0 +1,25 @@
+let buffer = Buffer.alloc(0)
+function send(value) {
+  const body = Buffer.from(JSON.stringify(value))
+  process.stdout.write(`Content-Length: ${body.length}\r\n\r\n`)
+  process.stdout.write(body)
+}
+process.stdin.on('data', chunk => {
+  buffer = Buffer.concat([buffer, chunk])
+  for (;;) {
+    const headerEnd = buffer.indexOf('\r\n\r\n')
+    if (headerEnd < 0) return
+    const match = /Content-Length: (\d+)/i.exec(buffer.subarray(0, headerEnd).toString())
+    if (!match) process.exit(2)
+    const length = Number(match[1])
+    const end = headerEnd + 4 + length
+    if (buffer.length < end) return
+    const message = JSON.parse(buffer.subarray(headerEnd + 4, end).toString())
+    buffer = buffer.subarray(end)
+    if (message.method === 'initialize') send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {} } })
+    else if (message.method === 'ion/echo') send({ jsonrpc: '2.0', id: message.id, result: message.params })
+    else if (message.method === 'shutdown') send({ jsonrpc: '2.0', id: message.id, result: null })
+    else if (message.method === 'exit') process.exit(0)
+  }
+})
+

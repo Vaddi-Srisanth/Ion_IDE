@@ -1,13 +1,12 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createMessageConnection, type MessageConnection } from 'vscode-jsonrpc/node'
 import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { sourceDriveSpelling } from '../../shared/source-path'
 import { execute } from '../runner'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
+import { LspProcess } from './lsp-process'
 
 async function findClangd(root: string, paths: string[], scratch: string, signal: AbortSignal): Promise<string> {
   const path = await onPath('clangd', root, paths, process.platform === 'darwin' ? ['/usr/bin/clangd'] : [])
@@ -58,28 +57,13 @@ interface Query {
 
 /** Owns one local clangd process and one open translation unit. */
 export class ClangdService {
-  private readonly connection: MessageConnection
-  private readonly done: Promise<void>
   private current?: Query
   private queued?: Query
   private document?: string
   private version = 0
   private stopped = false
 
-  private constructor(private readonly child: ChildProcessWithoutNullStreams, directory: string) {
-    this.connection = createMessageConnection(child.stdout, child.stdin)
-    this.done = new Promise((resolve) => {
-      child.once('close', () => {
-        this.terminate()
-        void rm(directory, { recursive: true, force: true }).finally(resolve).catch(() => {})
-      })
-    })
-    child.on('error', () => this.terminate(new Error('The local clangd process could not start.')))
-    child.stdin.on('error', () => this.terminate())
-    child.stderr.resume()
-    this.connection.onClose(() => this.terminate())
-    this.connection.listen()
-  }
+  private constructor(private readonly process: LspProcess, private readonly directory: string) {}
 
   static async start(root: string | null, source: string, signal: AbortSignal): Promise<ClangdService> {
     const directory = await mkdtemp(join(tmpdir(), 'ion-clangd-'))
@@ -89,17 +73,18 @@ export class ClangdService {
       const paths = await commandPaths(boundary)
       const binary = await findClangd(boundary, paths, directory, signal)
       signal.throwIfAborted()
-      const child = spawn(binary, ['--background-index=0', '--enable-config=0', '--pch-storage=disk', '-j=1', '--log=error'], {
-        cwd: directory, env: envFor(paths, directory), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
-      })
-      service = new ClangdService(child, directory)
+      const process = await LspProcess.start({
+        executable: binary,
+        args: ['--background-index=0', '--enable-config=0', '--pch-storage=disk', '-j=1', '--log=error'],
+        cwd: directory,
+        env: envFor(paths, directory),
+        root,
+      }, signal)
+      service = new ClangdService(process, directory)
       const abort = () => { void service?.stop() }
       signal.addEventListener('abort', abort, { once: true })
       try {
         signal.throwIfAborted()
-        await service.request('initialize', { processId: process.pid, rootUri: root ? pathToFileURL(root).href : null,
-          capabilities: { general: { positionEncodings: ['utf-16'] } } })
-        await service.connection.sendNotification('initialized', {})
       } finally {
         signal.removeEventListener('abort', abort)
       }
@@ -111,7 +96,7 @@ export class ClangdService {
     }
   }
 
-  get closed() { return this.stopped }
+  get closed() { return this.stopped || this.process.isClosed }
 
   query(snapshot: ToolSnapshot): Promise<ToolReply | null> {
     if (this.stopped) return Promise.reject(new Error('The local clangd process stopped.'))
@@ -122,9 +107,10 @@ export class ClangdService {
     })
   }
 
-  stop() {
+  async stop() {
     this.terminate()
-    return this.done
+    await this.process.stop()
+    await rm(this.directory, { recursive: true, force: true })
   }
 
   private terminate(reason = new Error('The local clangd process stopped.')) {
@@ -134,22 +120,11 @@ export class ClangdService {
     this.queued?.resolve(null)
     this.current = undefined
     this.queued = undefined
-    this.connection.dispose()
-    if (this.child.exitCode === null && this.child.signalCode === null) {
-      this.child.kill()
-      const force = setTimeout(() => {
-        if (this.child.exitCode === null && this.child.signalCode === null) this.child.kill('SIGKILL')
-      }, 750)
-      force.unref()
-      this.child.once('close', () => clearTimeout(force))
-    }
+    void this.process.stop()
   }
 
   private async request(method: string, params: object): Promise<unknown> {
-    const timer = setTimeout(() => this.terminate(new Error('Local clangd navigation timed out.')), 8000)
-    timer.unref()
-    try { return await this.connection.sendRequest(method, params) }
-    finally { clearTimeout(timer) }
+    return this.process.request(method, params)
   }
 
   private advance() {
@@ -167,13 +142,13 @@ export class ClangdService {
     const uri = pathToFileURL(snapshot.path).href
     const version = ++this.version
     if (this.document !== uri) {
-      if (this.document) await this.connection.sendNotification('textDocument/didClose', { textDocument: { uri: this.document } })
+      if (this.document) await this.process.notify('textDocument/didClose', { textDocument: { uri: this.document } })
       this.document = uri
-      await this.connection.sendNotification('textDocument/didOpen', {
+      await this.process.notify('textDocument/didOpen', {
         textDocument: { uri, languageId: snapshot.language, version, text: snapshot.text },
       })
     } else {
-      await this.connection.sendNotification('textDocument/didChange', {
+      await this.process.notify('textDocument/didChange', {
         textDocument: { uri, version }, contentChanges: [{ text: snapshot.text }],
       })
     }

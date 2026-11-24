@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { test } from 'node:test'
+import { LspProcess } from '../src/main/language-tools/lsp-process'
+
+test('LSP process host rejects relative executables', async () => {
+  const controller = new AbortController()
+  await assert.rejects(() => LspProcess.start({ executable: 'node', args: [], cwd: process.cwd(), env: {}, root: null }, controller.signal),
+    /absolute trusted path/)
+})
+
+test('LSP process host initializes, requests, and stops its owned process', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-test-'))
+  try {
+    const host = await LspProcess.start({
+      executable: process.execPath,
+      args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')],
+      cwd: scratch,
+      env: { ...process.env },
+      root: scratch,
+    }, new AbortController().signal)
+    assert.ok(host.pid)
+    assert.deepEqual(await host.request('ion/echo', { ready: true }), { ready: true })
+    await host.stop()
+    assert.equal(host.isClosed, true)
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
+})
+
+test('aborting startup cannot leave an LSP child alive', async () => {
+  const controller = new AbortController()
+  controller.abort()
+  await assert.rejects(() => LspProcess.start({
+    executable: process.execPath,
+    args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')],
+    cwd: process.cwd(),
+    env: { ...process.env },
+    root: null,
+  }, controller.signal), /aborted/i)
+})
