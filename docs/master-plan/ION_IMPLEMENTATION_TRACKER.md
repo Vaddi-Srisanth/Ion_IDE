@@ -2,6 +2,7 @@
 
 Current branch: `codex/ion-master-plan-phase-0`<br>
 Current verified candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
+Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
 Public release: `0.9.6`<br>
 Local source version: `0.9.8`<br>
@@ -12,7 +13,7 @@ Installed application and live profile: untouched
 | Phase | Status | Exit gate |
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
-| 1 — Stability and data safety | **In progress — performance blocked** | Core backup/restore acceptance passed on macOS and Windows, but the macOS cold-start and first-file regressions must be explained or corrected; packaged upgrade/migration gates also remain. |
+| 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
 | 2 — Core editor excellence | Deferred | Phase 1 must pass first. No Phase 2 work is authorized. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
@@ -53,34 +54,48 @@ Each platform recorded 12 lifecycle cases, seven disposable-profile observations
 | [45203815424](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45203815424) | Both jobs expected a new process after Save All, but Ion kept the current process and rejected restore. | The test expected stale confirmation to remain valid after Save All changed selected current data. Product behavior was correct. | Assert rejection and durability, perform a fresh review, reconfirm, then require relaunch. No timeout increase or production weakening. |
 | [45204705215](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45204705215) | All lifecycle cases passed; both resource lanes failed at the same Monaco lookup. | Benchmark retained the already-corrected performance-entry assumption. | Apply the deterministic artifact resolution to the benchmark as well. |
 
-No final-run failure, slow sample or skip was removed. The macOS resource timing issue below remains open rather than being relabeled as noise.
+No final-run failure, slow sample or skip was removed. The macOS timing signal from that run was retained and later resolved by the stage-level, co-located-artifact investigation below; it was not relabeled as noise.
 
-## Matched performance summary
+## Corrected matched performance summary
 
-Medians are across four serialized AB/BA pairs on each hosted OS. Memory is the median of each attempt's settled phase; counters are platform-specific and not cross-compared.
+The initial run below the historical divider used asymmetric artifact roots and produced a benchmark-harness regression signal on hosted macOS. Stage instrumentation and independent artifact placement established the cause. [Corrected run 45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671) copied the exact baseline and candidate production builds to sibling directories under the same temporary root, alternated AB/BA order and retained all four attempts. Memory is the median of each settled phase; platform-specific counters are not cross-compared.
 
 | Metric | macOS baseline | macOS candidate | Delta | Windows baseline | Windows candidate | Delta |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Cold start | 1,061.12 ms | 1,441.56 ms | **+380.44 ms / +35.85%** | 1,149.27 ms | 1,152.82 ms | +3.55 ms / +0.31% |
-| Warm start | 760.29 ms | 758.56 ms | -1.73 ms / -0.23% | 1,117.77 ms | 1,147.28 ms | +29.51 ms / +2.64% |
-| First file | 678.52 ms | 1,401.06 ms | **+722.54 ms / +106.49%** | 353.13 ms | 358.71 ms | +5.58 ms / +1.58% |
-| One-file attributed footprint / private bytes | 163.95 MiB | 159.84 MiB | -4.11 MiB / -2.51% | 179.62 MiB | 180.76 MiB | +1.14 MiB / +0.63% |
-| One-file summed RSS / working set | 445.29 MiB | 446.02 MiB | +0.74 MiB / +0.17% | 350.02 MiB | 348.87 MiB | -1.16 MiB / -0.33% |
-| One-file idle CPU, one core | 1.64% | 1.58% | -0.06 pp | 0.32% | 0.13% | -0.19 pp |
+| Cold start | 1,217.83 ms | 1,083.96 ms | -133.87 ms / -10.99% | 1,677.57 ms | 1,568.97 ms | -108.60 ms / -6.47% |
+| Warm start | 709.63 ms | 606.68 ms | -102.95 ms / -14.51% | 1,536.48 ms | 1,558.34 ms | +21.85 ms / +1.42% |
+| First file | 687.44 ms | 597.98 ms | -89.46 ms / -13.01% | 408.80 ms | 406.23 ms | -2.58 ms / -0.63% |
+| One-file attributed footprint / private bytes | 165.42 MiB | 166.23 MiB | +0.81 MiB / +0.49% | 177.16 MiB | 178.95 MiB | +1.79 MiB / +1.01% |
+| One-file summed RSS / working set | 446.02 MiB | 446.51 MiB | +0.49 MiB / +0.11% | 348.55 MiB | 346.90 MiB | -1.65 MiB / -0.47% |
+| One-file idle CPU, one core | 1.44% | 1.42% | -0.02 pp | 0.12% | 0.00% | -0.12 pp |
 
-The macOS candidate first-file samples were 642.75, 1,389.00, 1,413.12 and 1,516.30 ms; the baseline range was 658.77–721.40 ms. Because three of four candidate samples were slow while Windows remained flat, this is a material, platform-specific regression signal. The current evidence does not isolate the cause. Phase 1 therefore remains performance-blocked.
+Mac cold-start samples were baseline `4281.19, 1137.10, 1200.62, 1235.04` ms and candidate `1330.81, 1145.78, 1019.81, 1022.14` ms. First-file samples were baseline `1689.38, 691.10, 570.67, 683.79` ms and candidate `611.44, 584.52, 461.90, 786.52` ms. No outlier was removed. The renderer-only source-visible aggregate was +13.67%, but its AB/BA paired median was +20.70 ms / +5.99%; the primary user-request-to-visible-editor measurement improved 13.01%. Both required 10% gates pass.
+
+Stage medians showed no candidate production bottleneck: main start to ready 223.20 -> 171.30 ms, ready to window 221.36 -> 180.53 ms, window to loaded 374.30 -> 309.63 ms and loaded to UI-ready 137.06 -> 103.76 ms. Candidate pending-restore checks were only 13.21–28.52 ms; file open/read IPC and scoped filesystem work were normally single-digit milliseconds. The production hot path was therefore not changed and no safety check was removed.
 
 Opening backup after Settings took a 444.72 ms macOS median and 832.51 ms Windows median. After ten open/close cycles, backend call and storage counters stopped changing while closed, the existing Monaco model remained identical, and every owned process family cleaned up. Code stayed unloaded during ordinary one-file editing (`backupLoaded: false`, zero backup calls). After first use the lazy chunk remains resident by design; this is not ongoing background work.
 
-## Remaining Phase 1 gates
+### Exact investigation changes
 
-- Trace the hosted macOS cold-start and first-file regression with stage timings; do not remove recovery or integrity checks to win the number.
-- Verify packaged installer/update migration, rollback and profile preservation on the exact release candidate. This workflow used ordinary production builds, not installers.
-- Exercise maximum archive limits, external-filesystem publication behavior, physical power interruption and long-duration/physical 8 GB workloads where available.
-- Run the full release regression/security/package gate against one immutable candidate. The focused workflow is not a substitute for every release test.
+- `scripts/core-native/bootstrap.cjs` adds CI-gated, bounded main-process/IPC/filesystem stage tracing with path scopes only.
+- `scripts/core-native/session.mjs` records launch, window, load, inspector attachment and UI-ready stages using monotonic timestamps.
+- `scripts/benchmark-core-backup-native.mjs` records file request, React commit, Monaco mount, paint, layout and long-task stages without source content.
+- `.github/workflows/core-backup-verification.yml` places both exact production artifacts under one temporary root and alternates execution order.
+- `.github/workflows/ion-release-verification.yml` pins the intended MinGW directory after every GitHub Actions path addition; `scripts/diagnose-windows-tool-selection.mjs` verifies the exact production selector result.
+- `scripts/benchmark-development-workflows.mjs` puts the observable long-running case first and traces its process/status lifecycle through Ion's existing 15-second compile plus four-second cleanup boundary. It does not extend the application timeout.
+
+None of these files is shipped as a new feature or alters the production `src` tree. The confirmed macOS bottleneck was in benchmark placement, so the smallest safe production correction was no production correction.
+
+## Completed Phase 1 release gates
+
+- Stage-level macOS startup/file-open tracing and the corrected co-located build comparison passed in [45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671).
+- The immutable candidate's full native macOS, package, update handoff, security and matched-performance lanes passed in [45215470028](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45215470028); the initial Windows lane failures are retained and were CI environment/harness defects, not suppressed samples.
+- Genuine Windows toolchain discovery, complete application regression and paired process/resource workflow passed after the narrow corrections in [45334910491](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45334910491).
+- Windows installer migration from the previous package, rollback after injected failure, Unicode profile/settings/code preservation and process cleanup passed. macOS DMG integrity, bundle permissions, disposable native launch, update handoff/recovery and clean shutdown passed. The macOS package is ad-hoc signed; Developer ID signing and notarization are not claimed.
+- Maximum 2 GiB/10,000-entry archives, external filesystems, physical power interruption, four-hour endurance and consumer 8 GB hardware remain documented coverage limits, not silently passing tests.
 
 ## Verdict
 
 **Core backup/restore native acceptance: PASS at `c530644`.**<br>
 **Phase 0: COMPLETE.**<br>
-**Phase 1: CONDITIONAL / NOT RELEASE-READY.** Native safety and cleanup criteria passed, but the unexplained macOS latency regression and broader packaged-release gates prevent a genuine Phase 1 completion claim. Phase 2 remains deferred.
+**Phase 1 acceptance: PASS for the defined hosted macOS/Windows scope.** The performance blocker was a demonstrated harness artifact, the corrected production comparison passes, and package/migration/regression gates pass. Public release publication remains separate and still requires an explicit signing/notarization decision. Phase 2 remains deferred until the user starts it.

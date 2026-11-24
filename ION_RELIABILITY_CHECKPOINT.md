@@ -1,6 +1,20 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
-## Final Phase 0 / Core native checkpoint — 2026-11-23
+## Phase 1 acceptance checkpoint — 2026-11-24
+
+**PASS for the defined hosted macOS/Windows Phase 1 scope.** The immutable application source is `c5306449445e16090c81d8396003b9885b710fd0`; the final verification harness checkpoint is `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`. The later commits do not alter production `src` or dependencies.
+
+The apparent macOS cold-start and first-file regressions were caused by asymmetric benchmark artifact roots, not Ion's backup, recovery or filesystem hot paths. [Corrected matched run 45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671) placed exact baseline `d67613a` and candidate `c530644` artifacts together and retained every AB/BA sample. Candidate medians improved cold startup 10.99%, warm startup 14.51% and first-file request-to-visible 13.01%. One-file attributed footprint changed +0.49%, summed RSS +0.11% and idle CPU -0.02 percentage points. Windows stayed within the 10% gate: cold -6.47%, warm +1.42%, first-file -0.63%, private bytes +1.01% and working set -0.47%.
+
+Stage evidence showed candidate pending-restore checks of 13.21–28.52 ms and low-single-digit normal file IPC/filesystem durations. Main start-to-ready, window creation, load, UI readiness and CDP attachment were all faster in candidate medians. No production safety check, recovery write, backup validation or file-integrity behavior was removed or relaxed.
+
+[Release gate 45215470028](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45215470028) passed macOS regression/package/update checks, Windows installer migration/rollback, dependency security, the native Windows unit suite and all three cold C diagnostics. The initial Windows application/process lanes failed for retained CI-only reasons: GitHub Actions reordered PATH after the shell check, selecting incompatible hosted LLVM, and the old-build process observer used a generic 8-second window before Ion's documented compiler boundary. The narrow MinGW pin and lifecycle-aligned observer were verified in [final Windows recheck 45334910491](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45334910491); both complete jobs passed and all eight paired development samples cleaned up.
+
+The installed application, live profile, real projects, `main`, releases, installers and update feed remain untouched. The macOS package is ad-hoc signed; Developer ID/notarization, physical power interruption, maximum-size archives, external filesystems, four-hour endurance and consumer 8 GB hardware remain explicitly unverified. Phase 2 has not started.
+
+---
+
+## Historical final Phase 0 / Core native checkpoint — 2026-11-23
 
 **Phase 0 is complete. Core backup/restore native acceptance is PASS. Overall Phase 1 remains CONDITIONAL and is not release-ready.** The exact candidate `c5306449445e16090c81d8396003b9885b710fd0` passed [run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) on hosted macOS 15 arm64 and Windows Server 2025 x64. Both jobs completed actual Settings backup, current unsaved editor/Undo checks, fresh and populated restore/relaunch, normal-store access, trust/credential/approval exclusions, two real startup-kill recovery boundaries, populated rollback and four serialized candidate/baseline resource pairs. All owned application families cleaned up.
 

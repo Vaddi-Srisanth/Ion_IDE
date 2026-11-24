@@ -1,6 +1,35 @@
 # Ion Core Excellence — Milestone 1 verification
 
-## Final hosted native acceptance — 2026-11-23
+## Phase 1 performance and release-gate closure — 2026-11-24
+
+**Core backup/restore: PASS. Phase 1 hosted acceptance: PASS for the defined scope.** The immutable application candidate remains `c5306449445e16090c81d8396003b9885b710fd0`; later commits contain only bounded diagnostics, benchmark controls, CI environment selection and reports. `src`, `package.json` and `package-lock.json` at the verification checkpoint are identical to `c530644`.
+
+[Corrected matched run 45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671) disproved the apparent macOS production regression. The original baseline and candidate builds had been executed from different filesystem roots. Co-locating the exact artifacts under the same temporary root and alternating AB/BA produced these medians without discarding any sample:
+
+| Metric | macOS baseline | macOS candidate | Delta | Windows baseline | Windows candidate | Delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold startup | 1,217.83 ms | 1,083.96 ms | -10.99% | 1,677.57 ms | 1,568.97 ms | -6.47% |
+| Warm startup | 709.63 ms | 606.68 ms | -14.51% | 1,536.48 ms | 1,558.34 ms | +1.42% |
+| First file | 687.44 ms | 597.98 ms | -13.01% | 408.80 ms | 406.23 ms | -0.63% |
+| One-file footprint/private bytes | 165.42 MiB | 166.23 MiB | +0.49% | 177.16 MiB | 178.95 MiB | +1.01% |
+| One-file RSS/working set | 446.02 MiB | 446.51 MiB | +0.11% | 348.55 MiB | 346.90 MiB | -0.47% |
+| One-file CPU, one-core basis | 1.44% | 1.42% | -0.02 pp | 0.12% | 0.00% | -0.12 pp |
+
+The macOS cold samples were baseline `4281.19, 1137.10, 1200.62, 1235.04` and candidate `1330.81, 1145.78, 1019.81, 1022.14` ms. First-file samples were baseline `1689.38, 691.10, 570.67, 683.79` and candidate `611.44, 584.52, 461.90, 786.52` ms. With only four observations, maximums are preserved instead of presenting unstable p95/p99 estimates. Candidate pending-restore checks were 13.21–28.52 ms. IPC, filesystem, recovery, Monaco, React/paint and layout stages were recorded with monotonic clocks and bounded sanitized events; no source text or user data was logged.
+
+Unused-backup verification remained clean: before first use, `backupLoaded` was false, bridge/storage counters were zero, no backup process existed and no background polling or worker was observed. One-file memory and CPU stayed within the matched budget. Opening/closing backup preserved the Monaco model and stopped all counter activity while closed; process families drained after every attempt.
+
+Packaging and migration evidence is split across immutable-source runs rather than relabeled as one monolithic success:
+
+- [45215470028 macOS](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45215470028/job/137835315875): complete regression, 370 passed / 0 failed / 26 Windows-only skips, 24 startup/shutdown cycles, native updater handoff/recovery, DMG integrity, mounted bundle, file access and clean shutdown. The package is ad-hoc signed; notarization is not claimed.
+- [45215470028 Windows installer](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45215470028/job/137835315352): in-place migration, settings/code/Unicode-profile preservation, exact rollback after injected installer failure and registry cleanup.
+- [45334910491 Windows](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45334910491): complete Windows application regression and process/resource comparison passed after pinning the intended MinGW path at the actual process boundary and correcting the old comparison fixture's 8-second observation race. The failed samples remain in [45333469925](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45333469925).
+
+The 26 macOS skips were Windows-only and were exercised by the native Windows jobs. Maximum archives, external filesystems, physical power loss, four-hour endurance, consumer 8 GB hardware, Developer ID signing and notarization remain unverified limitations. No release, installer publication, update-feed change, installed-app replacement or user-profile access occurred.
+
+---
+
+## Historical final hosted native acceptance — 2026-11-23
 
 **Core backup/restore verdict: PASS at `c5306449445e16090c81d8396003b9885b710fd0`. Overall Phase 1 verdict: CONDITIONAL / NOT RELEASE-READY.** [Run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) passed its complete lifecycle and resource workflow on [macOS 15 arm64](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218970) and [Windows Server 2025 x64](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873/job/137799218249). The exact comparison ancestor was `d67613a1e9b77c7d677bd304628d57c58542fa71`.
 

@@ -70,7 +70,33 @@ The installed comparison editor is Visual Studio Code `1.147.0` arm64, approxima
 14. Repeated workspace, theme, panel, viewer, and tab lifecycle.
 15. Four-hour mixed coding endurance.
 
-## Core backup acceptance result — `c530644`
+## Phase 1 macOS regression investigation — 2026-11-24
+
+The production comparison remains exact baseline `d67613a1e9b77c7d677bd304628d57c58542fa71` versus exact application candidate `c5306449445e16090c81d8396003b9885b710fd0`. The current branch changes after `c530644` are diagnostics, benchmark controls and CI environment corrections only; `src`, `package.json` and `package-lock.json` are byte-identical to `c530644`.
+
+The initial result below was not a production regression. Its baseline build lived inside the repository checkout while the candidate build lived under the hosted runner's temporary filesystem. On hosted macOS, that asymmetric artifact placement changed filesystem/cache order and produced cold first-attempt outliers. [Corrected run 45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671) copied both exact production artifacts to sibling directories under the same temporary root, alternated AB/BA order and retained every sample. The first instrumentation run and the failed `.map(resolve)` harness run remain preserved as [45210185589](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45210185589) and [45212659200](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45212659200).
+
+| Metric, median of four attempts | macOS baseline | macOS candidate | Aggregate delta | Paired-median delta | Gate |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Cold startup | 1,217.83 ms | 1,083.96 ms | -10.99% | -196.85 ms / -16.16% | PASS |
+| Warm startup | 709.63 ms | 606.68 ms | -14.51% | -125.14 ms / -17.63% | PASS |
+| First-file request to visible editor | 687.44 ms | 597.98 ms | -13.01% | -107.67 ms / -15.66% | PASS |
+| Renderer click to source visible | 345.40 ms | 392.60 ms | +13.67% | +20.70 ms / +5.99% | PASS by paired gate; aggregate retained |
+| One-file attributed footprint | 165.42 MiB | 166.23 MiB | +0.49% | — | PASS |
+| One-file summed RSS | 446.02 MiB | 446.51 MiB | +0.11% | — | PASS |
+| One-file idle CPU, one core | 1.44% | 1.42% | -0.02 pp | — | PASS |
+
+Individual macOS cold-start samples were baseline `4281.19, 1137.10, 1200.62, 1235.04` ms and candidate `1330.81, 1145.78, 1019.81, 1022.14` ms. First-file samples were baseline `1689.38, 691.10, 570.67, 683.79` ms and candidate `611.44, 584.52, 461.90, 786.52` ms. The slow samples are retained; with four observations, the maximum is reported rather than mislabeled as a stable p95/p99 estimate.
+
+High-resolution stage medians also contradict a production slowdown: main start to ready was 223.20 -> 171.30 ms, ready to window 221.36 -> 180.53 ms, window to loaded 374.30 -> 309.63 ms, loaded to UI-ready 137.06 -> 103.76 ms, load observation 792.99 -> 690.26 ms, CDP connection 82.56 -> 65.23 ms and the Settings-ready locator 54.15 -> 37.95 ms. The only small opposing observer stage was start observation, 256.63 -> 279.00 ms.
+
+The candidate's pending-restore `lstat` samples were 28.52, 21.55, 14.01 and 13.21 ms. First-file open/read IPC and scoped filesystem work remained in the low single-digit milliseconds except one 10.00 ms open call. React/Monaco/paint work, not recovery or backup I/O, dominates the renderer portion. Removing safety checks could not explain or safely improve the original hundreds-of-milliseconds signal.
+
+The corrected Windows control remained unaffected: cold startup 1,677.57 -> 1,568.97 ms (-6.47%), warm startup 1,536.48 -> 1,558.34 ms (+1.42%), first file 408.80 -> 406.23 ms (-0.63%), private bytes 177.16 -> 178.95 MiB (+1.01%) and working set 348.55 -> 346.90 MiB (-0.47%).
+
+Instrumentation uses monotonic high-resolution timers, bounded event arrays and path-scope labels. It records no source text, file names, profile contents, environment variables or credentials. With backup closed, `backupLoaded` remained false, call/storage counters stayed at zero and no backup-owned process or polling work existed. The unused feature therefore adds no observed ongoing work.
+
+## Historical initial Core backup measurement — `c530644`
 
 [Run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) completed four serialized alternating baseline/candidate pairs on both native hosted platforms. It compared ordinary production builds of exact baseline `d67613a` and candidate `c530644`; every one of the 16 application attempts completed and left an empty owned process family.
 
