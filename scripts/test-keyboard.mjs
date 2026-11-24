@@ -48,6 +48,7 @@ await withScratch('keyboard', async (scratch) => {
   const replaceTarget = join(nested, 'replace.txt')
   await Promise.all([mkdir(profile), mkdir(nested)])
   await Promise.all([
+    writeFile(join(profile, 'preferences.json'), JSON.stringify({ version: 1, settings: { autoSave: false } })),
     writeFile(source, '#include <stdio.h>\nint main(void) {\n    puts("ION-KEYBOARD-INPUT");\n    fflush(stdout);\n    return getchar() == EOF;\n}\n' + Array.from({ length: 180 }, (_, index) => `// scroll fixture ${index}`).join('\n') + '\n'),
     writeFile(table, 'heading,note\n1,keyboard reference\n'),
     writeFile(otherSource, 'int other(void) { return 42; }\n'),
