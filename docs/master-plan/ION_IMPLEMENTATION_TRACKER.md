@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current branch: `codex/ion-core-excellence-phase-2`<br>
-Current Phase 2 verified candidate: `5a70d92a5fc396de1968f7a3fec774832adb9c6f`<br>
+Current Phase 2 local candidate: `bc9ca7b`<br>
 Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
@@ -15,7 +15,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **In progress — initial editor-excellence milestone accepted** | Implement different-file groups, restored layouts and multi-root workspaces without weakening the Phase 1 gates. |
+| 2 — Core editor excellence | **In progress — editor/workspace foundations pass local macOS gates** | Native Windows acceptance remains required before LSP work begins. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -110,14 +110,27 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.1A — Multi-cursor commands and tab ordering | **Accepted on macOS and Windows** | Standard add-above/add-below/select-next/select-all commands are configurable and discoverable. Monaco's 19.36 kB multi-cursor contribution loads only on first use. Reordering preserves the active tab, dirty buffer and model identity. Unit, production Electron, type and build checks pass. |
 | 2.1B — Source editor split foundation | **Accepted on macOS and Windows** | The on-demand same-document split shares one model/undo stack, keeps independent cursor/selection/scroll/focus state, supports keyboard focus/resize and disposes on close. Ten Windows cycles retained four owned processes and recovered below the pre-cycle memory samples. Different-file groups and persisted group restoration are the next milestone. |
 | 2.1C — Workspace reviewed replace | **Accepted on macOS and Windows** | The existing bounded search offers explicit preview and selection. Main owns an expiring snapshot, revalidates revisions and hashes, publishes via the atomic save path, rejects changed files and reports partial failures. Modified open buffers block review. Long Unicode paths and Windows case-insensitive behavior passed natively. |
-| 2.1D — Navigation/tab polish | In progress | Quick Open, Go to Line, definition/references, back/forward, close, cycle and move are present. Group-aware navigation and broader tab commands remain. |
-| 2.2 — Multi-root workspace | Not started | Requires versioned descriptors, per-root grants/settings and restored trust boundaries. |
+| 2.1D — Different-file editor groups | **Local macOS PASS at `9bca0ed`** | Nested horizontal/vertical layouts, up to four groups, same/different files, shared models, independent view state, drag/move/focus/close/rebalance, keyboard resize and production relaunch persistence pass. Native Windows recheck remains. |
+| 2.1E — Restored editor-group layouts | **Local macOS PASS at `9bca0ed`** | Orientation, 56% resize ratio, membership and active files survived production relaunch. Invalid/older layouts fail closed in unit tests. Native Windows recheck remains. |
+| 2.2 — Multi-root workspace | **Local macOS PASS at `bc9ca7b`** | Explicit grants, add/remove/reorder, bounded saved descriptors/settings, root-aware search/replace/Quick Open/breadcrumbs/terminal/Git/run/projects/notebooks and session restoration pass. Native Windows security/path acceptance remains. |
 | 2.3 — Reusable LSP host | Not started | Existing clangd/Java adapters will be migrated behind an owned on-demand lifecycle before Python/JS/TS additions. |
 | 2.4 — DAP | Not started | No production debug adapter host yet. |
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
 
 Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in this accepted slice. The multi-cursor contribution is a separate lazy chunk and ordinary one-file editing does not request it.
+
+### Local macOS editor/workspace foundation checkpoint
+
+The exact production candidate `bc9ca7b` passed type checking, production build, the production keyboard workflow, the production editor-session workflow and the complete unit/security suite: **386 passed, 0 failed, 26 skipped**. The skips are Windows-only ConPTY, Job Object, filesystem-lock/path and native process-tree fixtures plus an unavailable Maven/Gradle fixture; they remain native Windows gates rather than being counted as passing.
+
+The production relaunch workflow verified a two-root workspace, two different-file editor groups, a horizontal 56% layout, group membership and active files. A clean disposable profile then opened the saved `.ion-workspace` only after explicit review and recovered both roots without execution trust. The saved descriptor contains only the explicit roots and bounded editor settings; repository, run, terminal and test trust are deliberately excluded.
+
+A three-trial matched comparison used the exact pre–multi-root commit `9bca0ed` and candidate `bc9ca7b`, identical production builds, disposable profiles and all retained samples. Median fresh startup was 328.51 -> 293.19 ms (-10.75%), warm startup 316.73 -> 289.14 ms (-8.71%), first file 179.08 -> 179.83 ms (+0.42%), one-tab summed RSS 518.42 -> 518.91 MiB (+0.49 MiB / +0.09%), ten-tab RSS 530.02 -> 531.45 MiB (+1.43 MiB / +0.27%), idle RSS 428.50 -> 429.09 MiB (+0.59 MiB / +0.14%) and idle CPU remained 0.31% of one core. These macOS RSS numbers can double-count shared Chromium pages; no RAM-reduction claim is made.
+
+The focused five-root workload recorded 11.30 ms whole-workspace search, 9.60 ms replacement review and 39.10 ms reviewed publication across five files. Ten tabs opened in 284.53 ms, the next forty in 1,311.57 ms, the same file reached four groups in 104.84 ms and four different files reached four groups in 223.43 ms. Five create/close cycles took 1,599.41 ms. The owned process count stayed exactly four for every sample; no terminal, language server, debugger, compiler, Git or test process appeared. After cycles, attributed footprint was 286.10 MiB versus 354.27 MiB at the preceding fifty-tab checkpoint; summed RSS retained allocator pages at 612.08 versus 549.63 MiB and is reported as retention, not a leak. Raw ignored evidence is under `performance-results/editor-foundations-local-macos-2026-11-24T08-50-02.528Z.json` and `performance-results/desktop-2026-11-24T08-50-50.670Z.json`.
+
+**Foundation verdict: CONDITIONAL.** Local macOS implementation, security, restoration and performance gates pass. The same immutable source still requires focused hosted Windows build, filesystem/security, production Electron, restoration and resource acceptance. LSP/DAP remain blocked until that evidence passes.
 
 The 2.1B macOS disposable-profile benchmark exercised five open/close cycles. Median split creation was 22.60 ms and close was 27.98 ms. Opening the second editor increased median attributed footprint from 216.61 MiB to 277.29 MiB and summed RSS from 509.78 MiB to 521.63 MiB. Five seconds after the final close, attributed footprint was 185.26 MiB (-31.36 MiB from the pre-cycle sample), summed RSS was 522.05 MiB (+12.27 MiB allocator/working-set retention), and observed owned-tree CPU was 0.22% of one core. This five-cycle result establishes disposal and bounded short-run behavior, not a long-session leak claim. No extra process was created.
 

@@ -74,3 +74,35 @@ Two preceding failed runs remain visible. [45350028358](https://github.com/Vaddi
 **Milestone verdict: PASS for the implemented multi-cursor, tab-ordering, same-document split and reviewed-replace scope.** Different-file groups, persisted group layouts and multi-root workspaces are deliberately tracked as subsequent Phase 2 milestones.
 
 Phase 2 verification code and the accepted slice were pushed only to `codex/ion-core-excellence-phase-2`. They were not installed, released or merged into `main`; the installed Ion application and live profile remain untouched.
+
+## Milestones 2.1D/2.1E — different-file groups and restored layouts
+
+Commits `4214e4e`, `f47ec7d` and `9bca0ed` add a bounded group-layout model and reuse the existing Monaco model registry. Ion supports nested horizontal and vertical splits with up to four groups, the same or different files in each group, tab drag/move, directional focus, close/rebalance and accessible keyboard resizing. Multiple views of one document share one text model, dirty state and undo stack while retaining independent cursor, selection and scroll state. Moving a tab changes group references and does not recreate its model.
+
+The versioned editor-session snapshot stores layout orientation, bounded percentages, group membership, active group and active tab, alongside the existing per-document view state. Restoration validates the tree, rejects cycles/unknown groups/invalid percentages, drops unavailable documents and falls back to a safe single editor for old or malformed profiles. Production relaunch acceptance preserved a horizontal two-group layout at 56%, different active files and group membership.
+
+Focused unit tests, production keyboard acceptance, type checking and production build pass on macOS. Native Windows acceptance for this immutable combined foundation remains pending.
+
+## Milestone 2.2 — secure multi-root workspaces
+
+Local commit `bc9ca7b` replaces the single-root assumption with an explicit ordered set of at most eight canonical, non-overlapping roots. Every root is independently inspected and granted. Removing a root revokes transient run trust for that subtree, closes dependent Git ownership, invalidates searches/replacement reviews and removes its filesystem authority. Adding or restoring a root never imports execution, repository, terminal or test trust.
+
+The Explorer supports add/remove/reorder and duplicate-name disambiguation. Version-one `.ion-workspace` files contain only absolute roots plus a strict subset of editor settings; they are size-bounded, validated before authority changes and shown in an explicit grant review. Root-aware behavior covers Quick Open, per-root and combined search, reviewed combined replacement, breadcrumbs, terminal cwd, Git selection, C/C++ build manifests, saved project tests, Project Lens, Markdown assets, notebooks, formatters, web preview and the existing on-demand semantic adapters. Session restoration grants only the validated saved roots.
+
+Local evidence:
+
+- complete unit/security suite: 386 passed, 0 failed, 26 explicitly skipped platform fixtures;
+- production editor session: ordinary recovery, persisted editor groups/two roots, and reviewed workspace opening all passed;
+- production keyboard workflow: multi-cursor, same-document split, different-file groups, reviewed replace, navigation, shortcuts and relaunch all passed;
+- type checking and production build passed;
+- no installed application, live profile, release, update feed or `main` change.
+
+### Matched performance and focused workload
+
+Three paired macOS trials compared the exact pre–multi-root `9bca0ed` build to `bc9ca7b`. Candidate medians were fresh startup 293.19 ms (-10.75%), warm startup 289.14 ms (-8.71%), first file 179.83 ms (+0.42%), idle summed RSS 429.09 MiB (+0.59 MiB), one-tab RSS 518.91 MiB (+0.49 MiB), ten-tab RSS 531.45 MiB (+1.43 MiB) and idle CPU 0.31% (unchanged). All samples were retained.
+
+In the focused five-root production workload, whole-workspace search found one match in each root in 11.30 ms; review took 9.60 ms and all five atomic file publications completed in 39.10 ms. The owned Electron tree stayed at four processes through one/five roots, 10/50 tabs, four same-file groups, four different-file groups, repeated group cycles and restoration. No background service exists merely because multiple roots are configured.
+
+The fifty-tab checkpoint was 354.27 MiB attributed footprint / 549.63 MiB summed RSS. After five four-group create/close cycles and five seconds of recovery it was 286.10 / 612.08 MiB. The footprint recovered below the preceding workload; RSS retained 62.45 MiB of allocator/working-set pages and is not labeled a leak. A fresh restored fifty-tab/five-root session measured 350.91 MiB footprint / 500.50 MiB RSS. These are local Apple Silicon observations, not Windows substitutions.
+
+**Current verdict: CONDITIONAL.** The implementation passes local macOS functional, integrity, security and resource gates. Hosted Windows verification of the exact candidate is still required, including junction/case/long-path behavior, restoration and owned-process/resource sampling. General LSP/DAP work must not begin before that gate passes.
