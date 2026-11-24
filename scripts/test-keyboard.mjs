@@ -128,7 +128,7 @@ await withScratch('keyboard', async (scratch) => {
 
     await page.locator('.monaco-editor .view-line').first().click()
     await page.keyboard.insertText('X')
-    await shortcut(app, 'F', [modifier, 'shift'])
+    await command(session, 'Search in Files')
     let search = page.getByRole('dialog', { name: 'Search in Files' })
     await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
     await search.getByRole('button', { name: 'Replace in files…' }).click()
@@ -139,7 +139,7 @@ await withScratch('keyboard', async (scratch) => {
     await shortcut(app, 'Z', [modifier])
     await shortcut(app, 'S', [modifier])
 
-    await shortcut(app, 'F', [modifier, 'shift'])
+    await command(session, 'Search in Files')
     search = page.getByRole('dialog', { name: 'Search in Files' })
     await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
     await search.getByRole('button', { name: 'Replace in files…' }).click()
