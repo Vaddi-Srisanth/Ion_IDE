@@ -216,6 +216,17 @@ export class Documents {
     }
   };
 
+  move = (id: string, offset: -1 | 1) => {
+    const entries = Array.from(this.records.entries());
+    const index = entries.findIndex(([key]) => key === id);
+    const target = index + offset;
+    if (index < 0 || target < 0 || target >= entries.length) return false;
+    [entries[index], entries[target]] = [entries[target], entries[index]];
+    this.records = new Map(entries);
+    this.publish();
+    return true;
+  };
+
   open = (entry?: Entry, draft?: InitialDraft) => {
     if (entry) {
       const existing = Array.from(this.records.values()).find(({ tab }) => tab.path === entry.path);

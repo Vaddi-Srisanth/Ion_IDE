@@ -12,8 +12,14 @@ const commands = {
   'close-tab': { label: 'Close Tab', key: 'Mod+W' },
   'next-tab': { label: 'Next Tab', key: 'Mod+Shift+]' },
   'previous-tab': { label: 'Previous Tab', key: 'Mod+Shift+[' },
+  'move-tab-left': { label: 'Move Tab Left', key: 'Mod+Alt+Shift+ARROWLEFT' },
+  'move-tab-right': { label: 'Move Tab Right', key: 'Mod+Alt+Shift+ARROWRIGHT' },
   find: { label: 'Find', key: 'Mod+F' },
   replace: { label: 'Replace', key: 'Mod+Alt+F', other: 'Mod+H' },
+  'add-cursor-above': { label: 'Add Cursor Above', key: 'Mod+Alt+ARROWUP' },
+  'add-cursor-below': { label: 'Add Cursor Below', key: 'Mod+Alt+ARROWDOWN' },
+  'select-next-occurrence': { label: 'Select Next Occurrence', key: 'Mod+D' },
+  'select-all-occurrences': { label: 'Select All Occurrences', key: 'Mod+Shift+L' },
   'format-document': { label: 'Format Document', key: 'Alt+Shift+F' },
   'go-to-definition': { label: 'Go to Definition' },
   'find-references': { label: 'Find References', key: 'Shift+F12' },
@@ -55,7 +61,7 @@ export function commandLabel(command: MenuCommand): string {
 }
 
 const modifiers = ['Mod', 'Ctrl', 'Alt', 'Shift'] as const
-const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER)$/
+const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER|ARROW(?:UP|DOWN|LEFT|RIGHT))$/
 const roleKeys = new Set(['Mod+A', 'Mod+C', 'Mod+V', 'Mod+X', 'Mod+Z', 'Mod+Shift+Z'])
 const macRoleKeys = new Set(['Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+Ctrl+F', 'Ctrl+Mod+F'])
 
@@ -131,13 +137,18 @@ export function displayShortcut(command: MenuCommand, overrides: ShortcutOverrid
   const binding = effectiveShortcut(command, overrides, platform)
   if (!binding) return ''
   if (platform !== 'darwin') return binding.replace('Mod', 'Ctrl')
+    .replace(/ARROWUP/g, '↑').replace(/ARROWDOWN/g, '↓')
+    .replace(/ARROWLEFT/g, '←').replace(/ARROWRIGHT/g, '→')
   return binding.split('+').map((part) => ({
     Mod: '⌘', Ctrl: '⌃', Shift: '⇧', Alt: '⌥', Enter: '↩',
+    ARROWUP: '↑', ARROWDOWN: '↓', ARROWLEFT: '←', ARROWRIGHT: '→',
   })[part] ?? part).join('')
 }
 
 export function menuAccelerator(binding: string): string | undefined {
-  return binding ? binding.replace(/\bMod\b/g, 'CmdOrCtrl') : undefined
+  return binding ? binding.replace(/\bMod\b/g, 'CmdOrCtrl')
+    .replace(/ARROWUP/g, 'Up').replace(/ARROWDOWN/g, 'Down')
+    .replace(/ARROWLEFT/g, 'Left').replace(/ARROWRIGHT/g, 'Right') : undefined
 }
 
 interface ShortcutInput {

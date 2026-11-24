@@ -1161,8 +1161,16 @@ export function App() {
           documents.select(tabs[(position + step + tabs.length) % tabs.length].id);
           break;
         }
+        case 'move-tab-left':
+        case 'move-tab-right':
+          if (id && screen === 'editor') documents.move(id, value === 'move-tab-left' ? -1 : 1);
+          break;
         case 'find': find(); break;
         case 'replace': find(true); break;
+        case 'add-cursor-above': editor.current?.multiCursor('above'); break;
+        case 'add-cursor-below': editor.current?.multiCursor('below'); break;
+        case 'select-next-occurrence': editor.current?.multiCursor('next'); break;
+        case 'select-all-occurrences': editor.current?.multiCursor('all'); break;
         case 'choose-theme': setDialog({ kind: 'settings', browseThemes: true }); break;
         case 'language-support': setDialog({ kind: 'language-support' }); break;
         case 'go-to-definition': editor.current?.goToDefinition(); break;
@@ -1329,6 +1337,13 @@ export function App() {
       case 'focus-editor': return tabs.some((tab) => !tab.viewer);
       case 'next-tab':
       case 'previous-tab': return tabs.length > 1;
+      case 'move-tab-left':
+      case 'move-tab-right': return tabs.length > 1 && Boolean(active);
+      case 'add-cursor-above':
+      case 'add-cursor-below':
+      case 'select-next-occurrence':
+      case 'select-all-occurrences': return Boolean(active && !active.viewer && !active.error
+        && active.notebookMode !== 'notebook' && splitActions.current?.markdown?.mode !== 'preview');
       case 'run': return canRun && !runBusy;
       case 'run-tests': return Boolean(root) && !runBusy;
       case 'stop': return runBusy;

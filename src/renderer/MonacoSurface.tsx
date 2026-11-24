@@ -64,6 +64,7 @@ export interface EditorActions {
   focus(): void;
   lineCount(): number;
   goToDefinition(): void;
+  multiCursor(action: 'above' | 'below' | 'next' | 'all'): void;
   findReferences(): Promise<SourceReference[]>;
   position(tabId: string): { line: number; column: number } | undefined;
   goToLine(line: number, column?: number, tabId?: string): boolean;
@@ -259,6 +260,20 @@ export default function MonacoSurface({
         if (!instance.getModel() || sourceHiddenRef.current) return;
         instance.focus();
         void instance.getAction('editor.action.revealDefinition')?.run();
+      },
+      multiCursor(action) {
+        const model = instance.getModel();
+        if (!model || sourceHiddenRef.current) return;
+        const id = {
+          above: 'editor.action.insertCursorAbove', below: 'editor.action.insertCursorBelow',
+          next: 'editor.action.addSelectionToNextFindMatch', all: 'editor.action.selectHighlights',
+        }[action];
+        instance.focus();
+        void import('monaco-editor/editor/contrib/multicursor/browser/multicursor.js').then(() => {
+          if (instance.getModel() === model && !model.isDisposed() && !sourceHiddenRef.current) {
+            instance.trigger('ion-multi-cursor', id, undefined);
+          }
+        });
       },
       async findReferences() {
         const model = instance.getModel();

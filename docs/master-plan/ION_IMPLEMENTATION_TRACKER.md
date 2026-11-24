@@ -1,6 +1,6 @@
 # Ion implementation tracker
 
-Current branch: `codex/ion-master-plan-phase-0`<br>
+Current branch: `codex/ion-core-excellence-phase-2`<br>
 Current verified candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
@@ -14,7 +14,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | Deferred | Phase 1 must pass first. No Phase 2 work is authorized. |
+| 2 — Core editor excellence | **In progress — editor ergonomics 2.1A** | Complete and verify the editor/workspace milestones below without weakening the Phase 1 gates. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -98,4 +98,22 @@ None of these files is shipped as a new feature or alters the production `src` t
 
 **Core backup/restore native acceptance: PASS at `c530644`.**<br>
 **Phase 0: COMPLETE.**<br>
-**Phase 1 acceptance: PASS for the defined hosted macOS/Windows scope.** The performance blocker was a demonstrated harness artifact, the corrected production comparison passes, and package/migration/regression gates pass. Public release publication remains separate and still requires an explicit signing/notarization decision. Phase 2 remains deferred until the user starts it.
+**Phase 1 acceptance: PASS for the defined hosted macOS/Windows scope.** The performance blocker was a demonstrated harness artifact, the corrected production comparison passes, and package/migration/regression gates pass. Public release publication remains separate and still requires an explicit signing/notarization decision. The user authorized Phase 2 after this gate passed.
+
+## Phase 2 implementation tracker
+
+Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch above. `main`, releases, installers, the update feed, the installed application and the live profile remain untouched.
+
+| Milestone | Status | Evidence / remaining gate |
+| --- | --- | --- |
+| 2.1A — Multi-cursor commands and tab ordering | **Implemented; focused verification passing** | Standard add-above/add-below/select-next/select-all commands are configurable and discoverable. Monaco's 19.36 kB multi-cursor contribution loads only on first use. Reordering preserves the active tab, dirty buffer and model identity. Unit, native keyboard, type and production-build checks pass. |
+| 2.1B — Source editor splits/groups | In progress | Existing document/Markdown split is verified; general source-to-source model ownership, independent view state, focus and session restoration still require implementation. |
+| 2.1C — Workspace reviewed replace | Not started | Existing bounded, cancellable search is verified. Multi-file preview, revision checks, conflicts and partial-failure reporting are required before replace can be claimed. |
+| 2.1D — Navigation/tab polish | In progress | Quick Open, Go to Line, definition/references, back/forward, close, cycle and move are present. Group-aware navigation and broader tab commands remain. |
+| 2.2 — Multi-root workspace | Not started | Requires versioned descriptors, per-root grants/settings and restored trust boundaries. |
+| 2.3 — Reusable LSP host | Not started | Existing clangd/Java adapters will be migrated behind an owned on-demand lifecycle before Python/JS/TS additions. |
+| 2.4 — DAP | Not started | No production debug adapter host yet. |
+| 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
+| 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
+
+Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in 2.1A. The contribution is a separate lazy chunk and ordinary one-file editing does not request it. Native Windows runtime acceptance for this Phase 2 slice is still unverified until an authorized focused CI run.

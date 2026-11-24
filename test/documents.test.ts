@@ -73,6 +73,22 @@ test('unnamed drafts retain the generated sequence and disk files read their own
   await documents.discard(second)
 })
 
+test('tabs can be reordered without changing the active document or buffer identity', async () => {
+  const { documents, setValue } = setup({})
+  const first = documents.open(undefined, { name: 'first.c', text: 'first' })!
+  const second = documents.open(undefined, { name: 'second.c', text: 'second' })!
+  const third = documents.open(undefined, { name: 'third.c', text: 'third' })!
+  setValue('third edited')
+  documents.changed(third)
+  assert.equal(documents.move(third, -1), true)
+  assert.deepEqual(documents.getSnapshot().tabs.map(({ id }) => id), [first, third, second])
+  assert.equal(documents.getSnapshot().activeId, third)
+  assert.equal(await documents.loadText(third), 'third edited')
+  assert.equal(documents.move(first, -1), false)
+  assert.equal(documents.move(second, 1), false)
+  assert.deepEqual(documents.getSnapshot().tabs.map(({ id }) => id), [first, third, second])
+})
+
 test('a save completed after more editing leaves the newer edits dirty', async () => {
   let finishFirst!: (result: { revision: string; contentHash: string }) => void
   const firstSave = new Promise<{ revision: string; contentHash: string }>((resolve) => { finishFirst = resolve })

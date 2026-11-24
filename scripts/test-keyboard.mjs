@@ -24,6 +24,7 @@ async function command(session, label) {
   await input.fill(label)
   await session.page.getByRole('option', { name: new RegExp(label, 'i') }).first().waitFor()
   await input.press('Enter')
+  await input.waitFor({ state: 'detached' })
 }
 
 async function quickOpen(session, query, option) {
@@ -66,6 +67,15 @@ await withScratch('keyboard', async (scratch) => {
     await atPath(page, 'tab', source).waitFor()
     await editorShows(page, 'ION-KEYBOARD-INPUT')
 
+    assert.equal(await page.evaluate(() => performance.getEntriesByType('resource')
+      .some(({ name }) => /\/multicursor-[^/]+\.js(?:$|\?)/.test(name))), false,
+    'The multi-cursor contribution must stay unloaded during ordinary editing.')
+    await command(session, 'Add Cursor Below')
+    await page.waitForFunction(() => document.querySelectorAll('.monaco-editor .cursor').length >= 2)
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => document.querySelectorAll('.monaco-editor .cursor').length === 1)
+    console.log('PASS keyboard multi-cursor action adds and clears a secondary cursor without editing')
+
     await shortcut(app, 'G', ['control'])
     const line = page.getByTestId('goto-line-input')
     await line.fill('99')
@@ -81,6 +91,14 @@ await withScratch('keyboard', async (scratch) => {
 
     await quickOpen(session, 'reference.csv', /reference\.csv/)
     await page.getByTestId('table-grid').getByText('keyboard reference').waitFor()
+    const tabPaths = () => page.getByTestId('tab').evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute('data-path')))
+    assert.deepEqual(await tabPaths(), [source, table])
+    await command(session, 'Move Tab Left')
+    await eventually(async () => JSON.stringify(await tabPaths()) === JSON.stringify([table, source]), 'Move Tab Left did not reorder the tabs.')
+    assert.equal(await atPath(page, 'tab', table).locator('.tab-name').getAttribute('aria-current'), 'true')
+    await command(session, 'Move Tab Right')
+    await eventually(async () => JSON.stringify(await tabPaths()) === JSON.stringify([source, table]), 'Move Tab Right did not reorder the tabs.')
+    console.log('PASS keyboard tab reordering preserves the active tab')
     await command(session, 'Toggle Document Split')
     await page.getByTestId('document-split').waitFor()
     await command(session, 'Focus Document Split Divider')
