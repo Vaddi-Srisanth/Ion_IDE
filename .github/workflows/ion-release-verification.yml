@@ -163,6 +163,8 @@ jobs:
           if ((Split-Path $gxx) -ne $expected) { throw "Unexpected C++ compiler: $gxx" }
           & $gcc --version
           & $gxx --version
+      - name: Trace Ion's trusted Windows compiler selection
+        run: node scripts/diagnose-windows-tool-selection.mjs
       - name: Verify native filesystem conflicts and scoped mutation
         run: npm test -- workspace-files-windows file-mutation-races
       - name: Run portable and Windows-specific unit tests
