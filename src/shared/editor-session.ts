@@ -27,10 +27,23 @@ export interface EditorSessionTab extends SessionTabView {
   draftId?: string
 }
 
+export type EditorSessionGroupLayout =
+  | { kind: 'group'; groupId: string }
+  | { kind: 'split'; id: string; orientation: 'horizontal' | 'vertical'; percent: number;
+    first: EditorSessionGroupLayout; second: EditorSessionGroupLayout }
+
+export interface EditorSessionGroups {
+  version: 1
+  layout: EditorSessionGroupLayout
+  groups: Array<{ id: string; tabs: number[]; activeIndex: number }>
+  activeGroupId: string
+}
+
 export interface EditorSessionSnapshot {
   rootPath: string | null
   activeIndex: number
   tabs: EditorSessionTab[]
+  editorGroups?: EditorSessionGroups
   /** Inert imported metadata; resume never grants these paths. */
   restoredReferences?: EditorSessionTab[]
   restoredRoot?: string
@@ -41,6 +54,7 @@ export interface ResumedEditorSession {
   tabs: Array<SessionTabView & { index: number; entry?: Entry; draft?: RecoveryDraft }>
   activeIndex: number
   skipped: number
+  editorGroups?: EditorSessionGroups
 }
 
 export interface EditorSessionBridge {

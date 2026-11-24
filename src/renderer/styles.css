@@ -320,6 +320,17 @@ svg { flex: none; }
 .editor-surface > .editor-loading { position: absolute; inset: 0; background: var(--background); }
 .java-tool-status { position: absolute; right: 18px; bottom: 14px; max-width: calc(100% - 36px); padding: 6px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }
 .editor-surface[data-smart-java] .monaco-hover .hover-row.status-bar { display: none; }
+.editor-group-split { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.editor-group-split[data-orientation="horizontal"] { flex-direction: row; }
+.editor-group-split[data-orientation="vertical"] { flex-direction: column; }
+.editor-group-branch { display: flex; flex: 1 1 0; min-width: 180px; min-height: 120px; overflow: hidden; }
+.editor-group { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+  border: 1px solid transparent; background: var(--background); }
+.editor-group.active { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.editor-group-content { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.editor-group-tabs { min-height: 32px; height: 32px; }
+.editor-group-actions { display: flex; flex: none; align-items: center; gap: 1px; padding: 0 3px; border-left: 1px solid var(--border); }
+.editor-group-actions .icon-button { width: 25px; height: 25px; }
 .conflict-banner { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--warning-bg); color: var(--amber); border-bottom: 1px solid var(--border); }
 .conflict-banner > span { flex: 1; }
 .conflict-banner .button { min-height: 24px; }

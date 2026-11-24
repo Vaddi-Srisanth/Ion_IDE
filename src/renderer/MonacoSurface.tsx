@@ -88,6 +88,7 @@ interface Props {
   workspacePath?: string;
   problemMarkers?: readonly ProblemMarker[];
   onActions(actions: EditorActions | null): void;
+  onFocus?(): void;
   onCursor(line: number, column: number): void;
   onLanguageReport(report: LiveToolReport | null): void;
   onNavigateSource(path: string, line: number, column: number): void;
@@ -125,7 +126,7 @@ function modelPoolFor(documents: Documents, tabSize: number) {
 
 export default function MonacoSurface({
   documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
-  split = false, splitPercent = 50, onSplitPercent, onActions, onCursor, onLanguageReport, onNavigateSource,
+  split = false, splitPercent = 50, onSplitPercent, onActions, onFocus, onCursor, onLanguageReport, onNavigateSource,
 }: Props) {
   const modelPool = modelPoolFor(documents, settings.tabSize);
   const ownerKey = useRef(crypto.randomUUID()).current;
@@ -149,6 +150,10 @@ export default function MonacoSurface({
   const [languageStatus, setLanguageStatus] = useState<string | null>(null);
   const navigateSource = useRef(onNavigateSource);
   navigateSource.current = onNavigateSource;
+  const focusRequest = useRef(onFocus);
+  focusRequest.current = onFocus;
+  const cursorRequest = useRef(onCursor);
+  cursorRequest.current = onCursor;
 
   useLayoutEffect(() => {
     if (activeTheme) applyEditorTheme(activeTheme, accentColor);
@@ -193,13 +198,13 @@ export default function MonacoSurface({
 
     editorRef.current = instance;
     commandEditor.current = instance;
-    const focusListener = instance.onDidFocusEditorWidget(() => { commandEditor.current = instance; });
+    const focusListener = instance.onDidFocusEditorWidget(() => { commandEditor.current = instance; focusRequest.current?.(); });
     const rememberActiveView = () => {
       const id = displayed.current;
       if (id && !sourceHiddenRef.current) rememberView(documents, id, instance);
     };
     const cursorListener = instance.onDidChangeCursorSelection(({ selection }) => {
-      onCursor(selection.positionLineNumber, selection.positionColumn);
+      cursorRequest.current(selection.positionLineNumber, selection.positionColumn);
       rememberActiveView();
     });
     const scrollListener = instance.onDidScrollChange(({ scrollTopChanged, scrollLeftChanged }) => {
@@ -384,7 +389,7 @@ export default function MonacoSurface({
       editorRef.current = null;
       commandEditor.current = null;
     };
-  }, [documents, modelPool, onActions, onCursor, ownerKey]);
+  }, [documents, modelPool, onActions, ownerKey]);
 
   useEffect(() => clearEditorTheme, []);
 
@@ -419,7 +424,7 @@ export default function MonacoSurface({
     if (view) secondary.restoreViewState(view);
     else secondary.setScrollTop(primary.getScrollTop());
     const cursor = secondary.onDidChangeCursorSelection(({ selection }) => {
-      onCursor(selection.positionLineNumber, selection.positionColumn);
+      cursorRequest.current(selection.positionLineNumber, selection.positionColumn);
     });
     const focus = secondary.onDidFocusEditorWidget(() => { commandEditor.current = secondary; });
     return () => {
@@ -432,7 +437,7 @@ export default function MonacoSurface({
       secondary.dispose();
       if (secondaryRef.current === secondary) secondaryRef.current = null;
     };
-  }, [split, id, loaded, fontSize, lineNumbers, wordWrap, onCursor]);
+  }, [split, id, loaded, fontSize, lineNumbers, wordWrap]);
   useEffect(() => {
     modelPool.updateTabSize(tabSize);
   }, [modelPool, tabSize]);
@@ -491,14 +496,14 @@ export default function MonacoSurface({
       displayed.current = tabId;
       if (!sourceHiddenRef.current) rememberView(documents, tabId, instance);
       const position = instance.getPosition();
-      if (position) onCursor(position.lineNumber, position.column);
+      if (position) cursorRequest.current(position.lineNumber, position.column);
       if (!sourceHiddenRef.current) instance.focus();
       setLoaded(tabId);
     }
 
     void show();
     return () => { cancelled = true; };
-  }, [documents, id, language, epoch, modelPool, onCursor, ownerKey]);
+  }, [documents, id, language, epoch, modelPool, ownerKey]);
 
   useEffect(() => {
     editorRef.current?.updateOptions({

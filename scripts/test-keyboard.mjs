@@ -43,12 +43,14 @@ await withScratch('keyboard', async (scratch) => {
   const nested = join(project.directory, 'nested')
   const source = join(nested, 'deep target.c')
   const table = join(nested, 'reference.csv')
+  const otherSource = join(nested, 'other.c')
   const external = join(scratch, 'private.c')
   const replaceTarget = join(nested, 'replace.txt')
   await Promise.all([mkdir(profile), mkdir(nested)])
   await Promise.all([
     writeFile(source, '#include <stdio.h>\nint main(void) {\n    puts("ION-KEYBOARD-INPUT");\n    fflush(stdout);\n    return getchar() == EOF;\n}\n' + Array.from({ length: 180 }, (_, index) => `// scroll fixture ${index}`).join('\n') + '\n'),
     writeFile(table, 'heading,note\n1,keyboard reference\n'),
+    writeFile(otherSource, 'int other(void) { return 42; }\n'),
     writeFile(external, 'private'),
     writeFile(replaceTarget, 'ION-REVIEWED-OLD twice ION-REVIEWED-OLD\n'),
     symlink(external, join(nested, 'secret alias.c')),
@@ -115,6 +117,36 @@ await withScratch('keyboard', async (scratch) => {
     await sourceSplit.waitFor({ state: 'detached' })
     assert.equal(await page.locator('.secondary-monaco-host').count(), 0)
     console.log('PASS source split shares one undoable model, resizes by keyboard, and disposes on close')
+
+    await page.getByTestId('editor-group-split-right').click()
+    const editorGroups = page.getByTestId('editor-group')
+    await eventually(async () => await editorGroups.count() === 2, 'The second editor group did not open.')
+    const firstGroupEditor = page.locator('[data-testid="editor-group"][data-group-id="group-1"] .monaco-editor')
+    await firstGroupEditor.evaluate((element) => element.setAttribute('data-ion-identity', 'preserved'))
+    await page.locator('[data-testid="editor-group"][data-group-id="group-2"] .monaco-editor').click()
+    await page.keyboard.insertText('Q')
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="editor-group"] .monaco-editor')]
+      .every((editor) => editor.textContent?.includes('Q')))
+    await shortcut(app, 'Z', [modifier])
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="editor-group"] .monaco-editor')]
+      .every((editor) => !editor.textContent?.includes('Q')))
+    await quickOpen(session, 'other.c', /other\.c/)
+    await page.locator('[data-testid="editor-group"][data-group-id="group-2"]').getByText('int other').waitFor()
+    await firstGroupEditor.click()
+    assert.equal(await firstGroupEditor.getAttribute('data-ion-identity'), 'preserved', 'Focusing another group must not recreate its Monaco editor.')
+    assert.equal(await page.locator('[data-testid="editor-group"][data-group-id="group-1"] [data-testid="group-tab"]').count(), 1)
+    assert.equal(await page.locator('[data-testid="editor-group"][data-group-id="group-2"] [data-testid="group-tab"]').count(), 2)
+    const otherGroupTab = page.locator('[data-testid="editor-group"][data-group-id="group-2"] [data-testid="group-tab"]')
+      .filter({ has: page.getByText('other.c', { exact: true }) })
+    await otherGroupTab.dragTo(page.locator('[data-testid="editor-group"][data-group-id="group-1"] .tab-scroll'))
+    await eventually(async () => await page.locator('[data-testid="editor-group"][data-group-id="group-1"] [data-testid="group-tab"]').count() === 2,
+      'Dragging a tab did not move it into the target group.')
+    await page.locator('[data-testid="editor-group"][data-group-id="group-2"]').getByRole('button', { name: 'Close editor group' }).click()
+    await eventually(async () => await editorGroups.count() === 0, 'Closing the editor group did not return to the single-editor layout.')
+    await page.getByTestId('tab').filter({ has: page.getByText('other.c', { exact: true }) }).waitFor()
+    await atPath(page, 'close-tab', otherSource).click()
+    await atPath(page, 'tab', source).locator('.tab-name').click()
+    console.log('PASS different-file editor groups share models, open independently, and rebalance on close')
 
     await shortcut(app, 'G', ['control'])
     const line = page.getByTestId('goto-line-input')

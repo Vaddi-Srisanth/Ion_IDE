@@ -1,22 +1,37 @@
-import type { EditorSessionSnapshot } from '../shared/editor-session';
+import type { EditorSessionGroups, EditorSessionSnapshot } from '../shared/editor-session';
 import type { Documents } from './documents';
+import type { EditorGroupsSnapshot } from './editor-groups';
 
 const checkpointDelay = 300;
 
-export function captureEditorSession(documents: Documents, rootPath: string | null): EditorSessionSnapshot {
+function captureGroups(snapshot: EditorGroupsSnapshot | undefined, savedIndex: Map<string, number>): EditorSessionGroups | undefined {
+  if (!snapshot || snapshot.groups.length < 2) return undefined;
+  return { version: 1, layout: snapshot.layout, activeGroupId: snapshot.activeGroupId,
+    groups: snapshot.groups.map((group) => ({ id: group.id,
+      tabs: group.tabs.flatMap((id) => savedIndex.has(id) ? [savedIndex.get(id)!] : []),
+      activeIndex: group.activeId && savedIndex.has(group.activeId) ? savedIndex.get(group.activeId)! : -1,
+    })) };
+}
+
+export function captureEditorSession(documents: Documents, rootPath: string | null,
+  groups?: EditorGroupsSnapshot): EditorSessionSnapshot {
   const { tabs, activeId } = documents.getSnapshot();
   const saved: EditorSessionSnapshot['tabs'] = [];
+  const savedIndex = new Map<string, number>();
   let activeIndex = -1;
   for (const { id, path, name, dirty, notebookMode } of tabs) {
     const draftId = dirty ? documents.recoveryId(id) : undefined;
     if (dirty && !path && !draftId) continue;
     if (id === activeId) activeIndex = saved.length;
+    savedIndex.set(id, saved.length);
     saved.push({ path, name, draftId, view: documents.getEditorView(id), notebookMode });
   }
+  const editorGroups = captureGroups(groups, savedIndex);
   return {
     rootPath,
     activeIndex,
     tabs: saved,
+    ...(editorGroups ? { editorGroups } : {}),
   };
 }
 

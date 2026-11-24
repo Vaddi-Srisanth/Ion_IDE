@@ -31,6 +31,21 @@ const commands = {
   'focus-editor': { label: 'Focus Code Editor', key: 'Mod+1' },
   'toggle-editor-split': { label: 'Split Code Editor', key: 'Mod+BACKSLASH' },
   'focus-editor-split': { label: 'Focus Second Editor', key: 'Mod+2' },
+  'split-editor-left': { label: 'Split Editor Left' },
+  'split-editor-right': { label: 'Split Editor Right' },
+  'split-editor-up': { label: 'Split Editor Up' },
+  'split-editor-down': { label: 'Split Editor Down' },
+  'focus-editor-group-left': { label: 'Focus Editor Group Left' },
+  'focus-editor-group-right': { label: 'Focus Editor Group Right' },
+  'focus-editor-group-up': { label: 'Focus Editor Group Up' },
+  'focus-editor-group-down': { label: 'Focus Editor Group Down' },
+  'focus-next-editor-group': { label: 'Focus Next Editor Group', key: 'Mod+Alt+ARROWRIGHT' },
+  'focus-previous-editor-group': { label: 'Focus Previous Editor Group', key: 'Mod+Alt+ARROWLEFT' },
+  'move-editor-left': { label: 'Move Editor into Left Group' },
+  'move-editor-right': { label: 'Move Editor into Right Group' },
+  'move-editor-up': { label: 'Move Editor into Group Above' },
+  'move-editor-down': { label: 'Move Editor into Group Below' },
+  'close-editor-group': { label: 'Close Editor Group' },
   'markdown-preview': { label: 'Toggle Markdown Preview', key: 'Mod+Shift+M' },
   'markdown-split': { label: 'Toggle Markdown Split View', key: 'Mod+Alt+Shift+M' },
   'toggle-document-split': { label: 'Toggle Document Split' },
@@ -94,6 +109,7 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
   if ((command === 'markdown-preview' || command === 'markdown-split' || command === 'workspace-search' || command === 'format-document'
     || command === 'toggle-terminal' || command === 'focus-terminal'
     || command === 'toggle-editor-split' || command === 'focus-editor-split'
+    || command === 'focus-next-editor-group' || command === 'focus-previous-editor-group'
     || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback

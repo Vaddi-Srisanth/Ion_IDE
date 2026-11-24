@@ -26,6 +26,7 @@ import { useUpdates } from './useUpdates';
 import { fileLanguage } from '../shared/languages';
 import type { SourceReference } from '../shared/language-tools';
 import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
+import type { EditorGroupsSnapshot } from './editor-groups';
 import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, ExplanationRequest, ExplanationReview } from '../shared/explanations';
 
 type Dialog =
@@ -261,12 +262,20 @@ export function App() {
     const repository = liveSourceControlRoot.current;
     if (repository && isWithin(path, repository)) setSourceWrites((count) => count + 1);
   }));
+  const editorGroups = useRef<EditorGroupsSnapshot | undefined>(undefined);
+  const [initialEditorGroups, setInitialEditorGroups] = useState<EditorGroupsSnapshot>();
   const [sessionWriter] = useState(() => new EditorSessionWriter(
     async () => {
-      if (sessionStarted.current) await bridge.editorSession.save(captureEditorSession(documents, sessionRoot.current?.path ?? null));
+      if (sessionStarted.current) await bridge.editorSession.save(captureEditorSession(
+        documents, sessionRoot.current?.path ?? null, editorGroups.current));
     },
     (reason) => notify(`Could not checkpoint the editor session. ${errorMessage(reason)}`, true),
   ));
+  const handleEditorGroups = useCallback((snapshot: EditorGroupsSnapshot) => {
+    editorGroups.current = snapshot;
+    setInitialEditorGroups(snapshot);
+    sessionWriter.schedule();
+  }, [sessionWriter]);
   const { tabs, activeId } = useSyncExternalStore(documents.subscribe, documents.getSnapshot);
   const active = tabs.find(({ id }) => id === activeId);
   useEffect(() => setSourceControlDiff(undefined), [activeId]);
@@ -556,6 +565,7 @@ export function App() {
       const resumed = await bridge.editorSession.resume();
       if (sessionStarted.current) return;
       const recovered = new Set<string>();
+      const restoredIds = new Map<number, string>();
       let selected: string | null = null;
       for (const { entry, draft, name, view, index, notebookMode } of resumed.tabs) {
         let id: string | null;
@@ -567,11 +577,22 @@ export function App() {
           id = documents.open(entry, entry ? undefined : { name, text: '' });
         }
         if (!id) continue;
+        restoredIds.set(index, id);
         if (notebookMode) documents.setNotebookMode(id, notebookMode);
         if (view) documents.setEditorView(id, view);
         if (index === resumed.activeIndex) selected = id;
       }
       if (selected) documents.select(selected);
+      if (resumed.editorGroups) {
+        const groups: EditorGroupsSnapshot = { version: 1, layout: resumed.editorGroups.layout,
+          activeGroupId: resumed.editorGroups.activeGroupId,
+          groups: resumed.editorGroups.groups.map((group) => ({ id: group.id,
+            tabs: group.tabs.flatMap((index) => restoredIds.has(index) ? [restoredIds.get(index)!] : []),
+            activeId: restoredIds.get(group.activeIndex) ?? null,
+          })) };
+        setInitialEditorGroups(groups);
+        editorGroups.current = groups;
+      }
       if (recovered.size) setRecoveryDrafts((drafts) => drafts.filter(({ id }) => !recovered.has(id)));
       if (resumed.root) {
         setRoot(resumed.root);
@@ -1208,6 +1229,21 @@ export function App() {
         }
         case 'toggle-editor-split': if (screen === 'editor') splitActions.current?.source?.toggle(); break;
         case 'focus-editor-split': if (screen === 'editor') splitActions.current?.source?.focusSecond(); break;
+        case 'split-editor-left': splitActions.current?.groups.split('left'); break;
+        case 'split-editor-right': splitActions.current?.groups.split('right'); break;
+        case 'split-editor-up': splitActions.current?.groups.split('up'); break;
+        case 'split-editor-down': splitActions.current?.groups.split('down'); break;
+        case 'focus-editor-group-left': splitActions.current?.groups.focus('left'); break;
+        case 'focus-editor-group-right': splitActions.current?.groups.focus('right'); break;
+        case 'focus-editor-group-up': splitActions.current?.groups.focus('up'); break;
+        case 'focus-editor-group-down': splitActions.current?.groups.focus('down'); break;
+        case 'focus-next-editor-group': splitActions.current?.groups.cycle(1); break;
+        case 'focus-previous-editor-group': splitActions.current?.groups.cycle(-1); break;
+        case 'move-editor-left': splitActions.current?.groups.move('left'); break;
+        case 'move-editor-right': splitActions.current?.groups.move('right'); break;
+        case 'move-editor-up': splitActions.current?.groups.move('up'); break;
+        case 'move-editor-down': splitActions.current?.groups.move('down'); break;
+        case 'close-editor-group': splitActions.current?.groups.close(); break;
         case 'markdown-preview': if (screen === 'editor') splitActions.current?.markdown?.togglePreview(); break;
         case 'markdown-split': if (screen === 'editor') splitActions.current?.markdown?.toggleSplit(); break;
         case 'toggle-document-split': splitActions.current?.toggle(); break;
@@ -1339,6 +1375,22 @@ export function App() {
       case 'focus-editor': return tabs.some((tab) => !tab.viewer);
       case 'toggle-editor-split': return Boolean(splitActions.current?.source);
       case 'focus-editor-split': return Boolean(splitActions.current?.source?.active);
+      case 'split-editor-left':
+      case 'split-editor-right':
+      case 'split-editor-up':
+      case 'split-editor-down': return Boolean(active && !active.viewer && !active.error && splitActions.current
+        && splitActions.current.groups.count < 4);
+      case 'focus-editor-group-left':
+      case 'focus-editor-group-right':
+      case 'focus-editor-group-up':
+      case 'focus-editor-group-down':
+      case 'focus-next-editor-group':
+      case 'focus-previous-editor-group':
+      case 'move-editor-left':
+      case 'move-editor-right':
+      case 'move-editor-up':
+      case 'move-editor-down':
+      case 'close-editor-group': return (splitActions.current?.groups.count ?? 0) > 1;
       case 'next-tab':
       case 'previous-tab': return tabs.length > 1;
       case 'move-tab-left':
@@ -1419,6 +1471,7 @@ export function App() {
         onFolder={() => { setMode('free'); openFolder(); }}
         onRecent={(entry) => { setMode('free'); openRecent(entry); }}/>}
       {(screen === 'editor' || notebookRunning) && <Workbench documents={documents} hidden={screen === 'welcome'} mode={mode} onWorkspace={selectWorkspace}
+          initialEditorGroups={initialEditorGroups} onEditorGroupsChange={handleEditorGroups}
           auxiliary={renderAuxiliary()} onToggleAuxiliary={sourceControlVisible ? closeSourceControl : toggleAuxiliary}
           sourceControl={renderSourceControl()} sourceControlEntries={sourceControlVisible ? sourceControlEntries : undefined}
           onToggleSourceControl={toggleSourceControl}

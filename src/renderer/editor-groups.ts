@@ -197,6 +197,19 @@ export class EditorGroups {
     return true
   }
 
+  cycle(step: -1 | 1) {
+    const ordered = groupIds(this.layout)
+    if (ordered.length < 2) return false
+    const index = ordered.indexOf(this.activeGroupId)
+    const target = ordered[(index + step + ordered.length) % ordered.length]
+    const group = this.groups.get(target)
+    if (!group) return false
+    this.activeGroupId = target
+    this.publish()
+    if (group.activeId && this.documents.getSnapshot().activeId !== group.activeId) this.documents.select(group.activeId)
+    return true
+  }
+
   moveActive(direction: GroupDirection) {
     const source = this.groups.get(this.activeGroupId)
     const tabId = source?.activeId
@@ -320,7 +333,12 @@ export class EditorGroups {
         changed = true
       } else if (activeId) {
         const active = this.groups.get(this.activeGroupId)
-        if (!active?.tabs.includes(activeId)) {
+        if (active?.tabs.includes(activeId)) {
+          if (active.activeId !== activeId) {
+            active.activeId = activeId
+            changed = true
+          }
+        } else {
           const group = [...this.groups.values()].find((candidate) => candidate.tabs.includes(activeId))
           if (group) {
             this.activeGroupId = group.id
@@ -328,6 +346,12 @@ export class EditorGroups {
             changed = true
           }
         }
+      }
+      for (const group of [...this.groups.values()]) {
+        if (this.groups.size === 1 || group.tabs.length) continue
+        this.removeEmptyGroup(group.id)
+        if (this.activeGroupId === group.id) this.activeGroupId = groupIds(this.layout)[0]
+        changed = true
       }
       if (changed) this.publish()
     } finally {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type ComponentType, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentProps, type ComponentType, type CSSProperties, type DragEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import type { Entry, EntryKind, MenuCommand, Settings, WorkspaceMode } from '../shared/contracts';
 import { displayShortcut } from '../shared/shortcuts';
 import type { ThemeData } from '../shared/themes';
@@ -26,6 +26,7 @@ import { isMarkdownFile } from '../shared/markdown-path';
 import { largeTextError } from '../shared/large-text';
 import { LargeTextPreview } from './LargeTextPreview';
 import { markdownHistoryLimit, readMarkdownModes, writeMarkdownModes, type MarkdownMode } from './markdown-view-state';
+import { EditorGroups, type EditorGroup, type EditorGroupLayout, type EditorGroupsSnapshot } from './editor-groups';
 
 function EditorContent(props: ComponentProps<typeof MonacoSurface>) {
   const [editorModule, setEditorModule] = useState(loadedEditor);
@@ -52,6 +53,138 @@ function EditorContent(props: ComponentProps<typeof MonacoSurface>) {
         : 'Starting editor…'}
     </div>
   );
+}
+
+interface GroupPaneProps {
+  group: EditorGroup;
+  activeGroupId: string;
+  documents: Documents;
+  groups: EditorGroups;
+  tabs: Tab[];
+  root: Entry | null;
+  hidden?: boolean;
+  settings: Settings;
+  activeTheme: ThemeData | null;
+  accentColor?: string;
+  problemMarkers?: readonly ProblemMarker[];
+  onCloseTab(id: string): void;
+  onSaveAs(id: string): void;
+  onReload(id: string): void;
+  onSettings(patch: Partial<Settings>): void;
+  onActions(groupId: string, actions: EditorActions | null): void;
+  onCursor(line: number, column: number): void;
+  onLanguageReport(report: LiveToolReport | null): void;
+  onNavigateSource(path: string, line: number, column: number): void;
+}
+
+function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, hidden, settings, activeTheme, accentColor,
+  problemMarkers, onCloseTab, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
+  const active = tabs.find(({ id }) => id === group.activeId);
+  const groupTabs = group.tabs.flatMap((id) => tabs.find((tab) => tab.id === id) ?? []);
+  const focused = group.id === activeGroupId;
+  const largeText = active?.path && active.error?.startsWith(largeTextError) ? active : undefined;
+  const source = active && !active.viewer && active.notebookMode !== 'notebook' ? active : undefined;
+  const registerActions = useCallback((actions: EditorActions | null) => onActions(group.id, actions), [group.id, onActions]);
+  const focus = useCallback(() => {
+    if (active && !focused) groups.select(group.id, active.id);
+  }, [active, focused, group.id, groups]);
+  const drop = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    try {
+      const value = JSON.parse(event.dataTransfer.getData('application/x-ion-editor-tab')) as { tabId?: unknown; groupId?: unknown };
+      if (typeof value.tabId === 'string' && typeof value.groupId === 'string') groups.moveTab(value.tabId, value.groupId, group.id);
+    } catch { /* Ignore non-Ion drag payloads. */ }
+  };
+  return <section className={`editor-group${focused ? ' active' : ''}`} data-testid="editor-group" data-group-id={group.id}
+    onPointerDown={focus} onDragOver={(event) => event.preventDefault()} onDrop={drop}>
+    <div className="tab-strip editor-group-tabs">
+      <div className="tab-scroll" role="tablist" aria-label={`Open files in ${group.id}`}>
+        {groupTabs.map((tab) => <div key={tab.id} className={`editor-tab ${active?.id === tab.id ? 'active' : ''}`}
+          data-testid="group-tab" data-path={tab.path ?? undefined} draggable onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('application/x-ion-editor-tab', JSON.stringify({ tabId: tab.id, groupId: group.id }));
+          }}>
+          <button className="tab-name" role="tab" aria-selected={active?.id === tab.id} title={tab.path ?? tab.name}
+            onClick={() => groups.select(group.id, tab.id)}><Icon name={/\.[ch]$/i.test(tab.name) ? 'code' : 'file'} size={14}/><span>{tab.name}</span></button>
+          <button className={`tab-close ${tab.dirty ? 'tab-dirty' : ''}`} data-testid="group-close-tab"
+            aria-label={`Close ${tab.name}`} onClick={() => onCloseTab(tab.id)}><Icon name="x" size={13}/></button>
+        </div>)}
+      </div>
+      <div className="editor-group-actions" role="group" aria-label="Editor group actions">
+        <button className="icon-button" type="button" aria-label="Split editor right" title="Split editor right"
+          onClick={() => groups.split(group.id, 'right')}><Icon name="columns" size={14}/></button>
+        <button className="icon-button" type="button" aria-label="Split editor down" title="Split editor down"
+          onClick={() => groups.split(group.id, 'down')}><Icon name="plus" size={14}/></button>
+        <button className="icon-button" type="button" aria-label="Close editor group" title="Close editor group"
+          disabled={groups.getSnapshot().groups.length === 1} onClick={() => groups.close(group.id)}><Icon name="x" size={14}/></button>
+      </div>
+    </div>
+    <div className="editor-group-content">
+      {active && <div className="editor-breadcrumb" title={active.path ?? active.name}>
+        <Icon name={root ? 'folder' : 'file'} size={13}/><strong>{root && active.path && isWithin(active.path, root.path)
+          ? root.name + '/' + active.path.slice(root.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/') : active.name}</strong>
+      </div>}
+      {active?.conflict && <div className="conflict-banner" role="alert"><Icon name="warning" size={16}/>
+        <span>This file changed on disk.{active.dirty && ' Your edits are unsaved.'}</span>
+        <button className="button" onClick={() => onSaveAs(active.id)}>Save As…</button>
+        <button className="button" onClick={() => onReload(active.id)}>Reload</button></div>}
+      {source && !largeText && <EditorContent documents={documents} tab={source} settings={settings} activeTheme={activeTheme}
+        accentColor={accentColor} sourceHidden={Boolean(hidden) || !focused} workspacePath={root?.path}
+        problemMarkers={focused ? problemMarkers : undefined} onActions={registerActions} onFocus={focus}
+        onCursor={onCursor} onLanguageReport={onLanguageReport} onNavigateSource={onNavigateSource}/>}
+      {largeText?.path && <LargeTextPreview key={`${largeText.id}:${largeText.epoch}`} path={largeText.path}/>}
+      {active?.notebookMode === 'notebook' && <NotebookPane key={active.epoch} tab={active} documents={documents}
+        onKernelPolicyChange={(policy) => onSettings({ notebookKernelLifetime: policy })} settings={settings}
+        activeTheme={activeTheme} accentColor={accentColor}/>}
+      {active?.viewer && active.path && <DocumentPane key={`${active.id}:${active.epoch}`} path={active.path} name={active.name}
+        format={active.viewer} pinned={false} onPin={() => {}}/>}
+      {!active && <div className="editor-empty"><p>No file in this editor group.</p></div>}
+    </div>
+  </section>;
+}
+
+interface GroupLayoutProps extends Omit<GroupPaneProps, 'group'> {
+  layout: EditorGroupLayout;
+  snapshot: EditorGroupsSnapshot;
+}
+
+function EditorGroupLayoutView({ layout, snapshot, groups, ...props }: GroupLayoutProps) {
+  if (layout.kind === 'group') {
+    const group = snapshot.groups.find(({ id }) => id === layout.groupId);
+    return group ? <EditorGroupPane {...props} groups={groups} group={group}/> : null;
+  }
+  const horizontal = layout.orientation === 'horizontal';
+  const resize = (event: PointerEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+    const length = horizontal ? bounds?.width : bounds?.height;
+    const offset = horizontal ? event.clientX - (bounds?.left ?? 0) : event.clientY - (bounds?.top ?? 0);
+    if (length) groups.resize(layout.id, offset * 100 / length);
+  };
+  return <div className="editor-group-split" data-orientation={layout.orientation} data-testid="editor-group-split">
+    <div className="editor-group-branch" style={{ flexBasis: `${layout.percent}%` }}>
+      <EditorGroupLayoutView {...props} groups={groups} layout={layout.first} snapshot={snapshot}/>
+    </div>
+    <div className={`splitter ${horizontal ? 'split-columns' : 'split-rows'}`} role="separator" tabIndex={0}
+      aria-label={`Resize ${layout.orientation} editor groups`} aria-orientation={horizontal ? 'vertical' : 'horizontal'}
+      aria-valuemin={20} aria-valuemax={80} aria-valuenow={layout.percent}
+      onPointerDown={(event) => { if (event.button === 0) event.currentTarget.setPointerCapture(event.pointerId); }}
+      onPointerMove={resize} onKeyDown={(event) => {
+        const lower = horizontal ? 'ArrowLeft' : 'ArrowUp';
+        const upper = horizontal ? 'ArrowRight' : 'ArrowDown';
+        if (event.key === lower || event.key === upper) {
+          event.preventDefault();
+          groups.resize(layout.id, layout.percent + (event.key === lower ? -3 : 3));
+        }
+        if (event.key === 'Home' || event.key === 'End') {
+          event.preventDefault();
+          groups.resize(layout.id, event.key === 'Home' ? 20 : 80);
+        }
+      }}/>
+    <div className="editor-group-branch">
+      <EditorGroupLayoutView {...props} groups={groups} layout={layout.second} snapshot={snapshot}/>
+    </div>
+  </div>;
 }
 
 function BottomTabs({ active, count, onSelect }: { active: BottomTab; count: number; onSelect(tab: BottomTab): void }) {
@@ -167,10 +300,20 @@ export interface DocumentSplitActions {
   showSource(path: string): void;
   markdown?: { mode: MarkdownMode; togglePreview(): void; toggleSplit(): void };
   source?: { active: boolean; toggle(): void; focusSecond(): void };
+  groups: {
+    count: number;
+    split(direction: 'left' | 'right' | 'up' | 'down'): void;
+    focus(direction: 'left' | 'right' | 'up' | 'down'): void;
+    cycle(step: -1 | 1): void;
+    move(direction: 'left' | 'right' | 'up' | 'down'): void;
+    close(): void;
+  };
 }
 
 export interface WorkbenchProps {
   documents: Documents;
+  initialEditorGroups?: EditorGroupsSnapshot;
+  onEditorGroupsChange?(snapshot: EditorGroupsSnapshot): void;
   hidden?: boolean;
   mode: WorkspaceMode;
   auxiliary?: ReactNode;
@@ -238,7 +381,7 @@ export interface WorkbenchProps {
 
 export function Workbench(props: WorkbenchProps) {
   const {
-    documents, hidden, mode, auxiliary, sourceControl, sourceControlEntries, sourceControlDiff,
+    documents, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, sourceControl, sourceControlEntries, sourceControlDiff,
     onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl,
     active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
@@ -254,6 +397,15 @@ export function Workbench(props: WorkbenchProps) {
   const [markdownPercent, setMarkdownPercent] = useState(50);
   const [markdownModes, setMarkdownModes] = useState(readMarkdownModes);
   const [languageReport, setLanguageReport] = useState<LiveToolReport | null>(null);
+  const [editorGroups] = useState(() => {
+    const groups = new EditorGroups(documents);
+    if (initialEditorGroups) groups.restore(initialEditorGroups);
+    return groups;
+  });
+  const groupSnapshot = useSyncExternalStore(editorGroups.subscribe, editorGroups.getSnapshot);
+  useEffect(() => () => editorGroups.dispose(), [editorGroups]);
+  useEffect(() => onEditorGroupsChange?.(groupSnapshot), [groupSnapshot, onEditorGroupsChange]);
+  const groupMode = groupSnapshot.groups.length > 1;
   const hasSmartSource = tabs.some((tab) => tab.path && settings.smartLanguages.includes(fileLanguage(tab.name).id));
   useEffect(() => {
     if (!hasSmartSource) void window.ion.languageTools.release(true).catch(() => {});
@@ -261,10 +413,25 @@ export function Workbench(props: WorkbenchProps) {
   const markdownScroll = useRef(new Map<string, number>());
   const markdownRestore = useRef<{ id: string; restore?: () => void; focus: boolean } | undefined>(undefined);
   const editorActions = useRef<EditorActions | null>(null);
+  const groupEditorActions = useRef(new Map<string, EditorActions>());
   const registerEditorActions = useCallback((actions: EditorActions | null) => {
     editorActions.current = actions;
     onEditorActions(actions);
   }, [onEditorActions]);
+  const registerGroupActions = useCallback((groupId: string, actions: EditorActions | null) => {
+    if (actions) groupEditorActions.current.set(groupId, actions);
+    else groupEditorActions.current.delete(groupId);
+    if (editorGroups.getSnapshot().activeGroupId === groupId) {
+      editorActions.current = actions;
+      onEditorActions(actions);
+    }
+  }, [editorGroups, onEditorActions]);
+  useLayoutEffect(() => {
+    if (!groupMode) return;
+    const actions = groupEditorActions.current.get(groupSnapshot.activeGroupId) ?? null;
+    editorActions.current = actions;
+    onEditorActions(actions);
+  }, [groupMode, groupSnapshot.activeGroupId, onEditorActions]);
   const divider = useRef<HTMLDivElement>(null);
   const lastCodeId = useRef<string | undefined>(undefined);
   const notebook = active?.notebookMode === 'notebook' ? active : undefined;
@@ -347,6 +514,14 @@ export function Workbench(props: WorkbenchProps) {
         active: sourceSplit, toggle: () => setSourceSplit((value) => !value),
         focusSecond: () => editorActions.current?.focusSecondary(),
       },
+      groups: {
+        count: groupSnapshot.groups.length,
+        split: (direction) => { editorGroups.split(groupSnapshot.activeGroupId, direction); },
+        focus: (direction) => { editorGroups.focus(direction); },
+        cycle: (step) => { editorGroups.cycle(step); },
+        move: (direction) => { editorGroups.moveActive(direction); },
+        close: () => { editorGroups.close(groupSnapshot.activeGroupId); },
+      },
     });
     return () => onSplitActions(null);
   });
@@ -423,6 +598,13 @@ export function Workbench(props: WorkbenchProps) {
         </>}
         <div className="editor-column">
           <div className="editor-stack">
+            {groupMode && <EditorGroupLayoutView layout={groupSnapshot.layout} snapshot={groupSnapshot} groups={editorGroups}
+              activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} hidden={hidden}
+              settings={settings} activeTheme={activeTheme} accentColor={accentColor} problemMarkers={problemMarkers}
+              onCloseTab={onCloseTab} onSaveAs={onSaveAs} onReload={onReload} onSettings={onSettings}
+              onActions={registerGroupActions} onCursor={onCursor} onLanguageReport={setLanguageReport}
+              onNavigateSource={onNavigateSource}/>}
+            {!groupMode && <>
             <div className="tab-strip">
               <div className="tab-scroll" aria-label="Open files">
                 {tabs.map((tab) => (
@@ -455,6 +637,9 @@ export function Workbench(props: WorkbenchProps) {
                 data-testid="source-split-toggle" aria-label="Split Code Editor" aria-pressed={sourceSplit}
                 title={hint('toggle-editor-split', 'Split Code Editor')} onClick={() => setSourceSplit((value) => !value)}>
                 <Icon name="columns" size={15}/></button>}
+              {activeCode && !largeText && !sourceHidden && <button className="icon-button tab-add" type="button"
+                data-testid="editor-group-split-right" aria-label="Open Editor Group Right" title="Open Editor Group Right"
+                onClick={() => editorGroups.split(groupSnapshot.activeGroupId, 'right')}><Icon name="plus" size={14}/></button>}
             </div>
             <div className="editor-view-row" data-testid={markdownSplit ? 'markdown-split' : documentSplit ? 'document-split' : undefined}
               data-markdown-mode={markdown && markdownMode}
@@ -537,6 +722,7 @@ export function Workbench(props: WorkbenchProps) {
                 onPin={toggleSplit}/>}
               {sourceControlDiff && <div className="source-control-diff-slot">{sourceControlDiff}</div>}
             </div>
+            </>}
           </div>
           {settings.showOutput && !hidden && <>
             <Splitter label="Resize Console" vertical value={settings.outputHeight} setting="outputHeight" min={100} max={600}
