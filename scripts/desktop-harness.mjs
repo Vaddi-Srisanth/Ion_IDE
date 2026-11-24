@@ -270,7 +270,9 @@ export async function stubDialogs(app, choices) {
       const testIndex = buttons.findIndex((label) => /^(Approve|Run) Test$/.test(label))
       const automaticIndex = buttons.indexOf('Enable Automatic Test')
       const gitIndex = buttons.indexOf('Trust Repository')
-      const approved = gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
+      const workspaceIndex = buttons.indexOf('Open Workspace')
+      const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
+        : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)
       return { response, checkboxChecked: false }

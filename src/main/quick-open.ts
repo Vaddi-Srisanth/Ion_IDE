@@ -26,7 +26,7 @@ export async function searchWorkspace(
   let truncated = false
   for (let index = 0; index < pending.length; index += 1) {
     signal.throwIfAborted()
-    if (scope.rootPath !== root) throw new Error('The workspace changed during Quick Open.')
+    if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed during Quick Open.')
     const { path, depth } = pending[index]
     const valid = await scope.inspect(path, 'folder').catch((error: unknown) => {
       if (index === 0) throw error
@@ -58,7 +58,7 @@ export async function searchWorkspace(
     if (seen > visitLimit) break
   }
   signal.throwIfAborted()
-  if (scope.rootPath !== root) throw new Error('The workspace changed during Quick Open.')
+  if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed during Quick Open.')
   matches.sort((left, right) => left.score - right.score || left.relativePath.localeCompare(right.relativePath))
   return { entries: matches.slice(0, resultLimit).map(({ entry }) => entry), truncated: truncated || matches.length > resultLimit }
 }

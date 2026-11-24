@@ -15,7 +15,7 @@ import type { FormatRequest, FormatResult } from '../shared/format-code'
 import type { NotebookKernelStatus } from '../shared/notebook-kernel'
 import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
 import { diagnosticPackIds } from '../shared/learning-packs'
-import { entryName, fileText, isWithin, maxFileBytes, revision, WorkspaceFiles } from './files'
+import { entryName, fileText, isWithin, maxFileBytes, revision, workspaceRootLabel, WorkspaceFiles } from './files'
 import { fileMutations } from './file-mutations'
 import { readMarkdownImage, resolveMarkdownLink } from './markdown-assets'
 import { installMenu } from './menu'
@@ -33,6 +33,7 @@ import type { SourceControlStatus } from '../shared/source-control'
 import { fileLanguage, languageCapability } from '../shared/languages'
 import type { ToolReply } from '../shared/language-tools'
 import { toolTextLimit, type ToolSnapshot } from '../shared/language-tools'
+import { workspaceSearchResultLimit } from '../shared/workspace-search'
 import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
 import type { ProjectLensSession } from './project-lens/session'
@@ -217,7 +218,7 @@ let sourceControlCleanup = Promise.resolve()
 let trustedGitRoot: string | undefined
 
 function sourceControlRoot(target: BrowserWindow, root: unknown): string {
-  if (target !== window || typeof root !== 'string' || root !== files.rootPath) throw new Error('Open the repository folder first.')
+  if (target !== window || typeof root !== 'string' || !files.rootPaths.includes(root)) throw new Error('Open the repository folder first.')
   return root
 }
 
@@ -244,12 +245,12 @@ async function useSourceControl<T>(target: BrowserWindow, root: unknown,
     operations: new Set(),
   }
   const [service] = await Promise.all([session.service, sourceControlCleanup])
-  if (target !== window || sourceControl !== session || files.rootPath !== root) throw new Error('The workspace changed.')
+  if (target !== window || sourceControl !== session || !files.rootPaths.includes(path)) throw new Error('The workspace changed.')
   const pending = operation(service, path)
   session.operations.add(pending)
   try {
     const result = await pending
-    if (target !== window || sourceControl !== session || files.rootPath !== root) throw new Error('The workspace changed.')
+    if (target !== window || sourceControl !== session || !files.rootPaths.includes(path)) throw new Error('The workspace changed.')
     return result
   } finally {
     session.operations.delete(pending)
@@ -539,17 +540,16 @@ function formatDocument(target: BrowserWindow, value: unknown): Promise<FormatRe
   const controller = new AbortController()
   const { signal } = controller
   const scope = files
-  const workspace = scope.rootPath
-  const current = () => target === window && scope === files && scope.rootPath === workspace && !signal.aborted
+  let root: string | null = null
+  const current = () => target === window && scope === files && (!root || scope.rootPaths.includes(root)) && !signal.aborted
   const cancelled: FormatResult = { kind: 'cancelled', message: 'Formatting cancelled.' }
   const conflict: FormatResult = { kind: 'conflict', message: 'File changed on disk. Review the conflict before formatting.' }
   const done = (async (): Promise<FormatResult> => {
-    let root = workspace
     if (snapshot.path !== null) {
       const { path, stats } = await scope.inspect(snapshot.path, 'file')
       if (revision(stats) !== snapshot.revision) return conflict
       if (stats.size > BigInt(maxEditableTextBytes)) return { kind: 'error', message: 'This file is read only in Ion.' }
-      if (!root || !isWithin(root, path)) root = null
+      root = scope.rootFor(path)
       snapshot.path = path
       snapshot.name = basename(path)
     }
@@ -598,12 +598,11 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
     throw new Error('Invalid language analysis request.')
   }
   const scope = files
-  const workspace = scope.rootPath
   const { path } = await scope.inspect(snapshot.path, 'file')
-  const root = workspace && isWithin(workspace, path) ? workspace : null
+  const root = scope.rootFor(path)
   const key = semantic.adapter + ':' + (root ?? path)
   if (languageSession?.key !== key) await stopLanguageTools()
-  if (target !== window || files !== scope || scope.rootPath !== workspace || !smartLanguages.includes(language.id)
+  if (target !== window || files !== scope || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || !smartLanguages.includes(language.id)
     || (languageSession && languageSession.key !== key)) return null
   clearTimeout(languageIdle)
   if (!languageSession) {
@@ -617,9 +616,9 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
   session.language = language.id
   try {
     const service = await session.service
-    if (languageSession !== session || scope.rootPath !== workspace || target !== window) return null
+    if (languageSession !== session || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window) return null
     const reply = await service.query({ ...snapshot, path } as ToolSnapshot)
-    if (languageSession !== session || scope.rootPath !== workspace || target !== window) return null
+    if (languageSession !== session || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window) return null
     if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'references')) {
       const locations = await Promise.all(reply.rows.map(async ([file, line, column]) => {
         if (file === path) return [file, line, column]
@@ -825,14 +824,14 @@ async function approveRunSource(
   signal?: AbortSignal, nativeProject?: NativeProject,
 ): Promise<string | undefined> {
   if (signal?.aborted || target !== window || target.isDestroyed()) return 'Run was not approved.'
-  const root = scope.rootPath
-  const folder = !nativeProject && !build && root && isWithin(root, path)
+  const root = scope.rootFor(path)
+  const folder = !nativeProject && !build && root
     ? await (await getRunTrust()).snapshot(root) : undefined
   const remembered = folder && await (await getRunTrust()).trusted(folder)
-  if (signal?.aborted || target !== window || target.isDestroyed() || scope !== files || scope.rootPath !== root) return 'Run was not approved.'
+  if (signal?.aborted || target !== window || target.isDestroyed() || scope !== files || root && !scope.rootPaths.includes(root)) return 'Run was not approved.'
   if (nativeProject || build || (!remembered && trustedSources.get(path) !== token)) {
     const tool = build === 'maven' ? 'Maven' : 'Gradle'
-    const nativeSources = nativeProject?.sources.slice(0, 8).map((source) => relative(scope.rootPath ?? dirname(path), source))
+    const nativeSources = nativeProject?.sources.slice(0, 8).map((source) => relative(root ?? dirname(path), source))
     const nativeDetail = nativeProject && nativeSources
       ? `Ion will compile the saved files listed in .ion/build.json and run the result with your permissions. Review the source before continuing.\n\n${nativeSources.join('\n')}${
         nativeProject.sources.length > nativeSources.length ? `\n…and ${nativeProject.sources.length - nativeSources.length} more.` : ''}`
@@ -855,7 +854,7 @@ async function approveRunSource(
       return 'The source changed while awaiting approval. Review it and run again.'
     }
     if (folder && choice.checkboxChecked) {
-      if (scope !== files || scope.rootPath !== root) return 'The workspace changed while awaiting approval.'
+      if (scope !== files || !root || !scope.rootPaths.includes(root)) return 'The workspace changed while awaiting approval.'
       await (await getRunTrust()).remember(folder)
     }
   }
@@ -899,7 +898,7 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
   const onAbort = trace ? () => trace('cancellation', 'requested') : undefined
   if (onAbort) signal.addEventListener('abort', onAbort, { once: true })
   const scope = files
-  const workspaceRoot = scope.rootPath
+  const workspaceRoots = [...scope.rootPaths]
   let scratch: string | undefined
   let sourceHash: string | undefined
   let nativeProject: NativeProject | undefined
@@ -921,6 +920,7 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
   try {
     trace?.('source-inspection', 'begin')
     const { path, stats } = await scope.inspect(value, 'file')
+    const workspaceRoot = scope.rootFor(path)
     trace?.('source-inspection', 'end')
     if (!runLanguage(path)) return rejectedRun('Open a saved C, C++, Java, Python, or JavaScript file to run.')
     if (stats.size > BigInt(maxFileBytes)) return rejectedRun('The source exceeds the 2 MiB file limit.')
@@ -932,7 +932,8 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
       trace?.('source-validation', 'begin')
       try {
         const current = await scope.inspect(path, 'file').catch(() => undefined)
-        if (target !== window || signal.aborted || scope.rootPath !== workspaceRoot || !current || revision(current.stats) !== token) return false
+        if (target !== window || signal.aborted || workspaceRoots.length !== scope.rootPaths.length
+          || workspaceRoots.some((root, index) => scope.rootPaths[index] !== root) || !current || revision(current.stats) !== token) return false
         if (!nativeProject) return true
         const checks = await Promise.all([
           ...nativeProject.inputs.filter((input) => input.path !== path).map(async (input) => {
@@ -941,7 +942,8 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
           }),
           ...nativeProject.includeDirectories.map((directory) => scope.inspect(directory, 'folder').then(() => true, () => false)),
         ])
-        return target === window && !signal.aborted && scope.rootPath === workspaceRoot && checks.every(Boolean)
+        return target === window && !signal.aborted && workspaceRoots.length === scope.rootPaths.length
+          && workspaceRoots.every((root, index) => scope.rootPaths[index] === root) && checks.every(Boolean)
       } finally { trace?.('source-validation', 'end') }
     }
     emit({ kind: 'phase', phase: 'preparing' })
@@ -952,7 +954,7 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
     trace?.('scratch-create', 'begin')
     scratch = await mkdtemp(join(await realpath(tmpdir()), 'ion-live-run-'))
     trace?.('scratch-create', 'end')
-    const root = workspaceRoot && isWithin(workspaceRoot, path) ? workspaceRoot : null
+    const root = workspaceRoot
     let plan: Awaited<ReturnType<typeof module.prepareRun>>
     try {
       trace?.('project-discovery', 'begin')
@@ -1076,7 +1078,7 @@ function registerIpc(): void {
         throw new Error('Restore is waiting for the save, keep-drafts or cancel decision.')
       }
       const request = Promise.resolve(operation(target, ...args))
-      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|set-optional-panel)/.test(channel)
+      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|workspace-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|set-optional-panel)/.test(channel)
       if (!writesProfile) return request
       acceptedRequests.add(request)
       void request.then(() => acceptedRequests.delete(request), () => acceptedRequests.delete(request))
@@ -1089,8 +1091,8 @@ function registerIpc(): void {
     return entry
   }
 
-  function workspaceChanged(previous: string | null) {
-    if (previous === files.rootPath) return
+  function workspaceChanged(previous: string | null, force = false) {
+    if (!force && previous === files.rootPath) return
     cancelExplanations()
     void projectLensService?.then(service => service.close(), () => undefined)
     trustedGitRoot = undefined
@@ -1312,6 +1314,68 @@ function registerIpc(): void {
     workspaceSearch?.controller.abort()
     return grantFolder(target, selection.filePaths[0])
   })
+  handle('add-folder', async (target) => {
+    const selection = await dialog.showOpenDialog(target, { title: 'Add Folder to Workspace', properties: ['openDirectory'] })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    workspaceSearch?.controller.abort()
+    return remember(await files.addRoot(selection.filePaths[0]))
+  })
+  handle('remove-folder', async (target, path) => {
+    if (target !== window) return false
+    workspaceSearch?.controller.abort()
+    const removed = files.removeRoot(path)
+    if (removed && typeof path === 'string') {
+      revokeTrust(path)
+      if (trustedGitRoot && isWithin(path, trustedGitRoot)) {
+        trustedGitRoot = undefined
+        await closeSourceControl()
+      }
+      workspaceReplace?.service.clear()
+    }
+    return removed
+  })
+  handle('reorder-folder', (target, path, offset) => target === window && (offset === -1 || offset === 1)
+    ? files.reorderRoot(path, offset) : false)
+  handle('workspace-save', async (target, roots, settings) => {
+    const scope = files
+    if (!Array.isArray(roots) || roots.length !== scope.rootPaths.length
+      || roots.some((root, index) => root !== scope.rootPaths[index])) throw new Error('The workspace changed before it could be saved.')
+    const selection = await dialog.showSaveDialog(target, {
+      title: 'Save Ion Workspace', defaultPath: 'Ion Workspace.ion-workspace',
+      filters: [{ name: 'Ion Workspace', extensions: ['ion-workspace'] }],
+    })
+    if (target !== window || scope !== files || selection.canceled || !selection.filePath) return false
+    const { writeWorkspaceConfiguration } = await import('./workspace-configuration')
+    await writeWorkspaceConfiguration(selection.filePath, roots, settings)
+    return true
+  })
+  handle('workspace-open', async (target) => {
+    const selection = await dialog.showOpenDialog(target, {
+      title: 'Open Ion Workspace', properties: ['openFile'], filters: [{ name: 'Ion Workspace', extensions: ['ion-workspace'] }],
+    })
+    if (target !== window || selection.canceled || !selection.filePaths[0]) return null
+    const { readWorkspaceConfiguration } = await import('./workspace-configuration')
+    const configuration = await readWorkspaceConfiguration(selection.filePaths[0])
+    const candidate = workspaceFiles()
+    const roots: Entry[] = []
+    for (const [index, path] of configuration.roots.entries()) {
+      roots.push(index === 0 ? await candidate.grant(path, 'folder', true) : await candidate.addRoot(path, true))
+    }
+    const review = await dialog.showMessageBox(target, { type: 'warning', buttons: ['Cancel', 'Open Workspace'],
+      defaultId: 0, cancelId: 0, message: `Open ${roots.length} workspace ${roots.length === 1 ? 'folder' : 'folders'}?`,
+      detail: 'Ion will grant file access to these folders. Execution, repository, test, and terminal trust are not imported.\n\n'
+        + roots.map(({ path }) => path).join('\n') })
+    if (target !== window || review.response !== 1) return null
+    const previous = files.rootPath
+    quickSearch?.abort()
+    workspaceSearch?.controller.abort()
+    workspaceReplace?.service.clear()
+    trustedSources.clear()
+    files = candidate
+    workspaceChanged(previous, true)
+    for (const root of roots) await remember(root)
+    return { roots, settings: configuration.settings }
+  })
   handle('open-file', async (target) => {
     const selection = await dialog.showOpenDialog(target, { title: 'Open File', properties: ['openFile'] })
     if (target !== window || selection.canceled || !selection.filePaths[0]) return null
@@ -1368,22 +1432,28 @@ function registerIpc(): void {
     const query = quickOpenQuery(value)
     quickSearch?.abort()
     const scope = files
-    const root = scope.rootPath
-    if (!root || !query) return { entries: [], truncated: false }
+    const roots = [...scope.rootPaths]
+    if (!roots.length || !query) return { entries: [], truncated: false }
     const controller = new AbortController()
     quickSearch = controller
     try {
-      return await searchWorkspace(scope, root, query, controller.signal)
+      const results = await Promise.all(roots.map((root) => searchWorkspace(scope, root, query, controller.signal)))
+      if (roots.length !== scope.rootPaths.length || roots.some((root, index) => scope.rootPaths[index] !== root)) {
+        throw new Error('The workspace changed during Quick Open.')
+      }
+      const entries = results.flatMap(({ entries }) => entries).slice(0, 40)
+      return { entries, truncated: results.some(({ truncated }) => truncated) || results.reduce((sum, result) => sum + result.entries.length, 0) > 40 }
     } finally {
       if (quickSearch === controller) quickSearch = undefined
     }
   })
   handle('quick-open-file', async (target, value) => {
     const scope = files
-    const root = scope.rootPath
-    if (!root) throw new Error('Open a workspace folder before using Quick Open.')
+    const roots = [...scope.rootPaths]
+    if (!roots.length) throw new Error('Open a workspace folder before using Quick Open.')
     const { path } = await scope.inspect(value, 'file')
-    if (target !== window || scope.rootPath !== root || !isWithin(root, path)) {
+    if (target !== window || roots.length !== scope.rootPaths.length || roots.some((root, index) => scope.rootPaths[index] !== root)
+      || !roots.some((root) => isWithin(root, path))) {
       throw new Error('This file is outside the current workspace.')
     }
     return remember({ kind: 'file' as const, name: basename(path), path })
@@ -1391,8 +1461,8 @@ function registerIpc(): void {
   handle('workspace-search', async (target, id, value) => {
     if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid search request.')
     const scope = files
-    const root = scope.rootPath
-    if (!root) throw new Error('Open a workspace folder before searching files.')
+    const roots = [...scope.rootPaths]
+    if (!roots.length) throw new Error('Open a workspace folder before searching files.')
     workspaceSearch?.controller.abort()
     const controller = new AbortController()
     workspaceSearch = { id, controller }
@@ -1402,9 +1472,14 @@ function registerIpc(): void {
       if (!query) return { files: [] }
       const executable = 'ion-rg' + (process.platform === 'win32' ? '.exe' : '')
       const tool = app.isPackaged ? join(process.resourcesPath, executable) : resolve(__dirname, '../native', executable)
-      const result = await searchWorkspaceText(tool, scope, root, query, controller.signal)
-      if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The workspace changed during search.')
-      return result
+      const results = await Promise.all(roots.map((root) => searchWorkspaceText(tool, scope, root, query, controller.signal)))
+      if (target !== window || scope !== files || roots.length !== scope.rootPaths.length
+        || roots.some((root, index) => scope.rootPaths[index] !== root)) throw new Error('The workspace changed during search.')
+      const foundFiles = results.flatMap((result, index) => result.files.map((file) => ({ ...file,
+        relativePath: roots.length > 1 ? `${workspaceRootLabel(roots, index)}/${file.relativePath}` : file.relativePath })))
+      return { files: foundFiles.slice(0, workspaceSearchResultLimit), limit: results.find(({ limit }) => limit)?.limit
+        ?? (foundFiles.length > workspaceSearchResultLimit ? 'matches' : undefined),
+        skipped: results.some(({ skipped }) => skipped) || undefined }
     } finally {
       if (workspaceSearch?.controller === controller) workspaceSearch = undefined
     }
@@ -1436,19 +1511,19 @@ function registerIpc(): void {
   handle('read-text-page', (_target, path, page, revision) => files.readTextPage(path, page, revision))
   handle('markdown-read-image', async (target, sourcePath, href) => {
     const scope = files
-    const root = scope.rootPath
+    const root = typeof sourcePath === 'string' ? scope.rootFor(sourcePath) : null
     const image = await readMarkdownImage(scope, sourcePath, href)
-    if (target !== window || scope !== files || scope.rootPath !== root) {
+    if (target !== window || scope !== files || !root || !scope.rootPaths.includes(root)) {
       throw new Error('The workspace changed while opening the Markdown image.')
     }
     return image
   })
   handle('markdown-open-link', async (target, sourcePath, href) => {
     const scope = files
-    const root = scope.rootPath
+    const root = typeof sourcePath === 'string' ? scope.rootFor(sourcePath) : null
     const link = await resolveMarkdownLink(scope, sourcePath, href)
     const assertCurrent = () => {
-      if (target !== window || scope !== files || scope.rootPath !== root) {
+      if (target !== window || scope !== files || !root || !scope.rootPaths.includes(root)) {
         throw new Error('The workspace changed while opening the Markdown link.')
       }
     }
@@ -1463,20 +1538,21 @@ function registerIpc(): void {
   })
   handle('notebook-kernel-discover', async (target, value) => {
     const scope = files
-    const root = scope.rootPath
     const { path } = await scope.inspect(kernelPath(value), 'file')
+    const root = scope.rootFor(path)
     const result = await (await kernels(target)).discover(root ?? dirname(path))
-    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The notebook workspace changed.')
+    if (target !== window || scope !== files || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path))) throw new Error('The notebook workspace changed.')
     return result
   })
   handle('notebook-kernel-choose', async (target, value) => {
     const scope = files
-    const root = scope.rootPath
-    await scope.inspect(kernelPath(value), 'file')
+    const { path } = await scope.inspect(kernelPath(value), 'file')
+    const root = scope.rootFor(path)
+    const current = () => target === window && scope === files && (root ? scope.rootPaths.includes(root) : scope.authorizes(path))
     const selection = await dialog.showOpenDialog(target, { title: 'Choose a Python Interpreter', properties: ['openFile', 'showHiddenFiles'] })
-    if (target !== window || scope !== files || scope.rootPath !== root || selection.canceled || !selection.filePaths[0]) return null
+    if (!current() || selection.canceled || !selection.filePaths[0]) return null
     const result = await (await kernels(target)).addInterpreter(selection.filePaths[0])
-    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The notebook workspace changed.')
+    if (!current()) throw new Error('The notebook workspace changed.')
     return result
   })
   handle('notebook-kernel-status', async (_target, value): Promise<NotebookKernelStatus> => {
@@ -1485,9 +1561,10 @@ function registerIpc(): void {
   })
   handle('notebook-kernel-run', async (target, value, request) => {
     const scope = files
-    const root = scope.rootPath
     const { path } = await scope.inspect(kernelPath(value), 'file')
-    const current = () => target === window && !target.isDestroyed() && scope === files && scope.rootPath === root
+    const root = scope.rootFor(path)
+    const current = () => target === window && !target.isDestroyed() && scope === files
+      && (root ? scope.rootPaths.includes(root) : scope.authorizes(path))
     return (await kernels(target)).run(path, request, async (environment) => {
       if (!current()) return false
       const choice = await dialog.showMessageBox(target, {
@@ -1502,11 +1579,12 @@ function registerIpc(): void {
   })
   handle('notebook-kernel-restart', async (target, value): Promise<NotebookKernelStatus> => {
     const scope = files
-    const root = scope.rootPath
     const path = kernelPath(value)
     await scope.inspect(path, 'file')
+    const root = scope.rootFor(path)
     return (await notebookKernels)?.restart(path,
-      () => target === window && !target.isDestroyed() && scope === files && scope.rootPath === root) ?? { state: 'stopped' }
+      () => target === window && !target.isDestroyed() && scope === files
+        && (root ? scope.rootPaths.includes(root) : scope.authorizes(path))) ?? { state: 'stopped' }
   })
   handle('notebook-kernel-interrupt', async (_target, value) => {
     const path = kernelPath(value)
@@ -1610,14 +1688,14 @@ function registerIpc(): void {
   })
   handle('live-run-project-inputs', async (target, value) => {
     const scope = files
-    const root = scope.rootPath
-    if (!root) return null
     const { path } = await scope.inspect(value, 'file')
+    const root = scope.rootFor(path)
+    if (!root) return null
     const language = runLanguage(path)
     if (!isWithin(root, path) || (language !== 'c' && language !== 'cpp')) return null
     const { readNativeProject } = await import('./run-console')
     const project = await readNativeProject(scope, root, path)
-    if (target !== window || scope !== files || scope.rootPath !== root) throw new Error('The workspace changed before the build.')
+    if (target !== window || scope !== files || !scope.rootPaths.includes(root)) throw new Error('The workspace changed before the build.')
     return project ? { manifest: project.manifest, paths: project.inputs.map(({ path }) => path) } : null
   })
   handle('live-run-input', (target, id, input) => {
@@ -1636,10 +1714,10 @@ function registerIpc(): void {
   handle('live-run-cancel', (target, id) => {
     if (activeRun && activeRun.owner === target && activeRun.id === id) activeRun.controller.abort()
   })
-  handle('terminal-create', async (target, columns, rows) => {
+  handle('terminal-create', async (target, columns, rows, requestedRoot) => {
     if (!terminalDimension(columns) || !terminalDimension(rows)) throw new Error('Invalid terminal dimensions.')
     const scope = files
-    const root = scope.rootPath
+    const root = typeof requestedRoot === 'string' && scope.rootPaths.includes(requestedRoot) ? requestedRoot : scope.rootPath
     const cwd = root ? (await scope.inspect(root, 'folder')).path : app.getPath('home')
     if (target !== window || scope !== files) throw new Error('The terminal window has closed.')
     const service = await terminals(target)
@@ -1671,7 +1749,7 @@ function registerIpc(): void {
     try {
       const scope = files
       const { path } = await scope.inspect(value, 'file')
-      const root = scope.rootPath && isWithin(scope.rootPath, path) ? scope.rootPath : dirname(path)
+      const root = scope.rootFor(path) ?? dirname(path)
       const { openWebPreview } = await import('./web-preview')
       if (target !== window) throw new Error('The workbench closed before preview could open.')
       if (webPreview && !webPreview.isDestroyed()) webPreview.destroy()

@@ -308,13 +308,13 @@ export function createProjectHandlers({ profile, provider, files, runner, isCurr
     },
     async runSuite(target: BrowserWindow, root: unknown, ids: unknown, token: unknown): Promise<ProjectSuiteResult> {
       const scope = files()
-      if (typeof root !== 'string' || scope.rootPath !== root || !isCurrent(target)) {
+      if (typeof root !== 'string' || !scope.rootPaths.includes(root) || !isCurrent(target)) {
         throw new Error('Open the project workspace before running its saved tests.')
       }
       if (running || suite || runner.busy || isBusy()) throw new Error('A program or test is already compiling or running.')
       const controller = new AbortController()
       const signal = controller.signal
-      const active = () => files() === scope && scope.rootPath === root && isCurrent(target)
+      const active = () => files() === scope && scope.rootPaths.includes(root) && isCurrent(target)
       const done = (async (): Promise<ProjectSuiteResult> => {
         const path = await selected(target, root)
         const record = await store.read(path)

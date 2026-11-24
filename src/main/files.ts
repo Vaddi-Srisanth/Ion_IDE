@@ -30,6 +30,13 @@ export function isWithin(root: string, path: string): boolean {
   return !windows || path === root || path.startsWith(root.endsWith(sep) ? root : root + sep)
 }
 
+export function workspaceRootLabel(roots: readonly string[], index: number): string {
+  const name = basename(roots[index]) || roots[index]
+  const prior = roots.slice(0, index).filter((root) => (basename(root) || root) === name).length
+  const count = roots.filter((root) => (basename(root) || root) === name).length
+  return count > 1 ? `${name} [${prior + 1}]` : name
+}
+
 function invalidWindowsName(name: string): boolean {
   return /[<>:"|?*\x01-\x1f]|[ .]$/.test(name) || windowsDeviceName.test(name)
 }
@@ -253,15 +260,19 @@ async function writeAtomically(mutations: FileMutations, path: string, text: str
 }
 
 export class WorkspaceFiles {
-  private root: string | null = null
+  private roots: string[] = []
   private readonly files = new Set<string>()
   private mutation: Promise<void> = Promise.resolve()
 
   constructor(private readonly mutations = fileMutations(), private readonly trashRoot = () => tmpdir()) {}
 
   get rootPath(): string | null {
-    return this.root
+    return this.roots[0] ?? null
   }
+
+  get rootPaths(): readonly string[] { return this.roots }
+
+  rootFor(path: string): string | null { return this.roots.find((root) => isWithin(root, path)) ?? null }
 
   drain(): Promise<void> {
     return this.mutation
@@ -275,30 +286,61 @@ export class WorkspaceFiles {
 
   async grant(value: unknown, expected?: EntryKind, requireCanonical = false): Promise<Entry> {
     const entry = await resolveEntry(value, expected, requireCanonical)
-    if (entry.kind === 'folder') this.root = entry.path
+    if (entry.kind === 'folder') this.roots = [entry.path]
     else this.files.add(entry.path)
     return entry
   }
 
-  authorizes(path: string): boolean {
-    return this.files.has(path) || (this.root !== null && isWithin(this.root, path))
+  async addRoot(value: unknown, requireCanonical = false): Promise<Entry> {
+    const entry = await resolveEntry(value, 'folder', requireCanonical)
+    if (this.roots.includes(entry.path)) return entry
+    if (this.roots.length >= 8) throw new Error('Ion supports up to eight workspace folders.')
+    if (this.roots.some((root) => isWithin(root, entry.path) || isWithin(entry.path, root))) {
+      throw new Error('Choose a separate folder that does not overlap an open workspace folder.')
+    }
+    this.roots = [...this.roots, entry.path]
+    return entry
   }
 
-  async restoreSession(rootPath: string | null, paths: string[], current: () => boolean) {
-    const previousRoot = this.root
-    const [root, entries] = await Promise.all([
-      rootPath === null ? null : resolveEntry(rootPath, 'folder', true).catch(() => null),
+  removeRoot(value: unknown): boolean {
+    const path = absolutePath(value)
+    if (!this.roots.includes(path) || this.roots.length === 1) return false
+    this.roots = this.roots.filter((root) => root !== path)
+    return true
+  }
+
+  reorderRoot(value: unknown, offset: -1 | 1): boolean {
+    const path = absolutePath(value)
+    const index = this.roots.indexOf(path)
+    const target = index + offset
+    if (index < 0 || target < 0 || target >= this.roots.length) return false
+    const roots = [...this.roots]
+    ;[roots[index], roots[target]] = [roots[target], roots[index]]
+    this.roots = roots
+    return true
+  }
+
+  authorizes(path: string): boolean {
+    return this.files.has(path) || this.roots.some((root) => isWithin(root, path))
+  }
+
+  async restoreSession(rootPaths: string | readonly string[] | null, paths: string[], current: () => boolean) {
+    const previousRoots = this.roots
+    const requested = rootPaths === null ? [] : typeof rootPaths === 'string' ? [rootPaths] : [...rootPaths].slice(0, 8)
+    const [roots, entries] = await Promise.all([
+      Promise.all(requested.map((path) => resolveEntry(path, 'folder', true).catch(() => null))),
       Promise.all(paths.map((path) => resolveEntry(path, 'file', true).catch(() => null))),
     ])
-    if (!current() || this.root !== previousRoot) throw new Error('The workspace changed before it could be resumed.')
-    if (root) this.root = root.path
+    if (!current() || this.roots !== previousRoots) throw new Error('The workspace changed before it could be resumed.')
+    const restoredRoots = roots.flatMap((entry) => entry ? [entry] : [])
+    if (restoredRoots.length) this.roots = restoredRoots.map(({ path }) => path)
     const restored = new Map<string, Entry>()
     for (const entry of entries) {
       if (!entry) continue
       this.files.add(entry.path)
       restored.set(entry.path, entry)
     }
-    return { root, restored }
+    return { root: restoredRoots[0] ?? null, roots: restoredRoots, restored }
   }
 
   async inspect(value: unknown, kind?: EntryKind): Promise<{ path: string; stats: BigIntStats }> {
@@ -475,7 +517,7 @@ export class WorkspaceFiles {
     const name = entryName(nextName)
     return this.serialize(async () => {
       const { path, stats } = await this.inspect(value)
-      if (path === this.root) throw new Error('Close the workspace before renaming its folder in your file manager.')
+      if (this.roots.includes(path)) throw new Error('Close the workspace before renaming its folder in your file manager.')
       const kind = stats.isFile() ? 'file' : 'folder'
       const destination = join(dirname(path), name)
       if (destination === path) return toEntry(path, kind)
@@ -507,7 +549,7 @@ export class WorkspaceFiles {
   trash(value: unknown, confirm: (path: string) => Promise<boolean>, moveToTrash: (path: string) => Promise<void>): Promise<boolean> {
     return this.serialize(async () => {
       const { path, stats } = await this.inspect(value)
-      if (path === this.root) {
+      if (this.roots.includes(path)) {
         throw new Error(windows
           ? 'Close the workspace before moving its folder to the Recycle Bin from File Explorer.'
           : 'Move the workspace folder to Trash from Finder after closing it.')

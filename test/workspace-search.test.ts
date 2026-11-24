@@ -109,6 +109,26 @@ test('reviewed workspace replacement applies only selected stable files through 
   await assert.rejects(service.apply(review.token, [second]), /expired/)
 })
 
+test('workspace replacement reviews and safely applies files across explicit roots', async (t) => {
+  const { root, scope, temporary } = await workspace(t)
+  const second = join(temporary, 'Second workspace')
+  await mkdir(second)
+  const secondRoot = (await scope.addRoot(second)).path
+  const firstFile = join(root, 'first.txt'), secondFile = join(secondRoot, 'second.txt')
+  await Promise.all([writeFile(firstFile, 'shared marker\n'), writeFile(secondFile, 'shared marker\n')])
+  const service = new WorkspaceReplaceReview(rg, scope)
+  const review = await service.review('marker', 'updated')
+  assert.equal(review.replacements, 2)
+  assert.deepEqual(review.files.map(({ relativePath }) => relativePath), [
+    `${root.split(/[/\\]/).at(-1)}/first.txt`, 'Second workspace/second.txt',
+  ])
+  assert.deepEqual(await service.apply(review.token, [firstFile, secondFile]), {
+    applied: [firstFile, secondFile], failed: [],
+  })
+  assert.equal(await readFile(firstFile, 'utf8'), 'shared updated\n')
+  assert.equal(await readFile(secondFile, 'utf8'), 'shared updated\n')
+})
+
 test('reviewed replacement preserves external edits and reports partial failures', async (t) => {
   const { root, scope } = await workspace(t)
   const changed = join(root, 'a-changed.txt'), stable = join(root, 'b-stable.txt')

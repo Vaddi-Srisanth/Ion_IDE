@@ -121,7 +121,7 @@ function parseEditorGroups(value: unknown, tabCount: number): EditorSessionGroup
 }
 
 export function validateEditorSnapshot(value: unknown, parsePath = pathOrNull): EditorSessionSnapshot {
-  const { rootPath, activeIndex, tabs, editorGroups, restoredReferences, restoredRoot } = record(value)
+  const { rootPath, rootPaths, activeIndex, tabs, editorGroups, restoredReferences, restoredRoot } = record(value)
   if (!Array.isArray(tabs) || tabs.length > editorSessionTabLimit || typeof activeIndex !== 'number'
     || !Number.isInteger(activeIndex) || activeIndex < -1 || activeIndex >= tabs.length) {
     throw new Error('Invalid editor session tabs.')
@@ -133,13 +133,24 @@ export function validateEditorSnapshot(value: unknown, parsePath = pathOrNull): 
     if (references.some(t => t.path === null || t.draftId)) throw new Error('Invalid restored session reference.')
   }
   const restored = restoredRoot === undefined ? undefined : inertReference(restoredRoot)
+  const parsedRoot = parsePath(rootPath)
   const paths = new Set<string>()
   const drafts = new Set<string>()
   const groups = parseEditorGroups(editorGroups, tabs.length)
+  let roots: string[] | undefined
+  if (rootPaths !== undefined) {
+    if (!Array.isArray(rootPaths) || rootPaths.length < 1 || rootPaths.length > 8) throw new Error('Invalid workspace roots.')
+    roots = rootPaths.map(parsePath).map((path) => {
+      if (path === null) throw new Error('Invalid workspace root.')
+      return path
+    })
+    if (new Set(roots).size !== roots.length || parsedRoot !== null && !roots.includes(parsedRoot)) throw new Error('Invalid workspace roots.')
+  }
   return {
     ...(references ? { restoredReferences: references } : {}),
     ...(restored ? { restoredRoot: restored } : {}),
-    rootPath: parsePath(rootPath),
+    rootPath: parsedRoot,
+    ...(roots ? { rootPaths: roots } : {}),
     activeIndex,
     ...(groups ? { editorGroups: groups } : {}),
     tabs: tabs.map((value: unknown): EditorSessionTab => {
@@ -209,8 +220,11 @@ export class EditorSessionStore {
   }
 
   save(value: unknown, scope: WorkspaceFiles): Promise<void> {
-    const { rootPath, activeIndex, tabs, editorGroups } = validateEditorSnapshot(value)
-    if (rootPath !== null && rootPath !== scope.rootPath) throw new Error('The editor session folder is no longer open.')
+    const { rootPath, rootPaths, activeIndex, tabs, editorGroups } = validateEditorSnapshot(value)
+    const selectedRoots = rootPaths ?? (rootPath ? [rootPath] : [])
+    if (selectedRoots.length !== scope.rootPaths.length || selectedRoots.some((path) => !scope.rootPaths.includes(path))) {
+      throw new Error('The editor session folders are no longer open.')
+    }
     const authorized: EditorSessionTab[] = []
     const indexes = new Map<number, number>()
     let selected = -1
@@ -222,7 +236,8 @@ export class EditorSessionStore {
       authorized.push(permitted ? tab : { ...tab, path: null })
     }
     const groups = remapGroups(editorGroups, indexes)
-    const snapshot = { rootPath, activeIndex: selected, tabs: authorized, ...(groups ? { editorGroups: groups } : {}) }
+    const snapshot = { rootPath, ...(rootPaths ? { rootPaths } : {}), activeIndex: selected, tabs: authorized,
+      ...(groups ? { editorGroups: groups } : {}) }
     const encoded = JSON.stringify(snapshot)
     const write = this.pending.then(async () => {
       if (encoded === this.encoded) return
@@ -246,9 +261,9 @@ export class EditorSessionStore {
       : null
     const paths = snapshot.tabs.flatMap(({ path, draftId }) =>
       path && (!draftId || !drafts?.has(draftId)) ? [path] : [])
-    const { root, restored } = await scope.restoreSession(snapshot.rootPath, paths, current)
+    const { root, roots, restored } = await scope.restoreSession(snapshot.rootPaths ?? snapshot.rootPath, paths, current)
     const tabs: ResumedEditorSession['tabs'] = []
-    let skipped = Number(snapshot.rootPath !== null && !root)
+    let skipped = (snapshot.rootPaths ?? (snapshot.rootPath ? [snapshot.rootPath] : [])).length - roots.length
     for (const [index, { name, path, draftId, notebookMode, view }] of snapshot.tabs.entries()) {
       const draft = draftId ? drafts?.get(draftId) : undefined
       const entry = !draft && path ? restored.get(path) : undefined
@@ -258,6 +273,7 @@ export class EditorSessionStore {
       }
       tabs.push({ index, name: draft?.name ?? entry?.name ?? name, entry, draft, notebookMode, view })
     }
-    return { root, tabs, activeIndex: snapshot.activeIndex, skipped, ...(snapshot.editorGroups ? { editorGroups: snapshot.editorGroups } : {}) }
+    return { root, roots, tabs, activeIndex: snapshot.activeIndex, skipped,
+      ...(snapshot.editorGroups ? { editorGroups: snapshot.editorGroups } : {}) }
   }
 }

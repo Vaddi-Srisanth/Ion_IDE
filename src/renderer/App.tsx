@@ -166,6 +166,9 @@ export function App() {
   }, []);
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const [root, setRoot] = useState<Entry | null>(null);
+  const [roots, setRoots] = useState<Entry[]>([]);
+  const rootsRef = useRef(roots);
+  rootsRef.current = roots;
   const [sourceControlVisible, setSourceControlVisible] = useState(false);
   const [sourceControlEntries, setSourceControlEntries] = useState<readonly SourceControlEntry[]>([]);
   const [sourceControlDiff, setSourceControlDiff] = useState<SourceControlDiff>();
@@ -267,7 +270,7 @@ export function App() {
   const [sessionWriter] = useState(() => new EditorSessionWriter(
     async () => {
       if (sessionStarted.current) await bridge.editorSession.save(captureEditorSession(
-        documents, sessionRoot.current?.path ?? null, editorGroups.current));
+        documents, sessionRoot.current?.path ?? null, editorGroups.current, rootsRef.current.map(({ path }) => path)));
     },
     (reason) => notify(`Could not checkpoint the editor session. ${errorMessage(reason)}`, true),
   ));
@@ -596,6 +599,7 @@ export function App() {
       if (recovered.size) setRecoveryDrafts((drafts) => drafts.filter(({ id }) => !recovered.has(id)));
       if (resumed.root) {
         setRoot(resumed.root);
+        setRoots(resumed.roots?.length ? resumed.roots : [resumed.root]);
         setTarget(resumed.root.path);
       }
       setSessionAvailable(false);
@@ -653,6 +657,7 @@ export function App() {
     if (entry.kind === 'folder') {
       closeSourceControl();
       setRoot(entry);
+      setRoots([entry]);
       setTarget(entry.path);
       refreshTree();
       if (!settingsRef.current.showExplorer) updateSettings({ showExplorer: true });
@@ -662,6 +667,14 @@ export function App() {
     enterWorkspace();
   }, [closeSourceControl, dismissOnboarding, documents, enterWorkspace, refreshTree, updateSettings]);
   const openWorkbenchEntry = useCallback((entry: Entry) => { setSourceControlDiff(undefined); openEntry(entry); }, [openEntry]);
+  const selectWorkspaceTarget = useCallback((path: string) => {
+    setTarget(path);
+    const owner = rootsRef.current.find((entry) => isWithin(path, entry.path));
+    if (owner && owner.path !== root?.path) {
+      closeSourceControl();
+      setRoot(owner);
+    }
+  }, [closeSourceControl, root?.path]);
 
   useEffect(() => {
     const unsubOpen = bridge.onOpenEntry((entry) => {
@@ -728,6 +741,83 @@ export function App() {
   };
   const openFile = () => void openNative(() => bridge.openFile());
   const openFolder = () => void openNative(() => bridge.openFolder());
+  const addFolder = async () => {
+    if (nativeDialogOpen.current) return;
+    nativeDialogOpen.current = true;
+    try {
+      const entry = await bridge.addFolder();
+      if (!entry) return;
+      setRoots((current) => current.some(({ path }) => path === entry.path) ? current : [...current, entry]);
+      setTarget(entry.path);
+      refreshRecents();
+      refreshTree();
+      enterWorkspace();
+    } catch (reason) { notify(errorMessage(reason), true); }
+    finally { nativeDialogOpen.current = false; }
+  };
+  const removeFolder = async (path: string) => {
+    try {
+      if (!await bridge.removeFolder(path)) return;
+      setRoots((current) => {
+        const next = current.filter((entry) => entry.path !== path);
+        if (root?.path === path) setRoot(next[0] ?? null);
+        setTarget((selected) => selected && isWithin(path, selected) ? next[0]?.path ?? null : selected);
+        return next;
+      });
+      refreshTree();
+    } catch (reason) { notify(errorMessage(reason), true); }
+  };
+  const reorderFolder = async (path: string, offset: -1 | 1) => {
+    try {
+      if (!await bridge.reorderFolder(path, offset)) return;
+      setRoots((current) => {
+        const index = current.findIndex((entry) => entry.path === path);
+        const target = index + offset;
+        if (index < 0 || target < 0 || target >= current.length) return current;
+        const next = [...current];
+        [next[index], next[target]] = [next[target], next[index]];
+        return next;
+      });
+    } catch (reason) { notify(errorMessage(reason), true); }
+  };
+  const saveWorkspace = async () => {
+    if (nativeDialogOpen.current || !rootsRef.current.length) return;
+    nativeDialogOpen.current = true;
+    try {
+      if (await bridge.saveWorkspace(rootsRef.current.map(({ path }) => path), settingsRef.current)) {
+        notify('Workspace configuration saved.');
+      }
+    } catch (reason) { notify(errorMessage(reason), true); }
+    finally { nativeDialogOpen.current = false; }
+  };
+  const openWorkspace = async () => {
+    if (nativeDialogOpen.current) return;
+    const current = documents.getSnapshot();
+    if (current.tabs.some((tab) => tab.dirty || tab.conflict || tab.notebookRunning)) {
+      notify('Save, close, or keep drafts for modified files before opening another workspace.', true);
+      return;
+    }
+    nativeDialogOpen.current = true;
+    try {
+      const opened = await bridge.openWorkspace();
+      if (!opened) return;
+      for (const tab of current.tabs) documents.close(tab.id);
+      closeSourceControl();
+      setRoots(opened.roots);
+      setRoot(opened.roots[0] ?? null);
+      setTarget(opened.roots[0]?.path ?? null);
+      const nextSettings = { ...settingsRef.current, ...opened.settings };
+      settingsRef.current = nextSettings;
+      setSettings(nextSettings);
+      documents.setSettings(nextSettings);
+      setInitialEditorGroups(undefined);
+      editorGroups.current = undefined;
+      refreshRecents();
+      refreshTree();
+      enterWorkspace();
+    } catch (reason) { notify(errorMessage(reason), true); }
+    finally { nativeDialogOpen.current = false; }
+  };
   function currentSourceLocation(): SourceLocation | undefined {
     const { tabs: openTabs, activeId: selected } = documents.getSnapshot();
     const tab = openTabs.find(({ id }) => id === selected);
@@ -1480,7 +1570,7 @@ export function App() {
               dirty={hasUnsavedSource(sourceControlDiff.absolutePath)} theme={displayTheme} accentColor={appearance.accentColor}/>
           </Suspense>}
           onToggleExplorer={toggleExplorer}
-          active={active} tabs={tabs} root={root} target={target}
+          active={active} tabs={tabs} root={root} roots={roots} target={target}
           treeRevision={treeRevision} settings={settings} activeTheme={displayTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
@@ -1489,10 +1579,13 @@ export function App() {
           onNavigateSource={(path, line, column) => { void navigateSource({ path, line, column }); }}
           navigation={navigationState} onHistory={walkHistory}
           onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
-          onSelect={selectWorkbenchTab} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openWorkbenchEntry} onTarget={setTarget}
+          onSelect={selectWorkbenchTab} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openWorkbenchEntry} onTarget={selectWorkspaceTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}
           onRename={(entry) => setDialog({ kind: 'rename', entry })} onTrash={(entry) => void trashEntry(entry)}
           onRefresh={refreshTree} onNew={newFile} onOpenFile={openFile} onOpenFolder={openFolder}
+          onAddFolder={() => void addFolder()} onRemoveFolder={(path) => void removeFolder(path)}
+          onReorderFolder={(path, offset) => void reorderFolder(path, offset)}
+          onSaveWorkspace={() => void saveWorkspace()} onOpenWorkspace={() => void openWorkspace()}
           onInsertStarter={starterTarget ? insertStarter : undefined}
           formatting={formatting} onFormat={() => { void formatDocument(); }}
           onSettings={updateSettings} onRun={() => void run()} onRerun={() => { if (lastRun) void run(lastRun); }}

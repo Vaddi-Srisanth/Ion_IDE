@@ -40,7 +40,7 @@ test('reopening a session grants only previously scoped paths, skips changed lin
       first: { kind: 'group', groupId: 'group-1' }, second: { kind: 'group', groupId: 'group-2' } } } }
     const store = new EditorSessionStore(sessionPath)
     assert.equal(await store.available(), false)
-    await assert.rejects(async () => store.save({ ...snapshot, rootPath: directory }, scope), /folder is no longer open/)
+    await assert.rejects(async () => store.save({ ...snapshot, rootPath: directory }, scope), /folder.*no longer open/)
     await store.save(snapshot, scope)
     const saved = await readFile(sessionPath, 'utf8')
     assert.equal(saved.includes(outside), false)
@@ -75,4 +75,25 @@ test('reopening a session grants only previously scoped paths, skips changed lin
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('editor sessions restore each explicit workspace root without broadening file authority', async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'ion-multi-root-session-')))
+  try {
+    const first = join(directory, 'first')
+    const second = join(directory, 'second')
+    const outside = join(directory, 'outside.txt')
+    await Promise.all([mkdir(first), mkdir(second), writeFile(outside, 'private')])
+    const scope = new WorkspaceFiles()
+    await scope.grant(first, 'folder')
+    await scope.addRoot(second)
+    const store = new EditorSessionStore(join(directory, 'editor-session.json'))
+    await store.save({ rootPath: first, rootPaths: [first, second], activeIndex: -1, tabs: [] }, scope)
+    const reopened = new WorkspaceFiles()
+    const resumed = await new EditorSessionStore(join(directory, 'editor-session.json'))
+      .resume(reopened, new RecoveryStore(join(directory, 'recovery')), () => true)
+    assert.deepEqual(resumed.roots?.map(({ path }) => path), [first, second])
+    assert.deepEqual(reopened.rootPaths, [first, second])
+    assert.equal(reopened.authorizes(outside), false)
+  } finally { await rm(directory, { recursive: true, force: true }) }
 })

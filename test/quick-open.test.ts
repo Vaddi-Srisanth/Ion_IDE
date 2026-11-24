@@ -27,6 +27,15 @@ test('Quick Open finds unopened nested workspace files without following symlink
     [{ name: 'Calculáte.c', kind: 'file', path: join(root, 'src', 'Calculáte.c') }])
   assert.deepEqual((await searchWorkspace(scope, root, 'hidden', signal)).entries, [])
   assert.deepEqual((await searchWorkspace(scope, root, 'generated', signal)).entries, [])
+  const secondRoot = join(temporary, 'Second root')
+  await mkdir(secondRoot)
+  await writeFile(join(secondRoot, 'second-only.py'), '')
+  const grantedSecond = await scope.addRoot(secondRoot)
+  assert.deepEqual((await searchWorkspace(scope, grantedSecond.path, 'second-only', signal)).entries,
+    [{ name: 'second-only.py', kind: 'file', path: join(grantedSecond.path, 'second-only.py') }])
+  assert.equal((await searchWorkspace(scope, root, 'calculate', signal)).entries.length, 1)
+  assert.equal(scope.removeRoot(grantedSecond.path), true)
+  await assert.rejects(searchWorkspace(scope, grantedSecond.path, 'second-only', signal), /workspace changed/)
   assert.throws(() => quickOpenQuery('x'.repeat(201)), /Invalid Quick Open/)
 
   const stale = new AbortController()

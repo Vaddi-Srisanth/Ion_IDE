@@ -3,11 +3,12 @@ import type { Entry, EntryKind } from '../shared/contracts';
 import type { SourceControlEntry } from '../shared/source-control';
 import { errorMessage, type Tab } from './documents';
 import { Icon } from './icons';
-import { sourceControlPathKey } from './paths';
+import { isWithin, sourceControlPathKey } from './paths';
 
 interface ExplorerProps {
   hidden?: boolean;
   root: Entry | null;
+  roots?: Entry[];
   activePath: string | null;
   target: string | null;
   tabs: Tab[];
@@ -20,6 +21,11 @@ interface ExplorerProps {
   onTrash(entry: Entry): void;
   onRefresh(): void;
   onOpenFolder(): void;
+  onAddFolder(): void;
+  onRemoveFolder(path: string): void;
+  onReorderFolder(path: string, offset: -1 | 1): void;
+  onSaveWorkspace(): void;
+  onOpenWorkspace(): void;
 }
 
 interface FolderProps {
@@ -109,10 +115,16 @@ const Folder = memo(function Folder(props: FolderProps) {
   );
 });
 
-export function Explorer({ hidden, root, activePath, target, tabs, revision, sourceControlEntries,
-  onOpen, onTarget, onCreate, onRename, onTrash, onRefresh, onOpenFolder }: ExplorerProps) {
+export function Explorer({ hidden, root, roots = root ? [root] : [], activePath, target, tabs, revision, sourceControlEntries,
+  onOpen, onTarget, onCreate, onRename, onTrash, onRefresh, onOpenFolder, onAddFolder, onRemoveFolder, onReorderFolder,
+  onSaveWorkspace, onOpenWorkspace }: ExplorerProps) {
   const sourceControl = useMemo(() => sourceControlEntries?.length
     ? new Map(sourceControlEntries.map((entry) => [sourceControlPathKey(entry.absolutePath), entry])) : undefined, [sourceControlEntries]);
+  const duplicateRootNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of roots) counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1);
+    return counts;
+  }, [roots]);
   return (
     <aside className="explorer" hidden={hidden} data-testid="explorer" aria-label="File explorer">
       <div className="pane-title">
@@ -123,18 +135,35 @@ export function Explorer({ hidden, root, activePath, target, tabs, revision, sou
           <button className="icon-button" aria-label="Create folder" title="Create folder" data-testid="create-folder"
             onClick={() => onCreate('folder')}><Icon name="folderPlus" size={15}/></button>
           <button className="icon-button" aria-label="Refresh explorer" title="Refresh" onClick={onRefresh}><Icon name="refresh" size={14}/></button>
+          <button className="icon-button" aria-label="Add folder to workspace" title="Add folder to workspace"
+            onClick={onAddFolder}><Icon name="folderPlus" size={15}/></button>
+          <button className="icon-button" aria-label="Save workspace configuration" title="Save workspace configuration"
+            onClick={onSaveWorkspace}><Icon name="save" size={14}/></button>
+          <button className="icon-button" aria-label="Open workspace configuration" title="Open workspace configuration"
+            onClick={onOpenWorkspace}><Icon name="folder" size={14}/></button>
         </div>}
       </div>
       <div className="explorer-body">
         {root ? (
           <>
-            <button className={`tree-root ${target === root.path ? 'tree-root-selected' : ''}`} title={root.path}
-              aria-label={`Select root folder ${root.name}`} onClick={() => onTarget(root.path)}>
-              <Icon name="down" size={13}/><Icon name="open" size={15}/><span>{root.name}</span>
-            </button>
-            <Folder key={root.path} path={root.path} depth={0} activePath={activePath} target={target} revision={revision}
-              sourceControl={sourceControl}
-              onOpen={onOpen} onTarget={onTarget} onRename={onRename} onTrash={onTrash}/>
+            {roots.map((workspaceRoot) => <section className="workspace-root" data-testid="workspace-root"
+              data-path={workspaceRoot.path} key={workspaceRoot.path}>
+              <div className="workspace-root-heading">
+                <button className={`tree-root ${target === workspaceRoot.path ? 'tree-root-selected' : ''}`} title={workspaceRoot.path}
+                  aria-label={`Select root folder ${workspaceRoot.name}`} onClick={() => onTarget(workspaceRoot.path)}>
+                  <Icon name="down" size={13}/><Icon name="open" size={15}/><span>{workspaceRoot.name}
+                    {duplicateRootNames.get(workspaceRoot.name)! > 1 ? ` — ${workspaceRoot.path.replace(/[/\\][^/\\]+$/, '').split(/[/\\]/).at(-1)}` : ''}</span>
+                </button>
+                {roots.length > 1 && <button className="icon-button" aria-label={`Remove ${workspaceRoot.name} from workspace`}
+                  title="Remove folder from workspace" onClick={() => onRemoveFolder(workspaceRoot.path)}><Icon name="x" size={13}/></button>}
+                {roots.length > 1 && <><button className="icon-button" aria-label={`Move ${workspaceRoot.name} up`}
+                  disabled={roots[0].path === workspaceRoot.path} onClick={() => onReorderFolder(workspaceRoot.path, -1)}>↑</button>
+                  <button className="icon-button" aria-label={`Move ${workspaceRoot.name} down`}
+                    disabled={roots.at(-1)?.path === workspaceRoot.path} onClick={() => onReorderFolder(workspaceRoot.path, 1)}>↓</button></>}
+              </div>
+              <Folder path={workspaceRoot.path} depth={0} activePath={activePath} target={target} revision={revision}
+                sourceControl={sourceControl} onOpen={onOpen} onTarget={onTarget} onRename={onRename} onTrash={onTrash}/>
+            </section>)}
           </>
         ) : (
           <div className="explorer-empty">
@@ -142,12 +171,16 @@ export function Explorer({ hidden, root, activePath, target, tabs, revision, sou
             <h3>No folder open</h3>
             <p>Open a folder to browse and manage its files.</p>
             <button className="button" onClick={onOpenFolder}>Open Folder</button>
+            <button className="button" onClick={onOpenWorkspace}>Open Workspace</button>
           </div>
         )}
       </div>
       {root && (
         <div className="explorer-footer" title={target ?? root.path}>
-          <Icon name="folder" size={13}/><span>{target ? target === root.path ? root.name : target.slice(root.path.length + 1) : root.name}</span>
+          <Icon name="folder" size={13}/><span>{(() => {
+            const owner = roots.find(({ path }) => target && isWithin(target, path));
+            return target && owner ? target === owner.path ? owner.name : `${owner.name}/${target.slice(owner.path.length + 1)}` : root.name;
+          })()}</span>
         </div>
       )}
       {!root && tabs.some((tab) => tab.path) && <div className="explorer-footer"><Icon name="files" size={13}/><span>Open files are in the tab bar</span></div>}

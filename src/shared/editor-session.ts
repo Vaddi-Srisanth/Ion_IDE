@@ -41,6 +41,7 @@ export interface EditorSessionGroups {
 
 export interface EditorSessionSnapshot {
   rootPath: string | null
+  rootPaths?: string[]
   activeIndex: number
   tabs: EditorSessionTab[]
   editorGroups?: EditorSessionGroups
@@ -51,6 +52,7 @@ export interface EditorSessionSnapshot {
 
 export interface ResumedEditorSession {
   root: Entry | null
+  roots?: Entry[]
   tabs: Array<SessionTabView & { index: number; entry?: Entry; draft?: RecoveryDraft }>
   activeIndex: number
   skipped: number

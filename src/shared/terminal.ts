@@ -11,7 +11,7 @@ export type TerminalEvent =
   | { id: string; kind: 'exit'; code: number | null; detail?: string }
 
 export interface TerminalBridge {
-  create(columns: number, rows: number): Promise<TerminalSessionInfo>
+  create(columns: number, rows: number, root?: string): Promise<TerminalSessionInfo>
   attach(id: string): Promise<void>
   ack(id: string, sequence: number): Promise<void>
   input(id: string, text: string): Promise<void>

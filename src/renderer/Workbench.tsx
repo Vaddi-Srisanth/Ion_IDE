@@ -62,6 +62,7 @@ interface GroupPaneProps {
   groups: EditorGroups;
   tabs: Tab[];
   root: Entry | null;
+  roots?: Entry[];
   hidden?: boolean;
   settings: Settings;
   activeTheme: ThemeData | null;
@@ -77,13 +78,14 @@ interface GroupPaneProps {
   onNavigateSource(path: string, line: number, column: number): void;
 }
 
-function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, hidden, settings, activeTheme, accentColor,
+function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, roots, hidden, settings, activeTheme, accentColor,
   problemMarkers, onCloseTab, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
   const active = tabs.find(({ id }) => id === group.activeId);
   const groupTabs = group.tabs.flatMap((id) => tabs.find((tab) => tab.id === id) ?? []);
   const focused = group.id === activeGroupId;
   const largeText = active?.path && active.error?.startsWith(largeTextError) ? active : undefined;
   const source = active && !active.viewer && active.notebookMode !== 'notebook' ? active : undefined;
+  const owner = active?.path ? (roots ?? (root ? [root] : [])).find((entry) => isWithin(active.path!, entry.path)) : undefined;
   const registerActions = useCallback((actions: EditorActions | null) => onActions(group.id, actions), [group.id, onActions]);
   const focus = useCallback(() => {
     if (active && !focused) groups.select(group.id, active.id);
@@ -121,8 +123,8 @@ function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, 
     </div>
     <div className="editor-group-content">
       {active && <div className="editor-breadcrumb" title={active.path ?? active.name}>
-        <Icon name={root ? 'folder' : 'file'} size={13}/><strong>{root && active.path && isWithin(active.path, root.path)
-          ? root.name + '/' + active.path.slice(root.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/') : active.name}</strong>
+        <Icon name={owner ? 'folder' : 'file'} size={13}/><strong>{owner && active.path
+          ? owner.name + '/' + active.path.slice(owner.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/') : active.name}</strong>
       </div>}
       {active?.conflict && <div className="conflict-banner" role="alert"><Icon name="warning" size={16}/>
         <span>This file changed on disk.{active.dirty && ' Your edits are unsaved.'}</span>
@@ -327,6 +329,7 @@ export interface WorkbenchProps {
   active: Tab | undefined;
   tabs: Tab[];
   root: Entry | null;
+  roots?: Entry[];
   target: string | null;
   treeRevision: number;
   settings: Settings;
@@ -365,6 +368,11 @@ export interface WorkbenchProps {
   onFormat(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
+  onAddFolder(): void;
+  onRemoveFolder(path: string): void;
+  onReorderFolder(path: string, offset: -1 | 1): void;
+  onSaveWorkspace(): void;
+  onOpenWorkspace(): void;
   onSettings(patch: Partial<Settings>): void;
   onRun(): void;
   onRerun(): void;
@@ -383,11 +391,12 @@ export function Workbench(props: WorkbenchProps) {
   const {
     documents, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, sourceControl, sourceControlEntries, sourceControlDiff,
     onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl,
-    active, tabs, root, target, treeRevision, settings, activeTheme, accentColor,
+    active, tabs, root, roots, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
-    onNew, onInsertStarter, formatting, onFormat, onOpenFile, onOpenFolder, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
+    onNew, onInsertStarter, formatting, onFormat, onOpenFile, onOpenFolder, onAddFolder, onRemoveFolder, onReorderFolder,
+    onSaveWorkspace, onOpenWorkspace, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
     onFind, onSaveAs, onReload, onNavigateSource, navigation, onHistory,
   } = props;
   const [pinnedId, setPinnedId] = useState<string | null>(null);
@@ -402,6 +411,7 @@ export function Workbench(props: WorkbenchProps) {
     if (initialEditorGroups) groups.restore(initialEditorGroups);
     return groups;
   });
+  useEffect(() => terminalController.current?.setWorkspaceRoot(root?.path), [root?.path, terminalController]);
   const groupSnapshot = useSyncExternalStore(editorGroups.subscribe, editorGroups.getSnapshot);
   useEffect(() => () => editorGroups.dispose(), [editorGroups]);
   useEffect(() => onEditorGroupsChange?.(groupSnapshot), [groupSnapshot, onEditorGroupsChange]);
@@ -437,6 +447,8 @@ export function Workbench(props: WorkbenchProps) {
   const notebook = active?.notebookMode === 'notebook' ? active : undefined;
   const notebookTabs = tabs.filter((tab) => tab.notebookMode === 'notebook' && (tab.id === notebook?.id || tab.notebookRunning));
   const activeCode = active?.viewer || notebook ? undefined : active;
+  const activeWorkspaceRoot = activeCode?.path
+    ? (roots ?? (root ? [root] : [])).find((entry) => isWithin(activeCode.path!, entry.path)) : undefined;
   const largeText = activeCode?.path && activeCode.error?.startsWith(largeTextError) ? activeCode : undefined;
   const markdown = activeCode && !largeText && isMarkdownFile(activeCode.name) ? activeCode : undefined;
   const markdownKey = markdown ? markdown.path ?? `tab:${markdown.id}` : undefined;
@@ -580,10 +592,11 @@ export function Workbench(props: WorkbenchProps) {
         {settings.showExplorer && <>
           <div className="explorer-frame">
             <Explorer
-              root={root} activePath={active?.path ?? null} target={target} tabs={tabs} revision={treeRevision}
+              root={root} roots={roots} activePath={active?.path ?? null} target={target} tabs={tabs} revision={treeRevision}
               sourceControlEntries={sourceControlEntries}
               onOpen={onOpenEntry} onTarget={onTarget} onCreate={onCreate} onRename={onRename} onTrash={onTrash}
-              onRefresh={onRefresh} onOpenFolder={onOpenFolder}/>
+              onRefresh={onRefresh} onOpenFolder={onOpenFolder} onAddFolder={onAddFolder} onRemoveFolder={onRemoveFolder}
+              onReorderFolder={onReorderFolder} onSaveWorkspace={onSaveWorkspace} onOpenWorkspace={onOpenWorkspace}/>
           </div>
           <Splitter label="Resize Explorer" value={settings.explorerWidth}
             setting="explorerWidth" min={150} max={620} onResize={onSettings}/>
@@ -599,7 +612,7 @@ export function Workbench(props: WorkbenchProps) {
         <div className="editor-column">
           <div className="editor-stack">
             {groupMode && <EditorGroupLayoutView layout={groupSnapshot.layout} snapshot={groupSnapshot} groups={editorGroups}
-              activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} hidden={hidden}
+              activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} roots={roots} hidden={hidden}
               settings={settings} activeTheme={activeTheme} accentColor={accentColor} problemMarkers={problemMarkers}
               onCloseTab={onCloseTab} onSaveAs={onSaveAs} onReload={onReload} onSettings={onSettings}
               onActions={registerGroupActions} onCursor={onCursor} onLanguageReport={setLanguageReport}
@@ -652,9 +665,9 @@ export function Workbench(props: WorkbenchProps) {
                         disabled={!navigation.back} onClick={() => onHistory('back')}><Icon name="arrow" size={13}/></button>
                       <button className="icon-button" aria-label="Go Forward" title="Go Forward" type="button"
                         disabled={!navigation.forward} onClick={() => onHistory('forward')}><Icon name="arrow" size={13}/></button>
-                      <Icon name={root ? 'folder' : 'file'} size={13}/>
-                      <strong>{root && activeCode.path && isWithin(activeCode.path, root.path)
-                        ? root.name + '/' + activeCode.path.slice(root.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/')
+                      <Icon name={activeWorkspaceRoot ? 'folder' : 'file'} size={13}/>
+                      <strong>{activeWorkspaceRoot && activeCode.path
+                        ? activeWorkspaceRoot.name + '/' + activeCode.path.slice(activeWorkspaceRoot.path.length).replace(/^[/\\]+/, '').replaceAll('\\', '/')
                         : activeCode.name}</strong>
                       {activeCode.notebookMode === 'json' && <button className="button" onClick={() => documents.setNotebookMode(activeCode.id, 'notebook')}>Open Notebook</button>}
                     </div>
@@ -729,7 +742,8 @@ export function Workbench(props: WorkbenchProps) {
               onResize={onSettings}/>
             <div className="output-frame">
               {bottomTab === 'terminal'
-                ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus} onHide={onToggleBottom}/>
+                ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus}
+                  workspaceRoot={root?.path} onHide={onToggleBottom}/>
                 : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile}
                   live={live ? { file: activeCode?.name, rows: live.rows, onReveal(index) {
                     const location = live.rows[index]?.problem.location;

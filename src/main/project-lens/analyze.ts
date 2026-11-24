@@ -44,7 +44,7 @@ class Stop extends Error {
 export async function analyzeProject(scope: WorkspaceFiles, requestedRoot: string, options: {
   signal?: AbortSignal; limits?: Partial<ProjectLensLimits>
 } = {}): Promise<ProjectLensSnapshot> {
-  if (!requestedRoot || requestedRoot !== scope.rootPath) throw new Error('Project Lens requires the exact currently open folder.')
+  if (!requestedRoot || !scope.rootPaths.includes(requestedRoot)) throw new Error('Project Lens requires the exact currently open folder.')
   const limits = { ...projectLensLimits }
   for (const [key, value] of Object.entries(options.limits ?? {})) {
     if (!Object.hasOwn(projectLensLimits, key) || !Number.isSafeInteger(value) || value < (key === 'depth' ? 0 : key === 'resultBytes' ? 2048 : 1)
@@ -65,7 +65,7 @@ export async function analyzeProject(scope: WorkspaceFiles, requestedRoot: strin
   const exclude = (reason: ProjectLensExclusion) => { result.exclusions[reason] = (result.exclusions[reason] ?? 0) + 1 }
   const truncate = (reason: string) => { if (!result.truncated.includes(reason)) result.truncated.push(reason); if (result.status === 'complete') result.status = 'partial' }
   const check = () => {
-    if (scope.rootPath !== requestedRoot) throw new Stop('invalidated', 'workspace-changed')
+    if (!scope.rootPaths.includes(requestedRoot)) throw new Stop('invalidated', 'workspace-changed')
     if (options.signal?.aborted) throw new Stop('cancelled', 'cancelled')
     if (performance.now() - started >= limits.durationMs) throw new Stop('partial', 'deadline')
   }
@@ -228,7 +228,7 @@ export async function analyzeProject(scope: WorkspaceFiles, requestedRoot: strin
   }
   // Unconditional resource closure can await after an earlier quota/cancel stop.
   // Recheck authority before publishing even that partial snapshot.
-  if (scope.rootPath !== requestedRoot) { result.status = 'invalidated'; truncate('workspace-changed') }
+  if (!scope.rootPaths.includes(requestedRoot)) { result.status = 'invalidated'; truncate('workspace-changed') }
   else if (options.signal?.aborted && result.status !== 'invalidated') { result.status = 'cancelled'; truncate('cancelled') }
   for (const entry of declared.slice(0, 40)) {
     const evidence = existing.get(entry.path)

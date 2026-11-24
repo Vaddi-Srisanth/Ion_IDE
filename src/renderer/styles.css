@@ -255,6 +255,12 @@ svg { flex: none; }
 .tree-root { padding: 0 9px; height: 29px; width: 100%; font-weight: 650; color: var(--ink); }
 .tree-root:hover, .tree-root-selected { background: var(--surface-2); }
 .tree-root svg:nth-child(2), .tree-folder-icon { color: var(--amber); }
+.workspace-root-heading { display: flex; align-items: center; }
+.workspace-root-heading .tree-root { flex: 1; min-width: 0; }
+.workspace-root-heading > .icon-button { margin-right: 5px; opacity: 0; }
+.workspace-root-heading:hover > .icon-button,
+.workspace-root-heading:focus-within > .icon-button { opacity: 1; }
+.workspace-root + .workspace-root { border-top: 1px solid var(--border); margin-top: 5px; padding-top: 5px; }
 .tree { list-style: none; margin: 0; padding: 0; }
 .tree-row { display: flex; align-items: center; gap: 3px; padding-inline-end: 4px; min-height: 27px; }
 .tree-row:hover { background: var(--surface-2); }

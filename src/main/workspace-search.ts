@@ -3,7 +3,7 @@ import { once } from 'node:events'
 import { relative, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
-import { isWithin, maxFileBytes, type WorkspaceFiles } from './files'
+import { isWithin, maxFileBytes, workspaceRootLabel, type WorkspaceFiles } from './files'
 import { isNotebookName } from '../shared/notebook-path'
 import { documentFormat } from '../shared/viewers'
 import { workspaceReplaceTextLimit, workspaceSearchQueryLimit, workspaceSearchResultLimit, type WorkspaceReplacePreview, type WorkspaceReplaceResult, type WorkspaceSearchFile, type WorkspaceSearchResult } from '../shared/workspace-search'
@@ -30,7 +30,7 @@ export function workspaceReplacement(value: unknown): string {
 interface ReplaceFile { path: string; relativePath: string; revision: string; hash: string; text: string; replacements: number }
 
 export class WorkspaceReplaceReview {
-  private current?: { token: string; root: string; expiresAt: number; files: ReplaceFile[] }
+  private current?: { token: string; roots: string[]; expiresAt: number; files: ReplaceFile[] }
 
   constructor(private readonly executable: string, private readonly scope: WorkspaceFiles) {}
 
@@ -39,27 +39,32 @@ export class WorkspaceReplaceReview {
   async review(queryValue: unknown, replacementValue: unknown): Promise<WorkspaceReplacePreview> {
     const query = workspaceSearchQuery(queryValue)
     const replacement = workspaceReplacement(replacementValue)
-    const root = this.scope.rootPath
-    if (!root || !query) throw new Error('Enter text to find in the open workspace.')
-    const result = await searchWorkspaceText(this.executable, this.scope, root, query, new AbortController().signal)
-    if (result.limit || result.skipped) throw new Error('Refine the search before replacing; Ion must review every affected saved file.')
+    const roots = [...this.scope.rootPaths]
+    if (!roots.length || !query) throw new Error('Enter text to find in the open workspace.')
+    const results = await Promise.all(roots.map((root) => searchWorkspaceText(
+      this.executable, this.scope, root, query, new AbortController().signal)))
+    if (results.some((result) => result.limit || result.skipped)) {
+      throw new Error('Refine the search before replacing; Ion must review every affected saved file.')
+    }
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const pattern = new RegExp(escaped, 'giu')
     const files: ReplaceFile[] = []
     let retainedBytes = 0
-    for (const found of result.files) {
+    for (const [rootIndex, result] of results.entries()) for (const found of result.files) {
       const source = await this.scope.read(found.path)
       let replacements = 0
       const text = source.text.replace(pattern, () => { replacements++; return replacement })
       if (replacements) {
         retainedBytes += Buffer.byteLength(text)
         if (retainedBytes > replaceReviewBytesLimit) throw new Error('This replacement affects more than 8 MiB of text. Refine the search and review a smaller change.')
-        files.push({ path: found.path, relativePath: found.relativePath, revision: source.revision,
+        files.push({ path: found.path, relativePath: roots.length > 1 ? `${workspaceRootLabel(roots, rootIndex)}/${found.relativePath}` : found.relativePath, revision: source.revision,
           hash: source.contentHash, text, replacements })
       }
     }
-    if (this.scope.rootPath !== root) throw new Error('The workspace changed during replace review.')
-    const state = this.current = { token: randomUUID(), root, expiresAt: Date.now() + 120_000, files }
+    if (roots.length !== this.scope.rootPaths.length || roots.some((root, index) => this.scope.rootPaths[index] !== root)) {
+      throw new Error('The workspace changed during replace review.')
+    }
+    const state = this.current = { token: randomUUID(), roots, expiresAt: Date.now() + 120_000, files }
     return { token: state.token, expiresAt: state.expiresAt, replacements: files.reduce((sum, file) => sum + file.replacements, 0),
       files: files.map(({ path, relativePath, replacements }) => ({ path, relativePath, replacements })) }
   }
@@ -70,7 +75,8 @@ export class WorkspaceReplaceReview {
     if (!state || typeof tokenValue !== 'string' || tokenValue !== state.token || Date.now() > state.expiresAt) {
       throw new Error('This replace review expired. Review the current files again.')
     }
-    if (this.scope.rootPath !== state.root || !Array.isArray(pathsValue) || pathsValue.length > state.files.length
+    if (state.roots.length !== this.scope.rootPaths.length || state.roots.some((root, index) => this.scope.rootPaths[index] !== root)
+      || !Array.isArray(pathsValue) || pathsValue.length > state.files.length
       || pathsValue.some(path => typeof path !== 'string')) throw new Error('The workspace or replace selection changed. Review again.')
     const selected = new Set(pathsValue)
     if (selected.size !== pathsValue.length || [...selected].some(path => !state.files.some(file => file.path === path))) {
@@ -112,7 +118,7 @@ export async function searchWorkspaceText(
   signal.throwIfAborted()
   const { path: directory } = await scope.inspect(root, 'folder')
   signal.throwIfAborted()
-  if (scope.rootPath !== root) throw new Error('The workspace changed during search.')
+  if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed during search.')
   const args = ['--no-config', '--json', '--fixed-strings', '--ignore-case', '--no-require-git',
     '--no-ignore-parent', '--no-ignore-global', '--no-ignore-exclude', '--no-follow', '--no-mmap',
     '--threads=2', '--encoding=none', '--max-filesize', String(maxFileBytes),
@@ -153,7 +159,7 @@ export async function searchWorkspaceText(
     const lines = createInterface({ input: child.stdout, crlfDelay: Infinity })
     try {
       for await (const line of lines) {
-        if (limit || signal.aborted || scope.rootPath !== root) break
+        if (limit || signal.aborted || !scope.rootPaths.includes(root)) break
         const message: MatchMessage = JSON.parse(line)
         if (message.type !== 'match') continue
         const match = message.data
@@ -189,10 +195,10 @@ export async function searchWorkspaceText(
     } finally {
       lines.close()
     }
-    if (scope.rootPath !== root) stop()
+    if (!scope.rootPaths.includes(root)) stop()
     const [code] = await closed
     signal.throwIfAborted()
-    if (scope.rootPath !== root) throw new Error('The workspace changed during search.')
+    if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed during search.')
     if (!limit && code !== 0 && code !== 1 && code !== 2) throw new Error('Workspace search stopped unexpectedly.')
     return {
       files: [...files.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath)),

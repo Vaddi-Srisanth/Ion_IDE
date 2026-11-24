@@ -66,11 +66,11 @@ export class ProjectLensSession {
   } {
     const selected = this.snapshot
     const generation = this.generation
-    if (!selected || this.currentScope() !== selected.scope || selected.scope.rootPath !== root || selected.value.root !== root) {
+    if (!selected || this.currentScope() !== selected.scope || !selected.scope.rootPaths.includes(root) || selected.value.root !== root) {
       throw new Error('Analyze the current folder again before reviewing its explanation context.')
     }
     const current = () => this.snapshot === selected && this.generation === generation
-      && this.currentScope() === selected.scope && selected.scope.rootPath === root
+      && this.currentScope() === selected.scope && selected.scope.rootPaths.includes(root)
     const validate = async () => {
       if (!current()) throw new Error('The Project Lens evidence lease changed.')
       const before = await selected.scope.inspect(root, 'folder')
@@ -103,7 +103,7 @@ export class ProjectLensSession {
 
   async analyze(root: string): Promise<ProjectLensSnapshot> {
     const scope = this.currentScope()
-    if (typeof root !== 'string' || !root || scope.rootPath !== root) throw new Error('Analyze the exact currently open folder.')
+    if (typeof root !== 'string' || !root || !scope.rootPaths.includes(root)) throw new Error('Analyze the exact currently open folder.')
     if (this.controller) {
       this.cancel()
       throw new Error('Previous Project Lens analysis is still stopping. Try Analyze again once it finishes.')
@@ -115,12 +115,12 @@ export class ProjectLensSession {
     try {
       const anchor = await scope.inspect(root, 'folder')
       const value = await analyzeProject(scope, root, { signal: controller.signal })
-      const validScope = this.currentScope() === scope && scope.rootPath === root
+      const validScope = this.currentScope() === scope && scope.rootPaths.includes(root)
       if (generation !== this.generation || controller.signal.aborted || !validScope) {
         return { ...value, status: validScope ? 'cancelled' : 'invalidated' }
       }
       const current = await scope.inspect(root, 'folder')
-      if (this.currentScope() !== scope || scope.rootPath !== root || current.stats.dev !== anchor.stats.dev
+      if (this.currentScope() !== scope || !scope.rootPaths.includes(root) || current.stats.dev !== anchor.stats.dev
         || current.stats.ino !== anchor.stats.ino) return { ...value, status: 'invalidated' }
       if (generation !== this.generation || controller.signal.aborted) return { ...value, status: 'cancelled' }
       if (value.status === 'complete' || value.status === 'partial') {
@@ -137,14 +137,14 @@ export class ProjectLensSession {
     // cannot change which reference is checked or returned later.
     const key = referenceKey(requested)
     const selected = this.snapshot
-    if (!selected || this.currentScope() !== selected.scope || selected.scope.rootPath !== root || selected.value.root !== root) {
+    if (!selected || this.currentScope() !== selected.scope || !selected.scope.rootPaths.includes(root) || selected.value.root !== root) {
       throw new Error('Analyze the current folder again before opening evidence.')
     }
     const reference = references(selected.value).find(candidate => referenceKey(candidate) === key)
     if (!reference) throw new Error('This reference is not part of the last Project Lens snapshot.')
     const path = join(root, reference.path)
     if (!isWithin(root, path)) throw new Error('Project Lens reference is outside its folder.')
-    const current = () => this.snapshot === selected && this.currentScope() === selected.scope && selected.scope.rootPath === root
+    const current = () => this.snapshot === selected && this.currentScope() === selected.scope && selected.scope.rootPaths.includes(root)
     if (!current()) throw new Error('The workspace changed before opening Project Lens evidence.')
     const beforeRoot = await selected.scope.inspect(root, 'folder')
     if (!current()) throw new Error('The workspace changed before opening Project Lens evidence.')

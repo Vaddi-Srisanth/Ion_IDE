@@ -14,7 +14,7 @@ function captureGroups(snapshot: EditorGroupsSnapshot | undefined, savedIndex: M
 }
 
 export function captureEditorSession(documents: Documents, rootPath: string | null,
-  groups?: EditorGroupsSnapshot): EditorSessionSnapshot {
+  groups?: EditorGroupsSnapshot, rootPaths?: readonly string[]): EditorSessionSnapshot {
   const { tabs, activeId } = documents.getSnapshot();
   const saved: EditorSessionSnapshot['tabs'] = [];
   const savedIndex = new Map<string, number>();
@@ -27,8 +27,11 @@ export function captureEditorSession(documents: Documents, rootPath: string | nu
     saved.push({ path, name, draftId, view: documents.getEditorView(id), notebookMode });
   }
   const editorGroups = captureGroups(groups, savedIndex);
+  const orderedRoots = rootPaths && rootPath
+    ? [rootPath, ...rootPaths.filter((path) => path !== rootPath)] : rootPaths;
   return {
     rootPath,
+    ...(orderedRoots && orderedRoots.length > 1 ? { rootPaths: [...orderedRoots] } : {}),
     activeIndex,
     tabs: saved,
     ...(editorGroups ? { editorGroups } : {}),

@@ -7,16 +7,18 @@ export interface TerminalPaneProps {
   controller: RefObject<TerminalController | null>;
   tabs: ReactNode;
   focusRequest: number;
+  workspaceRoot?: string;
   onHide(): void;
 }
 
-export function TerminalPane({ controller, tabs, focusRequest, onHide }: TerminalPaneProps) {
+export function TerminalPane({ controller, tabs, focusRequest, workspaceRoot, onHide }: TerminalPaneProps) {
   const [current, setCurrent] = useState(controller.current);
   useLayoutEffect(() => {
     const instance = controller.current ??= new TerminalController(window.ion.terminal, window.ion.platform === 'darwin');
+    instance.setWorkspaceRoot(workspaceRoot);
     setCurrent(instance);
     instance.ensureFirst();
-  }, [controller]);
+  }, [controller, workspaceRoot]);
 
   if (!current) return <section className="output integrated-terminal">
     <div className="pane-title">{tabs}</div>
@@ -24,7 +26,7 @@ export function TerminalPane({ controller, tabs, focusRequest, onHide }: Termina
       <p className="terminal-empty" role="status">Starting terminal…</p>
     </div>
   </section>;
-  return <Sessions controller={current} tabs={tabs} focusRequest={focusRequest} onHide={onHide}/>;
+  return <Sessions controller={current} tabs={tabs} focusRequest={focusRequest} workspaceRoot={workspaceRoot} onHide={onHide}/>;
 }
 
 function Sessions({ controller, tabs, focusRequest, onHide }: Omit<TerminalPaneProps, 'controller'> & { controller: TerminalController }) {

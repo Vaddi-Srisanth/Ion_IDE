@@ -13,6 +13,7 @@ import type { UpdatesBridge } from './updates'
 import type { MenuCommand, ShortcutOverrides } from './shortcuts'
 import type { WorkspaceSearchResult } from './workspace-search'
 import type { EditorSessionBridge } from './editor-session'
+import type { OpenedWorkspaceConfiguration } from './workspace-configuration'
 import type { LanguageToolsBridge } from './language-tools'
 import type { SourceControlBridge } from './source-control'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
@@ -205,6 +206,11 @@ export interface IonBridge {
   updates: UpdatesBridge
   exportLocalProfile(): Promise<string | null>
   openFolder(): Promise<Entry | null>
+  addFolder(): Promise<Entry | null>
+  removeFolder(path: string): Promise<boolean>
+  reorderFolder(path: string, offset: -1 | 1): Promise<boolean>
+  saveWorkspace(roots: string[], settings: Settings): Promise<boolean>
+  openWorkspace(): Promise<OpenedWorkspaceConfiguration | null>
   openFile(): Promise<Entry | null>
   saveFileAs(name: string, text: string, mode?: 'notebook'): Promise<(Entry & FileRevision) | null>
   openRecent(path: string): Promise<Entry>
