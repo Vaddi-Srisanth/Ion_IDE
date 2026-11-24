@@ -1,7 +1,8 @@
 # Ion implementation tracker
 
 Current branch: `codex/ion-core-excellence-phase-2`<br>
-Current verified candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
+Current Phase 2 verified candidate: `5a70d92a5fc396de1968f7a3fec774832adb9c6f`<br>
+Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
 Public release: `0.9.6`<br>
@@ -14,7 +15,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **In progress — editor ergonomics 2.1A** | Complete and verify the editor/workspace milestones below without weakening the Phase 1 gates. |
+| 2 — Core editor excellence | **In progress — initial editor-excellence milestone accepted** | Implement different-file groups, restored layouts and multi-root workspaces without weakening the Phase 1 gates. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -106,9 +107,9 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 
 | Milestone | Status | Evidence / remaining gate |
 | --- | --- | --- |
-| 2.1A — Multi-cursor commands and tab ordering | **Implemented; focused verification passing** | Standard add-above/add-below/select-next/select-all commands are configurable and discoverable. Monaco's 19.36 kB multi-cursor contribution loads only on first use. Reordering preserves the active tab, dirty buffer and model identity. Unit, native keyboard, type and production-build checks pass. |
-| 2.1B — Source editor splits/groups | **Foundation verified; full groups in progress** | An on-demand same-document split shares one model/undo stack, keeps independent view state, supports keyboard focus/resize and disposes on close. Different-file groups and persisted group restoration remain. |
-| 2.1C — Workspace reviewed replace | **Implemented; focused verification passing** | The existing bounded search now offers an explicit review with per-file selection/counts. Main owns an expiring snapshot, revalidates revisions and hashes, publishes via the existing atomic save path, rejects changed files and reports partial failures. Modified open buffers block review; affected open tabs are placed into conflict review after publication. |
+| 2.1A — Multi-cursor commands and tab ordering | **Accepted on macOS and Windows** | Standard add-above/add-below/select-next/select-all commands are configurable and discoverable. Monaco's 19.36 kB multi-cursor contribution loads only on first use. Reordering preserves the active tab, dirty buffer and model identity. Unit, production Electron, type and build checks pass. |
+| 2.1B — Source editor split foundation | **Accepted on macOS and Windows** | The on-demand same-document split shares one model/undo stack, keeps independent cursor/selection/scroll/focus state, supports keyboard focus/resize and disposes on close. Ten Windows cycles retained four owned processes and recovered below the pre-cycle memory samples. Different-file groups and persisted group restoration are the next milestone. |
+| 2.1C — Workspace reviewed replace | **Accepted on macOS and Windows** | The existing bounded search offers explicit preview and selection. Main owns an expiring snapshot, revalidates revisions and hashes, publishes via the atomic save path, rejects changed files and reports partial failures. Modified open buffers block review. Long Unicode paths and Windows case-insensitive behavior passed natively. |
 | 2.1D — Navigation/tab polish | In progress | Quick Open, Go to Line, definition/references, back/forward, close, cycle and move are present. Group-aware navigation and broader tab commands remain. |
 | 2.2 — Multi-root workspace | Not started | Requires versioned descriptors, per-root grants/settings and restored trust boundaries. |
 | 2.3 — Reusable LSP host | Not started | Existing clangd/Java adapters will be migrated behind an owned on-demand lifecycle before Python/JS/TS additions. |
@@ -116,8 +117,23 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
 
-Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in 2.1A. The contribution is a separate lazy chunk and ordinary one-file editing does not request it. Native Windows runtime acceptance for this Phase 2 slice is still unverified until an authorized focused CI run.
+Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in this accepted slice. The multi-cursor contribution is a separate lazy chunk and ordinary one-file editing does not request it.
 
 The 2.1B macOS disposable-profile benchmark exercised five open/close cycles. Median split creation was 22.60 ms and close was 27.98 ms. Opening the second editor increased median attributed footprint from 216.61 MiB to 277.29 MiB and summed RSS from 509.78 MiB to 521.63 MiB. Five seconds after the final close, attributed footprint was 185.26 MiB (-31.36 MiB from the pre-cycle sample), summed RSS was 522.05 MiB (+12.27 MiB allocator/working-set retention), and observed owned-tree CPU was 0.22% of one core. This five-cycle result establishes disposal and bounded short-run behavior, not a long-session leak claim. No extra process was created.
 
 Milestone 2.1C adds no service, watcher, poller or dependency. Its main-process implementation remains behind the existing workspace-search dynamic import, and it retains at most one two-minute, 8 MiB review snapshot. The production renderer shell is 371,160 bytes versus 370,792 at the 2.1B checkpoint (+368 bytes / +0.10%); the Monaco surface is unchanged at 614,284 bytes. Focused unit and Electron acceptance cover exact selection, case-insensitive literal replacement, external-change rejection, partial failure reporting and publication through the safe file writer. Cross-file replacement deliberately guarantees per-file atomicity with explicit partial results, not a false all-files transaction.
+
+### Native Windows editor-excellence acceptance
+
+Final run: [45350808435](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350808435)<br>
+Immutable source: `5a70d92a5fc396de1968f7a3fec774832adb9c6f`<br>
+Host: Windows Server 2022 (`10.0.20348`) x64, Node `24.22.2`
+
+- Production build and type checking passed.
+- 21 native Windows editor/filesystem tests passed; one cancellation test was explicitly skipped because that fixture is not supported in the focused lane.
+- Production Electron acceptance passed multi-cursor, configurable bindings, same-model split/undo, independent view state, keyboard navigation/resizing, tab movement, modified-buffer protection and reviewed replacement.
+- Session/recovery/model-retention acceptance passed after a real relaunch.
+- Ten split open/close cycles kept exactly four owned processes in all 23 samples. Median open/close latency was 25.57/37.19 ms. Summed working set was 335.91 MiB before, 340.81 MiB median while open and 321.02 MiB after recovery (-14.89 MiB). Private bytes were 179.40 MiB before, 187.73 MiB median while open and 169.46 MiB after recovery (-9.93 MiB). Final closed CPU was 0.29% of one core.
+- Failed runs [45350028358](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350028358) and [45350331589](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350331589) are preserved. Both exposed Windows automation routing assumptions in the acceptance driver; production code and safety protections were not changed.
+
+**Initial editor-excellence milestone verdict: PASS.** Different-file editor groups, restored layouts and multi-root workspaces remain separate, not-yet-accepted milestones.

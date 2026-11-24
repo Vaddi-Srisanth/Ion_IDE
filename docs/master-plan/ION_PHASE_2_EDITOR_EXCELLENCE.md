@@ -63,4 +63,14 @@ Modified or conflicted open workspace buffers block review. If a clean open buff
 
 Verification includes six focused backend tests and production Electron acceptance. The latter performs a real reviewed two-occurrence replacement in a disposable workspace and observes the published bytes. Type checking and production build pass. No dependency, process, background task or startup path was added; the main implementation remains behind the existing workspace-search dynamic import. The renderer shell grew by 368 uncompressed artifact bytes (+0.10%) from the 2.1B checkpoint; Monaco is unchanged.
 
-No Phase 2 code has been pushed, installed, released or merged into `main` at this checkpoint.
+## Native Windows acceptance
+
+The initial editor-excellence slice passed its final native Windows run [45350808435](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350808435) at immutable commit `5a70d92a5fc396de1968f7a3fec774832adb9c6f`. Build, type checking, native editor/filesystem tests, the production Electron workflow and session/recovery/model-retention checks all passed. One focused cancellation fixture was explicitly skipped; it was not counted as passing.
+
+Ten split open/close cycles created no child process: every sample retained the same four-process Electron tree. Median open/close latency was 25.57/37.19 ms. Working set moved from 335.91 MiB before the cycles to a 340.81 MiB open median and 321.02 MiB after recovery. Private bytes moved from 179.40 MiB to 187.73 MiB and then 169.46 MiB. Final closed CPU was 0.29% of one core. These hosted-run values characterize the focused Windows workflow; they are not substituted for the broader Phase 1 baseline.
+
+Two preceding failed runs remain visible. [45350028358](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350028358) attempted to locate the search modal before its lazy UI had opened. [45350331589](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45350331589) demonstrated that repeatedly injecting the command-palette OS accelerator was not a stable automation transport after focus changes on Windows. The final driver verifies the native accelerator explicitly once, then uses Ion's visible command-palette control for subsequent command selection. No production behavior, timeout or file-integrity guard was weakened.
+
+**Milestone verdict: PASS for the implemented multi-cursor, tab-ordering, same-document split and reviewed-replace scope.** Different-file groups, persisted group layouts and multi-root workspaces are deliberately tracked as subsequent Phase 2 milestones.
+
+Phase 2 verification code and the accepted slice were pushed only to `codex/ion-core-excellence-phase-2`. They were not installed, released or merged into `main`; the installed Ion application and live profile remain untouched.
