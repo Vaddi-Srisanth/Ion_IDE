@@ -20,7 +20,7 @@ async function shortcut(app, keyCode, modifiers = []) {
 }
 
 async function command(session, label) {
-  await shortcut(session.app, 'P', [modifier, 'shift'])
+  await session.page.getByTestId('command-palette').click()
   const input = session.page.getByTestId('command-palette-input')
   await input.fill(label)
   await session.page.getByRole('option', { name: new RegExp(label, 'i') }).first().waitFor()
@@ -59,6 +59,9 @@ await withScratch('keyboard', async (scratch) => {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory, allowRun: true })
     await openFolder(page, project)
+    await shortcut(app, 'P', [modifier, 'shift'])
+    await page.getByTestId('command-palette-input').waitFor()
+    await page.keyboard.press('Escape')
     await shortcut(app, 'P', [modifier])
     const quick = page.getByTestId('quick-open-input')
     await quick.fill('secret alias')
