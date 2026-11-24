@@ -119,6 +119,9 @@ export class ExternalLspService {
   }
 
   get closed() { return this.stopped || this.host.isClosed }
+  get executable() { return this.host.executable }
+  get version() { return this.host.version }
+  get capabilities() { return this.host.supportedCapabilities() }
 
   async stop() {
     if (this.stopped) return
@@ -128,6 +131,11 @@ export class ExternalLspService {
     }
     await this.host.stop()
     await rm(this.directory, { recursive: true, force: true })
+  }
+
+  async saved(path: string) {
+    const uri = pathToFileURL(path).href
+    if (this.versions.has(uri)) await this.host.notify('textDocument/didSave', { textDocument: { uri } })
   }
 
   async query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply> {

@@ -42,7 +42,10 @@ export default function LanguageSupport({ initial, onClose }: { initial?: string
         {detail.map(([label, value]) => <div className="setting" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
       {language.semantic && <div className="setting">
-        <span><b>Current service</b><small>{status ? `${status.state}${status.detail ? ` · ${status.detail}` : ''}` : 'Not started'}</small></span>
+        <span><b>Current service</b><small>{status ? `${status.state}${status.version ? ` · ${status.version}` : ''}${status.detail ? ` · ${status.detail}` : ''}` : 'Not started'}</small>
+          {status?.executable && <small title={status.executable}>{status.executable}</small>}
+          {status?.root && <small title={status.root}>Root: {status.root}</small>}
+          {status?.capabilities?.length && <small>Capabilities: {status.capabilities.join(', ')}</small>}</span>
         <span className="inline-actions"><button className="button" type="button" onClick={refresh}>Refresh</button>
           <button className="button" type="button" disabled={!status || status.state === 'stopped'} onClick={() => {
             void window.ion.languageTools.restart(id).then(refresh);

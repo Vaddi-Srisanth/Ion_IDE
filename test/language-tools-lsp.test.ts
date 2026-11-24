@@ -10,7 +10,6 @@ test('LSP process host rejects relative executables', async () => {
   await assert.rejects(() => LspProcess.start({ executable: 'node', args: [], cwd: process.cwd(), env: {}, root: null }, controller.signal),
     /absolute trusted path/)
 })
-
 test('LSP process host initializes, requests, and stops its owned process', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-test-'))
   try {
@@ -35,7 +34,6 @@ test('LSP process host initializes, requests, and stops its owned process', asyn
     await rm(scratch, { recursive: true, force: true })
   }
 })
-
 test('aborting startup cannot leave an LSP child alive', async () => {
   const controller = new AbortController()
   controller.abort()
@@ -46,4 +44,18 @@ test('aborting startup cannot leave an LSP child alive', async () => {
     env: { ...process.env },
     root: null,
   }, controller.signal), /aborted/i)
+})
+
+test('LSP process host rejects an oversized response before buffering its body', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-limit-'))
+  const host = await LspProcess.start({ executable: process.execPath,
+    args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')], cwd: scratch, env: { ...process.env }, root: scratch },
+  new AbortController().signal)
+  try {
+    await assert.rejects(() => host.request('ion/huge', {}))
+    assert.equal(host.isClosed, true)
+  } finally {
+    await host.stop()
+    await rm(scratch, { recursive: true, force: true })
+  }
 })

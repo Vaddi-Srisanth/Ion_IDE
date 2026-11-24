@@ -19,12 +19,15 @@ export interface ToolReply {
   rows: string[][]
 }
 
+export interface ToolSave { language: string; path: string }
+
 export const toolTextLimit = 256 * 1024
 export const smartLanguageIds = languageCapabilities.filter(({ semantic }) => semantic).map(({ id }) => id)
 
 export interface LanguageToolsBridge {
   query(snapshot: ToolSnapshot): Promise<ToolReply | null>
   cancel(requestId: string): Promise<void>
+  saved(value: ToolSave): Promise<void>
   release(immediate: boolean, language?: string): Promise<void>
   status(): Promise<LanguageToolStatus[]>
   restart(language?: string): Promise<void>
@@ -38,4 +41,7 @@ export interface LanguageToolStatus {
   path: string
   state: LanguageToolState
   detail?: string
+  executable?: string
+  version?: string
+  capabilities?: string[]
 }

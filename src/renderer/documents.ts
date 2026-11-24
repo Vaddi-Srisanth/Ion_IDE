@@ -3,6 +3,7 @@ import type { EditorViewState } from '../shared/editor-session';
 import { documentFormat, type DocumentFormat } from '../shared/viewers';
 import { isNotebookName } from '../shared/notebook-path';
 import { isWithin } from './paths';
+import { fileLanguage } from '../shared/languages';
 
 export interface Tab {
   id: string;
@@ -585,6 +586,12 @@ export class Documents {
         this.scheduleRecovery(record);
       }
       if (mode !== 'auto') this.notify(`Saved ${record.tab.name}`);
+      if (record.tab.path) {
+        const language = fileLanguage(record.tab.name);
+        if (language.semantic) {
+          void this.bridge.languageTools?.saved?.({ language: language.id, path: record.tab.path }).catch(() => {});
+        }
+      }
       return true;
     } catch (reason) {
       if (record.tab.path !== path) return false;

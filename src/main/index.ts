@@ -1138,6 +1138,17 @@ function registerIpc(): void {
     if (typeof requestId !== 'string' || !/^[a-f0-9-]{8,64}$/i.test(requestId)) throw new Error('Invalid language cancellation request.')
     languageServices.cancel(requestId)
   })
+  handle('language-saved', async (_target, value) => {
+    const saved = value as { language?: unknown; path?: unknown } | null
+    if (!saved || typeof saved.language !== 'string' || typeof saved.path !== 'string') throw new Error('Invalid language save notification.')
+    const capability = languageCapability(saved.language)
+    if (!capability?.semantic || fileLanguage(saved.path).id !== saved.language) throw new Error('Invalid language save notification.')
+    const scope = files
+    const { path } = await scope.inspect(saved.path, 'file')
+    const root = scope.rootFor(path)
+    if (files !== scope || (root ? !scope.rootPaths.includes(root) : !scope.authorizes(path))) return
+    await languageServices.saved({ adapter: capability.semantic.adapter, language: capability.id, root, path })
+  })
   handle('language-status', () => languageServices.statuses())
   handle('language-restart', (_target, language) => {
     if (language !== undefined && typeof language !== 'string') throw new Error('Invalid language service restart request.')

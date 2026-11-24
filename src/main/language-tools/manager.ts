@@ -4,7 +4,11 @@ export type LanguageServiceState = LanguageToolState
 
 export interface ManagedLanguageService {
   readonly closed: boolean
+  readonly executable?: string
+  readonly version?: string
+  readonly capabilities?: readonly string[]
   query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply | null>
+  saved?(path: string): Promise<void>
   stop(): Promise<void>
 }
 
@@ -109,6 +113,13 @@ export class LanguageServiceManager {
     this.requests.get(requestId)?.abort()
   }
 
+  async saved(descriptor: LanguageServiceDescriptor) {
+    const session = this.sessions.get(this.key(descriptor))
+    if (!session) return
+    const service = await session.service
+    await service.saved?.(descriptor.path)
+  }
+
   release(immediate: boolean, language?: string) {
     const targets = [...this.sessions.entries()].filter(([, session]) => !language || session.descriptor.language === language)
     if (immediate) return Promise.all(targets.map(([key, session]) => this.stopSession(key, session))).then(() => undefined)
@@ -175,7 +186,16 @@ export class LanguageServiceManager {
 
   private record(key: string, session: Session) {
     this.history.delete(key)
-    this.history.set(key, { ...session.descriptor, state: session.state, detail: session.detail })
+    const active = this.sessions.get(key) === session ? session.service : undefined
+    const previous = this.history.get(key)
+    this.history.set(key, { ...session.descriptor, state: session.state, detail: session.detail,
+      executable: previous?.executable, version: previous?.version, capabilities: previous?.capabilities })
+    if (active) void active.then(service => {
+      const current = this.history.get(key)
+      if (!current) return
+      this.history.set(key, { ...current, executable: service.executable, version: service.version,
+        capabilities: service.capabilities ? [...service.capabilities] : undefined })
+    }, () => {})
     if (this.history.size > 32) this.history.delete(this.history.keys().next().value!)
   }
 }

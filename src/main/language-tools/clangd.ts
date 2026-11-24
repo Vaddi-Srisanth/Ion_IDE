@@ -61,7 +61,7 @@ export class ClangdService {
   private current?: Query
   private queued?: Query
   private document?: string
-  private version = 0
+  private documentVersion = 0
   private stopped = false
 
   private constructor(private readonly process: LspProcess, private readonly directory: string) {}
@@ -98,6 +98,9 @@ export class ClangdService {
   }
 
   get closed() { return this.stopped || this.process.isClosed }
+  get executable() { return this.process.executable }
+  get version() { return this.process.version }
+  get capabilities() { return this.process.supportedCapabilities() }
 
   query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply | null> {
     if (this.stopped) return Promise.reject(new Error('The local clangd process stopped.'))
@@ -112,6 +115,11 @@ export class ClangdService {
     this.terminate()
     await this.process.stop()
     await rm(this.directory, { recursive: true, force: true })
+  }
+
+  async saved(path: string) {
+    const uri = pathToFileURL(path).href
+    if (this.document === uri) await this.process.notify('textDocument/didSave', { textDocument: { uri } })
   }
 
   private terminate(reason = new Error('The local clangd process stopped.')) {
@@ -142,7 +150,7 @@ export class ClangdService {
   private async lookup(query: Query): Promise<ToolReply> {
     const { snapshot, signal } = query
     const uri = pathToFileURL(snapshot.path).href
-    const version = ++this.version
+    const version = ++this.documentVersion
     if (this.document !== uri) {
       if (this.document) await this.process.notify('textDocument/didClose', { textDocument: { uri: this.document } })
       this.document = uri
