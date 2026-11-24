@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { WorkspaceFiles } from '../src/main/files'
@@ -137,4 +137,19 @@ test('workspace replacement validates bounded text and reviewed selections', asy
   const review = await service.review('token', 'value')
   await assert.rejects(service.apply(review.token, [join(root, 'unreviewed.txt')]), /invalid/)
   assert.equal(await readFile(file, 'utf8'), 'safe token\n')
+})
+
+test('reviewed replacement handles long Unicode paths and case-insensitive text without broadening scope', async (t) => {
+  const { root, scope } = await workspace(t)
+  const nested = join(root, 'Unicode Ω ' + 'a'.repeat(90), 'deeper ' + 'b'.repeat(90))
+  await mkdir(nested, { recursive: true })
+  const file = join(nested, 'Résumé 日本語.txt')
+  await writeFile(file, 'mixed CaseToken value\n')
+  const service = new WorkspaceReplaceReview(rg, scope)
+  const review = await service.review('casetoken', 'updated')
+  assert.equal(review.files.length, 1)
+  assert.equal(review.files[0].path, file)
+  assert.equal(review.files[0].relativePath, relative(root, file))
+  assert.deepEqual(await service.apply(review.token, [file]), { applied: [file], failed: [] })
+  assert.equal(await readFile(file, 'utf8'), 'mixed updated value\n')
 })

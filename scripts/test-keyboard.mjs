@@ -7,6 +7,7 @@ import { artifact, atPath, close, createProject, editorShows, eventually, launch
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(values.target)
+const modifier = process.platform === 'darwin' ? 'meta' : 'control'
 
 // Send native workbench input through Electron's accelerator/renderer boundary.
 async function shortcut(app, keyCode, modifiers = []) {
@@ -19,7 +20,7 @@ async function shortcut(app, keyCode, modifiers = []) {
 }
 
 async function command(session, label) {
-  await shortcut(session.app, 'P', ['meta', 'shift'])
+  await shortcut(session.app, 'P', [modifier, 'shift'])
   const input = session.page.getByTestId('command-palette-input')
   await input.fill(label)
   await session.page.getByRole('option', { name: new RegExp(label, 'i') }).first().waitFor()
@@ -28,7 +29,7 @@ async function command(session, label) {
 }
 
 async function quickOpen(session, query, option) {
-  await shortcut(session.app, 'P', ['meta'])
+  await shortcut(session.app, 'P', [modifier])
   const input = session.page.getByTestId('quick-open-input')
   await input.fill(query)
   await session.page.getByRole('option', { name: option }).waitFor()
@@ -46,7 +47,7 @@ await withScratch('keyboard', async (scratch) => {
   const replaceTarget = join(nested, 'replace.txt')
   await Promise.all([mkdir(profile), mkdir(nested)])
   await Promise.all([
-    writeFile(source, '#include <stdio.h>\nint main(void) {\n    puts("ION-KEYBOARD-INPUT");\n    fflush(stdout);\n    return getchar() == EOF;\n}\n'),
+    writeFile(source, '#include <stdio.h>\nint main(void) {\n    puts("ION-KEYBOARD-INPUT");\n    fflush(stdout);\n    return getchar() == EOF;\n}\n' + Array.from({ length: 180 }, (_, index) => `// scroll fixture ${index}`).join('\n') + '\n'),
     writeFile(table, 'heading,note\n1,keyboard reference\n'),
     writeFile(external, 'private'),
     writeFile(replaceTarget, 'ION-REVIEWED-OLD twice ION-REVIEWED-OLD\n'),
@@ -58,7 +59,7 @@ await withScratch('keyboard', async (scratch) => {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory, allowRun: true })
     await openFolder(page, project)
-    await shortcut(app, 'P', ['meta'])
+    await shortcut(app, 'P', [modifier])
     const quick = page.getByTestId('quick-open-input')
     await quick.fill('secret alias')
     await page.getByText('Type a filename or workspace path.', { exact: true }).waitFor()
@@ -68,7 +69,6 @@ await withScratch('keyboard', async (scratch) => {
     await quickOpen(session, 'deep target', /deep target\.c/)
     await atPath(page, 'tab', source).waitFor()
     await editorShows(page, 'ION-KEYBOARD-INPUT')
-
     assert.equal(await page.evaluate(() => performance.getEntriesByType('resource')
       .some(({ name }) => /\/multicursor-[^/]+\.js(?:$|\?)/.test(name))), false,
     'The multi-cursor contribution must stay unloaded during ordinary editing.')
@@ -87,10 +87,20 @@ await withScratch('keyboard', async (scratch) => {
     await page.keyboard.insertText('Z')
     await page.waitForFunction(() => [...document.querySelectorAll('.monaco-editor')]
       .every((editor) => editor.textContent?.includes('Z')))
-    await shortcut(app, 'Z', ['meta'])
+    await shortcut(app, 'Z', [modifier])
     await page.waitForFunction(() => [...document.querySelectorAll('.monaco-editor')]
       .every((editor) => !editor.textContent?.includes('Z')))
-    await shortcut(app, 'S', ['meta'])
+    const secondaryEditor = page.locator('.secondary-monaco-host .monaco-editor')
+    await secondaryEditor.hover()
+    await page.mouse.wheel(0, 10_000)
+    await secondaryEditor.locator('.view-line').last().click()
+    const secondaryLine = Number((await page.getByText(/^Ln \d+, Col /).textContent()).match(/Ln (\d+)/)?.[1])
+    assert.ok(secondaryLine > 20, 'The second editor must scroll independently into the lower source.')
+    await command(session, 'Focus Code Editor')
+    await page.locator('.primary-monaco-host .view-line').first().click()
+    const primaryLine = Number((await page.getByText(/^Ln \d+, Col /).textContent()).match(/Ln (\d+)/)?.[1])
+    assert.ok(primaryLine < secondaryLine, 'The primary editor must retain its own cursor and scroll position.')
+    await shortcut(app, 'S', [modifier])
     await eventually(async () => !/\btab-dirty\b/.test(await atPath(page, 'close-tab', source).getAttribute('class') ?? ''),
       'Saving after split-editor Undo did not clear the disposable tab.')
     const sourceDivider = page.getByRole('separator', { name: 'Resize code editor split' })
@@ -105,19 +115,32 @@ await withScratch('keyboard', async (scratch) => {
 
     await shortcut(app, 'G', ['control'])
     const line = page.getByTestId('goto-line-input')
-    await line.fill('99')
+    await line.fill('999')
     assert.equal(await page.getByRole('button', { name: 'Go', exact: true }).isEnabled(), false)
     await line.fill('4')
     await line.press('Enter')
     await page.getByText('Ln 4, Col 1', { exact: true }).waitFor()
     await command(session, 'Toggle Explorer')
     await page.getByTestId('explorer').waitFor({ state: 'detached' })
-    await shortcut(app, 'B', ['meta'])
+    await shortcut(app, 'B', [modifier])
     await page.getByTestId('explorer').waitFor()
     console.log('PASS native keyboard dispatch, scoped Quick Open, Go to Line and command palette panel toggles')
 
-    await shortcut(app, 'F', ['meta', 'shift'])
-    const search = page.getByRole('dialog', { name: 'Search in Files' })
+    await page.locator('.monaco-editor .view-line').first().click()
+    await page.keyboard.insertText('X')
+    await shortcut(app, 'F', [modifier, 'shift'])
+    let search = page.getByRole('dialog', { name: 'Search in Files' })
+    await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
+    await search.getByRole('button', { name: 'Replace in files…' }).click()
+    await search.getByText(/Save or close 1 modified workspace file/).waitFor()
+    assert.equal(await search.getByRole('button', { name: 'Review replacements' }).isDisabled(), true)
+    await search.getByRole('button', { name: 'Close' }).click()
+    await command(session, 'Focus Code Editor')
+    await shortcut(app, 'Z', [modifier])
+    await shortcut(app, 'S', [modifier])
+
+    await shortcut(app, 'F', [modifier, 'shift'])
+    search = page.getByRole('dialog', { name: 'Search in Files' })
     await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
     await search.getByRole('button', { name: 'Replace in files…' }).click()
     await search.getByRole('textbox', { name: 'Replacement text' }).fill('ION-REVIEWED-NEW')
@@ -182,7 +205,7 @@ await withScratch('keyboard', async (scratch) => {
       const { shortcuts } = (await window.ion.getPreferences()).settings
       return shortcuts.run === 'F6' && shortcuts.stop === 'F7'
     }), 'Keyboard overrides must survive a real relaunch.')
-    await shortcut(reopened.app, 'P', ['meta', 'shift'])
+    await shortcut(reopened.app, 'P', [modifier, 'shift'])
     await reopened.page.getByTestId('command-palette-input').waitFor()
     await reopened.page.keyboard.press('Escape')
     console.log('PASS keyboard overrides survive a profile relaunch')

@@ -7,13 +7,15 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs, promisify } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, launch, openFolder, resourceSnapshot, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
 import { median } from './benchmark-resource-metrics.mjs'
+import { windowsProcessTree } from './windows/process-tree.mjs'
 
 const execute = promisify(execFile)
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' }, label: { type: 'string', default: 'candidate' },
   rounds: { type: 'string', default: '5' }, settle: { type: 'string', default: '1200' },
 } })
-assert.equal(process.platform, 'darwin', 'This benchmark uses macOS process accounting.')
+assert.ok(process.platform === 'darwin' || process.platform === 'win32', 'Run the split benchmark on native macOS or Windows.')
+const windows = process.platform === 'win32'
 assert.match(values.label, /^[\w-]+$/)
 const rounds = Number(values.rounds), settleMs = Number(values.settle)
 assert.ok(Number.isInteger(rounds) && rounds >= 3 && rounds <= 20)
@@ -24,6 +26,12 @@ const hash = async (path) => createHash('sha256').update(await readFile(path)).d
 
 async function sample(session, probe, label, wait = settleMs) {
   await sleep(wait)
+  if (windows) {
+    const tree = await windowsProcessTree(session)
+    return { label, time: tree.timeMs, rssMiB: tree.workingSetMiB, privateMiB: tree.privateMiB,
+      footprintMiB: null, cpu: Object.fromEntries(tree.members.map(item => [item.pid + ':' + item.started, item.cpuSeconds])),
+      processes: tree.members.map(({ kind }) => kind), processCount: tree.members.length }
+  }
   const tree = await resourceSnapshot(session, { details: true })
   const { stdout } = await execute(probe, tree.members.map(({ pid }) => String(pid)))
   const native = new Map(stdout.trim().split('\n').filter(Boolean).map((line) => {
@@ -35,7 +43,7 @@ async function sample(session, probe, label, wait = settleMs) {
   return { label, time: performance.now(), rssMiB: tree.rssMiB,
     footprintMiB: measured.reduce((sum, item) => sum + item.footprint, 0) / 1024 ** 2,
     cpu: Object.fromEntries(measured.map(({ pid, started, cpu }) => [pid + ':' + started, cpu])),
-    processes: measured.map(({ kind }) => kind) }
+    processes: measured.map(({ kind }) => kind), processCount: measured.length }
 }
 
 function cpuPercent(before, after) {
@@ -47,12 +55,12 @@ function cpuPercent(before, after) {
     if (!Number.isFinite(previous) || value < previous) return null
     delta += value - previous
   }
-  return delta / 1e6 / (after.time - before.time) * 100
+  return windows ? delta / ((after.time - before.time) / 1000) * 100 : delta / 1e6 / (after.time - before.time) * 100
 }
 
 const report = await withScratch('editor-split-benchmark', async (scratch) => {
-  const probe = join(scratch, 'rusage')
-  await execute('/usr/bin/clang', ['-O2', '-std=c11', probeSource, '-o', probe])
+  const probe = windows ? null : join(scratch, 'rusage')
+  if (probe) await execute('/usr/bin/clang', ['-O2', '-std=c11', probeSource, '-o', probe])
   const project = await createProject(join(scratch, 'workspace'), { fileCount: 0 })
   const profile = join(scratch, 'profile')
   const session = await launch(target, profile)
@@ -73,7 +81,9 @@ const report = await withScratch('editor-split-benchmark', async (scratch) => {
       await session.page.getByTestId('source-split-toggle').click()
       await session.page.locator('[data-source-split="true"] .secondary-monaco-host .monaco-editor').waitFor()
       openMs.push(performance.now() - started)
-      samples.push(await sample(session, probe, `open-${round + 1}`))
+      const openedSample = await sample(session, probe, `open-${round + 1}`)
+      assert.equal(openedSample.processes.includes('child'), false, 'Opening a split must not start a child process.')
+      samples.push(openedSample)
       started = performance.now()
       await session.page.getByTestId('source-split-toggle').click()
       await session.page.locator('.secondary-monaco-host').waitFor({ state: 'detached' })
@@ -90,16 +100,21 @@ const report = await withScratch('editor-split-benchmark', async (scratch) => {
       artifact: { main: await hash(target.args[0]) }, host: { platform: process.platform, arch: process.arch },
       rounds, settleMs, startupMs: session.startupMs, firstFileMs, samples, summary: {
         openLatencyMedianMs: median(openMs), closeLatencyMedianMs: median(closeMs),
-        baselineFootprintMiB: baseline.footprintMiB, openFootprintMedianMiB: median(opened.map(({ footprintMiB }) => footprintMiB)),
+        baselineFootprintMiB: baseline.footprintMiB, openFootprintMedianMiB: windows ? null : median(opened.map(({ footprintMiB }) => footprintMiB)),
         recoveredFootprintMiB: recovered.footprintMiB, baselineRssMiB: baseline.rssMiB,
         openRssMedianMiB: median(opened.map(({ rssMiB }) => rssMiB)), recoveredRssMiB: recovered.rssMiB,
-        recoveredFootprintDeltaMiB: recovered.footprintMiB - baseline.footprintMiB,
+        baselinePrivateMiB: baseline.privateMiB ?? null, openPrivateMedianMiB: windows ? median(opened.map(({ privateMiB }) => privateMiB)) : null,
+        recoveredPrivateMiB: recovered.privateMiB ?? null,
+        recoveredFootprintDeltaMiB: windows ? null : recovered.footprintMiB - baseline.footprintMiB,
         recoveredRssDeltaMiB: recovered.rssMiB - baseline.rssMiB,
+        recoveredPrivateDeltaMiB: windows ? recovered.privateMiB - baseline.privateMiB : null,
+        ownedProcessCounts: samples.map(({ processCount }) => processCount),
         closedIdleCpuPercent: cpuPercent(baselineA, baseline),
         finalClosedCpuPercent: cpuPercent(closed.at(-1), recovered),
       }, notes: [
         'Fresh disposable offline profile and workspace; no user files or installed application were touched.',
-        'Footprint is summed macOS phys_footprint for the owned Electron process family; RSS can double-count shared pages.',
+        windows ? 'Windows RSS is summed working set and private memory is summed PrivateMemorySize64 for the attributed Electron process family.'
+          : 'Footprint is summed macOS phys_footprint for the owned Electron process family; RSS can double-count shared pages.',
         'The split shares the existing text model. The benchmark opens and disposes only the second editor widget.',
       ] }
   } finally { await close(session) }
