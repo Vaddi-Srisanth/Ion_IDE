@@ -1488,6 +1488,11 @@ export function App() {
           onOpen={(entry) => { setDialog(null); void openNative(() => bridge.quickOpen.open(entry.path)); }}
           onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'workspace-search' && root && <WorkspaceSearch key={root.path} root={root.path}
+          dirtyPaths={tabs.filter(tab => tab.path && (tab.dirty || tab.conflict) && isWithin(tab.path, root.path)).map(tab => tab.path!)}
+          onApplied={paths => {
+            for (const tab of documents.getSnapshot().tabs) if (tab.path && paths.includes(tab.path)) documents.markConflict(tab.id, tab.path);
+            if (paths.length) { setSourceWrites(value => value + 1); notify(`${paths.length} saved ${paths.length === 1 ? 'file was' : 'files were'} updated. Open tabs require review.`); }
+          }}
           onOpen={(path, match) => void openSearchMatch(path, match)} onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'language-support' && <LanguageSupport initial={fileLanguage(active?.name ?? '').id}
           onClose={() => setDialog(null)}/>}

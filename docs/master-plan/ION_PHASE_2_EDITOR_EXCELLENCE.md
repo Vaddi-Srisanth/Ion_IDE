@@ -55,4 +55,12 @@ The macOS disposable-profile benchmark recorded startup 306.95 ms and first-file
 
 The source split ownership foundation is verified. Completing professional groups still requires different-file group assignment, group-aware tab selection/navigation and persisted group restoration. Workspace reviewed replace follows only after revision-aware preview/apply semantics and conflict tests are defined.
 
+## Milestone 2.1C — reviewed workspace replace
+
+The existing on-demand ripgrep search now supports a deliberate review/apply flow. Ion enumerates every affected saved file, reads a stable revision and SHA-256, computes literal case-insensitive replacements, and keeps one expiring, 8 MiB-bounded main-owned snapshot. The renderer can select only paths included in that snapshot. Apply uses Ion's existing serialized, atomic per-file save primitive; a changed file is preserved and reported instead of overwritten. Other reviewed files may still complete, with the partial outcome shown explicitly.
+
+Modified or conflicted open workspace buffers block review. If a clean open buffer is edited after review or a reviewed disk file is published, Ion preserves the buffer and marks that tab for external-change review. Generated folders, document viewers, notebooks, binaries, oversized files and links retain the existing search exclusions. A limited or incomplete search cannot become a replace review.
+
+Verification includes six focused backend tests and production Electron acceptance. The latter performs a real reviewed two-occurrence replacement in a disposable workspace and observes the published bytes. Type checking and production build pass. No dependency, process, background task or startup path was added; the main implementation remains behind the existing workspace-search dynamic import. The renderer shell grew by 368 uncompressed artifact bytes (+0.10%) from the 2.1B checkpoint; Monaco is unchanged.
+
 No Phase 2 code has been pushed, installed, released or merged into `main` at this checkpoint.

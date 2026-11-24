@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { WorkspaceFiles } from '../src/main/files'
-import { searchWorkspaceText, workspaceSearchQuery } from '../src/main/workspace-search'
+import { searchWorkspaceText, workspaceReplacement, workspaceSearchQuery, WorkspaceReplaceReview } from '../src/main/workspace-search'
 
 const rg = resolve('node_modules', '@vscode', `ripgrep-${process.platform}-${process.arch}`, 'bin',
   process.platform === 'win32' ? 'rg.exe' : 'rg')
@@ -91,4 +91,50 @@ test('cancelling an active workspace search reaps its process', { skip: process.
     controller.abort()
     await result.catch(() => undefined)
   }
+})
+
+test('reviewed workspace replacement applies only selected stable files through safe saves', async (t) => {
+  const { root, scope } = await workspace(t)
+  const first = join(root, 'first.txt'), second = join(root, 'second.txt')
+  await writeFile(first, 'Needle one\nneedle two\n')
+  await writeFile(second, 'leave Needle alone\n')
+  const service = new WorkspaceReplaceReview(rg, scope)
+  const review = await service.review('needle', 'pin')
+  assert.equal(review.replacements, 3)
+  assert.deepEqual(review.files.map(file => [file.relativePath, file.replacements]), [['first.txt', 2], ['second.txt', 1]])
+  const result = await service.apply(review.token, [first])
+  assert.deepEqual(result, { applied: [first], failed: [] })
+  assert.equal(await readFile(first, 'utf8'), 'pin one\npin two\n')
+  assert.equal(await readFile(second, 'utf8'), 'leave Needle alone\n')
+  await assert.rejects(service.apply(review.token, [second]), /expired/)
+})
+
+test('reviewed replacement preserves external edits and reports partial failures', async (t) => {
+  const { root, scope } = await workspace(t)
+  const changed = join(root, 'a-changed.txt'), stable = join(root, 'b-stable.txt')
+  await writeFile(changed, 'find me\n')
+  await writeFile(stable, 'find me too\n')
+  const service = new WorkspaceReplaceReview(rg, scope)
+  const review = await service.review('find', 'keep')
+  await writeFile(changed, 'external edit\n')
+  const result = await service.apply(review.token, [changed, stable])
+  assert.equal(result.applied.length, 1)
+  assert.equal(result.applied[0], stable)
+  assert.equal(result.failed.length, 1)
+  assert.equal(result.failed[0].path, changed)
+  assert.match(result.failed[0].message, /changed/i)
+  assert.equal(await readFile(changed, 'utf8'), 'external edit\n')
+  assert.equal(await readFile(stable, 'utf8'), 'keep me too\n')
+})
+
+test('workspace replacement validates bounded text and reviewed selections', async (t) => {
+  const { root, scope } = await workspace(t)
+  const file = join(root, 'only.txt')
+  await writeFile(file, 'safe token\n')
+  assert.throws(() => workspaceReplacement('x'.repeat(10_001)), /10,000/)
+  assert.throws(() => workspaceReplacement('\0'), /10,000/)
+  const service = new WorkspaceReplaceReview(rg, scope)
+  const review = await service.review('token', 'value')
+  await assert.rejects(service.apply(review.token, [join(root, 'unreviewed.txt')]), /invalid/)
+  assert.equal(await readFile(file, 'utf8'), 'safe token\n')
 })

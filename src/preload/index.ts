@@ -160,6 +160,8 @@ const bridge: IonBridge = {
   workspaceSearch: {
     search: (id, query) => ipcRenderer.invoke('ion:workspace-search', id, query),
     cancel: (id) => ipcRenderer.invoke('ion:workspace-search-cancel', id),
+    review: (query, replacement) => ipcRenderer.invoke('ion:workspace-replace-review', query, replacement),
+    apply: (token, paths) => ipcRenderer.invoke('ion:workspace-replace-apply', token, paths),
   },
   sourceControl: {
     status: (root) => ipcRenderer.invoke('ion:source-control-status', root),

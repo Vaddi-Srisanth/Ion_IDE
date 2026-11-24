@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder,
@@ -43,11 +43,13 @@ await withScratch('keyboard', async (scratch) => {
   const source = join(nested, 'deep target.c')
   const table = join(nested, 'reference.csv')
   const external = join(scratch, 'private.c')
+  const replaceTarget = join(nested, 'replace.txt')
   await Promise.all([mkdir(profile), mkdir(nested)])
   await Promise.all([
     writeFile(source, '#include <stdio.h>\nint main(void) {\n    puts("ION-KEYBOARD-INPUT");\n    fflush(stdout);\n    return getchar() == EOF;\n}\n'),
     writeFile(table, 'heading,note\n1,keyboard reference\n'),
     writeFile(external, 'private'),
+    writeFile(replaceTarget, 'ION-REVIEWED-OLD twice ION-REVIEWED-OLD\n'),
     symlink(external, join(nested, 'secret alias.c')),
   ])
   const session = await launch(target, profile)
@@ -113,6 +115,18 @@ await withScratch('keyboard', async (scratch) => {
     await shortcut(app, 'B', ['meta'])
     await page.getByTestId('explorer').waitFor()
     console.log('PASS native keyboard dispatch, scoped Quick Open, Go to Line and command palette panel toggles')
+
+    await shortcut(app, 'F', ['meta', 'shift'])
+    const search = page.getByRole('dialog', { name: 'Search in Files' })
+    await search.getByTestId('workspace-search-input').fill('ION-REVIEWED-OLD')
+    await search.getByRole('button', { name: 'Replace in files…' }).click()
+    await search.getByRole('textbox', { name: 'Replacement text' }).fill('ION-REVIEWED-NEW')
+    await search.getByRole('button', { name: 'Review replacements' }).click()
+    await search.getByText(/Review 2 replacements in 1 files/).waitFor()
+    await search.getByRole('button', { name: 'Replace in 1 files' }).click()
+    await eventually(async () => (await readFile(replaceTarget, 'utf8')).includes('ION-REVIEWED-NEW'), 'Reviewed replacement was not published.')
+    await search.getByRole('button', { name: 'Close' }).click()
+    console.log('PASS workspace replacement reviews the exact selection and publishes through the safe save path')
 
     await quickOpen(session, 'reference.csv', /reference\.csv/)
     await page.getByTestId('table-grid').getByText('keyboard reference').waitFor()

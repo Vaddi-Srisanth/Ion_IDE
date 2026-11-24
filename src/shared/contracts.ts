@@ -215,6 +215,8 @@ export interface IonBridge {
   workspaceSearch: {
     search(id: string, query: string): Promise<WorkspaceSearchResult>
     cancel(id: string): Promise<void>
+    review(query: string, replacement: string): Promise<import('./workspace-search').WorkspaceReplacePreview>
+    apply(token: string, paths: string[]): Promise<import('./workspace-search').WorkspaceReplaceResult>
   }
   listDirectory(path: string): Promise<Entry[]>
   readFile(path: string, mode?: 'notebook'): Promise<FileContents>

@@ -136,6 +136,7 @@ let viewerService: Promise<ViewerService> | undefined
 let notebookKernels: Promise<NotebookKernels> | undefined
 let quickSearch: AbortController | undefined
 let workspaceSearch: { id: string; controller: AbortController } | undefined
+let workspaceReplace: { scope: WorkspaceFiles; service: import('./workspace-search').WorkspaceReplaceReview } | undefined
 const keyboardPlatform = shortcutPlatform(process.platform)
 let shortcutOverrides: ShortcutOverrides = defaultSettings.shortcuts
 let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
@@ -1410,6 +1411,25 @@ function registerIpc(): void {
   })
   handle('workspace-search-cancel', (_target, id) => {
     if (workspaceSearch && workspaceSearch.id === id) workspaceSearch.controller.abort()
+  })
+  handle('workspace-replace-review', async (target, query, replacement) => {
+    const scope = files
+    if (!scope.rootPath) throw new Error('Open a workspace folder before replacing text.')
+    const executable = 'ion-rg' + (process.platform === 'win32' ? '.exe' : '')
+    const tool = app.isPackaged ? join(process.resourcesPath, executable) : resolve(__dirname, '../native', executable)
+    const { WorkspaceReplaceReview } = await import('./workspace-search')
+    const service = new WorkspaceReplaceReview(tool, scope)
+    const review = await service.review(query, replacement)
+    if (target !== window || scope !== files) throw new Error('The workspace changed during replace review.')
+    workspaceReplace?.service.clear()
+    workspaceReplace = { scope, service }
+    return review
+  })
+  handle('workspace-replace-apply', async (target, token, paths) => {
+    const pending = workspaceReplace
+    workspaceReplace = undefined
+    if (!pending || target !== window || pending.scope !== files) throw new Error('Review the current workspace again.')
+    return pending.service.apply(token, paths)
   })
   handle('list-directory', (_target, path) => files.list(path))
   handle('read-file', (_target, path, mode) => files.read(path, mode))
