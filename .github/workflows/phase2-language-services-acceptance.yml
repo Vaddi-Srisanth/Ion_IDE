@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-          fetch-depth: 3
+          fetch-depth: 1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.22.2
@@ -38,7 +38,8 @@ jobs:
       - run: node node_modules/electron/install.js
       - name: Prove production application identity
         run: |
-          test "$(git rev-parse f458dd4238ab247de184f710f4cf5f8b384d4516)" = f458dd4238ab247de184f710f4cf5f8b384d4516
+          git fetch --no-tags --depth=1 origin f458dd4238ab247de184f710f4cf5f8b384d4516
+          test "$(git rev-parse FETCH_HEAD)" = f458dd4238ab247de184f710f4cf5f8b384d4516
           git diff --exit-code f458dd4238ab247de184f710f4cf5f8b384d4516 HEAD -- src package.json package-lock.json
       - name: Install pinned disposable Python and TypeScript servers
         run: |
