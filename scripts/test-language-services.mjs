@@ -37,9 +37,10 @@ function pyrightTimings(path, queryStartNs) {
     const opened = first('request', 'textDocument/didOpen')
     const definitionRequest = first('request', 'textDocument/definition'), definitionResponse = first('response', 'textDocument/definition')
     const completionRequest = first('request', 'textDocument/completion'), completionResponse = first('response', 'textDocument/completion')
-    const shutdownRequest = first('request', 'shutdown'), shutdownResponse = first('response', 'shutdown'), exited = first('server-exit')
+    const shutdownRequest = first('request', 'shutdown'), shutdownResponse = first('response', 'shutdown')
+    const exitNotification = first('request', 'exit'), exited = first('server-exit')
     const required = { proxy, spawned, initializeRequest, initializeResponse, initialized, configured, opened,
-      definitionRequest, definitionResponse, completionRequest, completionResponse, shutdownRequest, shutdownResponse, exited }
+      definitionRequest, definitionResponse, completionRequest, completionResponse, shutdownRequest, shutdownResponse, exitNotification }
     assert.ok(firstSession && Object.values(required).every(Boolean), `Incomplete Pyright timing trace: ${Object.entries(required).filter(([, value]) => !value).map(([name]) => name).join(', ')}`)
     return {
       executableDiscoveryUpperBoundMs: Number((BigInt(proxy.tNs) - queryStartNs) / 10_000n) / 100,
@@ -47,7 +48,8 @@ function pyrightTimings(path, queryStartNs) {
       workspaceConfigurationMs: delta(initializeResponse, configured), documentSyncDispatchMs: delta(configured, opened),
       documentSyncToColdRequestMs: delta(opened, definitionRequest),
       coldDefinitionMs: delta(definitionRequest, definitionResponse), warmCompletionMs: delta(completionRequest, completionResponse),
-      shutdownResponseMs: delta(shutdownRequest, shutdownResponse), shutdownTotalMs: delta(shutdownRequest, exited),
+      shutdownResponseMs: delta(shutdownRequest, shutdownResponse), shutdownToExitDispatchMs: delta(shutdownRequest, exitNotification),
+      processExitAfterShutdownMs: exited ? delta(shutdownRequest, exited) : null,
     }
   })
 }
