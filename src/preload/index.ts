@@ -55,7 +55,7 @@ const bridge: IonBridge = {
     query: (snapshot) => ipcRenderer.invoke('ion:language-query', snapshot),
     cancel: (requestId) => ipcRenderer.invoke('ion:language-cancel', requestId),
     saved: (value) => ipcRenderer.invoke('ion:language-saved', value),
-    release: (immediate, language) => ipcRenderer.invoke('ion:language-release', immediate, language),
+    release: (immediate, language, path) => ipcRenderer.invoke('ion:language-release', immediate, language, path),
     status: () => ipcRenderer.invoke('ion:language-status'),
     restart: (language) => ipcRenderer.invoke('ion:language-restart', language),
   },

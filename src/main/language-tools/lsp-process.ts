@@ -13,6 +13,12 @@ const stderrLimit = 64 * 1024
 const responseLimit = 8 * 1024 * 1024
 const headerLimit = 8 * 1024
 
+export type LspLifecycleStage =
+  | 'process-spawn-request' | 'process-spawned' | 'initialize-request' | 'initialize-response'
+  | 'initialized-notification' | 'workspace-configuration' | 'workspace-configuration-skipped'
+  | 'definition-request' | 'definition-response' | 'shutdown-request' | 'shutdown-response'
+  | 'shutdown-failed' | 'exit-notification' | 'process-exit' | 'cleanup-complete'
+
 function frameGuard(onInvalid: () => void) {
   let header = Buffer.alloc(0), body = 0, invalid = false
   return (chunk: Buffer) => {
@@ -59,6 +65,7 @@ export interface LspProcessOptions {
   capabilities?: object
   deadlines?: { startupMs?: number; initializationMs?: number }
   configuration?: unknown
+  trace?: (stage: LspLifecycleStage) => void
 }
 
 /** A bounded owner for one trusted, absolute local language-server process. */
@@ -72,7 +79,8 @@ export class LspProcess {
   private readonly lifecycle = new AbortController()
   private initialization: { capabilities?: Record<string, unknown>; serverInfo?: { name?: string; version?: string } } = {}
 
-  private constructor(private readonly child: ChildProcessWithoutNullStreams, readonly executable: string) {
+  private constructor(private readonly child: ChildProcessWithoutNullStreams, readonly executable: string,
+    private readonly trace?: (stage: LspLifecycleStage) => void) {
     const inspectFrames = frameGuard(() => this.abort())
     this.guardedOutput = new Transform({ transform(chunk: Buffer, _encoding, callback) {
       if (inspectFrames(chunk)) callback(null, chunk)
@@ -80,7 +88,7 @@ export class LspProcess {
     } })
     child.stdout.pipe(this.guardedOutput)
     this.connection = createMessageConnection(this.guardedOutput, child.stdin)
-    this.exited = new Promise(resolve => child.once('exit', () => resolve()))
+    this.exited = new Promise(resolve => child.once('exit', () => { this.emit('process-exit'); resolve() }))
     child.stderr.on('data', (chunk: Buffer) => { this.stderrBytes = Math.min(stderrLimit, this.stderrBytes + chunk.byteLength) })
     child.once('error', () => this.abort())
     child.stdin.once('error', () => this.abort())
@@ -96,6 +104,7 @@ export class LspProcess {
       throw new Error('Language server executable must be an absolute trusted path.')
     }
     signal.throwIfAborted()
+    try { options.trace?.('process-spawn-request') } catch { /* Timing observers cannot affect execution. */ }
     const child = spawn(options.executable, [...options.args], {
       cwd: options.cwd,
       env: options.env,
@@ -104,15 +113,16 @@ export class LspProcess {
       detached: process.platform !== 'win32',
     })
     const spawned = new Promise<void>((resolve, reject) => {
-      child.once('spawn', () => resolve())
+      child.once('spawn', () => { try { options.trace?.('process-spawned') } catch { /* Observation only. */ } resolve() })
       child.once('error', reject)
     })
-    const processHost = new LspProcess(child, options.executable)
+    const processHost = new LspProcess(child, options.executable, options.trace)
     const abort = () => processHost.abort()
     signal.addEventListener('abort', abort, { once: true })
     try {
       await processHost.waitForStage(spawned, options.deadlines?.startupMs ?? startupDeadlineMs,
         'Language server process startup timed out.', signal)
+      processHost.emit('initialize-request')
       const initialized = await processHost.request('initialize', {
         processId: process.pid,
         rootUri: options.root ? pathToFileURL(options.root).href : null,
@@ -121,6 +131,7 @@ export class LspProcess {
         initializationOptions: options.initializationOptions,
       }, options.deadlines?.initializationMs ?? initializationDeadlineMs, signal,
       'Language server initialization timed out.')
+      processHost.emit('initialize-response')
       if (initialized && typeof initialized === 'object') {
         const value = initialized as { capabilities?: unknown; serverInfo?: unknown }
         processHost.initialization = {
@@ -129,8 +140,12 @@ export class LspProcess {
         }
       }
       await processHost.notify('initialized', {})
+      processHost.emit('initialized-notification')
       if (options.configuration !== undefined) {
         await processHost.notify('workspace/didChangeConfiguration', { settings: options.configuration })
+        processHost.emit('workspace-configuration')
+      } else {
+        processHost.emit('workspace-configuration-skipped')
       }
       return processHost
     } catch (error) {
@@ -178,8 +193,10 @@ export class LspProcess {
     const abort = () => cancellation.cancel()
     signal?.addEventListener('abort', abort, { once: true })
     if (signal?.aborted) cancellation.cancel()
+    const traceDefinition = method === 'textDocument/definition'
+    if (traceDefinition) this.emit('definition-request')
     try {
-      return await Promise.race([
+      const response = await Promise.race([
         this.connection.sendRequest(method, params, cancellation.token),
         new Promise<never>((_resolve, reject) => this.lifecycle.signal.addEventListener('abort',
           () => reject(new Error('The language server connection closed.')), { once: true })),
@@ -188,9 +205,10 @@ export class LspProcess {
             cancellation.cancel()
             reject(new Error(timeoutMessage))
           }, timeoutMs)
-          timer.unref()
         }),
       ])
+      if (traceDefinition) this.emit('definition-response')
+      return response
     } finally {
       clearTimeout(timer)
       signal?.removeEventListener('abort', abort)
@@ -210,7 +228,6 @@ export class LspProcess {
     try {
       await Promise.race([task, aborted, new Promise<never>((_resolve, reject) => {
         timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
-        timer.unref()
       })])
     } finally {
       clearTimeout(timer)
@@ -228,22 +245,30 @@ export class LspProcess {
 
   private async gracefulStop() {
     if (this.stopped) return this.exited
-    try { await this.request('shutdown', null, 750) } catch { /* Server may already be unavailable. */ }
-    try { await this.connection.sendNotification('exit') } catch { /* Server may already be unavailable. */ }
+    this.emit('shutdown-request')
+    try { await this.request('shutdown', null, 750); this.emit('shutdown-response') }
+    catch { this.emit('shutdown-failed') }
+    try { await this.connection.sendNotification('exit'); this.emit('exit-notification') }
+    catch { /* Server may already be unavailable. */ }
     // Flush the final notification and close Ion's input ownership. Servers
     // that miss `exit` must still observe EOF rather than remain orphaned.
     this.child.stdin.end()
-    await Promise.race([
-      this.exited,
-      new Promise<void>(resolve => {
-        const timer = setTimeout(() => { this.abort(); resolve() }, stopDeadlineMs)
-        timer.unref()
-      }),
-    ])
+    let stopTimer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        this.exited,
+        new Promise<void>(resolve => { stopTimer = setTimeout(() => { this.abort(); resolve() }, stopDeadlineMs) }),
+      ])
+    } finally { clearTimeout(stopTimer) }
     this.disposeConnection()
     this.child.stdin.destroy()
     this.child.stdout.destroy()
     this.child.stderr.destroy()
+    this.emit('cleanup-complete')
+  }
+
+  private emit(stage: LspLifecycleStage) {
+    try { this.trace?.(stage) } catch { /* Timing observers cannot affect ownership. */ }
   }
 
   private abort() {

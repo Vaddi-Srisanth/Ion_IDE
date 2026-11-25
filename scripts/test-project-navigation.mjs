@@ -21,7 +21,7 @@ function installClangdFailureProbe(childProcess, basename, syncExports, errorMon
   const began = performance.now()
   function record(kind, values = {}) {
     const event = { sequence: ++sequence, elapsedMs: performance.now() - began, kind, ...values }
-    if (events.length === 32) events.shift()
+    if (events.length === 64) events.shift()
     events.push(event)
   }
   function listen(emitter, kind, listener) {
@@ -55,6 +55,7 @@ function installClangdFailureProbe(childProcess, basename, syncExports, errorMon
   }
   childProcess.spawn = spawn
   syncExports()
+  globalThis.__ionClangdTimingProbe = stage => record(String(stage).slice(0, 80))
   globalThis.__ionClangdFailureProbe = {
     snapshot: () => ({ spawns, omitted, events: events.slice(), stderr: stderr.toString('utf8'), disposed }),
     dispose() {
@@ -62,6 +63,7 @@ function installClangdFailureProbe(childProcess, basename, syncExports, errorMon
       disposed = true
       for (const remove of subscriptions) remove()
       subscriptions.clear()
+      delete globalThis.__ionClangdTimingProbe
       if (childProcess.spawn === spawn) { childProcess.spawn = original; syncExports() }
     },
   }
@@ -153,6 +155,7 @@ await withScratch('project-navigation', async (scratch) => {
     const afterClangd = await snapshot(session, { details: true })
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
+    const lifecycle = await app.evaluate(() => globalThis.__ionClangdFailureProbe?.snapshot())
     completed = true
     console.log(JSON.stringify({ definitionMs: Number(definitionMs.toFixed(2)),
       startProcessCount: beforeClangd.members.length, activeProcessCount: activeB.members.length,
@@ -161,6 +164,7 @@ await withScratch('project-navigation', async (scratch) => {
       servicePrivateMiB: process.platform === 'win32' ? Number((workers[0].privateBytes / 1024 ** 2).toFixed(2)) : null,
       activeCpuPercent: Number((process.platform === 'win32' ? windowsTreeCPU(activeA, activeB) : cpuPercent(activeA, activeB)).toFixed(2)),
       shutdownObservedMs: Number(shutdownObservedMs.toFixed(2)) }))
+    console.log('Clangd lifecycle timing:', JSON.stringify(lifecycle))
     console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
   } catch (error) {
     primaryError = error

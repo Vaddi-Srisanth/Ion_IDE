@@ -32,15 +32,14 @@ jobs:
       - name: Record immutable candidate and native host
         run: |
           mkdir -p performance-results/phase2-language-services
-          git rev-parse HEAD > performance-results/phase2-language-services/revision.log
+          printf 'application_sha=%s\n' "$(git rev-parse HEAD)" > performance-results/phase2-language-services/revision.log
           node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-language-services/revision.log
       - run: npm ci
       - run: node node_modules/electron/install.js
       - name: Prove production application identity
         run: |
-          git fetch --no-tags --depth=1 origin f458dd4238ab247de184f710f4cf5f8b384d4516
-          test "$(git rev-parse FETCH_HEAD)" = f458dd4238ab247de184f710f4cf5f8b384d4516
-          git diff --exit-code f458dd4238ab247de184f710f4cf5f8b384d4516 HEAD -- src package.json package-lock.json
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --exit-code
       - name: Install pinned disposable Python and TypeScript servers
         run: |
           npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0

@@ -103,6 +103,23 @@ test('workspace removal cancels an active request and drains its owned service',
   assert.equal(manager.statuses().at(-1)?.state, 'stopped')
 })
 
+test('closing a document clears its service state without multiplying group releases', async () => {
+  const closed: string[] = []
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: async item => ({ version: item.version, rows: [] }),
+    close: async path => { closed.push(path) },
+    stop: async () => { stops++ },
+  }), Date.now, 60_000)
+  await manager.query(descriptor(), snapshot())
+  await manager.release(false, 'c', '/work/a.c')
+  assert.deepEqual(closed, ['/work/a.c'])
+  assert.equal(stops, 0)
+  await manager.release(true, 'c')
+  assert.equal(stops, 1)
+})
+
 test('repeated start and stop cycles retain no active service', async () => {
   let starts = 0, stops = 0
   const manager = new LanguageServiceManager(async () => {

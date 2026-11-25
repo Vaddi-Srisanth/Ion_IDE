@@ -6,7 +6,17 @@ import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { sourceDriveSpelling } from '../../shared/source-path'
 import { execute } from '../runner'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
-import { LspProcess } from './lsp-process'
+import { LspProcess, type LspLifecycleStage } from './lsp-process'
+
+type ClangdLifecycleStage = LspLifecycleStage | 'executable-discovery' | 'executable-discovered'
+  | 'document-open-request' | 'document-open-synchronized' | 'first-diagnostic'
+type ClangdTimingHook = (stage: ClangdLifecycleStage) => void
+
+function timingHook(): ClangdTimingHook | undefined {
+  const hook = (globalThis as typeof globalThis & { __ionClangdTimingProbe?: unknown }).__ionClangdTimingProbe
+  if (typeof hook !== 'function') return
+  return stage => { try { (hook as ClangdTimingHook)(stage) } catch { /* Verification observation only. */ } }
+}
 
 async function findClangd(root: string, paths: string[], scratch: string, signal: AbortSignal): Promise<string> {
   const configured = process.env.ION_CLANGD_PATH
@@ -65,16 +75,27 @@ export class ClangdService {
   private document?: string
   private documentVersion = 0
   private stopped = false
+  private diagnosticObserved = false
 
-  private constructor(private readonly process: LspProcess, private readonly directory: string) {}
+  private constructor(private readonly process: LspProcess, private readonly directory: string,
+    private readonly trace?: ClangdTimingHook) {
+    process.onNotification('textDocument/publishDiagnostics', () => {
+      if (this.diagnosticObserved) return
+      this.diagnosticObserved = true
+      this.trace?.('first-diagnostic')
+    })
+  }
 
   static async start(root: string | null, source: string, signal: AbortSignal): Promise<ClangdService> {
     const directory = await mkdtemp(join(tmpdir(), 'ion-clangd-'))
+    const trace = timingHook()
     let service: ClangdService | undefined
     try {
       const boundary = root ?? dirname(source)
       const paths = await commandPaths(boundary)
+      trace?.('executable-discovery')
       const binary = await findClangd(boundary, paths, directory, signal)
+      trace?.('executable-discovered')
       signal.throwIfAborted()
       const process = await LspProcess.start({
         executable: binary,
@@ -82,8 +103,9 @@ export class ClangdService {
         cwd: directory,
         env: envFor(paths, directory),
         root,
+        trace,
       }, signal)
-      service = new ClangdService(process, directory)
+      service = new ClangdService(process, directory, trace)
       const abort = () => { void service?.stop() }
       signal.addEventListener('abort', abort, { once: true })
       try {
@@ -156,9 +178,11 @@ export class ClangdService {
     if (this.document !== uri) {
       if (this.document) await this.process.notify('textDocument/didClose', { textDocument: { uri: this.document } })
       this.document = uri
+      this.trace?.('document-open-request')
       await this.process.notify('textDocument/didOpen', {
         textDocument: { uri, languageId: snapshot.language, version, text: snapshot.text },
       })
+      this.trace?.('document-open-synchronized')
     } else {
       await this.process.notify('textDocument/didChange', {
         textDocument: { uri, version }, contentChanges: [{ text: snapshot.text }],

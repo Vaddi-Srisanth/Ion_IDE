@@ -12,6 +12,7 @@ test('LSP process host rejects relative executables', async () => {
 })
 test('LSP process host initializes, requests, and stops its owned process', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-test-'))
+  const trace: string[] = []
   try {
     const host = await LspProcess.start({
       executable: process.execPath,
@@ -19,6 +20,7 @@ test('LSP process host initializes, requests, and stops its owned process', asyn
       cwd: scratch,
       env: { ...process.env, ION_FAKE_LSP_LOG: join(scratch, 'methods.log') },
       root: scratch,
+      trace: stage => { trace.push(stage) },
     }, new AbortController().signal)
     assert.ok(host.pid)
     assert.deepEqual(await host.request('ion/echo', { ready: true }), { ready: true })
@@ -29,6 +31,11 @@ test('LSP process host initializes, requests, and stops its owned process', asyn
     await host.stop()
     await slow
     assert.equal(host.isClosed, true)
+    assert.deepEqual(trace, [
+      'process-spawn-request', 'process-spawned', 'initialize-request', 'initialize-response',
+      'initialized-notification', 'workspace-configuration-skipped', 'shutdown-request', 'shutdown-response',
+      'exit-notification', 'process-exit', 'cleanup-complete',
+    ])
     assert.match(await readFile(join(scratch, 'methods.log'), 'utf8'), /initialized\n.*apply-rejected\n.*ion\/slow\n\$\/cancelRequest\n.*shutdown\nexit\n/s)
   } finally {
     await rm(scratch, { recursive: true, force: true })

@@ -14,7 +14,7 @@ const observedMethods = new Set([
   'initialize', 'initialized', 'workspace/didChangeConfiguration',
   'textDocument/didOpen', 'textDocument/didChange', 'textDocument/definition',
   'textDocument/completion', 'textDocument/hover', 'textDocument/signatureHelp',
-  'textDocument/references', 'shutdown', 'exit',
+  'textDocument/references', 'textDocument/publishDiagnostics', 'shutdown', 'exit',
 ])
 
 function record(event, method) {
@@ -36,6 +36,11 @@ function observe(direction, message) {
     if (!request) return
     pending.delete(key(message.id))
     record('response', request)
+    return
+  }
+  if (direction === 'server' && typeof message.method === 'string') {
+    const method = observedMethods.has(message.method) ? message.method : 'other-method'
+    record('notification', method)
   }
 }
 

@@ -9,6 +9,7 @@ export interface ManagedLanguageService {
   readonly capabilities?: readonly string[]
   query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply | null>
   saved?(path: string): Promise<void>
+  close?(path: string): Promise<void>
   stop(): Promise<void>
 }
 
@@ -125,11 +126,17 @@ export class LanguageServiceManager {
     await service.saved?.(descriptor.path)
   }
 
-  release(immediate: boolean, language?: string) {
+  async release(immediate: boolean, language?: string, path?: string) {
     const targets = [...this.sessions.entries()].filter(([, session]) => !language || session.descriptor.language === language)
-    if (immediate) return Promise.all(targets.map(([key, session]) => this.stopSession(key, session))).then(() => undefined)
+    if (path) await Promise.all(targets.map(async ([, session]) => {
+      const service = await session.service.catch(() => undefined)
+      await service?.close?.(path)
+    }))
+    if (immediate) {
+      await Promise.all(targets.map(([key, session]) => this.stopSession(key, session)))
+      return
+    }
     for (const [key, session] of targets) this.scheduleIdle(key, session)
-    return Promise.resolve()
   }
 
   async stopAll() {

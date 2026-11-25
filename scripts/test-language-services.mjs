@@ -9,6 +9,7 @@ const { values } = parseArgs({ options: { target: { type: 'string', default: 'di
 const target = await artifact(values.target)
 const snapshot = process.platform === 'win32' ? windowsProcessTree : resourceSnapshot
 const cpu = process.platform === 'win32' ? windowsTreeCPU : cpuPercent
+const percent = value => value === null ? null : Number(value.toFixed(2))
 
 function memory(sample) {
   if (process.platform === 'win32') {
@@ -66,6 +67,9 @@ await withScratch('language-services', async scratch => {
   await writeFile(source, text)
   const jsHelper = join(project.directory, 'helper.js')
   const jsSource = join(project.directory, 'main.js')
+  await writeFile(join(project.directory, 'jsconfig.json'), JSON.stringify({
+    compilerOptions: { checkJs: true, module: 'esnext', moduleResolution: 'node' }, include: ['*.js'],
+  }))
   await writeFile(jsHelper, 'export function total(a, b) { return a + b }\n')
   const jsText = 'import { total } from "./helper.js"\nconsole.log(total(2, 3))\n'
   const second = await createProject(join(scratch, 'second project'), { fileCount: 0 })
@@ -174,17 +178,19 @@ await withScratch('language-services', async scratch => {
     else {
       assert.ok(jsResult.result?.rows.some(([path, line]) => path === jsSource && line === '1'),
         'TypeScript LSP did not resolve the JavaScript import declaration.')
+      assert.ok((await query('javascript', jsSource, jsText, 'hover', jsText.lastIndexOf('total') + 2, 1))?.rows.length,
+        'TypeScript service returned no JavaScript hover.')
+      for (let request = 0; request < 3; request++) {
+        assert.ok((await query('javascript', jsSource, jsText, 'signature', jsText.lastIndexOf('total') + 6, 1))?.rows.length,
+          `TypeScript service returned no JavaScript signature help on unchanged request ${request + 1}.`)
+      }
+      assert.ok((await query('javascript', jsSource, jsText, 'references', jsText.lastIndexOf('total') + 2, 1))?.rows.length,
+        'TypeScript service returned no JavaScript references.')
       const jsCompletionText = jsText + '\nMath.'
       assert.ok((await query('javascript', jsSource, jsCompletionText, 'complete', jsCompletionText.length, 2))?.rows.length,
         'TypeScript service returned no JavaScript completions.')
-      assert.ok((await query('javascript', jsSource, jsText, 'hover', jsText.lastIndexOf('total') + 2, 3))?.rows.length,
-        'TypeScript service returned no JavaScript hover.')
-      assert.ok((await query('javascript', jsSource, jsText, 'signature', jsText.lastIndexOf('total') + 6, 4))?.rows.length,
-        'TypeScript service returned no JavaScript signature help.')
-      assert.ok((await query('javascript', jsSource, jsText, 'references', jsText.lastIndexOf('total') + 2, 5))?.rows.length,
-        'TypeScript service returned no JavaScript references.')
       const invalidJs = 'const value = ;\n'
-      assert.ok((await query('javascript', jsSource, invalidJs, 'diagnostics', 0, 6))?.rows.some(([severity]) => severity === 'error'),
+      assert.ok((await query('javascript', jsSource, invalidJs, 'diagnostics', 0, 3))?.rows.some(([severity]) => severity === 'error'),
         'TypeScript service did not report an unsaved JavaScript syntax error.')
     }
     let jsStatus = (await page.evaluate(() => window.ion.languageTools.status())).filter(status => status.language === 'javascript').at(-1)
@@ -206,8 +212,9 @@ await withScratch('language-services', async scratch => {
     if (!jsResult.error) {
       for (let cycle = 0; cycle < 3; cycle++) {
         await page.evaluate(() => window.ion.languageTools.release(true, 'javascript'))
-        const restarted = await query('javascript', jsSource, jsText, 'definition', jsText.lastIndexOf('total') + 2, 10 + cycle)
-        assert.ok(restarted?.rows.some(([path]) => path === jsHelper), `TypeScript service restart ${cycle + 1} failed.`)
+        const restarted = await query('javascript', jsSource, jsText, 'definition', jsText.lastIndexOf('total') + 2, 1)
+        assert.ok(restarted?.rows.some(([path, line]) => path === jsSource && line === '1'),
+          `TypeScript service restart ${cycle + 1} failed.`)
       }
       await page.evaluate(() => window.ion.languageTools.release(true, 'javascript'))
     }
@@ -219,11 +226,11 @@ await withScratch('language-services', async scratch => {
       pythonStartMs: Number(pythonStartMs.toFixed(2)), pythonLifecycle, pythonCompletionMs: Number(pythonCompletionMs.toFixed(2)),
       pythonDiagnosticsMs: Number(pythonDiagnosticsMs.toFixed(2)), pythonStopMs: Number(pythonStopMs.toFixed(2)),
       before: memory(beforePython), active: memory(withPython), after: memory(afterPython),
-      activeCpuPercent: Number(cpu(withPythonA, withPython).toFixed(2)), pythonExecutable: pythonStatus.executable,
+      activeCpuPercent: percent(cpu(withPythonA, withPython)), pythonExecutable: pythonStatus.executable,
       pythonVersion: pythonStatus.version, pythonCapabilities: pythonStatus.capabilities,
       javascript: jsResult.error ? { unavailable: jsResult.error } : {
         startMs: Number(jsStartMs.toFixed(2)), before: memory(beforeJs), active: memory(withJs), after: memory(afterJs),
-        activeCpuPercent: Number(cpu(withJsA, withJs).toFixed(2)), executable: jsStatus.executable,
+        activeCpuPercent: percent(cpu(withJsA, withJs)), executable: jsStatus.executable,
         version: jsStatus.version, capabilities: jsStatus.capabilities,
       },
     }))

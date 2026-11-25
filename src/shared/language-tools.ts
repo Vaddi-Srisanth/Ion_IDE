@@ -28,7 +28,7 @@ export interface LanguageToolsBridge {
   query(snapshot: ToolSnapshot): Promise<ToolReply | null>
   cancel(requestId: string): Promise<void>
   saved(value: ToolSave): Promise<void>
-  release(immediate: boolean, language?: string): Promise<void>
+  release(immediate: boolean, language?: string, path?: string): Promise<void>
   status(): Promise<LanguageToolStatus[]>
   restart(language?: string): Promise<void>
 }

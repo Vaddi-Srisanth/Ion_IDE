@@ -4,7 +4,21 @@ import { errorMessage } from './documents';
 import type { ProblemRow } from './Problems';
 
 const encoder = new TextEncoder();
+const modelAttachments = new WeakMap<editor.ITextModel, number>();
 type Query = (operation: ToolOperation, position?: Position, cancellation?: CancellationToken) => Promise<string[][] | undefined>;
+
+function attachModel(model: editor.ITextModel) {
+  modelAttachments.set(model, (modelAttachments.get(model) ?? 0) + 1);
+  let attached = true;
+  return () => {
+    if (!attached) return false;
+    attached = false;
+    const remaining = Math.max(0, (modelAttachments.get(model) ?? 1) - 1);
+    if (remaining) modelAttachments.set(model, remaining);
+    else modelAttachments.delete(model);
+    return remaining === 0;
+  };
+}
 
 export function createToolQuery(model: editor.ITextModel, current: () => boolean, options: {
   language: string; label: string; path?: string; onStatus(status: string | null): void;
@@ -98,6 +112,7 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
   language: string; label: string; path: string; diagnostics: boolean; complete: boolean; signature: boolean; hover: boolean;
   onReport(report: LiveToolReport | null): void; onStatus(status: string | null): void;
 }) {
+  const detachModel = attachModel(model);
   let active = true;
   let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
   const owner = `ion-lsp-${options.language}`;
@@ -175,7 +190,7 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
       if (!model.isDisposed()) editor.setModelMarkers(model, owner, []);
       options.onReport(null);
       options.onStatus(null);
-      void window.ion.languageTools.release(false, options.language).catch(() => {});
+      if (detachModel()) void window.ion.languageTools.release(false, options.language, options.path).catch(() => {});
     },
   };
 }

@@ -1161,9 +1161,11 @@ function registerIpc(): void {
   handle('format-cancel', (_target, id) => {
     if (typeof id === 'string' && formatJob?.id === id) formatJob.controller.abort()
   })
-  handle('language-release', (_target, immediate, language) => {
-    if (typeof immediate !== 'boolean' || (language !== undefined && typeof language !== 'string')) return
-    return languageServices.release(immediate, language)
+  handle('language-release', (_target, immediate, language, requestedPath) => {
+    if (typeof immediate !== 'boolean' || (language !== undefined && typeof language !== 'string')
+      || (requestedPath !== undefined && typeof requestedPath !== 'string')) return
+    if (requestedPath !== undefined && (!language || fileLanguage(requestedPath).id !== language)) return
+    return languageServices.release(immediate, language, requestedPath)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const updateCache = join(app.getPath('userData'), 'updates')
