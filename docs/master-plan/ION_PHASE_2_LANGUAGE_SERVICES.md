@@ -109,3 +109,38 @@ The unused feature therefore adds no measured persistent process, material memor
 - Run the applicable production regression and matched Windows resource workload.
 - Preserve any failure and update this report and the implementation tracker with exact CI links before declaring Milestone 2.3 complete.
 
+# Quality-first continuation baseline — native run 45383848694
+
+The preserved native acceptance run is [GitHub Actions run 45383848694](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45383848694), application candidate `e155323564174a185a42b9f56755f09e09cfba84`, verification harness `8341b48521c6eec1a1f61a40a56cf05167bcab52`.
+
+- macOS: Python's first cold definition request exhausted the generic 8-second JSON-RPC deadline. The existing trace does not separate process spawn, initialization, document synchronization, and the semantic request, so no root-cause stage or active-service resource result may be claimed yet.
+- Windows stdin: the compiler warning echoed the literal source token `INPUT>` before the program launched. The acceptance callback matched that compiler text, called `InteractiveRunner.input()` while no PTY existed, silently dropped the input, marked it sent, and later timed out. The native PTY/ConPTY path did not receive an input request in this sample.
+- Windows compiler selection: the workflow prepended LLVM solely to discover `clangd`; Ion then selected Clang 20 for C/C++. The runner's Visual Studio 18 STL requires Clang 22, so the resulting C++ failures are a deterministic verification-environment mismatch, not evidence that the source compiler path regressed.
+- Performance: the failed jobs never reached the matched unused-LSP or active-service measurements. Historical numbers remain historical and are not reused as current acceptance evidence.
+
+Milestone 2.3 remains **FAIL** at this baseline. DAP remains blocked.
+
+## Local remediation checkpoint — `f458dd4238ab247de184f710f4cf5f8b384d4516`
+
+The smallest evidence-based corrections are now committed locally:
+
+- Run Console input records only run identity/state and byte counts. `InteractiveRunner` and PTY input now acknowledge whether the active program accepted the chunk; stale, premature, and disposed-run IPC requests fail visibly rather than disappearing.
+- The Windows regression test now reacts only to `terminal` stream prompts. This removes the demonstrated false trigger from compiler diagnostics that quote source text while retaining the real prompt/input/cleanup assertion.
+- LSP process spawn, initialization, and normal ready-server request deadlines are separate. Pyright alone receives a bounded 20-second cold initialization budget; ready semantic requests retain the normal 8-second budget. Timeouts cancel the outstanding JSON-RPC request.
+- Pyright receives lazy `openFilesOnly`, indexing-disabled configuration after initialization. No server is started at application startup.
+- Windows CI selects the pinned MinGW C/C++ pair before application tests and passes clangd through a validated explicit external path. The exact PATH, compiler paths, and versions are recorded.
+
+Local evidence at this checkpoint:
+
+| Gate | Result |
+| --- | --- |
+| Type checking | PASS |
+| Production build | PASS |
+| Full unit/security suite | 401 passed, 26 platform skips, 0 failed |
+| Focused LSP lifecycle/deadline tests | 5 passed, 0 failed |
+| Focused real C compile/PTY/input/stop lifecycle | PASS, including unchanged stdin and owned cleanup |
+| Native macOS/Windows rerun | Not run; requires a reviewed branch upload and explicit authorization |
+| Final LSP capability/rename/resource contract | Incomplete; Milestone remains FAIL |
+
+The failed native run remains evidence. No timeout was globally increased, no ConPTY implementation was rewritten, and no performance value was invented or reused as current acceptance.
+
