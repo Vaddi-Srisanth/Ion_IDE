@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 3
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.22.2
@@ -38,10 +38,28 @@ jobs:
       - run: node node_modules/electron/install.js
       - name: Prove production application identity
         run: |
-          test "$(git rev-parse e155323564174a185a42b9f56755f09e09cfba84)" = e155323564174a185a42b9f56755f09e09cfba84
-          git diff --exit-code e155323564174a185a42b9f56755f09e09cfba84 HEAD -- src package.json package-lock.json
+          test "$(git rev-parse f458dd4238ab247de184f710f4cf5f8b384d4516)" = f458dd4238ab247de184f710f4cf5f8b384d4516
+          git diff --exit-code f458dd4238ab247de184f710f4cf5f8b384d4516 HEAD -- src package.json package-lock.json
       - name: Install pinned disposable Python and TypeScript servers
-        run: npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0
+        run: |
+          npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0
+          proxy_bin="$RUNNER_TEMP/ion-lsp-proxy-bin"
+          mkdir -p "$proxy_bin"
+          real_pyright="$(npm root --global)/pyright/langserver.index.js"
+          test -f "$real_pyright"
+          timing_log="$RUNNER_TEMP/ion-pyright-timing.jsonl"
+          printf '%s\n' "$(node -p 'process.execPath')" > "$proxy_bin/pyright-node.txt"
+          printf '%s\n' "$GITHUB_WORKSPACE/scripts/lsp-timing-proxy.mjs" > "$proxy_bin/pyright-proxy.txt"
+          printf '%s\n' "$timing_log" > "$proxy_bin/pyright-timing.txt"
+          printf '%s\n' "$real_pyright" > "$proxy_bin/pyright-entry.txt"
+          echo "ION_LSP_TIMING_LOG=$timing_log" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            '/c/mingw64/bin/g++.exe' -std=c++17 -O2 -municode scripts/windows/lsp-timing-launcher.cpp -o "$proxy_bin/pyright-langserver.exe"
+          else
+            cp scripts/lsp-timing-launcher.sh "$proxy_bin/pyright-langserver"
+            chmod 700 "$proxy_bin/pyright-langserver"
+          fi
+          echo "$proxy_bin" >> "$GITHUB_PATH"
       - name: Select trusted host clangd and record every tool version
         run: |
           clangd_command=clangd
@@ -83,6 +101,14 @@ jobs:
         run: npm run test:navigation 2>&1 | tee performance-results/phase2-language-services/clangd.log
       - name: Native Python and TypeScript LSP lifecycle
         run: npm run test:language-services 2>&1 | tee performance-results/phase2-language-services/external.log
+      - name: Preserve bounded Pyright timing trace
+        if: always()
+        run: |
+          if [ -f "$ION_LSP_TIMING_LOG" ]; then
+            cp "$ION_LSP_TIMING_LOG" performance-results/phase2-language-services/pyright-timing.jsonl
+          else
+            echo 'Pyright timing trace was not created.' > performance-results/phase2-language-services/pyright-timing-missing.log
+          fi
       - name: Build exact accepted editor baseline for matched Mac resources
         if: runner.os == 'macOS'
         run: |

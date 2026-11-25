@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, cpuPercent, createProject, eventually, launch, openFolder, openFromExplorer, resourceSnapshot, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
@@ -21,6 +21,35 @@ function memory(sample) {
   }
   return { totalMiB: sample.rssMiB, ionMiB: sample.ideRssMiB, serviceMiB: sample.childRssMiB,
     processes: sample.processes.length }
+}
+
+function pyrightTimings(path, queryStartNs) {
+  if (!path) return null
+  return readFile(path, 'utf8').then(text => {
+    const rows = text.trim().split('\n').flatMap(line => { try { return [JSON.parse(line)] } catch { return [] } })
+    const firstSession = rows.find(row => row.event === 'proxy-start')?.session
+    const events = rows.filter(row => row.session === firstSession)
+    const first = (event, method) => events.find(row => row.event === event && (!method || row.method === method))
+    const delta = (start, end) => start && end ? Number((BigInt(end.tNs) - BigInt(start.tNs)) / 10_000n) / 100 : null
+    const proxy = first('proxy-start'), spawned = first('server-spawned')
+    const initializeRequest = first('request', 'initialize'), initializeResponse = first('response', 'initialize')
+    const initialized = first('request', 'initialized'), configured = first('request', 'workspace/didChangeConfiguration')
+    const opened = first('request', 'textDocument/didOpen')
+    const definitionRequest = first('request', 'textDocument/definition'), definitionResponse = first('response', 'textDocument/definition')
+    const completionRequest = first('request', 'textDocument/completion'), completionResponse = first('response', 'textDocument/completion')
+    const shutdownRequest = first('request', 'shutdown'), shutdownResponse = first('response', 'shutdown'), exited = first('server-exit')
+    const required = { proxy, spawned, initializeRequest, initializeResponse, initialized, configured, opened,
+      definitionRequest, definitionResponse, completionRequest, completionResponse, shutdownRequest, shutdownResponse, exited }
+    assert.ok(firstSession && Object.values(required).every(Boolean), `Incomplete Pyright timing trace: ${Object.entries(required).filter(([, value]) => !value).map(([name]) => name).join(', ')}`)
+    return {
+      executableDiscoveryUpperBoundMs: Number((BigInt(proxy.tNs) - queryStartNs) / 10_000n) / 100,
+      processSpawnMs: delta(proxy, spawned), initializationMs: delta(initializeRequest, initializeResponse),
+      workspaceConfigurationMs: delta(initializeResponse, configured), documentSyncDispatchMs: delta(configured, opened),
+      documentSyncToColdRequestMs: delta(opened, definitionRequest),
+      coldDefinitionMs: delta(definitionRequest, definitionResponse), warmCompletionMs: delta(completionRequest, completionResponse),
+      shutdownResponseMs: delta(shutdownRequest, shutdownResponse), shutdownTotalMs: delta(shutdownRequest, exited),
+    }
+  })
 }
 
 await withScratch('language-services', async scratch => {
@@ -68,6 +97,7 @@ await withScratch('language-services', async scratch => {
     await sleep(750)
     const beforePython = await resourceSnapshot(session, { details: true })
     const pythonStart = performance.now()
+    const pythonQueryStartNs = process.hrtime.bigint()
     const query = (language, path, text, operation, offset, version = 1) => page.evaluate(
       ({ language, path, text, operation, offset, version }) => window.ion.languageTools.query({
         language, path, text, version, operation, offset,
@@ -121,6 +151,7 @@ await withScratch('language-services', async scratch => {
     await sleep(750)
     const afterPython = await snapshot(session, { details: true })
     const pythonStopMs = performance.now() - pythonStop
+    const pythonLifecycle = await pyrightTimings(process.env.ION_LSP_TIMING_LOG, pythonQueryStartNs)
 
     await openFromExplorer(page, jsSource, 'total')
     await page.getByTestId('settings').click()
@@ -182,7 +213,7 @@ await withScratch('language-services', async scratch => {
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
     console.log(JSON.stringify({
-      pythonStartMs: Number(pythonStartMs.toFixed(2)), pythonCompletionMs: Number(pythonCompletionMs.toFixed(2)),
+      pythonStartMs: Number(pythonStartMs.toFixed(2)), pythonLifecycle, pythonCompletionMs: Number(pythonCompletionMs.toFixed(2)),
       pythonDiagnosticsMs: Number(pythonDiagnosticsMs.toFixed(2)), pythonStopMs: Number(pythonStopMs.toFixed(2)),
       before: memory(beforePython), active: memory(withPython), after: memory(afterPython),
       activeCpuPercent: Number(cpu(withPythonA, withPython).toFixed(2)), pythonExecutable: pythonStatus.executable,
