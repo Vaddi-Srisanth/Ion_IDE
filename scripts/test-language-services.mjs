@@ -97,7 +97,7 @@ await withScratch('language-services', async scratch => {
     assert.deepEqual(await page.evaluate(() => window.ion.languageTools.status()), [], 'Opt-in started Python before a semantic request.')
 
     await sleep(750)
-    const beforePython = await resourceSnapshot(session, { details: true })
+    const beforePython = await snapshot(session, { details: true })
     const pythonStart = performance.now()
     const pythonQueryStartNs = process.hrtime.bigint()
     const query = (language, path, text, operation, offset, version = 1) => page.evaluate(
@@ -172,7 +172,8 @@ await withScratch('language-services', async scratch => {
     const jsStartMs = performance.now() - jsStart
     if (jsResult.error) assert.match(jsResult.error, /Install typescript-language-server/)
     else {
-      assert.ok(jsResult.result?.rows.some(([path]) => path === jsHelper), 'TypeScript LSP did not resolve the JavaScript definition.')
+      assert.ok(jsResult.result?.rows.some(([path, line]) => path === jsSource && line === '1'),
+        'TypeScript LSP did not resolve the JavaScript import declaration.')
       const jsCompletionText = jsText + '\nMath.'
       assert.ok((await query('javascript', jsSource, jsCompletionText, 'complete', jsCompletionText.length, 2))?.rows.length,
         'TypeScript service returned no JavaScript completions.')
