@@ -6,6 +6,7 @@
 - Retains the verified stdin-boundary, terminal-readiness, eventual Git refresh, repeated-error history and Windows process/updater corrections. Existing offline editor, learning, practice, document and execution features remain present.
 - Preserves compiler lifecycle traces, observer corrections, failed samples, platform-qualified test evidence and matched performance reports. The historical 12.67-second Windows GCC delay is still unexplained; no universal speed-up or leak-free claim is made.
 - Restores ordinary push/PR desktop verification using the existing native gates and retains verified macOS/Windows installer artifacts. No public release or update-feed change is automatic.
+- Packaged a new Windows x64 setup candidate from source commit `a108a01` on 25 November 2026 and recorded its exact byte count, SHA-256, verification results and environmental test limits. The unsigned installer remains a candidate until an authorized GitHub release publishes it. [Windows candidate build record](docs/releases/0.9.8-windows-x64.md)
 - Excludes the canceled Code-OSS reuse audit and unfinished experiments. No new production dependency, service, editor engine or feature is introduced in this handoff.
 
 See [candidate notes and limitations](docs/releases/0.9.8.md).

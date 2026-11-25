@@ -16,6 +16,8 @@ The 0.9.8 source candidate collects the completed notebook-trust, recovery, file
 
 Get publicly published installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). At this source handoff, the latest public release is **0.9.6**; **0.9.8 is a source/local-install candidate**, not a published update. Successful native desktop verification jobs retain both candidate installers under the run's **Artifacts** for 14 days (GitHub sign-in required). Pushing source alone does not change the update feed. Choose **Preferences → Updates → Check for Updates** to check for a newer published compatible release. From 0.9.7 onward, **Install and Restart** protects unsaved work and replaces the existing installation.
 
+The Windows x64 0.9.8 setup candidate was packaged from source commit `a108a01` on 25 November 2026. Its filename is `Ion-IDE-0.9.8-windows-x64-setup.exe`, its size is 119,928,329 bytes, and its SHA-256 is `b06789e7ffa3ef840bdc28eb3293deb1ce9659d1f77178b6a87ea34b860a3aa6`. It remains unsigned and is not part of the public update feed until it is attached to an authorized GitHub release. [Windows candidate build record](docs/releases/0.9.8-windows-x64.md)
+
 **Updating from 0.9.6 or earlier:** those versions only download an installer. Install 0.9.7 once into the same Applications location as your existing Mac copy, or run Windows Setup. In-place updates are available from 0.9.7 onward. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
 
 | Platform | Installer | Install |
