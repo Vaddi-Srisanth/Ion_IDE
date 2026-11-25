@@ -9,6 +9,8 @@ import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { LspProcess } from './lsp-process'
 
 async function findClangd(root: string, paths: string[], scratch: string, signal: AbortSignal): Promise<string> {
+  const configured = process.env.ION_CLANGD_PATH
+  if (configured && await executable(configured, root)) return configured
   const path = await onPath('clangd', root, paths, process.platform === 'darwin' ? ['/usr/bin/clangd'] : [])
   if (path) return path
   if (process.platform === 'darwin') {

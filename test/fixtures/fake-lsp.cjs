@@ -19,7 +19,8 @@ process.stdin.on('data', chunk => {
     if (process.env.ION_FAKE_LSP_LOG) appendFileSync(process.env.ION_FAKE_LSP_LOG,
       (message.method || (message.id === 99 && message.result && message.result.applied === false ? 'apply-rejected' : 'response')) + '\n')
     buffer = buffer.subarray(end)
-    if (message.method === 'initialize') send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {} } })
+    if (message.method === 'initialize') setTimeout(() => send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {} } }),
+      Number(process.env.ION_FAKE_LSP_INITIALIZE_DELAY_MS || 0))
     else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: {
       changes: { 'file:///outside/not-authorized.c': [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: 'unsafe' }] },
     } } })

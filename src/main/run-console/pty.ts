@@ -40,7 +40,7 @@ interface ShellPtyOptions extends PtyLaunchOptions {
 }
 
 export interface PtySession {
-  input(data: string): void
+  input(data: string): boolean
   resize(columns: number, rows: number): void
   result: Promise<PtyResult>
 }
@@ -56,7 +56,7 @@ export function startPty(options: ShellPtyOptions): ShellPtySession
 export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession {
   if (options.signal.aborted) {
     return {
-      input: () => {},
+      input: () => false,
       resize: () => {},
       pauseOutput: () => {},
       resumeOutput: () => {},
@@ -222,7 +222,7 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
 
   return {
     input(data) {
-      if (!started || finished || state !== 'exited') return
+      if (!started || finished || state !== 'exited') return false
       if (data.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
       const bytes = Buffer.from(data)
       if (bytes.length > maxFrameBytes) throw new Error('Input was not sent: send at most 16 KiB per terminal chunk.')
@@ -230,6 +230,8 @@ export function startPty(options: PtyOptions | ShellPtyOptions): ShellPtySession
         ? (error) => options.trace?.('stdin', error ? 'write-error' : 'written-bytes', bytes.length) : undefined)) {
         throw new Error('Input was not sent: the program input buffer is busy.')
       }
+      options.trace?.('stdin', 'queued-bytes', bytes.length)
+      return true
     },
     writeInput(data) {
       const bytes = Buffer.from(data)

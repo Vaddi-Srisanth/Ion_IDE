@@ -33,7 +33,7 @@ export function startLineConsole(options: Omit<PtyOptions, 'helper' | 'columns' 
     result,
     resize() {},
     input(data) {
-      if (!write || signal.aborted) return
+      if (!write || signal.aborted) return false
       let echo = ''
       const text = data.replace(/\x1b(?:\[[0-?]*[ -/]*[@-~]|O.)?/g, '').replace(/\r\n/g, '\n')
       // Preflight the bounded line before changing/echoing any of this input.
@@ -78,6 +78,7 @@ export function startLineConsole(options: Omit<PtyOptions, 'helper' | 'columns' 
         }
       }
       if (echo) options.onOutput(echo)
+      return true
     },
   }
 }

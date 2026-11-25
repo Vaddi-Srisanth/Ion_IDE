@@ -46,6 +46,32 @@ test('aborting startup cannot leave an LSP child alive', async () => {
   }, controller.signal), /aborted/i)
 })
 
+test('LSP startup uses a separate bounded initialization deadline', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-deadline-'))
+  try {
+    const host = await LspProcess.start({
+      executable: process.execPath,
+      args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')],
+      cwd: scratch,
+      env: { ...process.env, ION_FAKE_LSP_INITIALIZE_DELAY_MS: '40' },
+      root: scratch,
+      deadlines: { startupMs: 1_000, initializationMs: 3_000 },
+    }, new AbortController().signal)
+    assert.deepEqual(await host.request('ion/echo', { ready: true }, 100), { ready: true })
+    await host.stop()
+    await assert.rejects(() => LspProcess.start({
+      executable: process.execPath,
+      args: [join(process.cwd(), 'test/fixtures/fake-lsp.cjs')],
+      cwd: scratch,
+      env: { ...process.env, ION_FAKE_LSP_INITIALIZE_DELAY_MS: '1000' },
+      root: scratch,
+      deadlines: { startupMs: 1_000, initializationMs: 25 },
+    }, new AbortController().signal), /initialization timed out/)
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
+})
+
 test('LSP process host rejects an oversized response before buffering its body', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'ion-lsp-limit-'))
   const host = await LspProcess.start({ executable: process.execPath,

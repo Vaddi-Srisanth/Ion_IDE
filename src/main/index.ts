@@ -1706,11 +1706,12 @@ function registerIpc(): void {
     return project ? { manifest: project.manifest, paths: project.inputs.map(({ path }) => path) } : null
   })
   handle('live-run-input', (target, id, input) => {
-    if (activeRun && activeRun.owner === target && activeRun.id === id && !activeRun.controller.signal.aborted) {
-      const text = validStdin(input)
-      if (Buffer.byteLength(text) > 16 * 1024) throw new Error('Send at most 16 KiB per terminal input chunk.')
-      activeRun.engine?.input(text)
+    if (!activeRun || activeRun.owner !== target || activeRun.id !== id || activeRun.controller.signal.aborted) {
+      throw new Error('The requested run is no longer accepting input.')
     }
+    const text = validStdin(input)
+    if (Buffer.byteLength(text) > 16 * 1024) throw new Error('Send at most 16 KiB per terminal input chunk.')
+    if (!activeRun.engine?.input(text)) throw new Error('The program is not ready to accept input yet.')
   })
   handle('live-run-resize', (target, id, cols, rows) => {
     if (!activeRun || activeRun.owner !== target || activeRun.id !== id || typeof cols !== 'number' || typeof rows !== 'number'

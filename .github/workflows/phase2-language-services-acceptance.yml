@@ -44,19 +44,32 @@ jobs:
         run: npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0
       - name: Select trusted host clangd and record every tool version
         run: |
+          clangd_command=clangd
           if [ "$RUNNER_OS" = "Windows" ]; then
-            llvm='/c/Program Files/LLVM/bin'
-            test -x "$llvm/clangd.exe"
-            echo "$llvm" >> "$GITHUB_PATH"
-            export PATH="$llvm:$PATH"
+            clangd='/c/Program Files/LLVM/bin/clangd.exe'
+            test -x "$clangd"
+            test -x '/c/mingw64/bin/gcc.exe'
+            test -x '/c/mingw64/bin/g++.exe'
+            echo 'ION_CLANGD_PATH=C:\Program Files\LLVM\bin\clangd.exe' >> "$GITHUB_ENV"
+            echo '/c/mingw64/bin' >> "$GITHUB_PATH"
+            export PATH="/c/mingw64/bin:$PATH"
+            clangd_command="$clangd"
+            test "$(command -v gcc)" = '/c/mingw64/bin/gcc'
+            test "$(command -v g++)" = '/c/mingw64/bin/g++'
+            "$clangd" --version
+            '/c/mingw64/bin/gcc.exe' --version
+            '/c/mingw64/bin/g++.exe' --version
           fi
           {
-            clangd --version
+            "$clangd_command" --version
             java -version
             javac -version
             pyright --version
             typescript-language-server --version
             tsc --version
+            printf 'PATH=%s\n' "$PATH"
+            command -v gcc || true
+            command -v g++ || true
           } >> performance-results/phase2-language-services/revision.log 2>&1
       - name: Build and type-check exact production candidate
         run: |

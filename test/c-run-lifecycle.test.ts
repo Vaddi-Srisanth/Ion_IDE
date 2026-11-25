@@ -81,8 +81,11 @@ test('real C compile/PTY/input/stop lifecycle remains owned under delay and CPU 
       row.result = await engine.run(plan, (event) => {
         if (event.kind !== 'data') return
         row.output += event.text
-        if (!sent && row.output.includes('INPUT>')) { sent = true; engine.input('hello\r') }
-        if (mode === 'stop' && row.output.includes('LOOP>')) controller.abort()
+        if (!sent && event.stream === 'terminal' && event.text.includes('INPUT>')) {
+          assert.equal(engine.input('hello\r'), true)
+          sent = true
+        }
+        if (mode === 'stop' && event.stream === 'terminal' && event.text.includes('LOOP>')) controller.abort()
       }, controller.signal, async () => { if (mode === 'delay') await delay(120); return true }, trace)
       return row
     } catch (error) { row.error = String(error); throw error } finally { clearTimeout(deadline) }

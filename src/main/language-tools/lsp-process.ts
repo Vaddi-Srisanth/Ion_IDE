@@ -6,6 +6,8 @@ import { CancellationTokenSource, createMessageConnection, type MessageConnectio
 import { stopWindowsProcessTree } from '../windows-process'
 
 const requestDeadlineMs = 8_000
+const startupDeadlineMs = 5_000
+const initializationDeadlineMs = 8_000
 const stopDeadlineMs = 1_500
 const stderrLimit = 64 * 1024
 const responseLimit = 8 * 1024 * 1024
@@ -55,6 +57,8 @@ export interface LspProcessOptions {
   root: string | null
   initializationOptions?: unknown
   capabilities?: object
+  deadlines?: { startupMs?: number; initializationMs?: number }
+  configuration?: unknown
 }
 
 /** A bounded owner for one trusted, absolute local language-server process. */
@@ -99,17 +103,24 @@ export class LspProcess {
       windowsHide: true,
       detached: process.platform !== 'win32',
     })
+    const spawned = new Promise<void>((resolve, reject) => {
+      child.once('spawn', () => resolve())
+      child.once('error', reject)
+    })
     const processHost = new LspProcess(child, options.executable)
     const abort = () => processHost.abort()
     signal.addEventListener('abort', abort, { once: true })
     try {
+      await processHost.waitForStage(spawned, options.deadlines?.startupMs ?? startupDeadlineMs,
+        'Language server process startup timed out.', signal)
       const initialized = await processHost.request('initialize', {
         processId: process.pid,
         rootUri: options.root ? pathToFileURL(options.root).href : null,
         workspaceFolders: options.root ? [{ uri: pathToFileURL(options.root).href, name: options.root.split(/[/\\]/).at(-1) ?? 'workspace' }] : null,
         capabilities: options.capabilities ?? { general: { positionEncodings: ['utf-16'] } },
         initializationOptions: options.initializationOptions,
-      })
+      }, options.deadlines?.initializationMs ?? initializationDeadlineMs, signal,
+      'Language server initialization timed out.')
       if (initialized && typeof initialized === 'object') {
         const value = initialized as { capabilities?: unknown; serverInfo?: unknown }
         processHost.initialization = {
@@ -118,6 +129,9 @@ export class LspProcess {
         }
       }
       await processHost.notify('initialized', {})
+      if (options.configuration !== undefined) {
+        await processHost.notify('workspace/didChangeConfiguration', { settings: options.configuration })
+      }
       return processHost
     } catch (error) {
       await processHost.stop()
@@ -154,7 +168,10 @@ export class LspProcess {
     return this.connection.sendNotification(method, params)
   }
 
-  async request(method: string, params: unknown, timeoutMs = requestDeadlineMs, signal?: AbortSignal): Promise<unknown> {
+  async request(
+    method: string, params: unknown, timeoutMs = requestDeadlineMs, signal?: AbortSignal,
+    timeoutMessage = 'Language server request timed out.',
+  ): Promise<unknown> {
     if (this.stopped) throw new Error('The language server has stopped.')
     let timer: ReturnType<typeof setTimeout> | undefined
     const cancellation = new CancellationTokenSource()
@@ -167,7 +184,10 @@ export class LspProcess {
         new Promise<never>((_resolve, reject) => this.lifecycle.signal.addEventListener('abort',
           () => reject(new Error('The language server connection closed.')), { once: true })),
         new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new Error('Language server request timed out.')), timeoutMs)
+          timer = setTimeout(() => {
+            cancellation.cancel()
+            reject(new Error(timeoutMessage))
+          }, timeoutMs)
           timer.unref()
         }),
       ])
@@ -175,6 +195,26 @@ export class LspProcess {
       clearTimeout(timer)
       signal?.removeEventListener('abort', abort)
       cancellation.dispose()
+    }
+  }
+
+  private async waitForStage(task: Promise<void>, timeoutMs: number, timeoutMessage: string, signal?: AbortSignal) {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let rejectAbort: ((reason?: unknown) => void) | undefined
+    const abort = () => rejectAbort?.(signal?.reason ?? new Error('The operation was aborted.'))
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAbort = reject
+      if (signal?.aborted) abort()
+      else signal?.addEventListener('abort', abort, { once: true })
+    })
+    try {
+      await Promise.race([task, aborted, new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
+        timer.unref()
+      })])
+    } finally {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
     }
   }
 
