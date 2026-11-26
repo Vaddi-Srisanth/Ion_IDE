@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { revision } from '../src/main/files'
 import { completeDebugLaunch, DebugService, validateDebugSource } from '../src/main/debug/service'
-import type { DebugSession } from '../src/shared/debug'
+import { validDebugDocumentVersion, type DebugSession } from '../src/shared/debug'
 
 test('debug service remains inert until an explicit start', () => {
   const events: unknown[] = []
@@ -24,6 +24,13 @@ test('launch completion never overwrites an early adapter stop', () => {
   const starting = { ...session, id: 'normal-launch', state: 'starting' as const, threadId: undefined }
   assert.equal(completeDebugLaunch(starting), true)
   assert.equal(starting.state, 'running')
+})
+
+test('a freshly loaded saved document is a valid debug generation', () => {
+  assert.equal(validDebugDocumentVersion(0), true)
+  assert.equal(validDebugDocumentVersion(1), true)
+  assert.equal(validDebugDocumentVersion(-1), false)
+  assert.equal(validDebugDocumentVersion(0.5), false)
 })
 
 test('debug source validation binds canonical path to the exact saved revision', async () => {

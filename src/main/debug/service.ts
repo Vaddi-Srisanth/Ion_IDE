@@ -6,7 +6,7 @@ import type {
   DebugAction, DebugEvaluation, DebugEvent, DebugFrame, DebugScope,
   DebugSession, DebugStartRequest, DebugVariable,
 } from '../../shared/debug'
-import { debugLimits } from '../../shared/debug'
+import { debugLimits, validDebugDocumentVersion } from '../../shared/debug'
 import { revision } from '../files'
 import { execute } from '../runner'
 import { DapProcess, type DapEvent } from './dap-process'
@@ -66,7 +66,9 @@ export class DebugService {
 
   async start(request: DebugStartRequest, root: string, signal: AbortSignal): Promise<DebugSession> {
     if (this.active) throw new Error('Stop the current debug session before starting another.')
-    if (!request.expectedRevision || request.expectedRevision.length > 256 || request.version < 1) throw new Error('The saved source revision is invalid.')
+    if (!request.expectedRevision || request.expectedRevision.length > 256 || !validDebugDocumentVersion(request.version)) {
+      throw new Error('The saved source revision is invalid.')
+    }
     if (!isAbsolute(request.sourcePath) || request.breakpoints.length > debugLimits.breakpoints) throw new Error('The debug request is invalid.')
     const canonicalRoot = await realpath(root)
     const source = await validateDebugSource(request.sourcePath, canonicalRoot, request.expectedRevision)

@@ -57,6 +57,10 @@ export interface DebugBridge {
   onEvent(callback: (event: DebugEvent) => void): () => void
 }
 
+export function validDebugDocumentVersion(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0
+}
+
 export const debugLimits = {
   breakpoints: 256, frames: 256, scopes: 64, variables: 1_000,
   expressionBytes: 4 * 1024, outputBytes: 256 * 1024, stringBytes: 64 * 1024,

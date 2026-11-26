@@ -32,7 +32,7 @@ class FakeBridge implements DebugBridge {
   emit(event: DebugEvent) { for (const listener of this.listeners) listener(event) }
 }
 
-const request: DebugStartRequest = { sourcePath: '/workspace/main.c', language: 'c', version: 1,
+const request: DebugStartRequest = { sourcePath: '/workspace/main.c', language: 'c', version: 0,
   expectedRevision: 'revision', breakpoints: [{ path: '/workspace/main.c', line: 3 }] }
 const drain = () => new Promise((resolve) => setTimeout(resolve, 0))
 

@@ -12,7 +12,7 @@ import { documentFormat } from '../shared/viewers'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { maxEditableTextBytes, maxTextCopyBytes } from '../shared/large-text'
 import type { FormatRequest, FormatResult } from '../shared/format-code'
-import { debugLimits, type DebugAction, type DebugSession, type DebugStartRequest } from '../shared/debug'
+import { debugLimits, validDebugDocumentVersion, type DebugAction, type DebugSession, type DebugStartRequest } from '../shared/debug'
 import type { NotebookKernelStatus } from '../shared/notebook-kernel'
 import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
 import { diagnosticPackIds } from '../shared/learning-packs'
@@ -1120,7 +1120,7 @@ async function startDebugSession(target: BrowserWindow, value: unknown): Promise
   const request = value as Partial<DebugStartRequest> | null
   if (!request || typeof request.sourcePath !== 'string' || !isAbsolute(request.sourcePath)
     || (request.language !== 'c' && request.language !== 'cpp')
-    || !Number.isSafeInteger(request.version) || (request.version ?? 0) < 1
+    || !validDebugDocumentVersion(request.version)
     || typeof request.expectedRevision !== 'string' || request.expectedRevision.length < 1 || request.expectedRevision.length > 256
     || !Array.isArray(request.breakpoints) || request.breakpoints.length > debugLimits.breakpoints) {
     throw new Error('Invalid debug request.')
