@@ -184,7 +184,14 @@ export class DebugService {
       variablesReference: Math.max(0, integer(response.variablesReference)) }
   }
 
-  async stop(sessionId: string): Promise<void> { const active = this.require(sessionId); await this.stopActive(active) }
+  async stop(sessionId: string): Promise<void> {
+    const active = this.require(sessionId)
+    if (active.session.state !== 'terminated') {
+      active.session.state = 'terminated'
+      this.emit({ type: 'state', sessionId, state: 'terminated' })
+    }
+    await this.stopActive(active)
+  }
   async dispose(): Promise<void> { if (this.active) await this.stopActive(this.active) }
 
   private require(sessionId: string) {
