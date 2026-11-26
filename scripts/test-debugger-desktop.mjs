@@ -43,9 +43,12 @@ await withScratch('debugger-desktop', async scratch => {
     await command(page, 'Go to Line')
     await page.getByTestId('goto-line-input').fill('4')
     await page.getByTestId('goto-line-input').press('Enter')
-    await page.locator('.monaco-editor').click()
+    // Go to Line restores Monaco focus at the requested source line. A generic
+    // click in the editor viewport would move the cursor to a layout-dependent
+    // line and made the acceptance breakpoint non-deterministic.
     await page.keyboard.press('F9')
     await page.getByTestId('toggle-debug').click()
+    await page.getByText('debug.c:4', { exact: true }).waitFor({ timeout: 5_000 })
     await page.getByTestId('debug-start').click()
     try {
       await page.locator('[data-testid="debug-panel"][data-phase="paused"]').waitFor({ timeout: 25_000 })

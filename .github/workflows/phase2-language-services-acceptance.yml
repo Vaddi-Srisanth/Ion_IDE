@@ -60,7 +60,10 @@ jobs:
               "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvm_version/clang+llvm-$llvm_version-x86_64-pc-windows-msvc.tar.zst"
             printf '%s *%s\n' "$llvm_sha256" "$llvm_archive" | sha256sum --check --strict
             mkdir -p "$llvm_root"
-            zstd --decompress --stdout "$llvm_archive" | tar -xf - -C "$llvm_root"
+            # The official LLVM archive uses a 1 GiB zstd window. GitHub's
+            # bundled decoder defaults to 128 MiB, so opt into the archive's
+            # declared window without changing the decoded bytes.
+            zstd --decompress --long=30 --stdout "$llvm_archive" | tar -xf - -C "$llvm_root"
             clang="$(find "$llvm_root" -type f -path '*/bin/clang.exe' -print -quit)"
             lldb_dap="$(find "$llvm_root" -type f -path '*/bin/lldb-dap.exe' -print -quit)"
             test -x "$clang"
