@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current branch: `codex/ion-core-excellence-editor-essentials`<br>
-Current Editor Essentials candidate: `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` (**local macOS acceptance PASS; Windows x64 pending**)<br>
+Current Editor Essentials candidate: `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` with evidence commit `c0a33785d006cae0c9eed280ba398c288a3babc9` (**macOS and Windows x64 acceptance PASS**)<br>
 Current Phase 2 language-services production source: `6bcc06c059a13461b145e5e4ccec55d22bb3bced` (**native acceptance PASS**)<br>
 Accepted editor/workspace foundation: `0718aa7b35894474e1932efba7cee3286dcf0aab`<br>
 Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
@@ -17,7 +17,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **Editor/workspace foundation and LSP Milestone 2.3 accepted; Editor Essentials in native acceptance** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` passes local macOS production acceptance and awaits the focused Windows x64 gate. DAP has not started. |
+| 2 — Core editor excellence | **Editor/workspace foundation, LSP Milestone 2.3 and Editor Essentials accepted** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed the focused Windows x64 production, security, restoration and resource gates after local macOS acceptance. DAP has not started. |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -116,7 +116,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.1E — Restored editor-group layouts | **Accepted on macOS and Windows** | Orientation, 56% resize ratio, membership and active files survived production relaunch. Invalid/older layouts fail closed. |
 | 2.2 — Multi-root workspace | **Accepted on macOS and Windows** | Explicit grants, add/remove/reorder, bounded saved descriptors/settings, root-aware search/replace/Quick Open/breadcrumbs/terminal/Git/run/projects/notebooks and session restoration pass. Windows casing, junction, Unicode, long-path and sharing-lock gates passed. |
 | 2.3 — Reusable LSP host | **Accepted on macOS ARM64 and Windows x64** | Final run [45859946256](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45859946256) passed production build/typecheck, full unit/security suites, Java, clangd, Pyright, TypeScript, multi-root isolation, reviewed rename/workspace edits, hostile protocol/path cases, resource gates and zero owned service processes after cleanup. Production source `6bcc06c059a13461b145e5e4ccec55d22bb3bced`; test-only harness `9aaeaeffff5cbb5b20a00ddbe373ba51c4e24578`. Preserved failures and exact measurements are in `ION_PHASE_2_LANGUAGE_SERVICES.md`. |
-| Editor Essentials — menus, Explorer keyboard and MRU tabs | **Local macOS PASS; Windows x64 pending** | Candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` adds accessible tab/Explorer context menus, bounded group-aware Ctrl+Tab history, safe batch close/reopen, Explorer tree keyboard semantics, focus-scoped delete/rename, authorized Copy Path/Reveal and selected-folder integrated terminals. Typecheck/build, 22 focused tests, the 467-test suite (441 pass/26 explicit skips), existing keyboard/relaunch acceptance and the new production Electron workflow pass. No dependency or background process was added. |
+| Editor Essentials — menus, Explorer keyboard and MRU tabs | **Accepted on macOS and Windows x64** | Candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` adds accessible tab/Explorer context menus, bounded group-aware Ctrl+Tab history, safe batch close/reopen, Explorer tree keyboard semantics, focus-scoped delete/rename, authorized Copy Path/Reveal and selected-folder integrated terminals. Local macOS typecheck/build, 22 focused tests, the 467-test suite (441 pass/26 explicit skips), keyboard/relaunch and production Electron acceptance passed. Focused Windows run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed 440/457 tests with 17 explicit skips, both production workflows, restoration and resource cleanup. No dependency or background process was added. |
 | 2.4 — DAP | Not started | No production debug adapter host yet. |
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
