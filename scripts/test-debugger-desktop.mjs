@@ -15,6 +15,12 @@ const snapshot = async session => {
   return { ...value, childRssMiB: value.members.filter(({ kind }) => kind === 'child')
     .reduce((total, item) => total + item.workingSet / 1024 ** 2, 0) }
 }
+async function command(page, label) {
+  await page.getByTestId('command-palette').click()
+  const input = page.getByTestId('command-palette-input')
+  await input.fill(label)
+  await page.getByRole('option', { name: new RegExp(label, 'i') }).first().click()
+}
 
 await withScratch('debugger-desktop', async scratch => {
   const project = await createProject(join(scratch, 'workspace'), { fileCount: 0 })
@@ -41,9 +47,10 @@ await withScratch('debugger-desktop', async scratch => {
     const before = await snapshot(session)
 
     // Monaco may use EditContext instead of a hidden textarea. Click the exact
-    // source row so F9 remains deterministic across both input implementations.
+    // source row, then use Ion's command UI so OS function-key behavior cannot
+    // change which line receives the breakpoint.
     await page.locator('.monaco-editor .view-line').filter({ hasText: 'answer *= 2;' }).click()
-    await page.keyboard.press('F9')
+    await command(page, 'Debug: Toggle Breakpoint')
     await page.getByTestId('toggle-debug').click()
     await page.getByText('debug.c:4', { exact: true }).waitFor({ timeout: 5_000 })
     await page.getByTestId('debug-start').click()
