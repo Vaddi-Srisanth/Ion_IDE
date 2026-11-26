@@ -657,7 +657,8 @@ export function App() {
     if (tab.dirty && !await saveTab(tab.id)) return;
     tab = documents.getSnapshot().tabs.find(({ id }) => id === tab?.id);
     const expectedRevision = tab ? documents.savedRevision(tab.id) : undefined;
-    if (!tab?.path || tab.dirty || tab.conflict || !expectedRevision) {
+    const expectedContentHash = tab ? documents.savedContentHash(tab.id) : undefined;
+    if (!tab?.path || tab.dirty || tab.conflict || !expectedRevision || !expectedContentHash) {
       notify('Save the current file before starting the debugger.', true);
       return;
     }
@@ -667,7 +668,7 @@ export function App() {
     try {
       const { controller } = await ensureDebug();
       const request: DebugStartRequest = {
-        sourcePath: tab.path, language, version: tab.epoch, expectedRevision,
+        sourcePath: tab.path, language, version: tab.epoch, expectedRevision, expectedContentHash,
         breakpoints: debugBreakpointRows(tab.path).map(({ verified: _verified, message: _message, id: _id, ...item }) => item),
       };
       await controller.start(request);

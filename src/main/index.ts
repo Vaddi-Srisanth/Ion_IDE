@@ -1122,6 +1122,7 @@ async function startDebugSession(target: BrowserWindow, value: unknown): Promise
     || (request.language !== 'c' && request.language !== 'cpp')
     || !validDebugDocumentVersion(request.version)
     || typeof request.expectedRevision !== 'string' || request.expectedRevision.length < 1 || request.expectedRevision.length > 256
+    || typeof request.expectedContentHash !== 'string' || !/^[a-f0-9]{64}$/.test(request.expectedContentHash)
     || !Array.isArray(request.breakpoints) || request.breakpoints.length > debugLimits.breakpoints) {
     throw new Error('Invalid debug request.')
   }

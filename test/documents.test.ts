@@ -102,6 +102,7 @@ test('a save completed after more editing leaves the newer edits dirty', async (
   })
   const id = documents.open(file)!
   await documents.loadText(id)
+  assert.equal(documents.savedContentHash(id), 'h1')
   setValue('first edit')
   documents.changed(id)
   const saving = documents.save(id)
@@ -110,6 +111,7 @@ test('a save completed after more editing leaves the newer edits dirty', async (
   documents.changed(id)
   finishFirst({ revision: 'r2', contentHash: 'h2' })
   assert.equal(await saving, true)
+  assert.equal(documents.savedContentHash(id), 'h2')
   assert.equal(documents.getSnapshot().tabs[0].dirty, true)
   assert.equal(await documents.save(id), true)
   assert.deepEqual(writes, [

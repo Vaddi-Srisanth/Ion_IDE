@@ -33,7 +33,8 @@ class FakeBridge implements DebugBridge {
 }
 
 const request: DebugStartRequest = { sourcePath: '/workspace/main.c', language: 'c', version: 0,
-  expectedRevision: 'revision', breakpoints: [{ path: '/workspace/main.c', line: 3 }] }
+  expectedRevision: 'revision', expectedContentHash: 'a'.repeat(64),
+  breakpoints: [{ path: '/workspace/main.c', line: 3 }] }
 const drain = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 test('opening the lazy debug controller inspects state without starting a process', async () => {

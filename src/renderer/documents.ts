@@ -142,6 +142,10 @@ export class Documents {
     return this.records.get(id)?.revision ?? undefined;
   }
 
+  savedContentHash(id: string): string | undefined {
+    return this.records.get(id)?.baseHash;
+  }
+
   async holdAutosaveForFormat(id: string) {
     const record = this.records.get(id);
     if (!record) return () => {};

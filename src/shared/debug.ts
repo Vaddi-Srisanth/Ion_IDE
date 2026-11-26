@@ -16,6 +16,7 @@ export interface DebugStartRequest {
   language: DebugLanguage
   version: number
   expectedRevision: string
+  expectedContentHash: string
   breakpoints: DebugBreakpoint[]
 }
 

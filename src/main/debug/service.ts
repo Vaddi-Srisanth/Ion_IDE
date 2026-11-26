@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto'
-import { lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
+import { lstat, mkdtemp, open, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, sep } from 'node:path'
 import type {
@@ -7,7 +8,7 @@ import type {
   DebugSession, DebugStartRequest, DebugVariable,
 } from '../../shared/debug'
 import { debugLimits, validDebugDocumentVersion } from '../../shared/debug'
-import { revision } from '../files'
+import { maxFileBytes, revision } from '../files'
 import { execute } from '../runner'
 import { DapProcess, type DapEvent } from './dap-process'
 import { discoverDebugTools } from './discovery'
@@ -35,15 +36,45 @@ export function completeDebugLaunch(session: DebugSession): boolean {
   return true
 }
 
-export async function validateDebugSource(path: string, root: string, expectedRevision: string): Promise<string> {
-  if (!isAbsolute(path) || !isAbsolute(root) || !expectedRevision || expectedRevision.length > 256) {
+async function stableSourceHash(path: string): Promise<{ hash: string; revision: string }> {
+  const noFollow = constants.O_NOFOLLOW ?? 0
+  const handle = await open(path, constants.O_RDONLY | noFollow)
+  try {
+    const before = await handle.stat({ bigint: true })
+    if (!before.isFile() || before.size > BigInt(maxFileBytes)) {
+      throw new Error('The debug source must be a regular file up to 2 MiB.')
+    }
+    const hash = createHash('sha256')
+    const buffer = Buffer.allocUnsafe(64 * 1024)
+    let offset = 0
+    while (offset < Number(before.size)) {
+      const { bytesRead } = await handle.read(buffer, 0, Math.min(buffer.length, Number(before.size) - offset), offset)
+      if (!bytesRead) throw new Error('The source changed before debugging. Save and review it again.')
+      hash.update(buffer.subarray(0, bytesRead))
+      offset += bytesRead
+    }
+    const after = await handle.stat({ bigint: true })
+    const current = await lstat(path, { bigint: true })
+    if (revision(before) !== revision(after) || revision(after) !== revision(current)) {
+      throw new Error('The source changed before debugging. Save and review it again.')
+    }
+    return { hash: hash.digest('hex'), revision: revision(after) }
+  } finally { await handle.close() }
+}
+
+export async function validateDebugSource(path: string, root: string, expectedRevision: string,
+  expectedContentHash: string): Promise<string> {
+  if (!isAbsolute(path) || !isAbsolute(root) || !expectedRevision || expectedRevision.length > 256
+    || !/^[a-f0-9]{64}$/.test(expectedContentHash)) {
     throw new Error('The saved source revision is invalid.')
   }
   const canonicalRoot = await realpath(root)
   const canonical = await realpath(path)
   if (!inside(canonicalRoot, canonical) || canonical !== path) throw new Error('The debug source must be a canonical file in the open workspace.')
-  const stats = await lstat(canonical, { bigint: true })
-  if (!stats.isFile() || revision(stats) !== expectedRevision) throw new Error('The source changed before debugging. Save and review it again.')
+  const saved = await stableSourceHash(canonical)
+  if (saved.revision !== expectedRevision || saved.hash !== expectedContentHash) {
+    throw new Error('The source changed before debugging. Save and review it again.')
+  }
   return canonical
 }
 
@@ -66,12 +97,13 @@ export class DebugService {
 
   async start(request: DebugStartRequest, root: string, signal: AbortSignal): Promise<DebugSession> {
     if (this.active) throw new Error('Stop the current debug session before starting another.')
-    if (!request.expectedRevision || request.expectedRevision.length > 256 || !validDebugDocumentVersion(request.version)) {
+    if (!request.expectedRevision || request.expectedRevision.length > 256
+      || !/^[a-f0-9]{64}$/.test(request.expectedContentHash) || !validDebugDocumentVersion(request.version)) {
       throw new Error('The saved source revision is invalid.')
     }
     if (!isAbsolute(request.sourcePath) || request.breakpoints.length > debugLimits.breakpoints) throw new Error('The debug request is invalid.')
     const canonicalRoot = await realpath(root)
-    const source = await validateDebugSource(request.sourcePath, canonicalRoot, request.expectedRevision)
+    const source = await validateDebugSource(request.sourcePath, canonicalRoot, request.expectedRevision, request.expectedContentHash)
     const breakpoints = request.breakpoints.map(point => {
       if (point.path !== source || !Number.isInteger(point.line) || point.line < 1 || point.line > 10_000_000
         || point.column !== undefined && (!Number.isInteger(point.column) || point.column < 1 || point.column > 100_000)) {
@@ -91,7 +123,7 @@ export class DebugService {
       if (compilation.state !== 'exited' || compilation.exitCode !== 0) {
         throw new Error(text(compilation.stderr || compilation.output, 4_096) || compilation.detail || 'Debug compilation failed.')
       }
-      await validateDebugSource(source, canonicalRoot, request.expectedRevision).catch(error => {
+      await validateDebugSource(source, canonicalRoot, request.expectedRevision, request.expectedContentHash).catch(error => {
         if (error instanceof Error && /source changed/.test(error.message)) {
           throw new Error('The source changed while preparing the debugger. Save and review it again.')
         }
