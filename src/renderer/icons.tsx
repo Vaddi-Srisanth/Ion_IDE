@@ -45,6 +45,7 @@ const shapes = {
   check: <path d="m4 12 5 5L20 6"/>,
   sliders: <><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-7 0v6"/></>,
   warning: <><path d="M12 3 2.5 20h19L12 3zM12 9v5m0 2.5v.1"/></>,
+  debug: <><circle cx="12" cy="13" r="5"/><path d="M9.5 8.5 8 6m6.5 2.5L16 6M7 12H4m13 0h3M7.5 16 5 18m11.5-2 2.5 2M12 8V5m0 13v3"/></>,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof shapes;

@@ -45,8 +45,8 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
         command('command-palette'), command('welcome'), command('focus-editor'),
         command('next-tab'), command('previous-tab'), command('move-tab-left'), command('move-tab-right'), command('navigate-back'), command('navigate-forward'),
         { type: 'separator' },
-        command('toggle-explorer'), command('toggle-source-control'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
-        command('toggle-terminal'), command('focus-terminal'),
+        command('toggle-explorer'), command('toggle-source-control'), command('toggle-debug'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
+        command('toggle-terminal'), command('focus-terminal'), command('focus-debug-console'),
         command('toggle-editor-split'), command('focus-editor-split'),
         command('toggle-document-split'), command('focus-document-split'),
         command('markdown-preview'), command('markdown-split'), command('choose-theme'), command('language-support'),
@@ -55,7 +55,12 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
     },
     {
       label: 'Run',
-      submenu: [command('run'), command('run-tests'), command('stop'), command('preview-web')],
+      submenu: [
+        command('run'), command('run-tests'), command('stop'), command('preview-web'), { type: 'separator' },
+        command('start-debugging'), command('debug-continue'), command('debug-pause'),
+        command('debug-step-over'), command('debug-step-into'), command('debug-step-out'),
+        command('debug-restart'), command('debug-stop'), command('toggle-breakpoint'),
+      ],
     },
     { role: 'windowMenu' },
   )

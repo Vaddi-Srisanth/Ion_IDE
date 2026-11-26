@@ -17,7 +17,7 @@ import type { RunConsoleStore } from './run-console/store';
 import type { TerminalController } from './terminal/controller';
 import type { TerminalPaneProps } from './terminal/TerminalPane';
 import './terminal/panel.css';
-import { isWithin, languageFor } from './paths';
+import { isWithin, languageFor, sourceControlPathKey } from './paths';
 import { fileLanguage } from '../shared/languages';
 import { DocumentPane } from './viewers/DocumentPane';
 import { NotebookPane } from './NotebookPane';
@@ -73,6 +73,10 @@ interface GroupPaneProps {
   activeTheme: ThemeData | null;
   accentColor?: string;
   problemMarkers?: readonly ProblemMarker[];
+  debugEnabled?: boolean;
+  debugBreakpoints?: ReadonlyMap<string, readonly number[]>;
+  debugStopped?: { path: string; line: number };
+  onToggleBreakpoint?(path: string, line: number): void;
   onCloseTab(id: string): void;
   onTabMenu(event: MouseEvent<HTMLElement>, tabId: string, groupId: string): void;
   onSaveAs(id: string): void;
@@ -85,7 +89,8 @@ interface GroupPaneProps {
 }
 
 function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, roots, hidden, settings, activeTheme, accentColor,
-  problemMarkers, onCloseTab, onTabMenu, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
+  problemMarkers, debugEnabled, debugBreakpoints, debugStopped, onToggleBreakpoint,
+  onCloseTab, onTabMenu, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
   const active = tabs.find(({ id }) => id === group.activeId);
   const groupTabs = group.tabs.flatMap((id) => tabs.find((tab) => tab.id === id) ?? []);
   const focused = group.id === activeGroupId;
@@ -138,6 +143,9 @@ function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, 
         <button className="button" onClick={() => onReload(active.id)}>Reload</button></div>}
       {source && !largeText && <EditorContent documents={documents} tab={source} settings={settings} activeTheme={activeTheme}
         accentColor={accentColor} sourceHidden={Boolean(hidden) || !focused} workspacePath={root?.path}
+        debugEnabled={debugEnabled} breakpointLines={source.path ? debugBreakpoints?.get(sourceControlPathKey(source.path)) : undefined}
+        debugStoppedLine={source.path && debugStopped && sourceControlPathKey(source.path) === sourceControlPathKey(debugStopped.path)
+          ? debugStopped.line : undefined} onToggleBreakpoint={onToggleBreakpoint}
         problemMarkers={focused ? problemMarkers : undefined} onActions={registerActions} onFocus={focus}
         onCursor={onCursor} onLanguageReport={onLanguageReport} onNavigateSource={onNavigateSource}/>}
       {largeText?.path && <LargeTextPreview key={`${largeText.id}:${largeText.epoch}`} path={largeText.path}/>}
@@ -199,6 +207,7 @@ function BottomTabs({ active, count, onSelect }: { active: BottomTab; count: num
   const tabs = [
     { id: 'terminal', title: 'Terminal', icon: 'terminal' },
     { id: 'run', title: 'Run Console', icon: 'play' },
+    { id: 'debug', title: 'Debug Console', icon: 'debug' },
     { id: 'problems', title: 'Problems', icon: 'warning' },
   ] as const;
   return <div className="bottom-tabs" role="tablist" aria-label="Bottom panel">
@@ -326,6 +335,8 @@ export interface WorkbenchProps {
   hidden?: boolean;
   mode: WorkspaceMode;
   auxiliary?: ReactNode;
+  debugPanel?: ReactNode;
+  debugConsole?(tabs: ReactNode): ReactNode;
   sourceControl?: ReactNode;
   sourceControlEntries?: readonly SourceControlEntry[];
   sourceControlDiff?: ReactNode;
@@ -333,6 +344,7 @@ export interface WorkbenchProps {
   onWorkspace(mode: WorkspaceMode): void;
   onToggleExplorer(): void;
   onToggleSourceControl(): void;
+  onToggleDebug(): void;
   active: Tab | undefined;
   tabs: Tab[];
   root: Entry | null;
@@ -349,6 +361,10 @@ export interface WorkbenchProps {
   problemsStale: boolean;
   selectedProblem?: number;
   problemMarkers?: readonly ProblemMarker[];
+  debugEnabled?: boolean;
+  debugBreakpoints?: ReadonlyMap<string, readonly number[]>;
+  debugStopped?: { path: string; line: number };
+  onToggleBreakpoint(path: string, line: number): void;
   onRevealProblem(index: number): void;
   onExplainProblem(index: number): void;
   onNavigateSource(path: string, line: number, column: number): void;
@@ -400,10 +416,11 @@ export interface WorkbenchProps {
 
 export function Workbench(props: WorkbenchProps) {
   const {
-    documents, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, sourceControl, sourceControlEntries, sourceControlDiff,
-    onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl,
+    documents, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, debugPanel, debugConsole, sourceControl, sourceControlEntries, sourceControlDiff,
+    onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl, onToggleDebug,
     active, tabs, root, roots, target, treeRevision, settings, activeTheme, accentColor,
-    runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
+    runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers,
+    debugEnabled, debugBreakpoints, debugStopped, onToggleBreakpoint, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
     onSelect, onCloseTab, onTabContextAction, canReopenClosedTab, onReopenClosedTab, onOpenEntry, onTarget, onCreate, onRename, onTrash,
     onExplorerContextAction, onRefresh,
@@ -655,6 +672,10 @@ export function Workbench(props: WorkbenchProps) {
             aria-label="Source Control" aria-pressed={Boolean(sourceControl)} data-testid="toggle-source-control" onClick={onToggleSourceControl}>
             <Icon name="git" size={20}/>
           </button>
+          <button className="activity-button" type="button" title={hint('toggle-debug', 'Run and Debug')}
+            aria-label="Run and Debug" aria-pressed={Boolean(debugPanel)} data-testid="toggle-debug" onClick={onToggleDebug}>
+            <Icon name="debug" size={20}/>
+          </button>
           <button className="activity-button" title={hint('find', 'Find in File')} aria-label="Find in File"
             disabled={!active || active.viewer === 'pptx' || Boolean(notebook) || sourceHidden} onClick={() => onFind()}><Icon name="search" size={19}/></button>
           <button className="activity-button" title={hint('toggle-output', 'Toggle Console')} aria-label="Toggle Console"
@@ -687,12 +708,13 @@ export function Workbench(props: WorkbenchProps) {
           <Splitter label="Resize Explorer" value={settings.explorerWidth}
             setting="explorerWidth" min={150} max={620} onResize={onSettings}/>
         </>}
-        {(auxiliary || sourceControl) && <>
+        {(auxiliary || debugPanel || sourceControl) && <>
           <div className="auxiliary-frame">
-            {auxiliary && <div className="auxiliary-underlay" hidden={Boolean(sourceControl)}>{auxiliary}</div>}
+            {auxiliary && <div className="auxiliary-underlay" hidden={Boolean(sourceControl || debugPanel)}>{auxiliary}</div>}
+            {debugPanel && <div className="auxiliary-underlay" hidden={Boolean(sourceControl)}>{debugPanel}</div>}
             {sourceControl}
           </div>
-          <Splitter label={sourceControl ? 'Resize Source Control' : `Resize ${modeName} panel`} value={settings.auxiliaryWidth} setting="auxiliaryWidth"
+          <Splitter label={sourceControl ? 'Resize Source Control' : debugPanel ? 'Resize Run and Debug' : `Resize ${modeName} panel`} value={settings.auxiliaryWidth} setting="auxiliaryWidth"
             min={220} max={620} onResize={onSettings}/>
         </>}
         <div className="editor-column">
@@ -700,6 +722,8 @@ export function Workbench(props: WorkbenchProps) {
             {groupMode && <EditorGroupLayoutView layout={groupSnapshot.layout} snapshot={groupSnapshot} groups={editorGroups}
               activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} roots={roots} hidden={hidden}
               settings={settings} activeTheme={activeTheme} accentColor={accentColor} problemMarkers={problemMarkers}
+              debugEnabled={debugEnabled} debugBreakpoints={debugBreakpoints} debugStopped={debugStopped}
+              onToggleBreakpoint={onToggleBreakpoint}
               onCloseTab={onCloseTab} onSaveAs={onSaveAs} onReload={onReload} onSettings={onSettings}
               onTabMenu={openTabMenu}
               onActions={registerGroupActions} onCursor={onCursor} onLanguageReport={setLanguageReport}
@@ -769,6 +793,9 @@ export function Workbench(props: WorkbenchProps) {
                 )}
                 {(codeTab || (editorStarted && keepEditorWarm)) && <EditorContent documents={documents} tab={largeText ? undefined : activeCode} settings={settings}
                   activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden || hidden} problemMarkers={problemMarkers}
+                  debugEnabled={debugEnabled} breakpointLines={activeCode?.path ? debugBreakpoints?.get(sourceControlPathKey(activeCode.path)) : undefined}
+                  debugStoppedLine={activeCode?.path && debugStopped && sourceControlPathKey(activeCode.path) === sourceControlPathKey(debugStopped.path)
+                    ? debugStopped.line : undefined} onToggleBreakpoint={onToggleBreakpoint}
                   split={sourceSplit && Boolean(activeCode) && !sourceHidden && !hidden} splitPercent={sourceSplitPercent} onSplitPercent={setSourceSplitPercent}
                   workspacePath={root?.path} onLanguageReport={setLanguageReport} onNavigateSource={onNavigateSource}
                   onActions={registerEditorActions} onCursor={onCursor}/>}
@@ -831,6 +858,7 @@ export function Workbench(props: WorkbenchProps) {
               {bottomTab === 'terminal'
                 ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus}
                   workspaceRoot={root?.path} openRequest={terminalOpenRequest} onHide={onToggleBottom}/>
+                : bottomTab === 'debug' && debugConsole ? debugConsole(bottomTabs)
                 : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile}
                   live={live ? { file: activeCode?.name, rows: live.rows, onReveal(index) {
                     const location = live.rows[index]?.problem.location;

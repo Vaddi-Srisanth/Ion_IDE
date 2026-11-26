@@ -63,12 +63,23 @@ const commands = {
   'focus-explorer': { label: 'Focus Explorer', key: 'Mod+Shift+E' },
   'toggle-explorer': { label: 'Toggle Explorer', key: 'Mod+B' },
   'toggle-source-control': { label: 'Toggle Source Control' },
+  'toggle-debug': { label: 'Toggle Run and Debug', key: 'Mod+Shift+D' },
   'toggle-marketplace': { label: 'Manage Learning Content' },
   'toggle-output': { label: 'Toggle Bottom Panel', key: 'Mod+J' },
   'toggle-terminal': { label: 'Toggle Terminal', key: 'Mod+Shift+J' },
   'focus-terminal': { label: 'Focus Terminal', key: 'Mod+Alt+J' },
   'toggle-auxiliary': { label: 'Toggle Workspace Panel' },
   run: { label: 'Run Active File', key: 'F5' },
+  'start-debugging': { label: 'Start Debugging', key: 'F6' },
+  'debug-continue': { label: 'Debug: Continue', key: 'F8' },
+  'debug-pause': { label: 'Debug: Pause' },
+  'debug-step-over': { label: 'Debug: Step Over', key: 'F10' },
+  'debug-step-into': { label: 'Debug: Step Into', key: 'F11' },
+  'debug-step-out': { label: 'Debug: Step Out', key: 'Shift+F11' },
+  'debug-restart': { label: 'Debug: Restart' },
+  'debug-stop': { label: 'Debug: Stop', key: 'Shift+F6' },
+  'toggle-breakpoint': { label: 'Debug: Toggle Breakpoint', key: 'F9' },
+  'focus-debug-console': { label: 'Focus Debug Console' },
   'run-tests': { label: 'Run Tests' },
   stop: { label: 'Stop', key: 'Shift+F5' },
   'preview-web': { label: 'Preview Web Project', key: 'Mod+Alt+P' },
@@ -123,7 +134,10 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
     || command === 'toggle-editor-split' || command === 'focus-editor-split'
     || command === 'focus-next-editor-group' || command === 'focus-previous-editor-group'
     || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references' || command === 'rename-symbol'
-    || command === 'focus-explorer')
+    || command === 'focus-explorer' || command === 'toggle-debug' || command === 'focus-debug-console'
+    || command === 'start-debugging' || command === 'debug-continue' || command === 'debug-step-over'
+    || command === 'debug-step-into' || command === 'debug-step-out' || command === 'debug-stop'
+    || command === 'toggle-breakpoint')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }

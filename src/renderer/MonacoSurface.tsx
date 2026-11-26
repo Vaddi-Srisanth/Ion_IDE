@@ -75,6 +75,7 @@ export interface EditorActions {
   captureView(): (() => void) | undefined;
   insertStarter(starter: { text: string; line: number; column: number }): boolean;
   format(tabId: string, controller: AbortController): Promise<FormatResult>;
+  toggleBreakpoint(): void;
 }
 
 interface Props {
@@ -89,6 +90,10 @@ interface Props {
   onSplitPercent?(percent: number): void;
   workspacePath?: string;
   problemMarkers?: readonly ProblemMarker[];
+  debugEnabled?: boolean;
+  breakpointLines?: readonly number[];
+  debugStoppedLine?: number;
+  onToggleBreakpoint?(path: string, line: number): void;
   onActions(actions: EditorActions | null): void;
   onFocus?(): void;
   onCursor(line: number, column: number): void;
@@ -128,6 +133,7 @@ function modelPoolFor(documents: Documents, tabSize: number) {
 
 export default function MonacoSurface({
   documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
+  debugEnabled = false, breakpointLines, debugStoppedLine, onToggleBreakpoint,
   split = false, splitPercent = 50, onSplitPercent, onActions, onFocus, onCursor, onLanguageReport, onNavigateSource,
 }: Props) {
   const modelPool = modelPoolFor(documents, settings.tabSize);
@@ -156,6 +162,8 @@ export default function MonacoSurface({
   focusRequest.current = onFocus;
   const cursorRequest = useRef(onCursor);
   cursorRequest.current = onCursor;
+  const toggleBreakpointRequest = useRef(onToggleBreakpoint);
+  toggleBreakpointRequest.current = onToggleBreakpoint;
 
   useLayoutEffect(() => {
     if (activeTheme) applyEditorTheme(activeTheme, accentColor);
@@ -171,6 +179,7 @@ export default function MonacoSurface({
       accessibilitySupport: 'auto',
       contextmenu: true,
       minimap: { enabled: false },
+      glyphMargin: debugEnabled,
       disableLayerHinting: true,
       guides: { bracketPairs: false },
       renderLineHighlight: 'line',
@@ -201,6 +210,11 @@ export default function MonacoSurface({
     editorRef.current = instance;
     commandEditor.current = instance;
     const focusListener = instance.onDidFocusEditorWidget(() => { commandEditor.current = instance; focusRequest.current?.(); });
+    const gutterListener = instance.onMouseDown((event) => {
+      if (!debugEnabled || event.target.type !== editor.MouseTargetType.GUTTER_GLYPH_MARGIN || !event.target.position) return;
+      const selected = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+      if (selected?.path) toggleBreakpointRequest.current?.(selected.path, event.target.position.lineNumber);
+    });
     const rememberActiveView = () => {
       const id = displayed.current;
       if (id && !sourceHiddenRef.current) rememberView(documents, id, instance);
@@ -397,6 +411,12 @@ export default function MonacoSurface({
           if (activeFormat.current === controller) activeFormat.current = null;
         }
       },
+      toggleBreakpoint() {
+        const target = commandEditor.current ?? instance;
+        const selected = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        const line = target.getPosition()?.lineNumber;
+        if (selected?.path && line && !sourceHiddenRef.current) toggleBreakpointRequest.current?.(selected.path, line);
+      },
     });
 
     return () => {
@@ -406,6 +426,7 @@ export default function MonacoSurface({
       cursorListener.dispose();
       scrollListener.dispose();
       focusListener.dispose();
+      gutterListener.dispose();
       unregister();
       if (displayed.current) modelPool.release(displayed.current, ownerKey);
       displayed.current = null;
@@ -414,7 +435,7 @@ export default function MonacoSurface({
       editorRef.current = null;
       commandEditor.current = null;
     };
-  }, [documents, modelPool, onActions, ownerKey]);
+  }, [debugEnabled, documents, modelPool, onActions, ownerKey]);
 
   useEffect(() => clearEditorTheme, []);
 
@@ -424,8 +445,10 @@ export default function MonacoSurface({
       fontSize,
       wordWrap: wordWrap ? 'on' : 'off',
       lineNumbers: lineNumbers ? 'on' : 'off',
+      glyphMargin: debugEnabled,
     });
-  }, [fontSize, lineNumbers, wordWrap]);
+    secondaryRef.current?.updateOptions({ glyphMargin: debugEnabled });
+  }, [debugEnabled, fontSize, lineNumbers, wordWrap]);
 
   useEffect(() => {
     const primary = editorRef.current;
@@ -592,6 +615,29 @@ export default function MonacoSurface({
       })));
     return () => { decorations.clear(); };
   }, [id, loaded, problemMarkers, sourceHidden]);
+
+  useLayoutEffect(() => {
+    const primary = editorRef.current;
+    const model = primary?.getModel();
+    if (!debugEnabled || !primary || !model || loaded !== id || sourceHidden) return;
+    const items: editor.IModelDeltaDecoration[] = [];
+    for (const line of breakpointLines ?? []) {
+      if (!Number.isInteger(line) || line < 1 || line > model.getLineCount()) continue;
+      items.push({
+        range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+        options: { glyphMarginClassName: 'ion-debug-breakpoint-glyph', glyphMarginHoverMessage: { value: 'Breakpoint' } },
+      });
+    }
+    if (debugStoppedLine && debugStoppedLine <= model.getLineCount()) {
+      items.push({
+        range: { startLineNumber: debugStoppedLine, startColumn: 1, endLineNumber: debugStoppedLine, endColumn: 1 },
+        options: { isWholeLine: true, className: 'ion-debug-stopped-line', glyphMarginClassName: 'ion-debug-stopped-glyph' },
+      });
+    }
+    const primaryDecorations = primary.createDecorationsCollection(items);
+    const secondaryDecorations = secondaryRef.current?.createDecorationsCollection(items);
+    return () => { primaryDecorations.clear(); secondaryDecorations?.clear(); };
+  }, [breakpointLines, debugEnabled, debugStoppedLine, id, loaded, sourceHidden, split]);
 
   const retry = () => { if (tab) void documents.reload(tab.id); };
   return (

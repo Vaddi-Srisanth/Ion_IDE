@@ -1,4 +1,4 @@
-export type BottomTab = 'terminal' | 'run' | 'problems'
+export type BottomTab = 'terminal' | 'run' | 'problems' | 'debug'
 export const maxTerminalSessions = 6
 
 export interface TerminalSessionInfo {

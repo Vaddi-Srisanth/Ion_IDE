@@ -15,6 +15,7 @@ import type { WorkspaceSearchResult } from './workspace-search'
 import type { EditorSessionBridge } from './editor-session'
 import type { OpenedWorkspaceConfiguration } from './workspace-configuration'
 import type { LanguageToolsBridge } from './language-tools'
+import type { DebugBridge } from './debug'
 import type { SourceControlBridge } from './source-control'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
@@ -161,6 +162,7 @@ export interface IonBridge {
   backup: BackupBridge
   readonly firstLaunch: boolean
   languageTools: LanguageToolsBridge
+  debug: DebugBridge
   formatting: FormatBridge
   editorSession: EditorSessionBridge
   recovery: {

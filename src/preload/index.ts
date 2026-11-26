@@ -61,6 +61,17 @@ const bridge: IonBridge = {
     reviewRename: (snapshot, replacement, dirtyPaths) => ipcRenderer.invoke('ion:language-rename-review', snapshot, replacement, dirtyPaths),
     applyEdit: (token) => ipcRenderer.invoke('ion:language-edit-apply', token),
   },
+  debug: {
+    start: (request) => ipcRenderer.invoke('ion:debug-start', request),
+    stop: (sessionId) => ipcRenderer.invoke('ion:debug-stop', sessionId),
+    action: (sessionId, action, threadId) => ipcRenderer.invoke('ion:debug-action', sessionId, action, threadId),
+    stack: (sessionId, threadId) => ipcRenderer.invoke('ion:debug-stack', sessionId, threadId),
+    scopes: (sessionId, frameId) => ipcRenderer.invoke('ion:debug-scopes', sessionId, frameId),
+    variables: (sessionId, variablesReference) => ipcRenderer.invoke('ion:debug-variables', sessionId, variablesReference),
+    evaluate: (sessionId, expression, frameId) => ipcRenderer.invoke('ion:debug-evaluate', sessionId, expression, frameId),
+    status: () => ipcRenderer.invoke('ion:debug-status'),
+    onEvent: callback => subscribe('ion:debug-event', callback),
+  },
   formatting: {
     run: (request) => ipcRenderer.invoke('ion:format-source', request),
     cancel: (id) => ipcRenderer.invoke('ion:format-cancel', id),

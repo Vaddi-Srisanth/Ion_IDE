@@ -12,6 +12,7 @@ import { documentFormat } from '../shared/viewers'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { maxEditableTextBytes, maxTextCopyBytes } from '../shared/large-text'
 import type { FormatRequest, FormatResult } from '../shared/format-code'
+import { debugLimits, type DebugAction, type DebugSession, type DebugStartRequest } from '../shared/debug'
 import type { NotebookKernelStatus } from '../shared/notebook-kernel'
 import { runLanguage, type RunLanguage, type RunUpdate } from '../shared/run-console'
 import { diagnosticPackIds } from '../shared/learning-packs'
@@ -41,6 +42,7 @@ import type { ExplanationSession } from './explanations/session'
 import type { ExplanationReview } from '../shared/explanations'
 import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
+import type { DebugService } from './debug/service'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
 import { copyAuthorizedPath, revealAuthorizedPath } from './path-actions'
 
@@ -143,6 +145,8 @@ let projectPath: string | undefined
 let panelGeneration = 0
 let viewerService: Promise<ViewerService> | undefined
 let notebookKernels: Promise<NotebookKernels> | undefined
+let debugService: Promise<DebugService> | undefined
+let debugCleanup = Promise.resolve()
 let quickSearch: AbortController | undefined
 let workspaceSearch: { id: string; controller: AbortController } | undefined
 let workspaceReplace: { scope: WorkspaceFiles; service: import('./workspace-search').WorkspaceReplaceReview } | undefined
@@ -199,6 +203,27 @@ function kernels(target: BrowserWindow): Promise<NotebookKernels> {
       if (target === window && !target.isDestroyed()) target.webContents.send('ion:notebook-kernel-output', event)
     })
   })
+}
+
+function debuggerFor(target: BrowserWindow): Promise<DebugService> {
+  return debugService ??= Promise.all([debugCleanup, import('./debug/service')]).then(([, { DebugService }]) => {
+    if (target !== window) throw new Error('The debug window has closed.')
+    return new DebugService((event) => {
+      if (target === window && !target.isDestroyed()) target.webContents.send('ion:debug-event', event)
+    })
+  }).catch((error: unknown) => {
+    if (target === window) debugService = undefined
+    throw error
+  })
+}
+
+function stopDebugTools(): Promise<void> {
+  const active = debugService
+  debugService = undefined
+  if (!active) return debugCleanup
+  const closing = active.then(service => service.dispose(), () => undefined)
+  debugCleanup = Promise.all([debugCleanup, closing]).then(() => undefined, () => undefined)
+  return closing
 }
 
 let projectHandlers: ReturnType<typeof import('./projects/ipc').createProjectHandlers> | undefined
@@ -749,7 +774,7 @@ function createWindow(): BrowserWindow {
     ignoreTerminalAccelerators = false
     // A failed process cleanup must not skip another owner's pending file or
     // recovery publication. Wait for every owner before choosing what follows.
-    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(),
+    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(), stopDebugTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), formatting?.done,
       updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup, pendingRestore ? undefined : closingBackup?.then(s => s.cancel())])
@@ -1080,9 +1105,70 @@ async function drainProfileWrites() {
     learningService?.drain(), packStore?.drain(), practiceStore?.drain(), projectHandlers?.drain()])
 }
 async function requireStoppedTools() {
+  const debugging = await debugService?.then(service => service.status(), () => null)
   if (runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
-    || await terminalService?.then(s => s.hasSessions) || await notebookKernels?.then(s => s.hasSessions)) {
-    throw new Error('Stop running programs, tests, notebook kernels and terminal sessions before restoring. Your work is unchanged.')
+    || debugging || await terminalService?.then(s => s.hasSessions) || await notebookKernels?.then(s => s.hasSessions)) {
+    throw new Error('Stop running programs, tests, debugger sessions, notebook kernels and terminal sessions before restoring. Your work is unchanged.')
+  }
+}
+
+function validDebugSessionId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value)
+}
+
+async function startDebugSession(target: BrowserWindow, value: unknown): Promise<DebugSession> {
+  const request = value as Partial<DebugStartRequest> | null
+  if (!request || typeof request.sourcePath !== 'string' || !isAbsolute(request.sourcePath)
+    || (request.language !== 'c' && request.language !== 'cpp')
+    || !Number.isSafeInteger(request.version) || (request.version ?? 0) < 1
+    || typeof request.expectedRevision !== 'string' || request.expectedRevision.length < 1 || request.expectedRevision.length > 256
+    || !Array.isArray(request.breakpoints) || request.breakpoints.length > debugLimits.breakpoints) {
+    throw new Error('Invalid debug request.')
+  }
+  for (const breakpoint of request.breakpoints) {
+    if (!breakpoint || typeof breakpoint.path !== 'string' || breakpoint.path !== request.sourcePath
+      || !Number.isSafeInteger(breakpoint.line) || breakpoint.line < 1 || breakpoint.line > 10_000_000
+      || breakpoint.column !== undefined && (!Number.isSafeInteger(breakpoint.column) || breakpoint.column < 1 || breakpoint.column > 10_000)
+      || breakpoint.condition !== undefined && (typeof breakpoint.condition !== 'string' || Buffer.byteLength(breakpoint.condition) > debugLimits.expressionBytes)
+      || breakpoint.hitCondition !== undefined && (typeof breakpoint.hitCondition !== 'string' || Buffer.byteLength(breakpoint.hitCondition) > 256)
+      || breakpoint.logMessage !== undefined && (typeof breakpoint.logMessage !== 'string' || Buffer.byteLength(breakpoint.logMessage) > debugLimits.expressionBytes)) {
+      throw new Error('Invalid debug breakpoint.')
+    }
+  }
+  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
+    throw new Error('Stop the current program or test before starting the debugger.')
+  }
+  if (await debugService?.then(service => service.status(), () => null)) throw new Error('A debugger session is already active.')
+  const scope = files
+  const roots = [...scope.rootPaths]
+  const inspected = await scope.inspect(request.sourcePath, 'file')
+  const path = inspected.path
+  const language = fileLanguage(path).id
+  if (language !== request.language || language !== 'c' && language !== 'cpp') throw new Error('Open a saved C or C++ source file to debug it.')
+  if (inspected.stats.size > BigInt(maxFileBytes)) throw new Error('The source exceeds the 2 MiB file limit.')
+  if (revision(inspected.stats) !== request.expectedRevision) throw new Error('The source changed on disk. Save or reload it before debugging.')
+  const root = scope.rootFor(path) ?? dirname(path)
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  target.once('closed', abort)
+  try {
+    const choice = await dialog.showMessageBox(target, {
+      signal: controller.signal, type: 'warning', buttons: ['Cancel', 'Start Debugging'], defaultId: 0, cancelId: 0,
+      message: `Debug ${basename(path)}?`,
+      detail: `Ion will compile this saved ${request.language === 'cpp' ? 'C++' : 'C'} file with debug symbols, then launch the Ion-created executable through a trusted local debugger. The program runs with your user account permissions and can access files and the network.\n\n${path}`,
+    })
+    if (choice.response !== 1 || controller.signal.aborted || target !== window || scope !== files) throw new Error('Debugging was not approved.')
+    const current = await scope.inspect(path, 'file')
+    if (revision(current.stats) !== request.expectedRevision || roots.length !== scope.rootPaths.length
+      || roots.some((entry, index) => entry !== scope.rootPaths[index])) {
+      throw new Error('The source or workspace changed while awaiting approval. Review it and start again.')
+    }
+    const service = await debuggerFor(target)
+    if (controller.signal.aborted || target !== window || scope !== files) throw new Error('The debug window closed.')
+    return await service.start({ ...request as DebugStartRequest, sourcePath: path,
+      breakpoints: request.breakpoints.map(breakpoint => ({ ...breakpoint, path })) }, root, controller.signal)
+  } finally {
+    target.removeListener('closed', abort)
   }
 }
 
@@ -1115,6 +1201,7 @@ function registerIpc(): void {
     // Workspace grants define every language-service filesystem boundary.
     // Stop existing sessions before any request can reuse stale root state.
     void languageServices.release(true)
+    void stopDebugTools()
     void projectLensService?.then(service => service.close(), () => undefined)
     trustedGitRoot = undefined
     void closeSourceControl()
@@ -1210,6 +1297,50 @@ function registerIpc(): void {
     return languageServices.release(immediate, language === undefined ? undefined
       : languageCapability(language)?.semantic?.adapter ?? language, requestedPath)
   })
+  handle('debug-start', startDebugSession)
+  handle('debug-stop', async (_target, sessionId) => {
+    if (!validDebugSessionId(sessionId)) throw new Error('Invalid debugger session.')
+    const service = await debugService
+    if (service) await service.stop(sessionId)
+  })
+  handle('debug-action', async (_target, sessionId, action, threadId) => {
+    if (!validDebugSessionId(sessionId) || !['continue', 'pause', 'next', 'stepIn', 'stepOut', 'restart'].includes(action as string)
+      || threadId !== undefined && (!Number.isSafeInteger(threadId) || (threadId as number) < 1)) {
+      throw new Error('Invalid debugger action.')
+    }
+    const service = await debugService
+    if (!service) throw new Error('No debugger session is active.')
+    return service.action(sessionId, action as DebugAction, threadId as number | undefined)
+  })
+  handle('debug-stack', async (_target, sessionId, threadId) => {
+    if (!validDebugSessionId(sessionId) || !Number.isSafeInteger(threadId) || (threadId as number) < 1) throw new Error('Invalid debugger stack request.')
+    const service = await debugService
+    if (!service) throw new Error('No debugger session is active.')
+    return service.stack(sessionId, threadId as number)
+  })
+  handle('debug-scopes', async (_target, sessionId, frameId) => {
+    if (!validDebugSessionId(sessionId) || !Number.isSafeInteger(frameId) || (frameId as number) < 1) throw new Error('Invalid debugger scope request.')
+    const service = await debugService
+    if (!service) throw new Error('No debugger session is active.')
+    return service.scopes(sessionId, frameId as number)
+  })
+  handle('debug-variables', async (_target, sessionId, reference) => {
+    if (!validDebugSessionId(sessionId) || !Number.isSafeInteger(reference) || (reference as number) < 1) throw new Error('Invalid debugger variable request.')
+    const service = await debugService
+    if (!service) throw new Error('No debugger session is active.')
+    return service.variables(sessionId, reference as number)
+  })
+  handle('debug-evaluate', async (_target, sessionId, expression, frameId) => {
+    if (!validDebugSessionId(sessionId) || typeof expression !== 'string' || expression.length < 1
+      || Buffer.byteLength(expression) > debugLimits.expressionBytes
+      || frameId !== undefined && (!Number.isSafeInteger(frameId) || (frameId as number) < 1)) {
+      throw new Error('Invalid debugger evaluation request.')
+    }
+    const service = await debugService
+    if (!service) throw new Error('No debugger session is active.')
+    return service.evaluate(sessionId, expression, frameId as number | undefined)
+  })
+  handle('debug-status', () => debugService?.then(service => service.status(), () => null) ?? null)
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const updateCache = join(app.getPath('userData'), 'updates')
   const getUpdates = () => updates ??= import('./updates').then(async ({ GitHubUpdates }) => {

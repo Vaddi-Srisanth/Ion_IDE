@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { defaultSettings, type Entry, type EntryKind, type MenuCommand, type OptionalPanel, type RecentEntry, type RecoveryDraft, type Settings, type WorkspaceMode } from '../shared/contracts';
 import { ConfirmDialog, EntryDialog, Modal, PreferencesDialog, StarterDialog } from './Dialogs';
 import { Documents, errorMessage, type InitialDraft, type Tab } from './documents';
@@ -28,6 +28,9 @@ import type { LanguageEditPreview, SourceReference } from '../shared/language-to
 import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
 import type { EditorGroupsSnapshot } from './editor-groups';
 import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, ExplanationRequest, ExplanationReview } from '../shared/explanations';
+import type { DebugBreakpointResult, DebugStartRequest } from '../shared/debug';
+import type { DebugController } from './debug/controller';
+import type { DebugUiBreakpoint, DebugUiFrame, DebugUiState } from './debug/types';
 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
@@ -78,6 +81,10 @@ const SourceControlPanel = lazy(() => import('./source-control/SourceControlPane
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
 const GoToLine = lazy(async () => ({ default: (await import('./CommandPicker')).GoToLine }));
+type DebugModule = typeof import('./debug');
+const idleDebugState: DebugUiState = {
+  phase: 'idle', status: 'Ready', frames: [], scopes: [], breakpoints: [], watches: [], output: [],
+};
 
 interface SourceLocation {
   path?: string;
@@ -177,6 +184,13 @@ export function App() {
   const rootsRef = useRef(roots);
   rootsRef.current = roots;
   const [sourceControlVisible, setSourceControlVisible] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(false);
+  const [debugModule, setDebugModule] = useState<DebugModule | null>(null);
+  const debugController = useRef<DebugController | null>(null);
+  const debugLoad = useRef<Promise<{ module: DebugModule; controller: DebugController }> | null>(null);
+  const debugUnsubscribe = useRef<(() => void) | null>(null);
+  const [debugState, setDebugState] = useState<DebugUiState>(idleDebugState);
+  const [debugBreakpoints, setDebugBreakpoints] = useState<ReadonlyMap<string, readonly number[]>>(() => new Map());
   const [sourceControlEntries, setSourceControlEntries] = useState<readonly SourceControlEntry[]>([]);
   const [sourceControlDiff, setSourceControlDiff] = useState<SourceControlDiff>();
   const [sourceWrites, setSourceWrites] = useState(0);
@@ -203,9 +217,25 @@ export function App() {
   const toggleSourceControl = () => {
     if (sourceControlVisible) closeSourceControl();
     else {
+      setDebugVisible(false);
       setSourceControlVisible(true);
     }
   };
+  const ensureDebug = useCallback(async () => {
+    if (debugController.current && debugModule) return { module: debugModule, controller: debugController.current };
+    if (debugLoad.current) return debugLoad.current;
+    const pending = import('./debug').then((module) => {
+      const controller = new module.DebugController(bridge.debug);
+      debugController.current = controller;
+      debugUnsubscribe.current = controller.subscribe(() => setDebugState(controller.getSnapshot()));
+      setDebugState(controller.getSnapshot());
+      setDebugModule(module);
+      return { module, controller };
+    }).finally(() => { debugLoad.current = null; });
+    debugLoad.current = pending;
+    return pending;
+  }, [debugModule]);
+  const closeDebug = useCallback(() => setDebugVisible(false), []);
   const [sessionAvailable, setSessionAvailable] = useState(false);
   const [resumingSession, setResumingSession] = useState(false);
   const sessionStarted = useRef(false);
@@ -552,7 +582,24 @@ export function App() {
     setHasWorkspace(true);
     setScreen('editor');
   }, []);
+  const showDebug = useCallback(() => {
+    if (screen === 'welcome') enterWorkspace();
+    closeSourceControl();
+    setDebugVisible(true);
+    void ensureDebug().catch((reason: unknown) => notify(`Could not open Run and Debug. ${errorMessage(reason)}`, true));
+  }, [closeSourceControl, ensureDebug, enterWorkspace, notify, screen]);
+  const toggleDebug = useCallback(() => {
+    if (debugVisible) closeDebug();
+    else showDebug();
+  }, [closeDebug, debugVisible, showDebug]);
   useEffect(() => () => { terminalController.current?.dispose(); }, []);
+  useEffect(() => () => {
+    debugUnsubscribe.current?.();
+    debugUnsubscribe.current = null;
+    const controller = debugController.current;
+    debugController.current = null;
+    if (controller) void controller.dispose(false);
+  }, []);
 
   function selectBottomTab(tab: BottomTab) {
     setBottomTab(tab);
@@ -569,6 +616,64 @@ export function App() {
     if (screen === 'welcome') enterWorkspace();
     selectBottomTab('terminal');
     if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
+  }
+  const debugBreakpointRows = useCallback((path: string): DebugBreakpointResult[] =>
+    [...(debugBreakpoints.get(sourceControlPathKey(path)) ?? [])]
+      .sort((left, right) => left - right)
+      .slice(0, 256)
+      .map((line) => ({ path, line, verified: false })), [debugBreakpoints]);
+
+  const toggleBreakpoint = useCallback((path: string, line: number) => {
+    if (!Number.isInteger(line) || line < 1) return;
+    const key = sourceControlPathKey(path);
+    setDebugBreakpoints((current) => {
+      const next = new Map(current);
+      const lines = new Set(next.get(key) ?? []);
+      if (lines.has(line)) lines.delete(line);
+      else if (lines.size < 256) lines.add(line);
+      if (lines.size) next.set(key, [...lines].sort((left, right) => left - right));
+      else next.delete(key);
+      const controller = debugController.current;
+      if (controller && debugState.phase !== 'running' && debugState.phase !== 'paused') {
+        controller.setBreakpoints([...lines].sort((left, right) => left - right)
+          .map((entry) => ({ path, line: entry, verified: false })));
+      }
+      return next;
+    });
+  }, [debugState.phase]);
+
+  async function startDebugging() {
+    if (screen !== 'editor' || nativeDialogOpen.current) return;
+    let tab = documents.getSnapshot().tabs.find(({ id }) => id === documents.getSnapshot().activeId);
+    if (!tab?.path || tab.viewer || tab.notebookMode || tab.error || tab.conflict) {
+      notify('Open a saved C or C++ source file to start debugging.', true);
+      return;
+    }
+    const language = fileLanguage(tab.name).id;
+    if (language !== 'c' && language !== 'cpp') {
+      notify('The first debugger milestone supports saved C and C++ source files.', true);
+      return;
+    }
+    if (tab.dirty && !await saveTab(tab.id)) return;
+    tab = documents.getSnapshot().tabs.find(({ id }) => id === tab?.id);
+    const expectedRevision = tab ? documents.savedRevision(tab.id) : undefined;
+    if (!tab?.path || tab.dirty || tab.conflict || !expectedRevision) {
+      notify('Save the current file before starting the debugger.', true);
+      return;
+    }
+    showDebug();
+    selectBottomTab('debug');
+    if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
+    try {
+      const { controller } = await ensureDebug();
+      const request: DebugStartRequest = {
+        sourcePath: tab.path, language, version: tab.epoch, expectedRevision,
+        breakpoints: debugBreakpointRows(tab.path).map(({ verified: _verified, message: _message, id: _id, ...item }) => item),
+      };
+      await controller.start(request);
+    } catch (reason) {
+      notify(errorMessage(reason), true);
+    }
   }
   async function resumeSession() {
     if (nativeDialogOpen.current || sessionStarted.current) return;
@@ -1479,6 +1584,21 @@ export function App() {
             ?.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]')?.focus());
           break;
         case 'toggle-source-control': if (screen === 'editor') toggleSourceControl(); break;
+        case 'toggle-debug': toggleDebug(); break;
+        case 'start-debugging': void startDebugging(); break;
+        case 'debug-continue': void debugController.current?.command('continue'); break;
+        case 'debug-pause': void debugController.current?.command('pause'); break;
+        case 'debug-step-over': void debugController.current?.command('next'); break;
+        case 'debug-step-into': void debugController.current?.command('stepIn'); break;
+        case 'debug-step-out': void debugController.current?.command('stepOut'); break;
+        case 'debug-restart': void debugController.current?.command('restart'); break;
+        case 'debug-stop': void debugController.current?.command('stop'); break;
+        case 'toggle-breakpoint': editor.current?.toggleBreakpoint(); break;
+        case 'focus-debug-console':
+          selectBottomTab('debug');
+          if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
+          requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.debug-repl input')?.focus());
+          break;
         // Preserve existing customized shortcut IDs while retiring the Marketplace experience.
         case 'toggle-marketplace': setDialog({ kind: 'learning-content' }); break;
         case 'toggle-output': if (screen === 'editor') toggleBottom(); break;
@@ -1489,6 +1609,7 @@ export function App() {
         case 'focus-terminal': showTerminal(); break;
         case 'toggle-auxiliary':
           if (sourceControlVisible) closeSourceControl();
+          else if (debugVisible) closeDebug();
           else if (mode !== 'free' && screen === 'editor') toggleAuxiliary();
           break;
         case 'settings': setDialog({ kind: 'settings' }); break;
@@ -1514,6 +1635,32 @@ export function App() {
         onEntries={setSourceControlEntries} onDiff={setSourceControlDiff} isDirty={hasUnsavedSource} revision={treeRevision + sourceWrites}/>
     </Suspense>;
   }
+
+  function renderDebugPanel() {
+    if (!debugVisible) return undefined;
+    if (!debugModule) return <p className="tree-message" role="status">Opening Run and Debug…</p>;
+    const DebugPanel = debugModule.DebugPanel;
+    return <DebugPanel state={debugState} canStart={canDebugActive}
+      onStart={() => { void startDebugging(); }} onAction={(action) => { void debugController.current?.command(action); }}
+      onSelectFrame={(frame: DebugUiFrame) => { void debugController.current?.selectFrame(frame).then((selected) => {
+        if (selected?.path) void navigateSource({ path: selected.path, line: selected.line, column: selected.column });
+      }); }}
+      onExpandScope={(reference) => { void debugController.current?.expandScope(reference); }}
+      onToggleBreakpoint={(breakpoint: DebugUiBreakpoint) => toggleBreakpoint(breakpoint.path, breakpoint.line)}
+      onRemoveBreakpoint={(breakpoint: DebugUiBreakpoint) => {
+        const current = debugBreakpoints.get(sourceControlPathKey(breakpoint.path));
+        if (current?.includes(breakpoint.line)) toggleBreakpoint(breakpoint.path, breakpoint.line);
+      }}
+      onAddWatch={(expression) => { void debugController.current?.addWatch(expression); }}
+      onRemoveWatch={(id) => debugController.current?.removeWatch(id)} onClose={closeDebug}/>;
+  }
+
+  const renderDebugConsole = debugModule ? (tabsNode: ReactNode) => {
+    const DebugConsole = debugModule.DebugConsole;
+    return <DebugConsole state={debugState} tabs={tabsNode}
+      onEvaluate={(expression) => { void debugController.current?.evaluate(expression); }}
+      onClear={() => debugController.current?.clearConsole()} onClose={toggleBottom}/>;
+  } : undefined;
 
   function renderAuxiliary() {
     if (!panelMode) return undefined;
@@ -1567,6 +1714,10 @@ export function App() {
   }
 
   const canRun = Boolean(active && !active.error && runLanguage(active.name));
+  const canDebugActive = Boolean(active?.path && !active.error && !active.viewer && !active.notebookMode && !active.conflict
+    && (fileLanguage(active.name).id === 'c' || fileLanguage(active.name).id === 'cpp'));
+  const debugSessionActive = debugState.phase === 'starting' || debugState.phase === 'running'
+    || debugState.phase === 'paused' || debugState.phase === 'stopping';
   const runBusy = runPhase === 'preparing' || runPhase === 'compiling' || runPhase === 'running';
   const shortcut = (id: MenuCommand) => displayShortcut(id, settings.shortcuts, bridge.platform);
   const hint = (id: MenuCommand, label: string) => shortcut(id) ? `${label} (${shortcut(id)})` : label;
@@ -1576,7 +1727,7 @@ export function App() {
     if (id === 'navigate-back') return screen === 'editor' && navigationState.back;
     if (id === 'navigate-forward') return screen === 'editor' && navigationState.forward;
     if (id === 'workspace-search') return Boolean(root);
-    if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal'].includes(id)) return true;
+    if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal', 'toggle-debug'].includes(id)) return true;
     if (screen !== 'editor') return false;
     switch (id) {
       case 'insert-starter': return Boolean(starterTarget);
@@ -1636,6 +1787,16 @@ export function App() {
       case 'select-all-occurrences': return Boolean(active && !active.viewer && !active.error
         && active.notebookMode !== 'notebook' && splitActions.current?.markdown?.mode !== 'preview');
       case 'run': return canRun && !runBusy;
+      case 'start-debugging': return canDebugActive && !debugSessionActive;
+      case 'debug-continue': return debugState.phase === 'paused';
+      case 'debug-pause': return debugState.phase === 'running';
+      case 'debug-step-over':
+      case 'debug-step-into':
+      case 'debug-step-out': return debugState.phase === 'paused';
+      case 'debug-restart': return Boolean(debugState.canRestart) && debugSessionActive;
+      case 'debug-stop': return debugSessionActive;
+      case 'toggle-breakpoint': return canDebugActive;
+      case 'focus-debug-console': return Boolean(debugModule);
       case 'run-tests': return Boolean(root) && !runBusy;
       case 'stop': return runBusy;
       case 'preview-web': return Boolean(active && !active.error && canPreviewWeb(active.name));
@@ -1645,6 +1806,9 @@ export function App() {
       default: return true;
     }
   }
+  const selectedDebugFrame = debugState.frames.find((frame) => frame.selected) ?? debugState.frames[0];
+  const debugStopped = debugState.phase === 'paused' && selectedDebugFrame?.path && selectedDebugFrame.line
+    ? { path: selectedDebugFrame.path, line: selectedDebugFrame.line } : undefined;
   return (
     <div className="app-shell" style={appearance.style} data-theme={appearance.kind} data-theme-id={displayTheme?.id}
       data-resource-profile={settings.resourceProfile} data-platform={bridge.platform}>
@@ -1707,9 +1871,10 @@ export function App() {
         onRecent={(entry) => { setMode('free'); openRecent(entry); }}/>}
       {(screen === 'editor' || notebookRunning) && <Workbench documents={documents} hidden={screen === 'welcome'} mode={mode} onWorkspace={selectWorkspace}
           initialEditorGroups={initialEditorGroups} onEditorGroupsChange={handleEditorGroups}
-          auxiliary={renderAuxiliary()} onToggleAuxiliary={sourceControlVisible ? closeSourceControl : toggleAuxiliary}
+          auxiliary={renderAuxiliary()} debugPanel={renderDebugPanel()} debugConsole={renderDebugConsole}
+          onToggleAuxiliary={sourceControlVisible ? closeSourceControl : debugVisible ? closeDebug : toggleAuxiliary}
           sourceControl={renderSourceControl()} sourceControlEntries={sourceControlVisible ? sourceControlEntries : undefined}
-          onToggleSourceControl={toggleSourceControl}
+          onToggleSourceControl={toggleSourceControl} onToggleDebug={toggleDebug}
           sourceControlDiff={sourceControlDiff && <Suspense fallback={<p className="tree-message" role="status">Opening diff…</p>}>
             <SourceControlDiffView diff={sourceControlDiff} onClose={() => setSourceControlDiff(undefined)}
               dirty={hasUnsavedSource(sourceControlDiff.absolutePath)} theme={displayTheme} accentColor={appearance.accentColor}/>
@@ -1719,6 +1884,8 @@ export function App() {
           treeRevision={treeRevision} settings={settings} activeTheme={displayTheme} accentColor={appearance.accentColor}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
+          debugEnabled={Boolean(debugModule)} debugBreakpoints={debugBreakpoints} debugStopped={debugStopped}
+          onToggleBreakpoint={toggleBreakpoint}
           problemRows={problemRows} problemFile={runReport?.name} problemsStale={Boolean(problemRows.length) && !sourceCurrent}
           selectedProblem={selectedProblem} problemMarkers={problemMarkers} onRevealProblem={revealProblem} onExplainProblem={explainProblem}
           onNavigateSource={(path, line, column) => { void navigateSource({ path, line, column }); }}

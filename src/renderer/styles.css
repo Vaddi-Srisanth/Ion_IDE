@@ -491,3 +491,6 @@ svg { flex: none; }
 .source-references { display: grid; gap: 4px; max-height: min(360px, 55vh); overflow: auto; padding: 2px; }
 .source-references .button { justify-content: space-between; min-width: 0; white-space: normal; text-align: start; }
 .source-references .button span { color: var(--muted); font: 11px var(--mono); }
+.ion-debug-breakpoint-glyph { background: var(--danger); border-radius: 50%; margin: 5px 0 0 5px; width: 10px !important; height: 10px !important; }
+.ion-debug-stopped-glyph { background: var(--amber); clip-path: polygon(0 0, 100% 50%, 0 100%); margin: 3px 0 0 4px; width: 12px !important; height: 14px !important; }
+.ion-debug-stopped-line { background: color-mix(in srgb, var(--amber) 10%, transparent); box-shadow: inset 2px 0 var(--amber); }

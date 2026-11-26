@@ -69,8 +69,20 @@ jobs:
         run: npm test 2>&1 | tee performance-results/phase2-debugger/unit.log
       - name: Deterministic bounded fake-DAP lifecycle
         run: node scripts/test-debugger.mjs 2>&1 | tee performance-results/phase2-debugger/fake-dap.log
+      - name: Production Electron debugger journey
+        id: desktop_debugger
+        continue-on-error: true
+        run: node scripts/test-debugger-desktop.mjs 2>&1 | tee performance-results/phase2-debugger/desktop-dap.log
       - name: Native clang and lldb-dap breakpoint lifecycle
+        id: native_debugger
+        continue-on-error: true
         run: node scripts/test-debugger-native.mjs 2>&1 | tee performance-results/phase2-debugger/native-dap.log
+      - name: Record debugger acceptance result
+        if: always()
+        env:
+          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
+          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
+        run: printf 'desktop_result=%s\nnative_result=%s\n' "$DESKTOP_RESULT" "$NATIVE_RESULT" > performance-results/phase2-debugger/acceptance-result.log
       - name: Prove immutable source and collect bounded evidence
         if: always()
         run: |
@@ -94,6 +106,14 @@ jobs:
           }
           if(!(await readdir(destination)).length) throw Error('No debugger evidence was collected.');
           NODE
+      - name: Enforce debugger acceptance result
+        if: always()
+        env:
+          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
+          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
+        run: |
+          test "$DESKTOP_RESULT" = success
+          test "$NATIVE_RESULT" = success
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
