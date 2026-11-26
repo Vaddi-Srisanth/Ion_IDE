@@ -34,7 +34,7 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
       submenu: [
         { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, { type: 'separator' },
-        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('go-to-definition'), command('find-references'),
+        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('go-to-definition'), command('find-references'), command('rename-symbol'),
         { type: 'separator' }, command('add-cursor-above'), command('add-cursor-below'), command('select-next-occurrence'), command('select-all-occurrences'),
         { type: 'separator' }, command('insert-starter'), command('format-document'),
       ],

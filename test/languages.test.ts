@@ -67,11 +67,12 @@ test('all bundled learning, diagnostic, practice, and semantic claims match thei
   assert.deepEqual(languageCapabilities.filter(({ practice }) => practice).map(({ id }) => id).sort(), Object.keys(practiceLanguages).sort())
   assert.deepEqual(languageCapabilities.filter(({ basicSuggestions }) => basicSuggestions).map(({ id }) => id), ['java'])
   assert.deepEqual(languageCapabilities.flatMap(({ id, semantic }) => semantic ? [[id, semantic.adapter, ...semantic.operations]] : []), [
-    ['c', 'clangd', 'definition', 'references'], ['cpp', 'clangd', 'definition', 'references'],
+    ['c', 'clangd', 'diagnostics', 'complete', 'signature', 'definition', 'declaration', 'references', 'hover', 'documentSymbols', 'workspaceSymbols', 'rename', 'codeActions'],
+    ['cpp', 'clangd', 'diagnostics', 'complete', 'signature', 'definition', 'declaration', 'references', 'hover', 'documentSymbols', 'workspaceSymbols', 'rename', 'codeActions'],
     ['java', 'java', 'diagnostics', 'complete', 'signature', 'definition', 'references'],
-    ['python', 'python-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
-    ['javascript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
-    ['typescript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover'],
+    ['python', 'python-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'],
+    ['javascript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'],
+    ['typescript', 'typescript-lsp', 'diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'],
   ])
   assert.ok(languageCapabilities.every(({ debugAdapter, quizzes }) => !debugAdapter && !quizzes))
 })

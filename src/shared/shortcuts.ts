@@ -23,6 +23,7 @@ const commands = {
   'format-document': { label: 'Format Document', key: 'Alt+Shift+F' },
   'go-to-definition': { label: 'Go to Definition' },
   'find-references': { label: 'Find References', key: 'Shift+F12' },
+  'rename-symbol': { label: 'Rename Symbol…', key: 'F2' },
   'navigate-back': { label: 'Go Back', key: 'Mod+Alt+[' },
   'navigate-forward': { label: 'Go Forward', key: 'Mod+Alt+]' },
   'language-support': { label: 'Language Support…' },
@@ -110,7 +111,7 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
     || command === 'toggle-terminal' || command === 'focus-terminal'
     || command === 'toggle-editor-split' || command === 'focus-editor-split'
     || command === 'focus-next-editor-group' || command === 'focus-previous-editor-group'
-    || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references')
+    || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references' || command === 'rename-symbol')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }

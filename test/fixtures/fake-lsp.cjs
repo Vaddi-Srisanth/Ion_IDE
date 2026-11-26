@@ -19,7 +19,11 @@ process.stdin.on('data', chunk => {
     if (process.env.ION_FAKE_LSP_LOG) appendFileSync(process.env.ION_FAKE_LSP_LOG,
       (message.method || (message.id === 99 && message.result && message.result.applied === false ? 'apply-rejected' : 'response')) + '\n')
     buffer = buffer.subarray(end)
-    if (message.method === 'initialize') setTimeout(() => send({ jsonrpc: '2.0', id: message.id, result: { capabilities: { hoverProvider: true } } }),
+    if (message.method === 'initialize') setTimeout(() => send({ jsonrpc: '2.0', id: message.id, result: { capabilities: {
+      hoverProvider: true, definitionProvider: true, declarationProvider: true, referencesProvider: true,
+      completionProvider: {}, signatureHelpProvider: {}, documentSymbolProvider: true, workspaceSymbolProvider: true,
+      renameProvider: true, codeActionProvider: true,
+    } } }),
       Number(process.env.ION_FAKE_LSP_INITIALIZE_DELAY_MS || 0))
     else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: {
       changes: { 'file:///outside/not-authorized.c': [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: 'unsafe' }] },
@@ -30,6 +34,13 @@ process.stdin.on('data', chunk => {
       send({ jsonrpc: '2.0', id: message.id, result: null })
     }
     else if (message.method === 'textDocument/hover') send({ jsonrpc: '2.0', id: message.id, result: null })
+    else if (message.method === 'textDocument/rename') send({ jsonrpc: '2.0', id: message.id, result: { changes: {
+      [message.params.textDocument.uri]: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, newText: message.params.newName }],
+    } } })
+    else if (message.method === 'textDocument/documentSymbol') send({ jsonrpc: '2.0', id: message.id, result: [{
+      name: 'value', kind: 13, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+      selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+    }] })
     else if (message.method === 'ion/huge') process.stdout.write('Content-Length: 9000000\r\n\r\n')
     else if (message.method === 'shutdown') send({ jsonrpc: '2.0', id: message.id, result: null })
     else if (message.method === 'exit') process.exit(0)

@@ -16,7 +16,7 @@ import { documentFormat } from '../shared/viewers';
 import { canPreviewWeb, runLanguage } from '../shared/run-console';
 import { appearanceFor, systemAppearance, themeForPreference } from './appearance';
 import { Workbench, type DocumentSplitActions } from './Workbench';
-import { commandEntries, displayShortcut, type ShortcutOverrides } from '../shared/shortcuts';
+import { commandEntries, displayShortcut, effectiveShortcut, type ShortcutOverrides } from '../shared/shortcuts';
 import { starterCode, starterLanguageFor, starterLanguages, type StarterLanguage } from '../shared/starter-code';
 import type { WorkspaceSearchMatch } from '../shared/workspace-search';
 import { captureEditorSession, EditorSessionWriter } from './editor-session';
@@ -24,7 +24,7 @@ import type { BottomTab } from '../shared/terminal';
 import type { TerminalController } from './terminal/controller';
 import { useUpdates } from './useUpdates';
 import { fileLanguage } from '../shared/languages';
-import type { SourceReference } from '../shared/language-tools';
+import type { LanguageEditPreview, SourceReference } from '../shared/language-tools';
 import type { SourceControlBridge, SourceControlDiff, SourceControlEntry } from '../shared/source-control';
 import type { EditorGroupsSnapshot } from './editor-groups';
 import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, ExplanationRequest, ExplanationReview } from '../shared/explanations';
@@ -38,6 +38,8 @@ type Dialog =
   | { kind: 'explanation-excerpt'; label: string; text: string }
   | { kind: 'recommendations'; reply: ExplanationReply; review: ExplanationReview; root: Entry }
   | { kind: 'source-references'; locations?: SourceReference[] }
+  | { kind: 'symbol-rename'; initial: string }
+  | { kind: 'symbol-rename-review'; preview: LanguageEditPreview }
   | { kind: 'project-tests' }
   | { kind: 'commands' }
   | { kind: 'files' }
@@ -690,6 +692,19 @@ export function App() {
     };
   }, [openEntry, refreshRecents]);
 
+  useEffect(() => {
+    const binding = effectiveShortcut('rename-symbol', settings.shortcuts, bridge.platform);
+    if (!/^F(?:[1-9]|1[0-2])$/.test(binding)) return;
+    const invokeRename = (event: KeyboardEvent) => {
+      if (event.key.toUpperCase() !== binding || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      commands.current('rename-symbol');
+    };
+    window.addEventListener('keydown', invokeRename, true);
+    return () => window.removeEventListener('keydown', invokeRename, true);
+  }, [bridge.platform, settings.shortcuts]);
+
   useEffect(() => bridge.runConsole.onUpdate(({ id, update }) => {
     const request = liveRun.current;
     if (request?.id !== id) return;
@@ -1297,6 +1312,11 @@ export function App() {
           });
           break;
         }
+        case 'rename-symbol': {
+          const initial = availableCommand(value) ? editor.current?.renameTarget() : undefined;
+          if (initial) setDialog({ kind: 'symbol-rename', initial });
+          break;
+        }
         case 'navigate-back': walkHistory('back'); break;
         case 'navigate-forward': walkHistory('forward'); break;
         case 'format-document': void formatDocument(); break;
@@ -1447,10 +1467,11 @@ export function App() {
       case 'insert-starter': return Boolean(starterTarget);
       case 'format-document': return Boolean(canFormatDocument()) && !formatting;
       case 'go-to-definition':
-      case 'find-references': {
+      case 'find-references':
+      case 'rename-symbol': {
         if (!active?.path || active.error || active.viewer) return false;
         const language = fileLanguage(active.name);
-        const operation = id === 'go-to-definition' ? 'definition' : 'references';
+        const operation = id === 'go-to-definition' ? 'definition' : id === 'find-references' ? 'references' : 'rename';
         return settings.smartLanguages.includes(language.id) && Boolean(language.semantic?.operations.includes(operation));
       }
       case 'save':
@@ -1670,6 +1691,24 @@ export function App() {
             </button>)) : <p role="status">{dialog.locations ? 'No references found.' : 'Finding references…'}</p>}
         </div>
       </Modal>}
+      {dialog?.kind === 'symbol-rename' && <EntryDialog title="Review Symbol Rename" initial={dialog.initial}
+        onSubmit={async (name) => {
+          const preview = await editor.current?.reviewRename(name);
+          if (!preview) throw new Error('Open a saved smart-language source file and place the cursor on a symbol.');
+          setDialog({ kind: 'symbol-rename-review', preview });
+        }} onClose={() => setDialog(null)}/>}
+      {dialog?.kind === 'symbol-rename-review' && <ConfirmDialog title="Apply reviewed rename"
+        message={`${dialog.preview.edits} ${dialog.preview.edits === 1 ? 'edit' : 'edits'} across ${dialog.preview.files.length} saved ${dialog.preview.files.length === 1 ? 'file' : 'files'}: ${dialog.preview.files.slice(0, 6).map(file => file.relativePath).join(', ')}${dialog.preview.files.length > 6 ? ', …' : ''}. Ion will recheck every file before publishing.`}
+        action="Apply Rename" onConfirm={async () => {
+          try {
+            const result = await bridge.languageTools.applyEdit(dialog.preview.token);
+            for (const tab of documents.getSnapshot().tabs) if (tab.path && result.applied.includes(tab.path)) documents.markConflict(tab.id, tab.path);
+            if (result.applied.length) { setSourceWrites(value => value + 1); refreshTree(); }
+            if (result.failed.length) notify(`${result.failed.length} file changes were not applied. ${result.failed[0].message}`, true);
+            else notify(`Applied ${dialog.preview.edits} reviewed symbol ${dialog.preview.edits === 1 ? 'edit' : 'edits'}. Open tabs require review.`);
+            setDialog(null);
+          } catch (reason) { notify(errorMessage(reason), true); }
+        }} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'new-starter' && <StarterDialog onChoose={createDraft} onClose={() => setDialog(null)}/>}
       {dialog?.kind === 'settings' && <PreferencesDialog settings={settings} activeTheme={activeTheme}
         onLearningContent={() => setDialog({ kind: 'learning-content' })}

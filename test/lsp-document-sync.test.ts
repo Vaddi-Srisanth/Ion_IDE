@@ -223,6 +223,17 @@ test('rapid A to B to C edits survive deliberately reordered diagnostic notifica
   }
 })
 
+test('generic LSP rename and document symbols remain inert review data', async () => {
+  const { service } = await fakeService()
+  const path = join(tmpdir(), 'ion-semantic-surface.py')
+  try {
+    const rename = await service.query({ ...snapshot(path, 1, 'value = 1\n', 'rename'), offset: 2, replacement: 'nextValue' })
+    assert.deepEqual(rename.rows, [[path, '0', '0', '0', '5', 'nextValue']])
+    const symbols = await service.query(snapshot(path, 1, 'value = 1\n', 'documentSymbols'))
+    assert.deepEqual(symbols.rows, [['value', '13', '', path, '1', '1']])
+  } finally { await service.stop() }
+})
+
 test('diagnostic trace contains correlation metadata without paths or source content', async () => {
   const trace = join(tmpdir(), `ion-diagnostic-trace-${process.pid}-${Date.now()}.jsonl`)
   const previous = process.env.ION_LSP_DIAGNOSTIC_TRACE

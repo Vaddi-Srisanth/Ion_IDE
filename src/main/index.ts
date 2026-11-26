@@ -145,6 +145,7 @@ let notebookKernels: Promise<NotebookKernels> | undefined
 let quickSearch: AbortController | undefined
 let workspaceSearch: { id: string; controller: AbortController } | undefined
 let workspaceReplace: { scope: WorkspaceFiles; service: import('./workspace-search').WorkspaceReplaceReview } | undefined
+let languageEditReview: { scope: WorkspaceFiles; service: import('./language-tools/workspace-edit-review').LanguageWorkspaceEditReview } | undefined
 const keyboardPlatform = shortcutPlatform(process.platform)
 let shortcutOverrides: ShortcutOverrides = defaultSettings.shortcuts
 let shortcutBindings = resolveShortcuts(shortcutOverrides, keyboardPlatform)
@@ -595,6 +596,10 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
     || (snapshot.requestId !== undefined && (typeof snapshot.requestId !== 'string' || !/^[a-f0-9-]{8,64}$/i.test(snapshot.requestId)))
     || typeof snapshot.offset !== 'number' || !Number.isSafeInteger(snapshot.offset)
     || snapshot.offset < 0 || snapshot.offset > snapshot.text.length
+    || (snapshot.operation === 'rename' && (typeof snapshot.replacement !== 'string' || snapshot.replacement.length > 200
+      || !/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(snapshot.replacement)))
+    || (snapshot.operation === 'workspaceSymbols' && (typeof snapshot.search !== 'string' || snapshot.search.length > 200
+      || /[\0\r\n]/.test(snapshot.search)))
     || !snapshot.operation || !semantic.operations.includes(snapshot.operation)) {
     throw new Error('Invalid language analysis request.')
   }
@@ -606,7 +611,7 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
   try {
     const reply = await languageServices.query({ adapter: semantic.adapter, language: language.id, root, path }, { ...snapshot, path } as ToolSnapshot)
     if ((root ? !scope.rootPaths.includes(root) : !scope.authorizes(path)) || target !== window || files !== scope) return null
-    if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'references')) {
+    if (reply && (snapshot.operation === 'definition' || snapshot.operation === 'declaration' || snapshot.operation === 'references')) {
       const locations = await Promise.all(reply.rows.map(async ([file, line, column]) => {
         if (file === path) return [file, line, column]
         if (!root || !isWithin(root, file)) return null
@@ -614,10 +619,35 @@ async function queryLanguage(target: BrowserWindow, value: unknown) {
       }))
       reply.rows = locations.filter((location) => location !== null)
     }
+    if (reply && (snapshot.operation === 'documentSymbols' || snapshot.operation === 'workspaceSymbols')) {
+      const symbols = await Promise.all(reply.rows.map(async row => {
+        const file = row[3]
+        if (file === path) return row
+        if (!root || !isWithin(root, file)) return null
+        return scope.inspect(file, 'file').then(({ path }) => [...row.slice(0, 3), path, ...row.slice(4)], () => null)
+      }))
+      reply.rows = symbols.filter((row) => row !== null)
+    }
     return reply
   } catch (error) {
     throw error
   }
+}
+
+async function reviewLanguageRename(target: BrowserWindow, value: unknown, replacement: unknown, dirtyPaths: unknown) {
+  if (typeof replacement !== 'string' || !Array.isArray(dirtyPaths) || dirtyPaths.length > 64
+    || dirtyPaths.some(path => typeof path !== 'string')) throw new Error('Invalid language-server rename review.')
+  const snapshot = { ...(value as object), operation: 'rename', replacement }
+  const scope = files
+  const reply = await queryLanguage(target, snapshot)
+  if (!reply || target !== window || scope !== files) throw new Error('The workspace changed during rename review.')
+  const { LanguageWorkspaceEditReview } = await import('./language-tools/workspace-edit-review')
+  const service = new LanguageWorkspaceEditReview(scope)
+  const review = await service.review(reply.rows, dirtyPaths)
+  if (target !== window || scope !== files) throw new Error('The workspace changed during rename review.')
+  languageEditReview?.service.clear()
+  languageEditReview = { scope, service }
+  return review
 }
 
 function createWindow(): BrowserWindow {
@@ -1079,6 +1109,8 @@ function registerIpc(): void {
   function workspaceChanged(previous: string | null, force = false) {
     if (!force && previous === files.rootPath) return
     cancelExplanations()
+    languageEditReview?.service.clear()
+    languageEditReview = undefined
     // Workspace grants define every language-service filesystem boundary.
     // Stop existing sessions before any request can reuse stale root state.
     void languageServices.release(true)
@@ -1130,13 +1162,21 @@ function registerIpc(): void {
     openFullScreen = result.openFullScreen
     smartLanguages = result.smartLanguages
     for (const status of languageServices.statuses()) {
-      if (!smartLanguages.includes(status.language)) void languageServices.release(true, status.language)
+      if (!smartLanguages.includes(status.language)) void languageServices.release(true,
+        languageCapability(status.language)?.semantic?.adapter ?? status.language)
     }
     applyProfile(result.resourceProfile)
     applyShortcuts(result.shortcuts)
     return result
   })
   handle('language-query', queryLanguage)
+  handle('language-rename-review', reviewLanguageRename)
+  handle('language-edit-apply', async (target, token) => {
+    const pending = languageEditReview
+    languageEditReview = undefined
+    if (!pending || target !== window || pending.scope !== files) throw new Error('Review the current language-server edits again.')
+    return pending.service.apply(token)
+  })
   handle('language-cancel', (_target, requestId) => {
     if (typeof requestId !== 'string' || !/^[a-f0-9-]{8,64}$/i.test(requestId)) throw new Error('Invalid language cancellation request.')
     languageServices.cancel(requestId)
@@ -1155,7 +1195,8 @@ function registerIpc(): void {
   handle('language-status', () => languageServices.statuses())
   handle('language-restart', (_target, language) => {
     if (language !== undefined && typeof language !== 'string') throw new Error('Invalid language service restart request.')
-    return languageServices.release(true, language)
+    return languageServices.release(true, language === undefined ? undefined
+      : languageCapability(language)?.semantic?.adapter ?? language)
   })
   handle('format-source', formatDocument)
   handle('format-cancel', (_target, id) => {
@@ -1165,7 +1206,8 @@ function registerIpc(): void {
     if (typeof immediate !== 'boolean' || (language !== undefined && typeof language !== 'string')
       || (requestedPath !== undefined && typeof requestedPath !== 'string')) return
     if (requestedPath !== undefined && (!language || fileLanguage(requestedPath).id !== language)) return
-    return languageServices.release(immediate, language, requestedPath)
+    return languageServices.release(immediate, language === undefined ? undefined
+      : languageCapability(language)?.semantic?.adapter ?? language, requestedPath)
   })
   let updates: Promise<import('./updates').GitHubUpdates> | undefined
   const updateCache = join(app.getPath('userData'), 'updates')
@@ -1340,6 +1382,11 @@ function registerIpc(): void {
         await closeSourceControl()
       }
       workspaceReplace?.service.clear()
+      languageEditReview?.service.clear()
+      // Root removal is a trust-boundary change. Retire every semantic
+      // session immediately so a removed root cannot retain a process,
+      // document state, or diagnostics until the ordinary idle deadline.
+      await languageServices.release(true)
     }
     return removed
   })
@@ -1379,6 +1426,7 @@ function registerIpc(): void {
     quickSearch?.abort()
     workspaceSearch?.controller.abort()
     workspaceReplace?.service.clear()
+    languageEditReview?.service.clear()
     trustedSources.clear()
     files = candidate
     workspaceChanged(previous, true)

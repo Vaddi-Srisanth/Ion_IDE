@@ -30,6 +30,8 @@ type DocumentNotification = (method: string, params: unknown) => Promise<void>
 
 const maxRows = 200
 const maxText = 16_384
+const maxWorkspaceEdits = 1_000
+const maxWorkspaceEditText = 1024 * 1024
 
 function textDigest(text: string) {
   return createHash('sha256').update(text).digest('hex')
@@ -324,7 +326,7 @@ function positionAt(text: string, offset: number) {
   return { line, character: offset - start }
 }
 
-function offsetAt(text: string, value: unknown): number | undefined {
+export function offsetAt(text: string, value: unknown): number | undefined {
   if (!value || typeof value !== 'object') return
   const position = value as { line?: unknown; character?: unknown }
   if (!Number.isSafeInteger(position.line) || !Number.isSafeInteger(position.character)
@@ -340,7 +342,7 @@ function offsetAt(text: string, value: unknown): number | undefined {
   return Math.min(offset + targetCharacter, text.length)
 }
 
-function locationRows(result: unknown, source: string): string[][] {
+export function locationRows(result: unknown, source: string): string[][] {
   const entries = Array.isArray(result) ? result.slice(0, maxRows) : [result]
   return entries.flatMap(entry => {
     if (!entry || typeof entry !== 'object') return []
@@ -355,7 +357,92 @@ function locationRows(result: unknown, source: string): string[][] {
   })
 }
 
-function markup(value: unknown): string {
+function validPosition(value: unknown): value is { line: number; character: number } {
+  const position = value as { line?: unknown; character?: unknown } | null
+  return Boolean(position && Number.isSafeInteger(position.line) && Number.isSafeInteger(position.character)
+    && (position.line as number) >= 0 && (position.character as number) >= 0)
+}
+
+/** Converts a server-provided WorkspaceEdit into inert, bounded review rows.
+ * It never touches disk and rejects resource operations. Main validates every
+ * canonical path and revision before issuing an apply token. */
+export function workspaceEditRows(result: unknown, source: string, platform = process.platform): string[][] {
+  if (!result || typeof result !== 'object') return []
+  const edit = result as { changes?: unknown; documentChanges?: unknown }
+  const groups: { uri: string; edits: unknown[] }[] = []
+  if (edit.changes !== undefined) {
+    if (!edit.changes || typeof edit.changes !== 'object' || Array.isArray(edit.changes)) {
+      throw new Error('Language server returned an invalid workspace edit.')
+    }
+    for (const [uri, edits] of Object.entries(edit.changes)) {
+      if (!Array.isArray(edits)) throw new Error('Language server returned an invalid workspace edit.')
+      groups.push({ uri, edits })
+    }
+  }
+  if (edit.documentChanges !== undefined) {
+    if (!Array.isArray(edit.documentChanges)) throw new Error('Language server returned an invalid workspace edit.')
+    for (const change of edit.documentChanges) {
+      if (!change || typeof change !== 'object' || 'kind' in change) {
+        throw new Error('Language server resource operations are not supported.')
+      }
+      const value = change as { textDocument?: { uri?: unknown }; edits?: unknown }
+      if (typeof value.textDocument?.uri !== 'string' || !Array.isArray(value.edits)) {
+        throw new Error('Language server returned an invalid workspace edit.')
+      }
+      groups.push({ uri: value.textDocument.uri, edits: value.edits })
+    }
+  }
+  const rows: string[][] = []
+  let bytes = 0
+  for (const group of groups) {
+    if (!group.uri.startsWith('file:')) throw new Error('Language server edits must target local files.')
+    let path: string
+    try { path = sourceDriveSpelling(fileURLToPath(group.uri), source, platform) }
+    catch { throw new Error('Language server returned an invalid file URI.') }
+    for (const item of group.edits) {
+      if (rows.length >= maxWorkspaceEdits) throw new Error('Language server returned too many edits to review safely.')
+      const value = item as { range?: { start?: unknown; end?: unknown }; newText?: unknown } | null
+      if (!value || !validPosition(value.range?.start) || !validPosition(value.range?.end)
+        || typeof value.newText !== 'string' || value.newText.includes('\0')) {
+        throw new Error('Language server returned an invalid text edit.')
+      }
+      bytes += Buffer.byteLength(value.newText)
+      if (bytes > maxWorkspaceEditText) throw new Error('Language server edit text exceeds Ion’s 1 MiB review limit.')
+      rows.push([path, String(value.range!.start!.line), String(value.range!.start!.character),
+        String(value.range!.end!.line), String(value.range!.end!.character), value.newText])
+    }
+  }
+  return rows
+}
+
+export function symbolRows(result: unknown, source: string): string[][] {
+  const rows: string[][] = []
+  const visit = (items: unknown, inheritedUri?: string) => {
+    if (!Array.isArray(items)) return
+    for (const item of items) {
+      if (rows.length >= maxRows || !item || typeof item !== 'object') break
+      const value = item as { name?: unknown; kind?: unknown; detail?: unknown; uri?: unknown;
+        location?: { uri?: unknown; range?: { start?: unknown } }; range?: { start?: unknown }; selectionRange?: { start?: unknown };
+        children?: unknown }
+      if (typeof value.name !== 'string') continue
+      const uri = typeof value.location?.uri === 'string' ? value.location.uri
+        : typeof value.uri === 'string' ? value.uri : inheritedUri
+      const start = value.selectionRange?.start ?? value.range?.start ?? value.location?.range?.start
+      if (!uri?.startsWith('file:') || !validPosition(start)) continue
+      try {
+        rows.push([value.name.slice(0, 300), String(value.kind ?? ''),
+          typeof value.detail === 'string' ? value.detail.slice(0, 500) : '',
+          sourceDriveSpelling(fileURLToPath(uri), source, process.platform),
+          String(start.line + 1), String(start.character + 1)])
+      } catch { continue }
+      visit(value.children, uri)
+    }
+  }
+  visit(result, pathToFileURL(source).href)
+  return rows
+}
+
+export function markup(value: unknown): string {
   if (typeof value === 'string') return value.slice(0, maxText)
   if (value && typeof value === 'object' && typeof (value as { value?: unknown }).value === 'string') {
     return ((value as { value: string }).value).slice(0, maxText)
@@ -417,9 +504,10 @@ export class ExternalLspService {
         } } } : undefined,
         capabilities: {
           general: { positionEncodings: ['utf-16'] },
-          textDocument: { synchronization: { didSave: false }, completion: {}, hover: {}, definition: {}, references: {},
-            signatureHelp: {}, publishDiagnostics: { relatedInformation: true, versionSupport: true } },
-          workspace: { workspaceFolders: true },
+          textDocument: { synchronization: { didSave: false }, completion: {}, hover: {}, definition: {}, declaration: {}, references: {},
+            signatureHelp: {}, documentSymbol: {}, rename: { prepareSupport: false }, codeAction: {},
+            publishDiagnostics: { relatedInformation: true, versionSupport: true } },
+          workspace: { workspaceFolders: true, symbol: {} },
         },
       }, signal)
       return new ExternalLspService(host, directory)
@@ -468,7 +556,7 @@ export class ExternalLspService {
       synchronizedProtocolVersion: version, currentGeneration: version })
     const location = { textDocument: { uri: protocolUri }, position: positionAt(snapshot.text, snapshot.offset) }
     let rows: string[][] = []
-    if (snapshot.operation === 'definition' || snapshot.operation === 'references') {
+    if (snapshot.operation === 'definition' || snapshot.operation === 'declaration' || snapshot.operation === 'references') {
       const result = await this.host.request(`textDocument/${snapshot.operation}`, snapshot.operation === 'references'
         ? { ...location, context: { includeDeclaration: true } } : location, undefined, signal)
       rows = locationRows(result, snapshot.path)
@@ -496,6 +584,25 @@ export class ExternalLspService {
           typeof (parameter as { label?: unknown })?.label === 'string' ? (parameter as { label: string }).label : '') : []
         return [[String(result?.activeParameter ?? 0), value.label.slice(0, 1_000), ...parameters]]
       })
+    } else if (snapshot.operation === 'documentSymbols') {
+      rows = symbolRows(await this.host.request('textDocument/documentSymbol', { textDocument: { uri: protocolUri } }, undefined, signal), snapshot.path)
+    } else if (snapshot.operation === 'workspaceSymbols') {
+      rows = symbolRows(await this.host.request('workspace/symbol', { query: snapshot.search ?? '' }, undefined, signal), snapshot.path)
+    } else if (snapshot.operation === 'rename') {
+      if (typeof snapshot.replacement !== 'string') throw new Error('Enter a new symbol name.')
+      const result = await this.host.request('textDocument/rename', { ...location, newName: snapshot.replacement }, undefined, signal)
+      rows = workspaceEditRows(result, snapshot.path)
+    } else if (snapshot.operation === 'codeActions') {
+      const result = await this.host.request('textDocument/codeAction', {
+        textDocument: { uri: protocolUri }, range: { start: location.position, end: location.position },
+        context: { diagnostics: [] },
+      }, undefined, signal)
+      rows = Array.isArray(result) ? result.slice(0, maxRows).flatMap(item => {
+        const value = item as { title?: unknown; kind?: unknown; disabled?: unknown } | null
+        return value && typeof value.title === 'string'
+          ? [[value.title.slice(0, 500), typeof value.kind === 'string' ? value.kind.slice(0, 100) : '', value.disabled ? 'disabled' : 'available']]
+          : []
+      }) : []
     } else if (snapshot.operation === 'diagnostics') {
       let waiting = !this.diagnostics.take(protocolUri, version)
       this.trace.record({ event: 'diagnostic-query', rawUriHash: this.trace.hash(uri),

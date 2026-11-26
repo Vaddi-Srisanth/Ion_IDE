@@ -40,7 +40,7 @@ import type { ThemeData } from '../shared/themes';
 import { Documents, type Tab } from './documents';
 import type { LiveToolReport } from './language-editor-tools';
 import { fileLanguage } from '../shared/languages';
-import type { SourceReference } from '../shared/language-tools';
+import type { LanguageEditPreview, SourceReference } from '../shared/language-tools';
 import { sourcePathFromUri } from '../shared/source-path';
 import { applyEditorTheme, clearEditorTheme } from './themes/editor-theme';
 import { MonacoModelPool } from './monaco-model-pool';
@@ -68,6 +68,8 @@ export interface EditorActions {
   goToDefinition(): void;
   multiCursor(action: 'above' | 'below' | 'next' | 'all'): void;
   findReferences(): Promise<SourceReference[]>;
+  renameTarget(): string | undefined;
+  reviewRename(replacement: string): Promise<LanguageEditPreview | undefined>;
   position(tabId: string): { line: number; column: number } | undefined;
   goToLine(line: number, column?: number, tabId?: string): boolean;
   captureView(): (() => void) | undefined;
@@ -268,6 +270,29 @@ export default function MonacoSurface({
         const { createToolQuery, sourceReferences } = await import('./language-editor-tools');
         const query = createToolQuery(model, current, { language: id, label, path: tab.path, onStatus: setLanguageStatus });
         return sourceReferences(await query('references', position) ?? []);
+      },
+      renameTarget() {
+        const model = instance.getModel();
+        const position = instance.getPosition();
+        const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        if (!model || !position || !tab?.path || tab.dirty || tab.conflict || sourceHiddenRef.current) return;
+        const language = fileLanguage(tab.name);
+        if (!language.semantic?.operations.includes('rename')) return;
+        return model.getWordAtPosition(position)?.word;
+      },
+      async reviewRename(replacement) {
+        const model = instance.getModel();
+        const position = instance.getPosition();
+        const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        if (!model || !position || !tab?.path || sourceHiddenRef.current) return;
+        const language = fileLanguage(tab.name);
+        if (!language.semantic?.operations.includes('rename')) return;
+        const text = model.getValue();
+        const dirtyPaths = documents.getSnapshot().tabs.flatMap(entry => entry.path && (entry.dirty || entry.conflict) ? [entry.path] : []);
+        return window.ion.languageTools.reviewRename({
+          requestId: crypto.randomUUID(), language: language.id, path: tab.path, operation: 'rename',
+          version: model.getVersionId(), text, offset: model.getOffsetAt(position), replacement,
+        }, replacement, dirtyPaths);
       },
       position(tabId) {
         const position = displayed.current === tabId ? instance.getPosition() : null;
@@ -531,16 +556,16 @@ export default function MonacoSurface({
           smart, path: path ?? undefined, onReport: onLanguageReport, onStatus: setLanguageStatus,
         });
       } else if (semantic && path) {
-        const { attachLspTools, attachSourceNavigation } = await import('./language-editor-tools');
+        const { attachLspTools } = await import('./language-editor-tools');
         if (cancelled || instance.getModel() !== model) return;
-        tools = semantic.adapter === 'clangd'
-          ? attachSourceNavigation(instance, model, { language: capability.id, label: 'Smart C/C++', path, onStatus: setLanguageStatus })
-          : attachLspTools(instance, model, {
-            language: capability.id, label: `Smart ${capability.label}`, path,
-            diagnostics: semantic.operations.includes('diagnostics'), complete: semantic.operations.includes('complete'),
-            signature: semantic.operations.includes('signature'), hover: semantic.operations.includes('hover'),
-            onReport: onLanguageReport, onStatus: setLanguageStatus,
-          });
+        tools = attachLspTools(instance, model, {
+          language: capability.id, label: semantic.adapter === 'clangd' ? 'Smart C/C++' : `Smart ${capability.label}`, path,
+          diagnostics: semantic.operations.includes('diagnostics'), complete: semantic.operations.includes('complete'),
+          signature: semantic.operations.includes('signature'), hover: semantic.operations.includes('hover'),
+          declaration: semantic.operations.includes('declaration'), documentSymbols: semantic.operations.includes('documentSymbols'),
+          workspaceSymbols: semantic.operations.includes('workspaceSymbols'),
+          onReport: onLanguageReport, onStatus: setLanguageStatus,
+        });
       }
     };
     void attach().catch(() => { if (!cancelled) setLanguageStatus('Language tools could not be loaded.'); });

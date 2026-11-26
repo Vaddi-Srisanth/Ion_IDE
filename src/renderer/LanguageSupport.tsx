@@ -5,7 +5,9 @@ import { Modal } from './Dialogs';
 
 const operationLabels: Record<SemanticOperation, string> = {
   diagnostics: 'Diagnostics', complete: 'Autocomplete', signature: 'Signatures',
-  definition: 'Go to Definition', references: 'Find References', hover: 'Hover',
+  definition: 'Go to Definition', declaration: 'Go to Declaration', references: 'Find References', hover: 'Hover',
+  documentSymbols: 'Document Symbols', workspaceSymbols: 'Workspace Symbols', rename: 'Reviewed Rename',
+  codeActions: 'Code Actions',
 };
 
 export default function LanguageSupport({ initial, onClose }: { initial?: string; onClose(): void }) {

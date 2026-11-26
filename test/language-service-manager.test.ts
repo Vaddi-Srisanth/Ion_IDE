@@ -120,6 +120,20 @@ test('closing a document clears its service state without multiplying group rele
   assert.equal(stops, 1)
 })
 
+test('shared language adapters release one owned service through their adapter identity', async () => {
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: async item => ({ version: item.version, rows: [] }),
+    stop: async () => { stops++ },
+  }))
+  const shared = { adapter: 'typescript-lsp', language: 'typescript', root: '/work', path: '/work/a.ts' }
+  await manager.query(shared, { ...snapshot(), language: 'typescript', path: '/work/a.ts' })
+  await manager.release(true, 'typescript-lsp')
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})
+
 test('repeated start and stop cycles retain no active service', async () => {
   let starts = 0, stops = 0
   const manager = new LanguageServiceManager(async () => {

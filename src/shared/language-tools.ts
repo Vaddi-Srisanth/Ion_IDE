@@ -10,6 +10,8 @@ export interface ToolSnapshot {
   text: string
   operation: ToolOperation
   offset: number
+  replacement?: string
+  search?: string
 }
 
 export interface SourceReference { path: string; line: number; column: number }
@@ -17,6 +19,24 @@ export interface SourceReference { path: string; line: number; column: number }
 export interface ToolReply {
   version: number
   rows: string[][]
+}
+
+export interface LanguageEditFile {
+  path: string
+  relativePath: string
+  edits: number
+}
+
+export interface LanguageEditPreview {
+  token: string
+  files: LanguageEditFile[]
+  edits: number
+  expiresAt: number
+}
+
+export interface LanguageEditResult {
+  applied: string[]
+  failed: { path: string; message: string }[]
 }
 
 export interface ToolSave { language: string; path: string }
@@ -31,6 +51,8 @@ export interface LanguageToolsBridge {
   release(immediate: boolean, language?: string, path?: string): Promise<void>
   status(): Promise<LanguageToolStatus[]>
   restart(language?: string): Promise<void>
+  reviewRename(snapshot: ToolSnapshot, replacement: string, dirtyPaths: string[]): Promise<LanguageEditPreview>
+  applyEdit(token: string): Promise<LanguageEditResult>
 }
 
 export type LanguageToolState = 'disabled' | 'not-installed' | 'starting' | 'ready' | 'busy' | 'error' | 'stopped'

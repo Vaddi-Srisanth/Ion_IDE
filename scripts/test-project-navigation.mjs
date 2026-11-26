@@ -114,6 +114,16 @@ await withScratch('project-navigation', async (scratch) => {
     const goForward = page.getByRole('button', { name: 'Go Forward', exact: true })
     await goBack.click()
     await editorShows(page, 'increment(41)')
+    await page.keyboard.press('F2')
+    const renameDialog = page.getByRole('dialog', { name: 'Review Symbol Rename' })
+    await renameDialog.waitFor()
+    await renameDialog.getByTestId('entry-name').fill('previewedIncrement')
+    await renameDialog.getByTestId('entry-submit').click()
+    const reviewDialog = page.getByRole('dialog', { name: 'Apply reviewed rename' })
+    await reviewDialog.waitFor()
+    assert.match(await reviewDialog.innerText(), /Ion will recheck every file before publishing/)
+    await reviewDialog.getByRole('button', { name: 'Cancel' }).click()
+    await reviewDialog.waitFor({ state: 'detached' })
     assert.match(await page.locator('.document-status').innerText(), /Ln 2, Col/)
     await goForward.click()
     await editorShows(page, 'static inline int increment')
@@ -129,6 +139,29 @@ await withScratch('project-navigation', async (scratch) => {
     await page.getByRole('dialog', { name: 'Find References' }).waitFor({ state: 'detached' })
     await eventually(async () => (await page.locator('.document-status').innerText()).includes('Ln 2, Col 41'),
       'Selecting a reference did not jump to its location.')
+
+    const sourceText = await readFile(project.program, 'utf8')
+    const query = (operation, text, offset, version, extra = {}) => page.evaluate(
+      ({ path, operation, text, offset, version, extra }) => window.ion.languageTools.query({
+        language: 'c', path, operation, text, offset, version, ...extra,
+      }), { path: project.program, operation, text, offset, version, extra })
+    assert.ok((await query('hover', sourceText, sourceText.indexOf('increment(41)') + 3, 2))?.rows.length,
+      'clangd hover returned no source information.')
+    assert.ok((await query('signature', sourceText, sourceText.indexOf('increment(41)') + 'increment('.length, 3))?.rows.length,
+      'clangd signature help returned no callable signature.')
+    assert.ok((await query('declaration', sourceText, sourceText.indexOf('increment(41)') + 3, 4))?.rows.some(([path]) => path === header),
+      'clangd declaration did not resolve the header.')
+    assert.ok((await query('documentSymbols', sourceText, 0, 5))?.rows.some(([name]) => name === 'main'),
+      'clangd document symbols did not include main.')
+    assert.ok((await query('workspaceSymbols', sourceText, 0, 6, { search: 'increment' }))?.rows.some(([name]) => name.includes('increment')),
+      'clangd workspace symbols did not include increment.')
+    const completionText = sourceText + '\nint probe(void) { return incr'
+    assert.ok((await query('complete', completionText, completionText.length, 7))?.rows.some(([label]) => label.includes('increment')),
+      'clangd completion did not use the unsaved buffer.')
+    const invalidText = '#include "include/arithmetic.h"\nint main(void) { return ; broken_token }\n'
+    assert.ok((await query('diagnostics', invalidText, invalidText.length, 8))?.rows.some(([severity]) => severity === 'error'),
+      'clangd diagnostics did not report the unsaved invalid source.')
+    await query('codeActions', sourceText, sourceText.indexOf('increment(41)') + 3, 9)
 
     const workers = await clangd()
     assert.equal(workers.length, 1)
@@ -146,6 +179,15 @@ await withScratch('project-navigation', async (scratch) => {
     await page.keyboard.press('F12')
     await editorShows(page, 'static inline int increment')
     assert.equal((await clangd()).length, 1, 'C and C++ reuse the workspace clangd process')
+    const renameReview = await page.evaluate(({ path, text }) => window.ion.languageTools.reviewRename({
+      language: 'c', path, text, version: 10, operation: 'rename', offset: text.indexOf('increment(41)') + 3,
+      replacement: 'advance',
+    }, 'advance', []), { path: project.program, text: sourceText })
+    assert.ok(renameReview.files.some(({ path, edits }) => path === project.program && edits >= 2),
+      `clangd rename review omitted current-translation-unit edits: ${JSON.stringify(renameReview.files)}`)
+    const renamed = await page.evaluate(token => window.ion.languageTools.applyEdit(token), renameReview.token)
+    assert.deepEqual(renamed.failed, [], 'clangd rename did not publish through Ion safe saves.')
+    assert.match(await readFile(project.program, 'utf8'), /advance/)
     const stopStart = performance.now()
     await atPath(page, 'close-tab', cpp).click()
     await atPath(page, 'close-tab', header).click()
@@ -165,7 +207,7 @@ await withScratch('project-navigation', async (scratch) => {
       activeCpuPercent: Number((process.platform === 'win32' ? windowsTreeCPU(activeA, activeB) : cpuPercent(activeA, activeB)).toFixed(2)),
       shutdownObservedMs: Number(shutdownObservedMs.toFixed(2)) }))
     console.log('Clangd lifecycle timing:', JSON.stringify(lifecycle))
-    console.log('PASS native clangd definition, references, scoped Back/Forward, breadcrumbs and worker cleanup')
+    console.log('PASS native clangd diagnostics, completion, hover, signatures, definition, declaration, references, symbols, reviewed rename, scoped navigation and cleanup')
   } catch (error) {
     primaryError = error
     const probe = await app.evaluate(() => globalThis.__ionClangdFailureProbe?.snapshot()

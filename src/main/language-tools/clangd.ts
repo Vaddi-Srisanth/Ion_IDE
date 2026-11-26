@@ -1,12 +1,12 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
-import { sourceDriveSpelling } from '../../shared/source-path'
 import { execute } from '../runner'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { LspProcess, type LspLifecycleStage } from './lsp-process'
+import { locationRows, markup, offsetAt, symbolRows, workspaceEditRows } from './lsp-adapter'
 
 type ClangdLifecycleStage = LspLifecycleStage | 'executable-discovery' | 'executable-discovered'
   | 'document-open-request' | 'document-open-synchronized' | 'first-diagnostic'
@@ -46,21 +46,6 @@ function positionAt(text: string, offset: number) {
   return { line, character: offset - start }
 }
 
-function locationRows(result: unknown, source: string): string[][] {
-  const entries = Array.isArray(result) ? result.slice(0, 200) : [result]
-  const rows: string[][] = []
-  for (const entry of entries) {
-    if (!entry || typeof entry !== 'object') continue
-    const uri = entry.uri ?? entry.targetUri
-    const start = (entry.targetSelectionRange ?? entry.range)?.start
-    if (typeof uri !== 'string' || !uri.startsWith('file:') || !Number.isSafeInteger(start?.line)
-      || !Number.isSafeInteger(start?.character) || start.line < 0 || start.character < 0) continue
-    try { rows.push([sourceDriveSpelling(fileURLToPath(uri), source, process.platform), String(start.line + 1), String(start.character + 1)]) }
-    catch { /* URI cannot identify a local source file. */ }
-  }
-  return rows
-}
-
 interface Query {
   snapshot: ToolSnapshot
   signal?: AbortSignal
@@ -73,16 +58,29 @@ export class ClangdService {
   private current?: Query
   private queued?: Query
   private document?: string
+  private documentText = ''
+  private documentSourceVersion = 0
   private documentVersion = 0
   private stopped = false
   private diagnosticObserved = false
+  private diagnosticReport?: { uri: string; version?: number; diagnostics: unknown[] }
+  private diagnosticWaiters = new Set<() => void>()
 
   private constructor(private readonly process: LspProcess, private readonly directory: string,
     private readonly trace?: ClangdTimingHook) {
-    process.onNotification('textDocument/publishDiagnostics', () => {
-      if (this.diagnosticObserved) return
-      this.diagnosticObserved = true
-      this.trace?.('first-diagnostic')
+    process.onNotification('textDocument/publishDiagnostics', params => {
+      if (!this.diagnosticObserved) {
+        this.diagnosticObserved = true
+        this.trace?.('first-diagnostic')
+      }
+      if (!params || typeof params !== 'object') return
+      const value = params as { uri?: unknown; version?: unknown; diagnostics?: unknown }
+      if (typeof value.uri !== 'string' || !Array.isArray(value.diagnostics) || value.uri !== this.document) return
+      this.diagnosticReport = { uri: value.uri,
+        version: Number.isSafeInteger(value.version) ? value.version as number : undefined,
+        diagnostics: value.diagnostics.slice(0, 200) }
+      for (const release of this.diagnosticWaiters) release()
+      this.diagnosticWaiters.clear()
     })
   }
 
@@ -104,6 +102,13 @@ export class ClangdService {
         env: envFor(paths, directory),
         root,
         trace,
+        capabilities: {
+          general: { positionEncodings: ['utf-16'] },
+          textDocument: { synchronization: { didSave: false }, completion: {}, hover: {}, definition: {}, declaration: {}, references: {},
+            signatureHelp: {}, documentSymbol: {}, rename: { prepareSupport: false }, codeAction: {},
+            publishDiagnostics: { relatedInformation: true, versionSupport: true } },
+          workspace: { workspaceFolders: true, symbol: {} },
+        },
       }, signal)
       service = new ClangdService(process, directory, trace)
       const abort = () => { void service?.stop() }
@@ -153,6 +158,8 @@ export class ClangdService {
     this.queued?.resolve(null)
     this.current = undefined
     this.queued = undefined
+    for (const release of this.diagnosticWaiters) release()
+    this.diagnosticWaiters.clear()
     void this.process.stop()
   }
 
@@ -174,24 +181,100 @@ export class ClangdService {
   private async lookup(query: Query): Promise<ToolReply> {
     const { snapshot, signal } = query
     const uri = pathToFileURL(snapshot.path).href
-    const version = ++this.documentVersion
     if (this.document !== uri) {
       if (this.document) await this.process.notify('textDocument/didClose', { textDocument: { uri: this.document } })
       this.document = uri
+      this.documentText = snapshot.text
+      this.documentSourceVersion = snapshot.version
+      this.documentVersion = 1
+      this.diagnosticReport = undefined
       this.trace?.('document-open-request')
       await this.process.notify('textDocument/didOpen', {
-        textDocument: { uri, languageId: snapshot.language, version, text: snapshot.text },
+        textDocument: { uri, languageId: snapshot.language, version: this.documentVersion, text: snapshot.text },
       })
       this.trace?.('document-open-synchronized')
-    } else {
+    } else if (snapshot.version === this.documentSourceVersion && snapshot.text !== this.documentText) {
+      throw new Error('Conflicting clangd document snapshot.')
+    } else if (snapshot.text !== this.documentText) {
+      this.documentText = snapshot.text
+      this.documentSourceVersion = snapshot.version
+      this.documentVersion++
+      this.diagnosticReport = undefined
       await this.process.notify('textDocument/didChange', {
-        textDocument: { uri, version }, contentChanges: [{ text: snapshot.text }],
+        textDocument: { uri, version: this.documentVersion }, contentChanges: [{ text: snapshot.text }],
       })
+    } else if (snapshot.version > this.documentSourceVersion) {
+      this.documentSourceVersion = snapshot.version
     }
     const location = { textDocument: { uri }, position: positionAt(snapshot.text, snapshot.offset) }
-    const result = snapshot.operation === 'references'
-      ? await this.request('textDocument/references', { ...location, context: { includeDeclaration: true } }, signal)
-      : await this.request('textDocument/definition', location, signal)
-    return { version: snapshot.version, rows: locationRows(result, snapshot.path) }
+    let rows: string[][] = []
+    if (snapshot.operation === 'definition' || snapshot.operation === 'declaration' || snapshot.operation === 'references') {
+      const result = await this.request(`textDocument/${snapshot.operation}`, snapshot.operation === 'references'
+        ? { ...location, context: { includeDeclaration: true } } : location, signal)
+      rows = locationRows(result, snapshot.path)
+    } else if (snapshot.operation === 'hover') {
+      const result = await this.request('textDocument/hover', location, signal) as { contents?: unknown } | null
+      const text = markup(result?.contents)
+      if (text) rows = [['hover', text]]
+    } else if (snapshot.operation === 'complete') {
+      const result = await this.request('textDocument/completion', location, signal) as { items?: unknown } | unknown[] | null
+      const items = Array.isArray(result) ? result : Array.isArray(result?.items) ? result.items : []
+      rows = items.slice(0, 200).flatMap(item => {
+        const value = item as { label?: unknown; kind?: unknown; detail?: unknown; insertText?: unknown } | null
+        return value && typeof value.label === 'string' ? [[value.label.slice(0, 300), String(value.kind ?? ''),
+          typeof value.detail === 'string' ? value.detail.slice(0, 500) : '',
+          typeof value.insertText === 'string' ? value.insertText.slice(0, 4_096) : value.label.slice(0, 300)]] : []
+      })
+    } else if (snapshot.operation === 'signature') {
+      const result = await this.request('textDocument/signatureHelp', location, signal) as { activeParameter?: unknown; signatures?: unknown } | null
+      const signatures = Array.isArray(result?.signatures) ? result.signatures : []
+      rows = signatures.slice(0, 20).flatMap(item => {
+        const value = item as { label?: unknown; parameters?: unknown } | null
+        if (!value || typeof value.label !== 'string') return []
+        const parameters = Array.isArray(value.parameters) ? value.parameters.slice(0, 50).map(parameter =>
+          typeof (parameter as { label?: unknown })?.label === 'string' ? String((parameter as { label: unknown }).label) : '') : []
+        return [[String(result?.activeParameter ?? 0), value.label.slice(0, 1_000), ...parameters]]
+      })
+    } else if (snapshot.operation === 'documentSymbols') {
+      rows = symbolRows(await this.request('textDocument/documentSymbol', { textDocument: { uri } }, signal), snapshot.path)
+    } else if (snapshot.operation === 'workspaceSymbols') {
+      rows = symbolRows(await this.request('workspace/symbol', { query: snapshot.search ?? '' }, signal), snapshot.path)
+    } else if (snapshot.operation === 'rename') {
+      if (typeof snapshot.replacement !== 'string') throw new Error('Enter a new symbol name.')
+      rows = workspaceEditRows(await this.request('textDocument/rename', { ...location, newName: snapshot.replacement }, signal), snapshot.path)
+    } else if (snapshot.operation === 'codeActions') {
+      const result = await this.request('textDocument/codeAction', {
+        textDocument: { uri }, range: { start: location.position, end: location.position }, context: { diagnostics: [] },
+      }, signal)
+      rows = Array.isArray(result) ? result.slice(0, 200).flatMap(item => {
+        const value = item as { title?: unknown; kind?: unknown; disabled?: unknown } | null
+        return value && typeof value.title === 'string'
+          ? [[value.title.slice(0, 500), typeof value.kind === 'string' ? value.kind.slice(0, 100) : '', value.disabled ? 'disabled' : 'available']]
+          : []
+      }) : []
+    } else if (snapshot.operation === 'diagnostics') {
+      const current = () => this.diagnosticReport?.uri === uri
+        && (this.diagnosticReport.version === undefined || this.diagnosticReport.version === this.documentVersion)
+      const deadline = Date.now() + 4_000
+      while (!current() && !this.stopped && Date.now() < deadline) {
+        await new Promise<void>((resolve, reject) => {
+          const release = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); resolve() }
+          const abort = () => { this.diagnosticWaiters.delete(release); clearTimeout(timer); reject(signal?.reason ?? new Error('Cancelled.')) }
+          const timer = setTimeout(() => { this.diagnosticWaiters.delete(release); resolve() }, Math.max(1, deadline - Date.now()))
+          timer.unref()
+          this.diagnosticWaiters.add(release)
+          signal?.addEventListener('abort', abort, { once: true })
+        })
+      }
+      if (current()) rows = this.diagnosticReport!.diagnostics.flatMap(item => {
+        const value = item as { severity?: unknown; message?: unknown; range?: { start?: unknown; end?: unknown }; source?: unknown } | null
+        const start = offsetAt(snapshot.text, value?.range?.start), end = offsetAt(snapshot.text, value?.range?.end)
+        if (start === undefined || typeof value?.message !== 'string') return []
+        const severity = value.severity === 1 ? 'error' : value.severity === 2 ? 'warning' : 'note'
+        return [[severity, String(start), String(end ?? start + 1), value.message.slice(0, 2_000),
+          typeof value.source === 'string' ? value.source.slice(0, 100) : 'clangd']]
+      })
+    }
+    return { version: snapshot.version, rows }
   }
 }

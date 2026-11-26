@@ -77,7 +77,8 @@ await withScratch('language-services', async scratch => {
   await writeFile(join(project.directory, 'tsconfig.json'), JSON.stringify({
     compilerOptions: { strict: true, module: 'esnext', moduleResolution: 'node' }, include: ['*.ts'],
   }))
-  await writeFile(tsHelper, 'export function typedTotal(a: number, b: number): number { return a + b }\n')
+  const tsHelperText = 'export function typedTotal(a: number, b: number): number { return a + b }\n'
+  await writeFile(tsHelper, tsHelperText)
   const tsText = 'import { typedTotal } from "./typed-helper"\nconst answer: number = typedTotal(2, 3)\nconsole.log(answer)\n'
   await writeFile(tsSource, tsText)
   const second = await createProject(join(scratch, 'second project'), { fileCount: 0 })
@@ -160,6 +161,16 @@ await withScratch('language-services', async scratch => {
     const withPythonA = await snapshot(session, { details: true })
     await sleep(750)
     const withPython = await snapshot(session, { details: true })
+    const pythonRename = await page.evaluate(({ path, text }) => window.ion.languageTools.reviewRename({
+      language: 'python', path, text, version: 7, operation: 'rename', offset: text.lastIndexOf('greet') + 2,
+      replacement: 'welcomeName',
+    }, 'welcomeName', []), { path: source, text })
+    assert.ok(pythonRename.files.some(({ path }) => path === source) && pythonRename.files.some(({ path }) => path === helper),
+      'Python rename review did not include every affected saved file.')
+    const pythonApplied = await page.evaluate(token => window.ion.languageTools.applyEdit(token), pythonRename.token)
+    assert.deepEqual(pythonApplied.failed, [], 'Python rename review could not publish through Ion safe saves.')
+    assert.match(await readFile(source, 'utf8'), /welcomeName/)
+    assert.match(await readFile(helper, 'utf8'), /welcomeName/)
     const pythonStop = performance.now()
     await atPath(page, 'close-tab', source).click()
     await page.evaluate(() => window.ion.languageTools.release(true, 'python'))
@@ -237,15 +248,28 @@ await withScratch('language-services', async scratch => {
         'The second workspace root was not removed.')
       await assert.rejects(query('typescript', secondTsSource, secondTsText, 'definition', 1, 2),
         /Open the file|outside|workspace|authorized|grant/i, 'A removed workspace root remained authorized for TypeScript requests.')
+      await query('typescript', tsSource, tsText, 'definition', tsText.lastIndexOf('typedTotal') + 3, 5)
+      const tsRename = await page.evaluate(({ path, text }) => window.ion.languageTools.reviewRename({
+        language: 'typescript', path, text, version: 1, operation: 'rename', offset: text.indexOf('typedTotal') + 3,
+        replacement: 'sumTyped',
+      }, 'sumTyped', []), { path: tsHelper, text: tsHelperText })
+      assert.ok(tsRename.files.some(({ path }) => path === tsSource) && tsRename.files.some(({ path }) => path === tsHelper),
+        `TypeScript rename review did not include every affected saved file: ${JSON.stringify(tsRename.files)}`)
+      const tsApplied = await page.evaluate(token => window.ion.languageTools.applyEdit(token), tsRename.token)
+      assert.deepEqual(tsApplied.failed, [], 'TypeScript rename review could not publish through Ion safe saves.')
+      assert.match(await readFile(tsSource, 'utf8'), /sumTyped/)
+      assert.match(await readFile(tsHelper, 'utf8'), /sumTyped/)
     }
-    let jsStatus = (await page.evaluate(() => window.ion.languageTools.status())).filter(status => status.language === 'javascript').at(-1)
+    let jsStatus = (await page.evaluate(() => window.ion.languageTools.status()))
+      .filter(status => status.language === 'javascript' || status.language === 'typescript').at(-1)
     assert.ok(jsStatus && (jsStatus.state === 'ready' || jsStatus.state === 'error'))
     if (!jsResult.error) {
       await eventually(async () => (await page.evaluate(() => window.ion.languageTools.status()))
-        .some(status => status.language === 'javascript' && status.state === 'ready' && status.executable),
+        .some(status => (status.language === 'javascript' || status.language === 'typescript')
+          && status.state === 'ready' && status.executable),
       'TypeScript service status did not expose its selected executable.')
       const selected = (await page.evaluate(() => window.ion.languageTools.status()))
-        .filter(status => status.language === 'javascript' && status.state === 'ready').at(-1)
+        .filter(status => (status.language === 'javascript' || status.language === 'typescript') && status.state === 'ready').at(-1)
       assert.ok(selected?.executable && !selected.executable.startsWith(project.directory),
         'TypeScript selected a workspace-controlled executable.')
       jsStatus = selected

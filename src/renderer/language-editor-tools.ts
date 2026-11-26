@@ -5,7 +5,7 @@ import type { ProblemRow } from './Problems';
 
 const encoder = new TextEncoder();
 const modelAttachments = new WeakMap<editor.ITextModel, number>();
-type Query = (operation: ToolOperation, position?: Position, cancellation?: CancellationToken) => Promise<string[][] | undefined>;
+type Query = (operation: ToolOperation, position?: Position, cancellation?: CancellationToken, search?: string) => Promise<string[][] | undefined>;
 
 function attachModel(model: editor.ITextModel) {
   modelAttachments.set(model, (modelAttachments.get(model) ?? 0) + 1);
@@ -24,7 +24,7 @@ export function createToolQuery(model: editor.ITextModel, current: () => boolean
   language: string; label: string; path?: string; onStatus(status: string | null): void;
 }): Query {
   const { language, label, path, onStatus } = options;
-  return async (operation, position, cancellation) => {
+  return async (operation, position, cancellation, search) => {
     if (!path || !current() || cancellation?.isCancellationRequested) return;
     const overLimit = () => { onStatus(`${label} is limited to files up to 256 KiB.`); return undefined; };
     if (model.getValueLength() > toolTextLimit) return overLimit();
@@ -37,6 +37,7 @@ export function createToolQuery(model: editor.ITextModel, current: () => boolean
       if (encoder.encode(text).length > toolTextLimit) return overLimit();
       const result = await window.ion.languageTools.query({
         requestId, language, path, operation, version, text, offset: position ? model.getOffsetAt(position) : 0,
+        ...(search !== undefined ? { search } : {}),
       });
       if (!valid() || result?.version !== version) return;
       onStatus(null);
@@ -60,13 +61,13 @@ export function sourceReferences(rows: string[][]): SourceReference[] {
   });
 }
 
-export function sourceNavigationProviders(model: editor.ITextModel, path: string, query: Query) {
-  const locations = async (operation: 'definition' | 'references', position: Position, cancellation: CancellationToken) =>
+export function sourceNavigationProviders(model: editor.ITextModel, path: string, query: Query, declaration = false) {
+  const locations = async (operation: 'definition' | 'declaration' | 'references', position: Position, cancellation: CancellationToken) =>
     sourceReferences(await query(operation, position, cancellation) ?? []).map(({ path: file, line, column }) => ({
       uri: file === path ? model.uri : Uri.file(file), range: new Range(line, column, line, column + 1),
     }));
   const language = model.getLanguageId();
-  return [
+  const handles = [
     languages.registerDefinitionProvider(language, {
       provideDefinition: (item, position, token) => item === model
         ? locations('definition', position, token) : [],
@@ -76,6 +77,11 @@ export function sourceNavigationProviders(model: editor.ITextModel, path: string
         ? locations('references', position, token) : [],
     }),
   ];
+  if (declaration) handles.push(languages.registerDeclarationProvider(language, {
+    provideDeclaration: (item, position, token) => item === model
+      ? locations('declaration', position, token) : [],
+  }));
+  return handles;
 }
 
 export function attachSourceNavigation(instance: editor.IStandaloneCodeEditor, model: editor.ITextModel, options: {
@@ -110,6 +116,7 @@ const completionKinds: Record<number, languages.CompletionItemKind> = {
 
 export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: editor.ITextModel, options: {
   language: string; label: string; path: string; diagnostics: boolean; complete: boolean; signature: boolean; hover: boolean;
+  declaration?: boolean; documentSymbols?: boolean; workspaceSymbols?: boolean;
   onReport(report: LiveToolReport | null): void; onStatus(status: string | null): void;
 }) {
   const detachModel = attachModel(model);
@@ -118,7 +125,20 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
   const owner = `ion-lsp-${options.language}`;
   const current = () => active && !model.isDisposed() && instance.getModel() === model;
   const query = createToolQuery(model, current, options);
-  const handles = sourceNavigationProviders(model, options.path, query);
+  const handles = sourceNavigationProviders(model, options.path, query, options.declaration);
+
+  if (options.documentSymbols) handles.push(languages.registerDocumentSymbolProvider(model.getLanguageId(), {
+    async provideDocumentSymbols(item, token) {
+      if (item !== model) return [];
+      const rows = await query('documentSymbols', undefined, token);
+      return (rows ?? []).flatMap(([name, kind, detail, path, line, column]) => {
+        const row = Number(line), col = Number(column);
+        if (!name || path !== options.path || !Number.isSafeInteger(row) || row < 1 || !Number.isSafeInteger(col) || col < 1) return [];
+        const range = new Range(row, col, row, col + 1);
+        return [{ name, detail, kind: Math.max(0, Number(kind) - 1) as languages.SymbolKind, tags: [], range, selectionRange: range }];
+      });
+    },
+  }));
 
   if (options.complete) handles.push(languages.registerCompletionItemProvider(model.getLanguageId(), {
     triggerCharacters: ['.', ':'],

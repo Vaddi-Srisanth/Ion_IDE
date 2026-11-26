@@ -142,7 +142,9 @@ jobs:
           echo "ION_LSP_BASELINE=$baseline/dist" >> "$GITHUB_ENV"
       - name: Matched Mac unused-feature resource comparison
         if: runner.os == 'macOS'
-        run: node scripts/benchmark.mjs --compare "$ION_LSP_BASELINE" --target dist --trials 3 --scenarios 3 --idle-seconds 3 --executions 3 --out performance-results/phase2-language-services 2>&1 | tee performance-results/phase2-language-services/benchmark.log
+        env:
+          ION_STARTUP_PHASE_DIAGNOSTICS: '1'
+        run: node scripts/benchmark.mjs --compare "$ION_LSP_BASELINE" --target dist --trials 5 --scenarios 3 --idle-seconds 3 --executions 3 --out performance-results/phase2-language-services 2>&1 | tee performance-results/phase2-language-services/benchmark.log
       - name: Matched Mac Java adapter resources
         if: runner.os == 'macOS'
         run: node scripts/benchmark-java-tools.mjs --baseline "$ION_LSP_BASELINE" --target dist --trials 1 --out performance-results/phase2-language-services/java-resources.json 2>&1 | tee performance-results/phase2-language-services/java-resources.log

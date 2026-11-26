@@ -126,8 +126,9 @@ export class LanguageServiceManager {
     await service.saved?.(descriptor.path)
   }
 
-  async release(immediate: boolean, language?: string, path?: string) {
-    const targets = [...this.sessions.entries()].filter(([, session]) => !language || session.descriptor.language === language)
+  async release(immediate: boolean, selector?: string, path?: string) {
+    const targets = [...this.sessions.entries()].filter(([, session]) => !selector
+      || session.descriptor.language === selector || session.descriptor.adapter === selector)
     if (path) await Promise.all(targets.map(async ([, session]) => {
       const service = await session.service.catch(() => undefined)
       await service?.close?.(path)

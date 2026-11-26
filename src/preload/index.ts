@@ -58,6 +58,8 @@ const bridge: IonBridge = {
     release: (immediate, language, path) => ipcRenderer.invoke('ion:language-release', immediate, language, path),
     status: () => ipcRenderer.invoke('ion:language-status'),
     restart: (language) => ipcRenderer.invoke('ion:language-restart', language),
+    reviewRename: (snapshot, replacement, dirtyPaths) => ipcRenderer.invoke('ion:language-rename-review', snapshot, replacement, dirtyPaths),
+    applyEdit: (token) => ipcRenderer.invoke('ion:language-edit-apply', token),
   },
   formatting: {
     run: (request) => ipcRenderer.invoke('ion:format-source', request),
