@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -6,6 +6,7 @@ import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { execute } from '../runner'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { LspProcess, type LspLifecycleStage } from './lsp-process'
+import { removeServiceScratch } from './service-scratch'
 import { locationRows, markup, offsetAt, symbolRows, workspaceEditRows } from './lsp-adapter'
 
 type ClangdLifecycleStage = LspLifecycleStage | 'executable-discovery' | 'executable-discovered'
@@ -121,7 +122,7 @@ export class ClangdService {
       return service
     } catch (error) {
       if (service) await service.stop()
-      else await rm(directory, { recursive: true, force: true })
+      else await removeServiceScratch(directory)
       throw error
     }
   }
@@ -143,7 +144,7 @@ export class ClangdService {
   async stop() {
     this.terminate()
     await this.process.stop()
-    await rm(this.directory, { recursive: true, force: true })
+    await removeServiceScratch(this.directory)
   }
 
   async saved(path: string) {

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, win32 } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -8,6 +8,7 @@ import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { sourceDriveSpelling } from '../../shared/source-path'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { LspProcess } from './lsp-process'
+import { removeServiceScratch } from './service-scratch'
 import { discoverWindowsNodeCli } from './windows-node-cli'
 
 interface ServerCandidate {
@@ -512,7 +513,7 @@ export class ExternalLspService {
       }, signal)
       return new ExternalLspService(host, directory)
     } catch (error) {
-      await rm(directory, { recursive: true, force: true })
+      await removeServiceScratch(directory)
       throw error
     }
   }
@@ -529,7 +530,7 @@ export class ExternalLspService {
     await this.documents.closeAll((method, params) => this.host.notify(method, params)).catch(() => {})
     this.diagnostics.clear()
     await this.host.stop()
-    await rm(this.directory, { recursive: true, force: true })
+    await removeServiceScratch(this.directory)
   }
 
   async close(path: string) {
