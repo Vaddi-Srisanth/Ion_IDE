@@ -63,7 +63,7 @@ export interface LspProcessOptions {
   root: string | null
   initializationOptions?: unknown
   capabilities?: object
-  deadlines?: { startupMs?: number; initializationMs?: number }
+  deadlines?: { startupMs?: number; initializationMs?: number; requestMs?: number }
   configuration?: unknown
   trace?: (stage: LspLifecycleStage) => void
 }
@@ -79,8 +79,12 @@ export class LspProcess {
   private readonly lifecycle = new AbortController()
   private initialization: { capabilities?: Record<string, unknown>; serverInfo?: { name?: string; version?: string } } = {}
 
-  private constructor(private readonly child: ChildProcessWithoutNullStreams, readonly executable: string,
-    private readonly trace?: (stage: LspLifecycleStage) => void) {
+  private constructor(
+    private readonly child: ChildProcessWithoutNullStreams,
+    readonly executable: string,
+    private readonly trace?: (stage: LspLifecycleStage) => void,
+    private readonly requestDeadline = requestDeadlineMs,
+  ) {
     const inspectFrames = frameGuard(() => this.abort())
     this.guardedOutput = new Transform({ transform(chunk: Buffer, _encoding, callback) {
       if (inspectFrames(chunk)) callback(null, chunk)
@@ -116,7 +120,7 @@ export class LspProcess {
       child.once('spawn', () => { try { options.trace?.('process-spawned') } catch { /* Observation only. */ } resolve() })
       child.once('error', reject)
     })
-    const processHost = new LspProcess(child, options.executable, options.trace)
+    const processHost = new LspProcess(child, options.executable, options.trace, options.deadlines?.requestMs)
     const abort = () => processHost.abort()
     signal.addEventListener('abort', abort, { once: true })
     try {
@@ -184,7 +188,7 @@ export class LspProcess {
   }
 
   async request(
-    method: string, params: unknown, timeoutMs = requestDeadlineMs, signal?: AbortSignal,
+    method: string, params: unknown, timeoutMs = this.requestDeadline, signal?: AbortSignal,
     timeoutMessage = 'Language server request timed out.',
   ): Promise<unknown> {
     if (this.stopped) throw new Error('The language server has stopped.')

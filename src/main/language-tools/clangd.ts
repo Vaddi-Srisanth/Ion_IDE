@@ -102,6 +102,7 @@ export class ClangdService {
         cwd: directory,
         env: envFor(paths, directory),
         root,
+        deadlines: { requestMs: 15_000 },
         trace,
         capabilities: {
           general: { positionEncodings: ['utf-16'] },

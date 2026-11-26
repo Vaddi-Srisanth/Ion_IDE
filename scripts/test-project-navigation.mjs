@@ -107,7 +107,10 @@ await withScratch('project-navigation', async (scratch) => {
     const symbol = page.locator('.monaco-editor .view-lines').getByText('increment', { exact: true }).first()
     await symbol.click()
     await page.keyboard.press('F12')
-    await atPath(page, 'tab', header).waitFor()
+    // A cold Windows clangd can legitimately spend more than eight seconds
+    // parsing the first translation unit under host security scanning. Keep
+    // this distinct from warm requests and preserve the measured outlier.
+    await atPath(page, 'tab', header).waitFor({ timeout: 20_000 })
     await editorShows(page, 'static inline int increment')
     const definitionMs = performance.now() - clangdStart
     assert.match(await page.locator('.editor-breadcrumb').innerText(), /project\/include\/arithmetic\.h/)

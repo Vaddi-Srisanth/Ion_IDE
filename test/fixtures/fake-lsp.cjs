@@ -28,7 +28,8 @@ process.stdin.on('data', chunk => {
     else if (message.method === 'initialized') send({ jsonrpc: '2.0', id: 99, method: 'workspace/applyEdit', params: { edit: {
       changes: { 'file:///outside/not-authorized.c': [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: 'unsafe' }] },
     } } })
-    else if (message.method === 'ion/echo') send({ jsonrpc: '2.0', id: message.id, result: message.params })
+    else if (message.method === 'ion/echo') setTimeout(() => send({ jsonrpc: '2.0', id: message.id, result: message.params }),
+      Number(process.env.ION_FAKE_LSP_ECHO_DELAY_MS || 0))
     else if (message.method === 'ion/publishDiagnostics') {
       send({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: message.params })
       send({ jsonrpc: '2.0', id: message.id, result: null })
