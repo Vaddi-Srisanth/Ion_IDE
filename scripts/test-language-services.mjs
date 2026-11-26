@@ -118,9 +118,9 @@ await withScratch('language-services', async scratch => {
     await settings.getByRole('checkbox', { name: /^Smart Python/ }).check()
     await page.waitForFunction(async () => (await window.ion.getPreferences()).settings.smartLanguages.includes('python'))
     await settings.getByRole('button', { name: 'Done', exact: true }).click()
+    await sleep(750)
     assert.deepEqual(await page.evaluate(() => window.ion.languageTools.status()), [], 'Opt-in started Python before a semantic request.')
 
-    await sleep(750)
     const beforePython = await snapshot(session, { details: true })
     const pythonStart = performance.now()
     const pythonQueryStartNs = process.hrtime.bigint()

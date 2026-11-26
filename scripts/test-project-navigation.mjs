@@ -99,6 +99,7 @@ await withScratch('project-navigation', async (scratch) => {
     await page.waitForFunction(async () => (await window.ion.getPreferences()).settings.smartLanguages.includes('c'))
     await settings.getByRole('button', { name: 'Done', exact: true }).click()
     await settings.waitFor({ state: 'detached' })
+    await sleep(750)
     assert.deepEqual(await clangd(), [], 'Opening a source with Smart C/C++ enabled must not start clangd')
 
     const beforeClangd = await snapshot(session, { details: true })

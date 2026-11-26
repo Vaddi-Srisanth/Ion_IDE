@@ -199,7 +199,6 @@ export function attachLspTools(instance: editor.IStandaloneCodeEditor, model: ed
   }
   if (options.diagnostics) {
     handles.push(model.onDidChangeContent(diagnostics));
-    diagnostics();
   }
 
   return {
