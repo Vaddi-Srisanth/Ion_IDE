@@ -33,13 +33,14 @@ jobs:
         with:
           node-version: 24.22.2
           cache: npm
-      # The hosted LLVM 20.1.8 lldb-dap package links against python310.dll.
-      # Keep this verification-only runtime pinned and explicit on Windows.
+      # The hosted LLVM 20.1.8 lldb-dap crashes on Windows before DAP startup.
+      # Keep the current verified acceptance toolchain and its Python runtime
+      # pinned explicitly without changing Ion's production discovery policy.
       - name: Install the Windows LLDB Python runtime
         if: runner.os == 'Windows'
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: '3.10.11'
+          python-version: '3.11.9'
       - name: Record immutable candidate and native host
         run: |
           mkdir -p performance-results/phase2-debugger
@@ -50,21 +51,35 @@ jobs:
       - name: Select trusted LLVM tools and record exact versions
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            clang='/c/Program Files/LLVM/bin/clang.exe'
-            lldb_dap='/c/Program Files/LLVM/bin/lldb-dap.exe'
+            llvm_version='23.1.6'
+            runner_temp="$(cygpath -u "$RUNNER_TEMP")"
+            llvm_archive="$runner_temp/clang+llvm-$llvm_version-x86_64-pc-windows-msvc.tar.zst"
+            llvm_sha256='7623f582089983c1cb51030cf1996514b19464e5669099571b399e8543770155'
+            llvm_root="$runner_temp/ion-llvm-$llvm_version"
+            curl --fail --location --retry 2 --output "$llvm_archive" \
+              "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvm_version/clang+llvm-$llvm_version-x86_64-pc-windows-msvc.tar.zst"
+            printf '%s *%s\n' "$llvm_sha256" "$llvm_archive" | sha256sum --check --strict
+            mkdir -p "$llvm_root"
+            zstd --decompress --stdout "$llvm_archive" | tar -xf - -C "$llvm_root"
+            clang="$(find "$llvm_root" -type f -path '*/bin/clang.exe' -print -quit)"
+            lldb_dap="$(find "$llvm_root" -type f -path '*/bin/lldb-dap.exe' -print -quit)"
             test -x "$clang"
             test -x "$lldb_dap"
-            echo 'ION_CLANG=C:\Program Files\LLVM\bin\clang.exe' >> "$GITHUB_ENV"
-            echo 'ION_LLDB_DAP=C:\Program Files\LLVM\bin\lldb-dap.exe' >> "$GITHUB_ENV"
+            clang_win="$(cygpath -w "$clang")"
+            lldb_dap_win="$(cygpath -w "$lldb_dap")"
+            echo "ION_CLANG=$clang_win" >> "$GITHUB_ENV"
+            echo "ION_LLDB_DAP=$lldb_dap_win" >> "$GITHUB_ENV"
             python --version >> performance-results/phase2-debugger/revision.log 2>&1
             python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))' >> performance-results/phase2-debugger/revision.log 2>&1
-            node --input-type=module <<'NODE' >> performance-results/phase2-debugger/revision.log 2>&1
+            printf 'llvm_archive_sha256=%s\n' "$llvm_sha256" >> performance-results/phase2-debugger/revision.log
+            ION_TOOL_CLANG="$clang_win" ION_TOOL_LLDB_DAP="$lldb_dap_win" node --input-type=module <<'NODE' >> performance-results/phase2-debugger/revision.log 2>&1
           import { spawnSync } from 'node:child_process';
           const tools = [
-            ['clang', String.raw`C:\Program Files\LLVM\bin\clang.exe`],
-            ['lldb_dap', String.raw`C:\Program Files\LLVM\bin\lldb-dap.exe`],
+            ['clang', process.env.ION_TOOL_CLANG],
+            ['lldb_dap', process.env.ION_TOOL_LLDB_DAP],
           ];
           for (const [name, executable] of tools) {
+            if (!executable) throw new Error(`${name} path is missing`);
             const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 10_000, windowsHide: true });
             process.stdout.write(result.stdout ?? '');
             process.stderr.write(result.stderr ?? '');
