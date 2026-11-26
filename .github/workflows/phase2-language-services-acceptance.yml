@@ -1,4 +1,4 @@
-name: Phase 2 language services native acceptance (no publication)
+name: Phase 2 debugger native acceptance (no publication)
 on:
   workflow_dispatch:
     inputs:
@@ -10,17 +10,17 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: phase2-language-services-${{ github.ref }}
+  group: phase2-debugger-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  language-services:
-    name: Native ${{ matrix.os }} language services
+  debugger:
+    name: Native ${{ matrix.os }} debugger
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -35,129 +35,66 @@ jobs:
           cache: npm
       - name: Record immutable candidate and native host
         run: |
-          mkdir -p performance-results/phase2-language-services
-          printf 'application_sha=%s\n' "$(git rev-parse HEAD)" > performance-results/phase2-language-services/revision.log
-          node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-language-services/revision.log
+          mkdir -p performance-results/phase2-debugger
+          printf 'source_sha=%s\n' "$(git rev-parse HEAD)" > performance-results/phase2-debugger/revision.log
+          node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-debugger/revision.log
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Prove production application identity
+      - name: Select trusted LLVM tools and record exact versions
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            clang='/c/Program Files/LLVM/bin/clang.exe'
+            lldb_dap='/c/Program Files/LLVM/bin/lldb-dap.exe'
+            test -x "$clang"
+            test -x "$lldb_dap"
+            echo 'ION_CLANG=C:\Program Files\LLVM\bin\clang.exe' >> "$GITHUB_ENV"
+            echo 'ION_LLDB_DAP=C:\Program Files\LLVM\bin\lldb-dap.exe' >> "$GITHUB_ENV"
+          else
+            clang="$(xcrun --find clang)"
+            lldb_dap="$(xcrun --find lldb-dap)"
+            echo "ION_CLANG=$clang" >> "$GITHUB_ENV"
+            echo "ION_LLDB_DAP=$lldb_dap" >> "$GITHUB_ENV"
+          fi
+          {
+            "$clang" --version
+            "$lldb_dap" --version
+            printf 'clang=%s\n' "$clang"
+            printf 'lldb_dap=%s\n' "$lldb_dap"
+          } >> performance-results/phase2-debugger/revision.log 2>&1
+      - name: Build and type-check exact production candidate
+        run: |
+          npm run typecheck 2>&1 | tee performance-results/phase2-debugger/typecheck.log
+          npm run build 2>&1 | tee performance-results/phase2-debugger/build.log
+      - name: Full unit and security regression
+        run: npm test 2>&1 | tee performance-results/phase2-debugger/unit.log
+      - name: Deterministic bounded fake-DAP lifecycle
+        run: node scripts/test-debugger.mjs 2>&1 | tee performance-results/phase2-debugger/fake-dap.log
+      - name: Production Electron debugger journey
+        id: desktop_debugger
+        continue-on-error: true
+        run: node scripts/test-debugger-desktop.mjs 2>&1 | tee performance-results/phase2-debugger/desktop-dap.log
+      - name: Native clang and lldb-dap breakpoint lifecycle
+        id: native_debugger
+        continue-on-error: true
+        run: node scripts/test-debugger-native.mjs 2>&1 | tee performance-results/phase2-debugger/native-dap.log
+      - name: Record debugger acceptance result
+        if: always()
+        env:
+          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
+          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
+        run: printf 'desktop_result=%s\nnative_result=%s\n' "$DESKTOP_RESULT" "$NATIVE_RESULT" > performance-results/phase2-debugger/acceptance-result.log
+      - name: Prove immutable source and collect bounded evidence
+        if: always()
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git diff --exit-code
-      - name: Install pinned disposable Python and TypeScript servers
-        run: |
-          npm install --global pyright@1.1.407 typescript@5.9.3 typescript-language-server@4.4.0
-          proxy_bin="$RUNNER_TEMP/ion-lsp-proxy-bin"
-          mkdir -p "$proxy_bin"
-          real_pyright="$(npm root --global)/pyright/langserver.index.js"
-          test -f "$real_pyright"
-          timing_log="$RUNNER_TEMP/ion-pyright-timing.jsonl"
-          diagnostic_trace="$RUNNER_TEMP/ion-lsp-diagnostic-correlation.jsonl"
-          printf '%s\n' "$(node -p 'process.execPath')" > "$proxy_bin/pyright-node.txt"
-          printf '%s\n' "$GITHUB_WORKSPACE/scripts/lsp-timing-proxy.mjs" > "$proxy_bin/pyright-proxy.txt"
-          printf '%s\n' "$timing_log" > "$proxy_bin/pyright-timing.txt"
-          printf '%s\n' "$real_pyright" > "$proxy_bin/pyright-entry.txt"
-          echo "ION_LSP_TIMING_LOG=$timing_log" >> "$GITHUB_ENV"
-          echo "ION_LSP_DIAGNOSTIC_TRACE=$diagnostic_trace" >> "$GITHUB_ENV"
-          echo "ION_REQUIRE_TYPESCRIPT_LSP=1" >> "$GITHUB_ENV"
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            '/c/mingw64/bin/g++.exe' -std=c++17 -O2 -municode scripts/windows/lsp-timing-launcher.cpp -o "$proxy_bin/pyright-langserver.exe"
-          else
-            cp scripts/lsp-timing-launcher.sh "$proxy_bin/pyright-langserver"
-            chmod 700 "$proxy_bin/pyright-langserver"
-          fi
-          echo "$proxy_bin" >> "$GITHUB_PATH"
-      - name: Select trusted host clangd and record every tool version
-        run: |
-          clangd_command=clangd
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            clangd='/c/Program Files/LLVM/bin/clangd.exe'
-            test -x "$clangd"
-            test -x '/c/mingw64/bin/gcc.exe'
-            test -x '/c/mingw64/bin/g++.exe'
-            echo 'ION_CLANGD_PATH=C:\Program Files\LLVM\bin\clangd.exe' >> "$GITHUB_ENV"
-            echo '/c/mingw64/bin' >> "$GITHUB_PATH"
-            export PATH="/c/mingw64/bin:$PATH"
-            clangd_command="$clangd"
-            test "$(command -v gcc)" = '/c/mingw64/bin/gcc'
-            test "$(command -v g++)" = '/c/mingw64/bin/g++'
-            "$clangd" --version
-            '/c/mingw64/bin/gcc.exe' --version
-            '/c/mingw64/bin/g++.exe' --version
-          fi
-          {
-            "$clangd_command" --version
-            java -version
-            javac -version
-            pyright --version
-            typescript-language-server --version
-            tsc --version
-            printf 'node_cli=%s\n' "$(command -v node)"
-            printf 'pyright_cli=%s\n' "$(command -v pyright-langserver)"
-            printf 'typescript_cli=%s\n' "$(command -v typescript-language-server)"
-            printf 'npm_prefix=%s\n' "$(npm prefix --global)"
-            printf 'npm_root=%s\n' "$(npm root --global)"
-            printf 'PATH=%s\n' "$PATH"
-            command -v gcc || true
-            command -v g++ || true
-          } >> performance-results/phase2-language-services/revision.log 2>&1
-      - name: Build and type-check exact production candidate
-        run: |
-          npm run typecheck 2>&1 | tee performance-results/phase2-language-services/typecheck.log
-          npm run build 2>&1 | tee performance-results/phase2-language-services/build.log
-      - name: Full unit and security regression
-        run: npm test 2>&1 | tee performance-results/phase2-language-services/unit.log
-      - name: Native Java adapter and cleanup
-        run: npm run test:java-tools 2>&1 | tee performance-results/phase2-language-services/java.log
-      - name: Native clangd navigation, root isolation and cleanup
-        run: npm run test:navigation 2>&1 | tee performance-results/phase2-language-services/clangd.log
-      - name: Native Python and TypeScript LSP lifecycle
-        run: npm run test:language-services 2>&1 | tee performance-results/phase2-language-services/external.log
-      - name: Preserve bounded Pyright timing trace
-        if: always()
-        run: |
-          if [ -f "$ION_LSP_TIMING_LOG" ]; then
-            cp "$ION_LSP_TIMING_LOG" performance-results/phase2-language-services/pyright-timing.jsonl
-          else
-            echo 'Pyright timing trace was not created.' > performance-results/phase2-language-services/pyright-timing-missing.log
-          fi
-          if [ -f "$ION_LSP_DIAGNOSTIC_TRACE" ]; then
-            cp "$ION_LSP_DIAGNOSTIC_TRACE" performance-results/phase2-language-services/diagnostic-correlation.jsonl
-          else
-            echo 'Diagnostic correlation trace was not created.' > performance-results/phase2-language-services/diagnostic-correlation-missing.log
-          fi
-      - name: Build exact accepted editor baseline for matched Mac resources
-        if: runner.os == 'macOS'
-        run: |
-          git fetch --depth=1 origin 0718aa7b35894474e1932efba7cee3286dcf0aab
-          baseline="$RUNNER_TEMP/ion-lsp-baseline"
-          mkdir "$baseline"
-          git archive 0718aa7b35894474e1932efba7cee3286dcf0aab | (cd "$baseline" && tar -xf -)
-          node --input-type=module - "$baseline" <<'NODE'
-          import { symlink } from 'node:fs/promises';
-          import { resolve, join } from 'node:path';
-          await symlink(resolve('node_modules'), join(process.argv[2], 'node_modules'), 'dir');
-          NODE
-          (cd "$baseline" && node scripts/build.mjs)
-          echo "ION_LSP_BASELINE=$baseline/dist" >> "$GITHUB_ENV"
-      - name: Matched Mac unused-feature resource comparison
-        if: runner.os == 'macOS'
-        env:
-          ION_STARTUP_PHASE_DIAGNOSTICS: '1'
-        run: node scripts/benchmark.mjs --compare "$ION_LSP_BASELINE" --target dist --trials 5 --scenarios 3 --idle-seconds 3 --executions 3 --out performance-results/phase2-language-services 2>&1 | tee performance-results/phase2-language-services/benchmark.log
-      - name: Matched Mac Java adapter resources
-        if: runner.os == 'macOS'
-        run: node scripts/benchmark-java-tools.mjs --baseline "$ION_LSP_BASELINE" --target dist --trials 1 --out performance-results/phase2-language-services/java-resources.json 2>&1 | tee performance-results/phase2-language-services/java-resources.log
-      - name: Preserve bounded sanitized evidence
-        if: always()
-        run: |
           node --input-type=module <<'NODE'
           import { mkdir, open, readdir, writeFile } from 'node:fs/promises';
           import { homedir, tmpdir } from 'node:os';
           import { join } from 'node:path';
-          const source='performance-results/phase2-language-services', destination='performance-results/phase2-language-services-safe';
+          const source='performance-results/phase2-debugger', destination='performance-results/phase2-debugger-safe';
           await mkdir(destination,{recursive:true});
-          for (const name of await readdir(source).catch(()=>[])) {
+          for(const name of await readdir(source).catch(()=>[])) {
             let handle; try { handle=await open(join(source,name),'r'); } catch { continue; }
             try {
               const size=(await handle.stat()).size; if(size>16*1024*1024) throw Error(`${name} exceeded 16 MiB`);
@@ -167,12 +104,20 @@ jobs:
               await writeFile(join(destination,name),text);
             } finally { await handle.close(); }
           }
-          if(!(await readdir(destination)).length) throw Error('No language-service evidence was collected.');
+          if(!(await readdir(destination)).length) throw Error('No debugger evidence was collected.');
           NODE
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
-          name: phase2-language-services-${{ matrix.os }}-${{ github.sha }}
-          path: performance-results/phase2-language-services-safe/*
+          name: phase2-debugger-${{ matrix.os }}-${{ github.sha }}
+          path: performance-results/phase2-debugger-safe/*
           if-no-files-found: error
           retention-days: 7
+      - name: Enforce debugger acceptance result
+        if: always()
+        env:
+          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
+          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
+        run: |
+          test "$DESKTOP_RESULT" = success
+          test "$NATIVE_RESULT" = success
