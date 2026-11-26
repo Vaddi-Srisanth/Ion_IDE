@@ -43,9 +43,9 @@ await withScratch('debugger-desktop', async scratch => {
     await command(page, 'Go to Line')
     await page.getByTestId('goto-line-input').fill('4')
     await page.getByTestId('goto-line-input').press('Enter')
-    // Go to Line restores Monaco focus at the requested source line. A generic
-    // click in the editor viewport would move the cursor to a layout-dependent
-    // line and made the acceptance breakpoint non-deterministic.
+    // Focus Monaco's input without a pointer event: clicking the editor viewport
+    // would move the cursor away from the requested, layout-independent line.
+    await page.locator('.monaco-editor textarea.inputarea').focus()
     await page.keyboard.press('F9')
     await page.getByTestId('toggle-debug').click()
     await page.getByText('debug.c:4', { exact: true }).waitFor({ timeout: 5_000 })

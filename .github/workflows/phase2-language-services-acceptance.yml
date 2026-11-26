@@ -53,28 +53,27 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then
             llvm_version='23.1.6'
             runner_temp="$(cygpath -u "$RUNNER_TEMP")"
-            llvm_archive="$runner_temp/clang+llvm-$llvm_version-x86_64-pc-windows-msvc.tar.zst"
-            llvm_sha256='7623f582089983c1cb51030cf1996514b19464e5669099571b399e8543770155'
+            llvm_installer="$runner_temp/LLVM-$llvm_version-win64.msi"
+            llvm_sha256='81f7eb520ca698eb2d5cd8bc4b8f24f7add9ed66ed40a6f722a6e6f060737c00'
             llvm_root="$runner_temp/ion-llvm-$llvm_version"
-            curl --fail --location --retry 2 --output "$llvm_archive" \
-              "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvm_version/clang+llvm-$llvm_version-x86_64-pc-windows-msvc.tar.zst"
-            printf '%s *%s\n' "$llvm_sha256" "$llvm_archive" | sha256sum --check --strict
+            curl --fail --location --retry 2 --output "$llvm_installer" \
+              "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvm_version/LLVM-$llvm_version-win64.msi"
+            printf '%s *%s\n' "$llvm_sha256" "$llvm_installer" | sha256sum --check --strict
             mkdir -p "$llvm_root"
-            # The official LLVM archive uses a 1 GiB zstd window. GitHub's
-            # bundled decoder defaults to 128 MiB, so opt into the archive's
-            # declared window without changing the decoded bytes.
-            zstd --decompress --long=30 --stdout "$llvm_archive" | tar -xf - -C "$llvm_root"
-            clang="$(find "$llvm_root" -type f -path '*/bin/clang.exe' -print -quit)"
-            lldb_dap="$(find "$llvm_root" -type f -path '*/bin/lldb-dap.exe' -print -quit)"
-            test -x "$clang"
-            test -x "$lldb_dap"
+            ION_LLVM_INSTALLER="$(cygpath -w "$llvm_installer")" ION_LLVM_ROOT="$(cygpath -w "$llvm_root")" \
+              powershell.exe -NoProfile -NonInteractive -Command \
+              '$process = Start-Process msiexec.exe -ArgumentList @("/a", $env:ION_LLVM_INSTALLER, "/qn", "TARGETDIR=$($env:ION_LLVM_ROOT)") -Wait -PassThru; exit $process.ExitCode'
+            clang="$(find "$llvm_root" -type f -iname 'clang.exe' -print -quit)"
+            lldb_dap="$(find "$llvm_root" -type f -iname 'lldb-dap.exe' -print -quit)"
+            test -f "$clang"
+            test -f "$lldb_dap"
             clang_win="$(cygpath -w "$clang")"
             lldb_dap_win="$(cygpath -w "$lldb_dap")"
             echo "ION_CLANG=$clang_win" >> "$GITHUB_ENV"
             echo "ION_LLDB_DAP=$lldb_dap_win" >> "$GITHUB_ENV"
             python --version >> performance-results/phase2-debugger/revision.log 2>&1
             python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))' >> performance-results/phase2-debugger/revision.log 2>&1
-            printf 'llvm_archive_sha256=%s\n' "$llvm_sha256" >> performance-results/phase2-debugger/revision.log
+            printf 'llvm_installer_sha256=%s\n' "$llvm_sha256" >> performance-results/phase2-debugger/revision.log
             ION_TOOL_CLANG="$clang_win" ION_TOOL_LLDB_DAP="$lldb_dap_win" node --input-type=module <<'NODE' >> performance-results/phase2-debugger/revision.log 2>&1
           import { spawnSync } from 'node:child_process';
           const tools = [
