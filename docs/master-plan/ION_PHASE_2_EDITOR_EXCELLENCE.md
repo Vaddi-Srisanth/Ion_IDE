@@ -118,3 +118,19 @@ The separate ten-cycle split workload had 32.84 ms median open and 37.74 ms medi
 Failed runs remain preserved rather than suppressed: [45360309331](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45360309331) exposed POSIX-only workspace fixtures; [45361189304](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45361189304) exposed missing UI synchronization/error preservation; [45362069941](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45362069941) established the real case-insensitive renderer-scoping defect; [45362818098](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45362818098) exposed an `ENOENT` polling defect; and [45363524001](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45363524001) exposed autosave racing a dirty-buffer test. Only the renderer-scoping defect changed production code; the other corrections made disposable acceptance deterministic and preserved original failures.
 
 **Current verdict: PASS for the implemented editor/workspace foundation.** Functional, integrity, security, restoration and bounded-resource acceptance passed on macOS and Windows. General LSP/DAP work has not begun, no installed application or live profile was changed, and no release/main/update-feed action occurred.
+
+## Editor Essentials checkpoint — professional daily interactions
+
+Candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` closes the interaction gaps identified after LSP acceptance without adding a service, dependency, renderer, poller or startup task:
+
+- tab context menus expose split, Close, Close Others, Close to the Right, Close Saved, Close All and Reopen Closed Editor;
+- dirty batch closes pause at Ion's existing Save/Discard/Cancel boundary instead of bypassing recovery or file-conflict handling;
+- Ctrl+Tab and Ctrl+Shift+Tab traverse a bounded, stable, group-aware MRU snapshot keyed by group and tab identity;
+- Explorer is an accessible roving-focus tree with Arrow, Home/End, Enter/Space, F2, Escape and focus-scoped macOS Command+Backspace / Windows Delete behavior;
+- Explorer context menus reuse the established safe create, rename and Trash operations, and add authorized Copy Path and Reveal actions that revalidate the existing workspace grant and reject link escapes;
+- Open in Integrated Terminal creates an on-demand shell at the selected folder through the existing PTY infrastructure; ordinary editing still starts no terminal;
+- Save All, close variants, reopen and Focus Explorer are available in the existing command/shortcut registry rather than a duplicate command system.
+
+Local macOS verification against a disposable production profile passed: type checking, production build, 22 focused model/security tests, the complete unit/security suite (**467 total, 441 pass, 26 explicit platform/environment skips, 0 fail**), the existing production keyboard/relaunch workflow, and the new production Editor Essentials workflow. The latter verifies Explorer keyboard rename, MRU traversal, tab context close/reopen and the authorization-checked path bridge. No remote request or uncaught renderer error was observed.
+
+The focused Windows x64 workflow was extended to run the same production Editor Essentials acceptance. Its result remains pending; this checkpoint is not yet called cross-platform accepted. The installed application, live profile, `main`, releases and update feed remain unchanged at this intermediate gate.
