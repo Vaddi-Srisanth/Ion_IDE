@@ -24,6 +24,12 @@ function memory(sample) {
     processes: sample.processes.length }
 }
 
+function childCount(sample) {
+  return process.platform === 'win32'
+    ? sample.members.filter(({ kind }) => kind === 'child').length
+    : sample.processes.filter(kind => kind === 'child').length
+}
+
 function pyrightTimings(path, queryStartNs) {
   if (!path) return null
   return readFile(path, 'utf8').then(text => {
@@ -41,7 +47,7 @@ function pyrightTimings(path, queryStartNs) {
     const shutdownRequest = first('request', 'shutdown'), shutdownResponse = first('response', 'shutdown')
     const exitNotification = first('request', 'exit'), exited = first('server-exit')
     const required = { proxy, spawned, initializeRequest, initializeResponse, initialized, configured, opened,
-      definitionRequest, definitionResponse, completionRequest, completionResponse, shutdownRequest, shutdownResponse, exitNotification }
+      definitionRequest, definitionResponse, completionRequest, completionResponse, shutdownRequest, shutdownResponse }
     assert.ok(firstSession && Object.values(required).every(Boolean), `Incomplete Pyright timing trace: ${Object.entries(required).filter(([, value]) => !value).map(([name]) => name).join(', ')}`)
     return {
       executableDiscoveryUpperBoundMs: Number((BigInt(proxy.tNs) - queryStartNs) / 10_000n) / 100,
@@ -51,6 +57,7 @@ function pyrightTimings(path, queryStartNs) {
       coldDefinitionMs: delta(definitionRequest, definitionResponse), warmCompletionMs: delta(completionRequest, completionResponse),
       shutdownResponseMs: delta(shutdownRequest, shutdownResponse), shutdownToExitDispatchMs: delta(shutdownRequest, exitNotification),
       processExitAfterShutdownMs: exited ? delta(shutdownRequest, exited) : null,
+      exitNotificationObserved: Boolean(exitNotification), processExitObserved: Boolean(exited),
     }
   })
 }
@@ -179,6 +186,8 @@ await withScratch('language-services', async scratch => {
     'Python services did not stop after their sources closed.')
     await sleep(750)
     const afterPython = await snapshot(session, { details: true })
+    assert.equal(childCount(afterPython), childCount(beforePython),
+      'Python services did not return to the pre-service owned child-process count.')
     const pythonStopMs = performance.now() - pythonStop
     const pythonLifecycle = await pyrightTimings(process.env.ION_LSP_TIMING_LOG, pythonQueryStartNs)
 
@@ -244,8 +253,18 @@ await withScratch('language-services', async scratch => {
         .filter(({ language, state }) => (language === 'javascript' || language === 'typescript') && state === 'ready').length, 2,
       'TypeScript roots did not receive isolated language-service state.')
       await page.getByRole('button', { name: 'Remove second project from workspace' }).click()
-      await eventually(async () => await page.getByTestId('workspace-root').count() === 1,
-        'The second workspace root was not removed.')
+      try {
+        await eventually(async () => await page.getByTestId('workspace-root').count() === 1,
+          'The second workspace root was not removed.')
+      } catch (error) {
+        const diagnostic = {
+          roots: await page.getByTestId('workspace-root').count(),
+          alerts: await page.getByRole('alert').allTextContents(),
+          statuses: (await page.evaluate(() => window.ion.languageTools.status())).map(({ language, state, detail }) => ({ language, state, detail })),
+          requests: session.requests.length, errors: session.errors.length,
+        }
+        throw new AggregateError([error], `The second workspace root was not removed: ${JSON.stringify(diagnostic)}`)
+      }
       await assert.rejects(query('typescript', secondTsSource, secondTsText, 'definition', 1, 2),
         /Open the file|outside|workspace|authorized|grant/i, 'A removed workspace root remained authorized for TypeScript requests.')
       await query('typescript', tsSource, tsText, 'definition', tsText.lastIndexOf('typedTotal') + 3, 5)
