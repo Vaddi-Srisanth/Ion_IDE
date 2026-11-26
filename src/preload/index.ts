@@ -121,6 +121,12 @@ const bridge: IonBridge = {
     onUpdate: (callback) => subscribe('ion:live-run-update', callback),
     preview: (path) => ipcRenderer.invoke('ion:web-preview', path),
   },
+  tasks: {
+    discover: (root) => ipcRenderer.invoke('ion:tasks-discover', root),
+    list: (root) => ipcRenderer.invoke('ion:tasks-list', root),
+    run: (root, taskId, revision, runId) => ipcRenderer.invoke('ion:tasks-run', root, taskId, revision, runId),
+    cancel: () => ipcRenderer.invoke('ion:tasks-cancel'),
+  },
   terminal: {
     create: (columns, rows, root) => ipcRenderer.invoke('ion:terminal-create', columns, rows, root),
     attach: (id) => ipcRenderer.invoke('ion:terminal-attach', id),

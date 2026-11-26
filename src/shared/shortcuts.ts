@@ -70,6 +70,7 @@ const commands = {
   'focus-terminal': { label: 'Focus Terminal', key: 'Mod+Alt+J' },
   'toggle-auxiliary': { label: 'Toggle Workspace Panel' },
   run: { label: 'Run Active File', key: 'F5' },
+  'run-task': { label: 'Run Task…', key: 'Mod+Shift+B' },
   'start-debugging': { label: 'Start Debugging', key: 'F6' },
   'debug-continue': { label: 'Debug: Continue', key: 'F8' },
   'debug-pause': { label: 'Debug: Pause' },
@@ -137,7 +138,7 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
     || command === 'focus-explorer' || command === 'toggle-debug' || command === 'focus-debug-console'
     || command === 'start-debugging' || command === 'debug-continue' || command === 'debug-step-over'
     || command === 'debug-step-into' || command === 'debug-step-out' || command === 'debug-stop'
-    || command === 'toggle-breakpoint')
+    || command === 'toggle-breakpoint' || command === 'run-task')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }

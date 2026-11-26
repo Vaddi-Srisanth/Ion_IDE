@@ -43,6 +43,7 @@ import type { ExplanationReview } from '../shared/explanations'
 import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import type { DebugService } from './debug/service'
+import type { TaskService } from './tasks/service'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
 import { copyAuthorizedPath, revealAuthorizedPath } from './path-actions'
 
@@ -147,6 +148,8 @@ let viewerService: Promise<ViewerService> | undefined
 let notebookKernels: Promise<NotebookKernels> | undefined
 let debugService: Promise<DebugService> | undefined
 let debugCleanup = Promise.resolve()
+let taskService: Promise<TaskService> | undefined
+let activeTask: { id: string; owner: BrowserWindow; engine?: InteractiveRunner; size?: [number, number] } | undefined
 let quickSearch: AbortController | undefined
 let workspaceSearch: { id: string; controller: AbortController } | undefined
 let workspaceReplace: { scope: WorkspaceFiles; service: import('./workspace-search').WorkspaceReplaceReview } | undefined
@@ -237,9 +240,42 @@ const projects = () => import('./projects/ipc').then(({ createProjectHandlers })
   files: () => files,
   runner,
   isCurrent: (target) => target === window,
-  isBusy: () => restoreClosing || activeRun !== null || practiceRun !== null,
+  isBusy: () => restoreClosing || activeRun !== null || practiceRun !== null || activeTask !== undefined,
   isFull: () => resourceProfile === 'full',
 }))
+
+function taskRunner(target: BrowserWindow): Promise<TaskService> {
+  return taskService ??= import('./tasks/service').then(({ TaskService }) => new TaskService({
+    profile: () => app.getPath('userData'), files: () => files,
+    approve: async (root, items, signal) => {
+      if (target !== window || target.isDestroyed() || signal.aborted) return false
+      const detail = [`Workspace: ${root}`, '', ...items.map(({ task, plan }, index) => [
+        `${index + 1}. ${task.label}`,
+        `Tool: ${plan.executable}`,
+        `Arguments: ${plan.args.map(value => JSON.stringify(value)).join(' ') || '(none)'}`,
+        `Working directory: ${plan.cwd}`,
+      ].join('\n'))].join('\n\n')
+      const choice = await dialog.showMessageBox(target, {
+        signal, type: 'warning', buttons: ['Cancel', 'Run Task'], defaultId: 0, cancelId: 0,
+        message: items.length > 1 ? `Run ${items.length} reviewed tasks?` : `Run ${items[0]?.task.label ?? 'task'}?`,
+        detail: `${detail}\n\nBuild tools and project scripts run with your user account permissions and may access files and the network. Ion does not use a shell, but the selected build tool can execute workspace-controlled build logic.`,
+      })
+      return choice.response === 1 && target === window && !target.isDestroyed() && !signal.aborted
+    },
+    execute: async (task, plan, signal) => {
+      const owner = activeTask
+      if (!owner || owner.owner !== target || signal.aborted) return cancelledRun()
+      const emit = (update: RunUpdate) => {
+        if (target === window && !target.isDestroyed()) target.webContents.send('ion:live-run-update', { id: owner.id, update })
+      }
+      const engine = interactiveRunner ??= new (await import('./run-console')).InteractiveRunner(ptyHelper())
+      owner.engine = engine
+      if (owner.size) engine.resize(...owner.size)
+      return engine.run({ language: 'javascript', cwd: task.cwd, label: task.label, toolchain: plan.tool,
+        run: { executable: plan.executable, args: plan.args, cwd: plan.cwd, environment: plan.environment, timeoutMs: plan.timeoutMs } }, emit, signal)
+    },
+  })).catch((error: unknown) => { if (target === window) taskService = undefined; throw error })
+}
 
 async function activeProjects(target: BrowserWindow) {
   const handlers = await projects()
@@ -749,6 +785,8 @@ function createWindow(): BrowserWindow {
     webPreview = undefined
     const interactive = activeRun?.owner === target ? activeRun : null
     interactive?.controller.abort()
+    const tasks = taskService
+    taskService = undefined
     const formatting = formatJob
     formatting?.controller.abort()
     const fileCleanup = files.drain()
@@ -776,7 +814,7 @@ function createWindow(): BrowserWindow {
     // recovery publication. Wait for every owner before choosing what follows.
     const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(), stopDebugTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
-      practiceRun?.job?.catch(() => undefined), formatting?.done,
+      practiceRun?.job?.catch(() => undefined), tasks?.then(service => service.close()), formatting?.done,
       updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup, pendingRestore ? undefined : closingBackup?.then(s => s.cancel())])
     void cleanup.then(async (results) => {
       await drainProfileWrites()
@@ -916,7 +954,7 @@ function startInteractive(target: BrowserWindow, id: string, value: unknown, lea
     trace?.('request', 'rejected-before-engine', 'revision')
     return Promise.resolve(rejectedRun('Invalid source revision.'))
   }
-  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
+  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy) {
     trace?.('request', 'rejected-before-engine', 'busy')
     return Promise.resolve(rejectedRun('A program or test is already running.'))
   }
@@ -1106,7 +1144,7 @@ async function drainProfileWrites() {
 }
 async function requireStoppedTools() {
   const debugging = await debugService?.then(service => service.status(), () => null)
-  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
+  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
     || debugging || await terminalService?.then(s => s.hasSessions) || await notebookKernels?.then(s => s.hasSessions)) {
     throw new Error('Stop running programs, tests, debugger sessions, notebook kernels and terminal sessions before restoring. Your work is unchanged.')
   }
@@ -1136,7 +1174,7 @@ async function startDebugSession(target: BrowserWindow, value: unknown): Promise
       throw new Error('Invalid debug breakpoint.')
     }
   }
-  if (runner.busy || practiceRun || activeRun || projectHandlers?.busy) {
+  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy) {
     throw new Error('Stop the current program or test before starting the debugger.')
   }
   if (await debugService?.then(service => service.status(), () => null)) throw new Error('A debugger session is already active.')
@@ -1181,7 +1219,7 @@ function registerIpc(): void {
         throw new Error('Restore is waiting for the save, keep-drafts or cancel decision.')
       }
       const request = Promise.resolve(operation(target, ...args))
-      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|workspace-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|set-optional-panel)/.test(channel)
+      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|workspace-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|tasks-discover|set-optional-panel)/.test(channel)
       if (!writesProfile) return request
       acceptedRequests.add(request)
       void request.then(() => acceptedRequests.delete(request), () => acceptedRequests.delete(request))
@@ -1204,6 +1242,7 @@ function registerIpc(): void {
     void languageServices.release(true)
     void stopDebugTools()
     void projectLensService?.then(service => service.close(), () => undefined)
+    void taskService?.then(service => service.cancel(), () => undefined)
     trustedGitRoot = undefined
     void closeSourceControl()
     void projectHandlers?.stopSuite()
@@ -1880,6 +1919,26 @@ function registerIpc(): void {
     }
     return moved
   })
+  handle('tasks-list', async (target, root) => (await taskRunner(target)).list(root))
+  handle('tasks-discover', async (target, root) => (await taskRunner(target)).discover(root))
+  handle('tasks-run', async (target, root, taskId, expectedRevision, runId) => {
+    if (typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) throw new Error('Invalid task run request.')
+    if (activeTask || runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob
+      || await debugService?.then(service => service.status(), () => null)) {
+      throw new Error('Stop the current program, test, formatter or debugger before running a task.')
+    }
+    const record = { id: runId, owner: target }
+    activeTask = record
+    try {
+      return await (await taskRunner(target)).run(root, taskId, expectedRevision)
+    } finally {
+      if (target === window && !target.isDestroyed()) {
+        target.webContents.send('ion:live-run-update', { id: runId, update: { kind: 'complete' } })
+      }
+      if (activeTask === record) activeTask = undefined
+    }
+  })
+  handle('tasks-cancel', async (target) => activeTask?.owner === target && Boolean((await taskService)?.cancel()))
   handle('live-run-start', async (target, id, path, learn, expectedRevision) => {
     if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return rejectedRun('Invalid run request.')
     const result = await startInteractive(target, id, path, learn === true, expectedRevision)
@@ -1903,21 +1962,26 @@ function registerIpc(): void {
     return project ? { manifest: project.manifest, paths: project.inputs.map(({ path }) => path) } : null
   })
   handle('live-run-input', (target, id, input) => {
-    if (!activeRun || activeRun.owner !== target || activeRun.id !== id || activeRun.controller.signal.aborted) {
+    const interactive = activeRun?.owner === target && activeRun.id === id && !activeRun.controller.signal.aborted
+      ? activeRun : activeTask?.owner === target && activeTask.id === id ? activeTask : undefined
+    if (!interactive) {
       throw new Error('The requested run is no longer accepting input.')
     }
     const text = validStdin(input)
     if (Buffer.byteLength(text) > 16 * 1024) throw new Error('Send at most 16 KiB per terminal input chunk.')
-    if (!activeRun.engine?.input(text)) throw new Error('The program is not ready to accept input yet.')
+    if (!interactive.engine?.input(text)) throw new Error('The program is not ready to accept input yet.')
   })
   handle('live-run-resize', (target, id, cols, rows) => {
-    if (!activeRun || activeRun.owner !== target || activeRun.id !== id || typeof cols !== 'number' || typeof rows !== 'number'
+    const interactive = activeRun?.owner === target && activeRun.id === id ? activeRun
+      : activeTask?.owner === target && activeTask.id === id ? activeTask : undefined
+    if (!interactive || typeof cols !== 'number' || typeof rows !== 'number'
       || !Number.isInteger(cols) || !Number.isInteger(rows) || cols < 2 || cols > 512 || rows < 2 || rows > 512) return
-    activeRun.size = [cols, rows]
-    activeRun.engine?.resize(cols, rows)
+    interactive.size = [cols, rows]
+    interactive.engine?.resize(cols, rows)
   })
   handle('live-run-cancel', (target, id) => {
     if (activeRun && activeRun.owner === target && activeRun.id === id) activeRun.controller.abort()
+    if (activeTask && activeTask.owner === target && activeTask.id === id) void taskService?.then(service => service.cancel())
   })
   handle('terminal-create', async (target, columns, rows, requestedRoot) => {
     if (!terminalDimension(columns) || !terminalDimension(rows)) throw new Error('Invalid terminal dimensions.')
@@ -2129,7 +2193,7 @@ function registerIpc(): void {
   })
   handle('practice-run-samples', async (target, id, attempt) => {
     if (target !== window || panel !== 'learn' && panel !== 'practice') throw new Error('Open Learn or Practice before running samples.')
-    if (practiceRun || runner.busy || activeRun || projectHandlers?.busy) throw new Error('A program or test is already running.')
+    if (practiceRun || runner.busy || activeRun || activeTask || projectHandlers?.busy) throw new Error('A program, task or test is already running.')
     const generation = panelGeneration
     const controller = new AbortController()
     const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
@@ -2153,6 +2217,7 @@ function registerIpc(): void {
     void projectHandlers?.stopSuite()
     practiceRun?.controller.abort()
     activeRun?.controller.abort()
+    void taskService?.then(service => service.cancel())
     runner.stop()
   })
   handle('confirm-window-close', (target, allow) => {

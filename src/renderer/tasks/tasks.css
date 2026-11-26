@@ -1,0 +1,14 @@
+.modal.task-picker { width: min(620px, 90vw); margin-top: min(68px, 10vh); }
+.task-picker-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.task-picker-note { margin: 8px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.task-picker-list { display: grid; gap: 3px; max-height: min(340px, 52vh); overflow: auto; }
+.task-picker-list > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 44px; padding: 7px 9px; border: 1px solid transparent; border-radius: 5px; text-align: left;
+  color: var(--text); background: transparent; }
+.task-picker-list > button:hover:not(:disabled), .task-picker-list > button:focus-visible { border-color: var(--border); background: var(--accent-bg); }
+.task-picker-list span { min-width: 0; }
+.task-picker-list strong, .task-picker-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-picker-list strong { color: var(--ink); font-size: 12px; }
+.task-picker-list small, .task-picker-list i { color: var(--muted); font: 10px var(--mono); }
+.task-picker-list i { flex: none; font-style: normal; }
+@media (max-width: 560px) { .task-picker-toolbar { grid-template-columns: minmax(0, 1fr); } }

@@ -17,6 +17,7 @@ import type { OpenedWorkspaceConfiguration } from './workspace-configuration'
 import type { LanguageToolsBridge } from './language-tools'
 import type { DebugBridge } from './debug'
 import type { SourceControlBridge } from './source-control'
+import type { TasksBridge } from './tasks'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
 
@@ -172,6 +173,7 @@ export interface IonBridge {
     remove(ids: string[]): Promise<void>
   }
   runConsole: RunConsoleBridge
+  tasks: TasksBridge
   terminal: TerminalBridge
   notebooks: NotebookKernelBridge
   viewers: ViewerBridge

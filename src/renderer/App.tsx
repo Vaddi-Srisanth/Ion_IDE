@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { defaultSettings, type Entry, type EntryKind, type MenuCommand, type OptionalPanel, type RecentEntry, type RecoveryDraft, type Settings, type WorkspaceMode } from '../shared/contracts';
+import { defaultSettings, type Entry, type EntryKind, type MenuCommand, type OptionalPanel, type RecentEntry, type RecoveryDraft, type RunResult, type Settings, type WorkspaceMode } from '../shared/contracts';
 import { ConfirmDialog, EntryDialog, Modal, PreferencesDialog, StarterDialog } from './Dialogs';
 import { Documents, errorMessage, type InitialDraft, type Tab } from './documents';
 import { Icon } from './icons';
@@ -31,6 +31,7 @@ import type { ExplanationAction, ExplanationOpenResult, ExplanationReply, Explan
 import type { DebugBreakpointResult, DebugStartRequest } from '../shared/debug';
 import type { DebugController } from './debug/controller';
 import type { DebugUiBreakpoint, DebugUiFrame, DebugUiState } from './debug/types';
+import type { TaskDefinition, TaskRecord } from '../shared/tasks';
 
 type Dialog =
   | { kind: 'settings'; browseThemes?: boolean }
@@ -44,6 +45,7 @@ type Dialog =
   | { kind: 'symbol-rename'; initial: string }
   | { kind: 'symbol-rename-review'; preview: LanguageEditPreview }
   | { kind: 'project-tests' }
+  | { kind: 'tasks' }
   | { kind: 'commands' }
   | { kind: 'files' }
   | { kind: 'workspace-search' }
@@ -80,6 +82,7 @@ const ReviewRecommendations = lazy(async () => ({ default: (await import('./proj
 const SourceControlPanel = lazy(() => import('./source-control/SourceControlPanel'));
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
+const TaskPicker = lazy(() => import('./tasks/TaskPicker'));
 const GoToLine = lazy(async () => ({ default: (await import('./CommandPicker')).GoToLine }));
 type DebugModule = typeof import('./debug');
 const idleDebugState: DebugUiState = {
@@ -1425,6 +1428,40 @@ export function App() {
     }
   }
 
+  async function runTask(record: TaskRecord, task: TaskDefinition) {
+    setDialog(null);
+    if (screen !== 'editor' || running.current || !rootsRef.current.some(({ path }) => path === record.root)) return;
+    const pending = documents.getSnapshot().tabs.some(tab => tab.path && isWithin(tab.path, record.root) && (tab.dirty || tab.conflict));
+    if (pending) {
+      notify('Save or resolve modified workspace files before running a build task.', true);
+      return;
+    }
+    running.current = true;
+    const request: NonNullable<typeof liveRun.current> = { id: crypto.randomUUID(), cancelled: false };
+    liveRun.current = request;
+    try {
+      setBottomTab('run');
+      if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
+      runConsole.start(task.label, settingsRef.current.keepRunOutput);
+      const streamed = new Promise<void>((resolve) => { request.complete = resolve; });
+      const launch = bridge.tasks.run(record.root, task.id, record.revision, request.id);
+      if (consoleSize.current) void bridge.runConsole.resize(request.id, ...consoleSize.current).catch(() => {});
+      const [graph] = await Promise.all([launch, streamed]);
+      const last = graph.completed.at(-1)?.result;
+      const cancelled: RunResult = { status: 'cancelled', compiler: null, compileOutput: '', programOutput: '', exitCode: null,
+        durationMs: 0, message: graph.completed.length ? 'Task sequence stopped.' : 'Task run was canceled before execution.' };
+      runConsole.finish(last ?? cancelled);
+      if (!graph.cancelled && last?.status === 'success') {
+        notify(`${graph.completed.length} task${graph.completed.length === 1 ? '' : 's'} completed.`);
+      }
+    } catch (reason) {
+      runConsole.fail(errorMessage(reason));
+    } finally {
+      if (liveRun.current === request) liveRun.current = null;
+      running.current = false;
+    }
+  }
+
   const stop = () => {
     const request = liveRun.current;
     if (request) request.cancelled = true;
@@ -1583,6 +1620,7 @@ export function App() {
         case 'toggle-document-split': splitActions.current?.toggle(); break;
         case 'focus-document-split': splitActions.current?.focusDivider(); break;
         case 'run': void run(); break;
+        case 'run-task': if (root) setDialog({ kind: 'tasks' }); break;
         case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
@@ -1797,6 +1835,7 @@ export function App() {
       case 'select-all-occurrences': return Boolean(active && !active.viewer && !active.error
         && active.notebookMode !== 'notebook' && splitActions.current?.markdown?.mode !== 'preview');
       case 'run': return canRun && !runBusy;
+      case 'run-task': return Boolean(root) && !runBusy;
       case 'start-debugging': return canDebugActive && !debugSessionActive;
       case 'debug-continue': return debugState.phase === 'paused';
       case 'debug-pause': return debugState.phase === 'running';
@@ -1973,6 +2012,8 @@ export function App() {
           onNavigate={(path, line, column) => { setDialog(null); void navigateSource({ path, line, column }); }}
           onConfigure={() => { setDialog(null); closeSourceControl(); selectWorkspace('projects'); }}
           onClose={() => setDialog(null)}/>}
+        {dialog?.kind === 'tasks' && root && <TaskPicker key={root.path} api={bridge.tasks} root={root.path}
+          onRun={(record, task) => void runTask(record, task)} onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'go-to-line' && <GoToLine lines={dialog.lines} onClose={() => setDialog(null)}
           onGo={(line) => {
             const id = dialog.tabId;
