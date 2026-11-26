@@ -623,6 +623,15 @@ export function App() {
       .slice(0, 256)
       .map((line) => ({ path, line, verified: false })), [debugBreakpoints]);
 
+  useEffect(() => {
+    const controller = debugController.current;
+    if (!debugVisible || !debugModule || !controller
+      || debugState.phase === 'starting' || debugState.phase === 'running'
+      || debugState.phase === 'paused' || debugState.phase === 'stopping') return;
+    const active = tabs.find(({ id }) => id === activeId);
+    controller.setBreakpoints(active?.path ? debugBreakpointRows(active.path) : []);
+  }, [activeId, debugBreakpointRows, debugModule, debugState.phase, debugVisible, tabs]);
+
   const toggleBreakpoint = useCallback((path: string, line: number) => {
     if (!Number.isInteger(line) || line < 1) return;
     const key = sourceControlPathKey(path);
