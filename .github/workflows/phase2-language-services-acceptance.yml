@@ -71,6 +71,10 @@ jobs:
             lldb_dap_win="$(cygpath -w "$lldb_dap")"
             echo "ION_CLANG=$clang_win" >> "$GITHUB_ENV"
             echo "ION_LLDB_DAP=$lldb_dap_win" >> "$GITHUB_ENV"
+            # Production Ion deliberately ignores test-only executable overrides.
+            # Put the pinned installation on the trusted discovery path so the
+            # packaged Electron journey exercises the same selection policy as users.
+            cygpath -w "$(dirname "$lldb_dap")" >> "$GITHUB_PATH"
             python --version >> performance-results/phase2-debugger/revision.log 2>&1
             python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))' >> performance-results/phase2-debugger/revision.log 2>&1
             printf 'llvm_installer_sha256=%s\n' "$llvm_sha256" >> performance-results/phase2-debugger/revision.log
