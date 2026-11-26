@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { artifact, close, createProject, eventually, launch, openFolder, resourceSnapshot, stubDialogs, withScratch } from './desktop-harness.mjs'
-import { windowsProcessTree } from './windows/process-tree.mjs'
+import { artifact, close, cpuPercent, createProject, eventually, launch, openFolder, resourceSnapshot, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { windowsProcessTree, windowsTreeCPU } from './windows/process-tree.mjs'
 
 process.env.ION_SHOW_TEST_WINDOWS = '0'
 const target = await artifact('dist')
@@ -11,6 +11,12 @@ const snapshot = async session => {
   const value = await windowsProcessTree(session)
   return { ...value, childRssMiB: value.members.filter(({ kind }) => kind === 'child')
     .reduce((total, item) => total + item.workingSet / 1024 ** 2, 0), rssMiB: value.workingSetMiB }
+}
+const phaseSample = async session => {
+  const first = await snapshot(session)
+  await sleep(1_200)
+  const last = await snapshot(session)
+  return { last, cpuPercentOneCore: process.platform === 'win32' ? windowsTreeCPU(first, last) : cpuPercent(first, last) }
 }
 
 async function openTasks(page) {
@@ -37,12 +43,14 @@ await withScratch('tasks-desktop', async scratch => {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory, allowTask: true })
     await openFolder(page, project)
-    const before = await snapshot(session)
+    const beforePhase = await phaseSample(session)
+    const before = beforePhase.last
     assert.ok(before.childRssMiB <= 1,
       `Task support started a child process before the user opened or ran a task (${before.childRssMiB} MiB).`)
 
     await openTasks(page)
-    const pickerOpen = await snapshot(session)
+    const pickerPhase = await phaseSample(session)
+    const pickerOpen = pickerPhase.last
     const runStart = performance.now()
     await page.getByText('npm: ion:acceptance', { exact: true }).click()
     await page.locator('[data-testid="output"][data-status="success"]').waitFor({ timeout: 25_000 })
@@ -50,21 +58,32 @@ await withScratch('tasks-desktop', async scratch => {
     assert.equal(await readFile(completed, 'utf8'), 'ION-TASK-OK')
     await eventually(async () => (await snapshot(session)).childRssMiB <= before.childRssMiB + 1,
       'Completed task left a child process behind.', 10_000)
-    const afterSuccess = await snapshot(session)
+    const afterSuccessPhase = await phaseSample(session)
+    const afterSuccess = afterSuccessPhase.last
 
     await openTasks(page)
     await page.getByText('npm: ion:wait', { exact: true }).click()
     await eventually(async () => await readFile(started, 'utf8').catch(() => '') === 'started',
       'Long-running task never started.', 10_000)
+    const activeTaskPhase = await phaseSample(session)
     await page.getByTestId('run-console-stop').click()
     await page.locator('[data-testid="output"][data-status="cancelled"]').waitFor({ timeout: 15_000 })
     await eventually(async () => (await snapshot(session)).childRssMiB <= before.childRssMiB + 1,
       'Stopped task left a child process behind.', 10_000)
-    const afterStop = await snapshot(session)
+    const afterStopPhase = await phaseSample(session)
+    const afterStop = afterStopPhase.last
+    for (const [phase, value] of Object.entries({ before: beforePhase.cpuPercentOneCore,
+      pickerOpen: pickerPhase.cpuPercentOneCore, activeTask: activeTaskPhase.cpuPercentOneCore,
+      afterSuccess: afterSuccessPhase.cpuPercentOneCore, afterStop: afterStopPhase.cpuPercentOneCore })) {
+      assert.ok(Number.isFinite(value), `${phase} CPU measurement lost process-family identity.`)
+    }
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
     console.log(JSON.stringify({ platform: process.platform, arch: process.arch, taskMs: Math.round(taskMs),
       rssMiB: { before: before.rssMiB, pickerOpen: pickerOpen.rssMiB, afterSuccess: afterSuccess.rssMiB, afterStop: afterStop.rssMiB },
+      cpuPercentOneCore: { before: beforePhase.cpuPercentOneCore, pickerOpen: pickerPhase.cpuPercentOneCore,
+        activeTask: activeTaskPhase.cpuPercentOneCore, afterSuccess: afterSuccessPhase.cpuPercentOneCore,
+        afterStop: afterStopPhase.cpuPercentOneCore },
       childRssMiB: { before: before.childRssMiB, pickerOpen: pickerOpen.childRssMiB,
         afterSuccess: afterSuccess.childRssMiB, afterStop: afterStop.childRssMiB } }))
     console.log('PASS production Electron task discovery, reviewed execution, Stop and owned cleanup')
