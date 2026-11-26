@@ -52,7 +52,7 @@ Status vocabulary is deliberately strict:
 | JavaScript/TypeScript language service | Missing | Syntax/run/format exist; project-aware TypeScript service is not integrated. |
 | Go/Rust/C#/other LSP | Missing | Syntax and some lesson metadata only. |
 | Language-server lifecycle manager | Missing | Needed before adding universal LSPs; must enforce per-workspace opt-in, idle shutdown, limits, and ownership. |
-| Debugger / DAP | Missing | No breakpoints, stack, variables, watches, stepping, or debug console. |
+| C/C++ debugger / DAP | Verified at Milestone 2.4 scope | Lazy trusted clang/lldb-dap path with reviewed saved-source launch, breakpoints, call stack, scopes, variables, watches/evaluate, stepping, continue/restart/stop and owned cleanup. Python/Java debugging, attach, remote and advanced breakpoint types remain unimplemented. |
 | Build-system discovery | Incomplete | Run plans and optional Java project launchers exist. General task/build graph support is missing. |
 | Test Explorer | Incomplete | Saved project C console tests and evidence exist; framework discovery/tree/rerun/debug is missing. |
 | Problems panel | Verified at runner scope | Compiler/run diagnostics and Learning Lens links. Cross-language live problem aggregation is incomplete. |

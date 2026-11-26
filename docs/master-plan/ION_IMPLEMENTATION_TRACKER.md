@@ -1,6 +1,7 @@
 # Ion implementation tracker
 
-Current branch: `codex/ion-core-excellence-editor-essentials`<br>
+Current branch: `codex/ion-core-excellence-phase-2-dap`<br>
+Current Phase 2 debugger production source: `bcd2d5560510492b7dae8c69c97a925b2c7db787` with workflow-only evidence commit `041a5b02c886bcbe7255e58b0fb711aeac6e69ac` (**native acceptance PASS**)<br>
 Current Editor Essentials candidate: `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` with evidence commit `c0a33785d006cae0c9eed280ba398c288a3babc9` (**macOS and Windows x64 acceptance PASS**)<br>
 Current Phase 2 language-services production source: `6bcc06c059a13461b145e5e4ccec55d22bb3bced` (**native acceptance PASS**)<br>
 Accepted editor/workspace foundation: `0718aa7b35894474e1932efba7cee3286dcf0aab`<br>
@@ -17,7 +18,7 @@ Installed application and live profile: untouched
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **Editor/workspace foundation, LSP Milestone 2.3 and Editor Essentials accepted** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed the focused Windows x64 production, security, restoration and resource gates after local macOS acceptance. DAP has not started. |
+| 2 — Core editor excellence | **Editor/workspace foundation, LSP Milestone 2.3, Editor Essentials and C/C++ DAP Milestone 2.4 accepted** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed its focused native gates. DAP production source `bcd2d55` passed packaged and native macOS in [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321) and the identical production tree passed Windows x64 under workflow-only SHA `041a5b0` in [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977). |
 | 3–10 | Deferred | Follow the architecture, security and performance gates in this roadmap. |
 
 ## Phase 0 completion
@@ -117,7 +118,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.2 — Multi-root workspace | **Accepted on macOS and Windows** | Explicit grants, add/remove/reorder, bounded saved descriptors/settings, root-aware search/replace/Quick Open/breadcrumbs/terminal/Git/run/projects/notebooks and session restoration pass. Windows casing, junction, Unicode, long-path and sharing-lock gates passed. |
 | 2.3 — Reusable LSP host | **Accepted on macOS ARM64 and Windows x64** | Final run [45859946256](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45859946256) passed production build/typecheck, full unit/security suites, Java, clangd, Pyright, TypeScript, multi-root isolation, reviewed rename/workspace edits, hostile protocol/path cases, resource gates and zero owned service processes after cleanup. Production source `6bcc06c059a13461b145e5e4ccec55d22bb3bced`; test-only harness `9aaeaeffff5cbb5b20a00ddbe373ba51c4e24578`. Preserved failures and exact measurements are in `ION_PHASE_2_LANGUAGE_SERVICES.md`. |
 | Editor Essentials — menus, Explorer keyboard and MRU tabs | **Accepted on macOS and Windows x64** | Candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` adds accessible tab/Explorer context menus, bounded group-aware Ctrl+Tab history, safe batch close/reopen, Explorer tree keyboard semantics, focus-scoped delete/rename, authorized Copy Path/Reveal and selected-folder integrated terminals. Local macOS typecheck/build, 22 focused tests, the 467-test suite (441 pass/26 explicit skips), keyboard/relaunch and production Electron acceptance passed. Focused Windows run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed 440/457 tests with 17 explicit skips, both production workflows, restoration and resource cleanup. No dependency or background process was added. |
-| 2.4 — DAP | Not started | No production debug adapter host yet. |
+| 2.4 — C/C++ DAP | **Accepted on macOS ARM64 and Windows x64** | Lazy bounded DAP host, trusted clang/lldb-dap discovery, reviewed saved-source binding, breakpoint/call-stack/scope/variable/watch/evaluate UI, stepping, continue/restart/stop and owned cleanup pass. macOS packaged/native job [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321/job/140103900405) and Windows packaged/native job [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977/job/140106512467) passed. Exact scope, failures and limitations are in `ION_PHASE_2_DEBUGGER.md`. |
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |
 
@@ -133,7 +134,7 @@ A three-trial matched comparison used the exact pre–multi-root commit `9bca0ed
 
 The focused five-root workload recorded 11.30 ms whole-workspace search, 9.60 ms replacement review and 39.10 ms reviewed publication across five files. Ten tabs opened in 284.53 ms, the next forty in 1,311.57 ms, the same file reached four groups in 104.84 ms and four different files reached four groups in 223.43 ms. Five create/close cycles took 1,599.41 ms. The owned process count stayed exactly four for every sample; no terminal, language server, debugger, compiler, Git or test process appeared. After cycles, attributed footprint was 286.10 MiB versus 354.27 MiB at the preceding fifty-tab checkpoint; summed RSS retained allocator pages at 612.08 versus 549.63 MiB and is reported as retention, not a leak. Raw ignored evidence is under `performance-results/editor-foundations-local-macos-2026-11-24T08-50-02.528Z.json` and `performance-results/desktop-2026-11-24T08-50-50.670Z.json`.
 
-**Foundation verdict: PASS for the implemented editor-group and multi-root scope.** Local macOS and hosted Windows implementation, security, restoration and bounded resource gates pass. LSP/DAP were not started and remain a separate explicitly authorized milestone.
+**Foundation verdict: PASS for the implemented editor-group and multi-root scope.** Local macOS and hosted Windows implementation, security, restoration and bounded resource gates pass. LSP and DAP were subsequently implemented and accepted as separately measured milestones above.
 
 ### Native Windows combined-foundation gate
 
