@@ -47,7 +47,19 @@ await withScratch('debugger-desktop', async scratch => {
     await page.keyboard.press('F9')
     await page.getByTestId('toggle-debug').click()
     await page.getByTestId('debug-start').click()
-    await page.locator('[data-testid="debug-panel"][data-phase="paused"]').waitFor({ timeout: 25_000 })
+    try {
+      await page.locator('[data-testid="debug-panel"][data-phase="paused"]').waitFor({ timeout: 25_000 })
+    } catch (error) {
+      const panel = page.getByTestId('debug-panel')
+      const phase = await panel.getAttribute('data-phase').catch(() => null)
+      const status = (await panel.locator('[role="status"]').textContent().catch(() => null))?.slice(0, 200)
+      const owner = await page.evaluate(async () => {
+        const value = await window.ion.debug.status()
+        return value ? { state: value.state, hasThreadId: value.threadId !== undefined } : null
+      }).catch(() => null)
+      console.error(`DEBUG_ACCEPTANCE_STATE ${JSON.stringify({ phase, status, owner })}`)
+      throw error
+    }
     assert.ok(await page.getByTestId('debug-frame').count(), 'Production debugger exposed no paused stack frame.')
     assert.equal((await page.locator('.debug-breakpoint-dot').count()) > 0, true, 'Production breakpoint was not retained.')
 
