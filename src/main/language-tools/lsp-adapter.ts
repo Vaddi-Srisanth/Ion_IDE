@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { createHash, randomBytes } from 'node:crypto'
+import { appendFileSync } from 'node:fs'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, win32 } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { sourceDriveSpelling } from '../../shared/source-path'
@@ -10,8 +11,14 @@ import { LspProcess } from './lsp-process'
 
 interface ServerCandidate { executable: string; args: string[]; kind: 'pyright' | 'pylsp' | 'typescript' }
 export interface PublishedDiagnostics { version?: number; diagnostics: unknown[] }
-interface SynchronizedDocument { sourceVersion: number; protocolVersion: number; digest: string }
+interface SynchronizedDocument { sourceVersion: number; protocolVersion: number; digest: string; protocolUri: string; identity: string }
 interface DiagnosticWaiter { resolve(): void; reject(reason?: unknown): void; dispose(): void }
+interface DiagnosticDecision {
+  decision: 'accepted' | 'rejected' | 'ignored'
+  reason?: 'unversioned-after-edit' | 'older-version' | 'future-version' | 'generation-mismatch' | 'other'
+  waiterGeneration?: number
+  waiterReleased: boolean
+}
 
 type DocumentNotification = (method: string, params: unknown) => Promise<void>
 
@@ -22,28 +29,110 @@ function textDigest(text: string) {
   return createHash('sha256').update(text).digest('hex')
 }
 
+type ResolveFilePath = (path: string) => Promise<string>
+
+function windowsPathIdentity(path: string) {
+  const normalized = win32.normalize(path).normalize('NFC')
+  return /^[a-z]:\\/i.test(normalized) ? normalized[0].toUpperCase() + normalized.slice(1) : normalized
+}
+
+/** Resolves only file identity. The original URI remains the protocol URI and
+ * all filesystem authorization continues to use the already granted path. */
+export async function canonicalFileUriIdentity(uri: string, platform = process.platform,
+  resolveFile: ResolveFilePath = realpath) {
+  if (platform !== 'win32') return new URL(uri).href
+  const path = fileURLToPath(uri, { windows: true })
+  const canonical = await resolveFile(path).catch(() => path)
+  return `file:${windowsPathIdentity(canonical)}`
+}
+
+class DiagnosticMetadataTrace {
+  private readonly destination = process.env.ION_LSP_DIAGNOSTIC_TRACE
+  private readonly salt = this.destination ? randomBytes(32) : undefined
+  private events = 0
+
+  hash(value: string | undefined) {
+    if (!this.salt || value === undefined) return undefined
+    return createHash('sha256').update(this.salt).update(value).digest('hex').slice(0, 24)
+  }
+
+  record(value: Record<string, unknown>) {
+    if (!this.destination || this.events++ >= 512) return
+    try {
+      appendFileSync(this.destination, JSON.stringify({ tNs: String(process.hrtime.bigint()), ...value }) + '\n', {
+        encoding: 'utf8', mode: 0o600,
+      })
+    } catch { /* Diagnostic evidence cannot affect language intelligence. */ }
+  }
+}
+
 /** Correlates pushed diagnostics with the exact synchronized document
- * generation. LSP does not carry enough information to correlate an
- * unversioned report after the first edit, so those reports fail closed. */
+ * generation. Versionless reports after an edit stay provisional behind a
+ * protocol-ordered semantic barrier and never release a waiter on arrival. */
 export class DiagnosticGenerationFence {
   private readonly reports = new Map<string, Map<number, PublishedDiagnostics>>()
+  private readonly provisional = new Map<string, Map<number, PublishedDiagnostics>>()
+  private readonly unversionedWindows = new Map<string, Set<number>>()
   private readonly waiters = new Map<string, Map<number, Set<DiagnosticWaiter>>>()
 
-  publish(uri: string, synchronizedVersion: number | undefined, report: PublishedDiagnostics) {
-    if (synchronizedVersion === undefined) return false
-    const generation = report.version ?? (synchronizedVersion === 1 ? 1 : undefined)
-    if (generation === undefined || generation < 1 || generation > synchronizedVersion) return false
+  beginUnversionedWindow(uri: string, generation: number) {
+    const windows = this.unversionedWindows.get(uri) ?? new Set<number>()
+    windows.add(generation)
+    this.unversionedWindows.set(uri, windows)
+    this.provisional.get(uri)?.delete(generation)
+  }
+
+  endUnversionedWindow(uri: string, generation: number) {
+    this.provisional.get(uri)?.delete(generation)
+    this.unversionedWindows.get(uri)?.delete(generation)
+    if (!this.provisional.get(uri)?.size) this.provisional.delete(uri)
+    if (!this.unversionedWindows.get(uri)?.size) this.unversionedWindows.delete(uri)
+  }
+
+  publish(uri: string, synchronizedVersion: number | undefined, report: PublishedDiagnostics): DiagnosticDecision {
+    if (synchronizedVersion === undefined) {
+      return { decision: 'rejected', reason: 'generation-mismatch', waiterReleased: false }
+    }
+    if (report.version === undefined && synchronizedVersion > 1) {
+      const generations = this.provisional.get(uri) ?? new Map<number, PublishedDiagnostics>()
+      if (!this.unversionedWindows.get(uri)?.has(synchronizedVersion)) {
+        return { decision: 'ignored', reason: 'unversioned-after-edit',
+          waiterGeneration: this.waiters.get(uri)?.has(synchronizedVersion) ? synchronizedVersion : undefined,
+          waiterReleased: false }
+      }
+      generations.set(synchronizedVersion, report)
+      this.provisional.set(uri, generations)
+      // Versionless push diagnostics cannot be attributed perfectly. Keep the
+      // last report after a protocol-ordered semantic barrier provisional for
+      // the existing bounded collection window; never release on arrival.
+      return { decision: 'ignored', reason: 'unversioned-after-edit',
+        waiterGeneration: this.waiters.get(uri)?.has(synchronizedVersion) ? synchronizedVersion : undefined,
+        waiterReleased: false }
+    }
+    const generation = report.version ?? synchronizedVersion
+    if (generation < 1) return { decision: 'rejected', reason: 'other', waiterReleased: false }
+    if (generation > synchronizedVersion) {
+      return { decision: 'rejected', reason: 'future-version',
+        waiterGeneration: this.waiters.get(uri)?.has(synchronizedVersion) ? synchronizedVersion : undefined,
+        waiterReleased: false }
+    }
+    if (report.version !== undefined && generation === synchronizedVersion) {
+      this.endUnversionedWindow(uri, generation)
+    }
     const versions = this.reports.get(uri) ?? new Map<number, PublishedDiagnostics>()
     versions.set(generation, report)
     while (versions.size > 8) versions.delete(versions.keys().next().value as number)
     this.reports.set(uri, versions)
     const generations = this.waiters.get(uri)
     const waiting = generations?.get(generation)
+    const waiterReleased = Boolean(waiting?.size)
     for (const waiter of waiting ?? []) waiter.resolve()
     waiting?.clear()
     generations?.delete(generation)
     if (!generations?.size) this.waiters.delete(uri)
-    return true
+    return { decision: generation === synchronizedVersion ? 'accepted' : 'ignored',
+      ...(generation < synchronizedVersion ? { reason: 'older-version' as const } : {}),
+      waiterGeneration: waiterReleased ? generation : undefined, waiterReleased }
   }
 
   take(uri: string, generation: number) { return this.reports.get(uri)?.get(generation) }
@@ -72,7 +161,18 @@ export class DiagnosticGenerationFence {
       if (signal?.aborted) abort()
       else {
         signal?.addEventListener('abort', abort, { once: true })
-        timer = setTimeout(done, 600)
+        timer = setTimeout(() => {
+          const candidate = this.provisional.get(uri)?.get(generation)
+          if (candidate && this.unversionedWindows.get(uri)?.has(generation)) {
+            const versions = this.reports.get(uri) ?? new Map<number, PublishedDiagnostics>()
+            versions.set(generation, candidate)
+            while (versions.size > 8) versions.delete(versions.keys().next().value as number)
+            this.reports.set(uri, versions)
+          }
+          this.provisional.get(uri)?.delete(generation)
+          this.unversionedWindows.get(uri)?.delete(generation)
+          done()
+        }, 600)
       }
     })
   }
@@ -80,11 +180,15 @@ export class DiagnosticGenerationFence {
   clear(uri?: string) {
     if (uri !== undefined) {
       this.reports.delete(uri)
+      this.provisional.delete(uri)
+      this.unversionedWindows.delete(uri)
       for (const waiting of this.waiters.get(uri)?.values() ?? []) for (const waiter of waiting) waiter.dispose()
       this.waiters.delete(uri)
       return
     }
     this.reports.clear()
+    this.provisional.clear()
+    this.unversionedWindows.clear()
     for (const generations of this.waiters.values()) for (const waiting of generations.values()) {
       for (const waiter of waiting) waiter.dispose()
     }
@@ -98,29 +202,46 @@ export class DiagnosticGenerationFence {
   }
 }
 
-/** Serializes document lifecycle updates per URI and suppresses duplicate
- * full-document notifications without retaining a second source buffer. */
+export interface DocumentUriMatch {
+  protocolUri: string
+  identity: string
+  protocolVersion: number
+  rawUriMatched: boolean
+}
+
+/** Serializes document lifecycle updates per physical file identity and
+ * suppresses duplicate full-document notifications without retaining a
+ * second source buffer. Protocol URI spelling remains unchanged. */
 export class LspDocumentSynchronizer {
   private readonly documents = new Map<string, SynchronizedDocument>()
+  private readonly aliases = new Map<string, string>()
   private readonly queues = new Map<string, Promise<void>>()
 
-  has(uri: string) { return this.documents.has(uri) }
-  version(uri: string) { return this.documents.get(uri)?.protocolVersion }
+  constructor(private readonly platform = process.platform, private readonly resolveFile: ResolveFilePath = realpath) {}
+
+  has(uri: string) { return this.aliases.has(uri) }
+  version(uri: string) {
+    const identity = this.aliases.get(uri)
+    return identity ? this.documents.get(identity)?.protocolVersion : undefined
+  }
   get size() { return this.documents.size }
 
-  synchronize(uri: string, language: string, sourceVersion: number, text: string, notify: DocumentNotification) {
-    return this.enqueue(uri, async () => {
+  async synchronize(uri: string, language: string, sourceVersion: number, text: string, notify: DocumentNotification) {
+    const identity = await canonicalFileUriIdentity(uri, this.platform, this.resolveFile)
+    return this.enqueue(identity, async () => {
       const digest = textDigest(text)
-      const current = this.documents.get(uri)
+      const current = this.documents.get(identity)
+      this.aliases.set(uri, identity)
       if (!current) {
-        const next = { sourceVersion, protocolVersion: 1, digest }
-        this.documents.set(uri, next)
+        const next = { sourceVersion, protocolVersion: 1, digest, protocolUri: uri, identity }
+        this.documents.set(identity, next)
         try {
           await notify('textDocument/didOpen', {
             textDocument: { uri, languageId: language, version: next.protocolVersion, text },
           })
         } catch (error) {
-          if (this.documents.get(uri) === next) this.documents.delete(uri)
+          if (this.documents.get(identity) === next) this.documents.delete(identity)
+          this.aliases.delete(uri)
           throw error
         }
         return next.protocolVersion
@@ -130,43 +251,59 @@ export class LspDocumentSynchronizer {
         throw new Error('Conflicting language document snapshot.')
       }
       if (digest === current.digest) {
-        if (sourceVersion > current.sourceVersion) this.documents.set(uri, { ...current, sourceVersion })
+        if (sourceVersion > current.sourceVersion) this.documents.set(identity, { ...current, sourceVersion })
         return current.protocolVersion
       }
       const next = { sourceVersion, protocolVersion: current.protocolVersion + 1, digest }
-      this.documents.set(uri, next)
+      const updated = { ...current, ...next }
+      this.documents.set(identity, updated)
       try {
         await notify('textDocument/didChange', {
-          textDocument: { uri, version: next.protocolVersion }, contentChanges: [{ text }],
+          textDocument: { uri: current.protocolUri, version: next.protocolVersion }, contentChanges: [{ text }],
         })
       } catch (error) {
-        if (this.documents.get(uri) === next) this.documents.set(uri, current)
+        if (this.documents.get(identity) === updated) this.documents.set(identity, current)
         throw error
       }
       return next.protocolVersion
     })
   }
 
-  close(uri: string, notify: DocumentNotification) {
-    return this.enqueue(uri, async () => {
-      if (!this.documents.has(uri)) return
-      await notify('textDocument/didClose', { textDocument: { uri } })
-      this.documents.delete(uri)
+  async match(uri: string): Promise<DocumentUriMatch | undefined> {
+    const identity = await this.identity(uri)
+    if (!identity) return
+    const document = this.documents.get(identity)
+    if (!document) return
+    return { protocolUri: document.protocolUri, identity, protocolVersion: document.protocolVersion,
+      rawUriMatched: document.protocolUri === uri }
+  }
+
+  identity(uri: string) { return canonicalFileUriIdentity(uri, this.platform, this.resolveFile).catch(() => undefined) }
+
+  async close(uri: string, notify: DocumentNotification) {
+    const identity = this.aliases.get(uri) ?? await canonicalFileUriIdentity(uri, this.platform, this.resolveFile)
+    return this.enqueue(identity, async () => {
+      const document = this.documents.get(identity)
+      if (!document) return
+      await notify('textDocument/didClose', { textDocument: { uri: document.protocolUri } })
+      this.documents.delete(identity)
+      for (const [alias, target] of this.aliases) if (target === identity) this.aliases.delete(alias)
     })
   }
 
   async closeAll(notify: DocumentNotification) {
-    const uris = new Set([...this.documents.keys(), ...this.queues.keys()])
-    await Promise.all([...uris].map(uri => this.close(uri, notify)))
+    const documents = [...this.documents.values()]
+    await Promise.all(documents.map(document => this.close(document.protocolUri, notify)))
     this.documents.clear()
+    this.aliases.clear()
   }
 
-  private enqueue<T>(uri: string, work: () => Promise<T>): Promise<T> {
-    const previous = this.queues.get(uri) ?? Promise.resolve()
+  private enqueue<T>(identity: string, work: () => Promise<T>): Promise<T> {
+    const previous = this.queues.get(identity) ?? Promise.resolve()
     const task = previous.then(work, work)
     const settled = task.then(() => undefined, () => undefined)
-    this.queues.set(uri, settled)
-    void settled.finally(() => { if (this.queues.get(uri) === settled) this.queues.delete(uri) })
+    this.queues.set(identity, settled)
+    void settled.finally(() => { if (this.queues.get(identity) === settled) this.queues.delete(identity) })
     return task
   }
 }
@@ -239,18 +376,17 @@ async function discover(adapter: string, root: string, paths: string[]): Promise
 export class ExternalLspService {
   private readonly documents = new LspDocumentSynchronizer()
   private readonly diagnostics = new DiagnosticGenerationFence()
+  private readonly trace = new DiagnosticMetadataTrace()
+  private diagnosticNotifications = Promise.resolve()
   private stopped = false
 
   private constructor(private readonly host: LspProcess, private readonly directory: string) {
     host.onNotification('textDocument/publishDiagnostics', params => {
-      if (!params || typeof params !== 'object') return
-      const report = params as { uri?: unknown; version?: unknown; diagnostics?: unknown }
-      if (typeof report.uri !== 'string' || !Array.isArray(report.diagnostics)) return
-      const version = Number.isSafeInteger(report.version) ? report.version as number : undefined
-      this.diagnostics.publish(report.uri, this.documents.version(report.uri), {
-        version,
-        diagnostics: report.diagnostics.slice(0, maxRows),
-      })
+      // Preserve the server's notification order while canonical filesystem
+      // identities are resolved asynchronously.
+      this.diagnosticNotifications = this.diagnosticNotifications
+        .then(() => this.receiveDiagnostics(params), () => this.receiveDiagnostics(params))
+        .catch(() => undefined)
     })
   }
 
@@ -287,6 +423,7 @@ export class ExternalLspService {
   get executable() { return this.host.executable }
   get version() { return this.host.version }
   get capabilities() { return this.host.supportedCapabilities() }
+  get pendingDiagnosticWaiterCount() { return this.diagnostics.pendingWaiterCount }
 
   async stop() {
     if (this.stopped) return
@@ -299,20 +436,27 @@ export class ExternalLspService {
 
   async close(path: string) {
     const uri = pathToFileURL(path).href
+    const match = await this.documents.match(uri)
     await this.documents.close(uri, (method, params) => this.host.notify(method, params))
-    this.diagnostics.clear(uri)
+    this.diagnostics.clear(match?.protocolUri ?? uri)
   }
 
   async saved(path: string) {
     const uri = pathToFileURL(path).href
-    if (this.documents.has(uri)) await this.host.notify('textDocument/didSave', { textDocument: { uri } })
+    const match = await this.documents.match(uri)
+    if (match) await this.host.notify('textDocument/didSave', { textDocument: { uri: match.protocolUri } })
   }
 
   async query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply> {
     const uri = pathToFileURL(snapshot.path).href
     const version = await this.documents.synchronize(uri, snapshot.language, snapshot.version, snapshot.text,
       (method, params) => this.host.notify(method, params))
-    const location = { textDocument: { uri }, position: positionAt(snapshot.text, snapshot.offset) }
+    const match = await this.documents.match(uri)
+    const protocolUri = match?.protocolUri ?? uri
+    this.trace.record({ event: 'document-synchronized', rawUriHash: this.trace.hash(uri),
+      canonicalIdentityHash: this.trace.hash(match?.identity), canonicalIdentityMatched: Boolean(match),
+      synchronizedProtocolVersion: version, currentGeneration: version })
+    const location = { textDocument: { uri: protocolUri }, position: positionAt(snapshot.text, snapshot.offset) }
     let rows: string[][] = []
     if (snapshot.operation === 'definition' || snapshot.operation === 'references') {
       const result = await this.host.request(`textDocument/${snapshot.operation}`, snapshot.operation === 'references'
@@ -343,8 +487,41 @@ export class ExternalLspService {
         return [[String(result?.activeParameter ?? 0), value.label.slice(0, 1_000), ...parameters]]
       })
     } else if (snapshot.operation === 'diagnostics') {
-      if (!this.diagnostics.take(uri, version)) await this.diagnostics.wait(uri, version, signal)
-      const report = this.diagnostics.take(uri, version)
+      let waiting = !this.diagnostics.take(protocolUri, version)
+      this.trace.record({ event: 'diagnostic-query', rawUriHash: this.trace.hash(uri),
+        canonicalIdentityHash: this.trace.hash(match?.identity), synchronizedProtocolVersion: version,
+        currentGeneration: version, waiterGeneration: waiting ? version : null, waiterReleased: !waiting })
+      let windowOpened = false
+      if (waiting && version > 1 && this.host.capabilities.hoverProvider) {
+        const barrierStart = process.hrtime.bigint()
+        try {
+          await this.host.request('textDocument/hover', location, undefined, signal)
+          this.diagnostics.beginUnversionedWindow(protocolUri, version)
+          windowOpened = true
+          this.trace.record({ event: 'diagnostic-fence', rawUriHash: this.trace.hash(uri),
+            canonicalIdentityHash: this.trace.hash(match?.identity), synchronizedProtocolVersion: version,
+            currentGeneration: version, barrier: 'hover', outcome: 'passed',
+            barrierDurationNs: String(process.hrtime.bigint() - barrierStart) })
+        } catch (error) {
+          if (signal?.aborted) throw error
+          this.trace.record({ event: 'diagnostic-fence', rawUriHash: this.trace.hash(uri),
+            canonicalIdentityHash: this.trace.hash(match?.identity), synchronizedProtocolVersion: version,
+            currentGeneration: version, barrier: 'hover', outcome: 'failed',
+            barrierDurationNs: String(process.hrtime.bigint() - barrierStart) })
+        }
+        waiting = !this.diagnostics.take(protocolUri, version)
+      }
+      try {
+        if (waiting) await this.diagnostics.wait(protocolUri, version, signal)
+      } finally {
+        if (windowOpened) this.diagnostics.endUnversionedWindow(protocolUri, version)
+      }
+      const report = this.diagnostics.take(protocolUri, version)
+      this.trace.record({ event: 'diagnostic-wait-complete', rawUriHash: this.trace.hash(uri),
+        canonicalIdentityHash: this.trace.hash(match?.identity), synchronizedProtocolVersion: version,
+        currentGeneration: version, diagnosticVersion: report?.version ?? (report ? 'ABSENT' : null),
+        decision: report ? 'accepted' : 'rejected', reason: report ? null : 'generation-mismatch',
+        waiterGeneration: waiting ? version : null, waiterReleased: Boolean(report) })
       if (!report) return { version: snapshot.version, rows }
       rows = report.diagnostics.flatMap(item => {
         if (!item || typeof item !== 'object') return []
@@ -358,5 +535,33 @@ export class ExternalLspService {
       })
     }
     return { version: snapshot.version, rows }
+  }
+
+  private async receiveDiagnostics(params: unknown) {
+    if (this.stopped) return
+    if (!params || typeof params !== 'object') return
+    const report = params as { uri?: unknown; version?: unknown; diagnostics?: unknown }
+    if (typeof report.uri !== 'string' || !Array.isArray(report.diagnostics)) return
+    const incomingIdentity = await this.documents.identity(report.uri)
+    const match = await this.documents.match(report.uri)
+    if (this.stopped) return
+    const diagnosticVersion = Number.isSafeInteger(report.version) ? report.version as number : undefined
+    if (!match) {
+      this.trace.record({ event: 'diagnostic-notification', rawIncomingUriHash: this.trace.hash(report.uri),
+        canonicalIncomingIdentityHash: this.trace.hash(incomingIdentity), canonicalIdentityMatched: false,
+        diagnosticVersion: diagnosticVersion ?? 'ABSENT', decision: 'rejected', reason: 'unknown-document',
+        waiterReleased: false })
+      return
+    }
+    const decision = this.diagnostics.publish(match.protocolUri, match.protocolVersion, {
+      version: diagnosticVersion, diagnostics: report.diagnostics.slice(0, maxRows),
+    })
+    this.trace.record({ event: 'diagnostic-notification', rawIncomingUriHash: this.trace.hash(report.uri),
+      rawProtocolUriHash: this.trace.hash(match.protocolUri), canonicalIncomingIdentityHash: this.trace.hash(incomingIdentity),
+      canonicalDocumentIdentityHash: this.trace.hash(match.identity), rawUriMatched: match.rawUriMatched,
+      canonicalIdentityMatched: true, synchronizedProtocolVersion: match.protocolVersion,
+      diagnosticVersion: diagnosticVersion ?? 'ABSENT', currentGeneration: match.protocolVersion,
+      decision: decision.decision, reason: decision.reason ?? null,
+      waiterGeneration: decision.waiterGeneration ?? null, waiterReleased: decision.waiterReleased })
   }
 }

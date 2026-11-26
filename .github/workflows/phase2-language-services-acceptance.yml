@@ -52,11 +52,13 @@ jobs:
           real_pyright="$(npm root --global)/pyright/langserver.index.js"
           test -f "$real_pyright"
           timing_log="$RUNNER_TEMP/ion-pyright-timing.jsonl"
+          diagnostic_trace="$RUNNER_TEMP/ion-lsp-diagnostic-correlation.jsonl"
           printf '%s\n' "$(node -p 'process.execPath')" > "$proxy_bin/pyright-node.txt"
           printf '%s\n' "$GITHUB_WORKSPACE/scripts/lsp-timing-proxy.mjs" > "$proxy_bin/pyright-proxy.txt"
           printf '%s\n' "$timing_log" > "$proxy_bin/pyright-timing.txt"
           printf '%s\n' "$real_pyright" > "$proxy_bin/pyright-entry.txt"
           echo "ION_LSP_TIMING_LOG=$timing_log" >> "$GITHUB_ENV"
+          echo "ION_LSP_DIAGNOSTIC_TRACE=$diagnostic_trace" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = "Windows" ]; then
             '/c/mingw64/bin/g++.exe' -std=c++17 -O2 -municode scripts/windows/lsp-timing-launcher.cpp -o "$proxy_bin/pyright-langserver.exe"
           else
@@ -112,6 +114,11 @@ jobs:
             cp "$ION_LSP_TIMING_LOG" performance-results/phase2-language-services/pyright-timing.jsonl
           else
             echo 'Pyright timing trace was not created.' > performance-results/phase2-language-services/pyright-timing-missing.log
+          fi
+          if [ -f "$ION_LSP_DIAGNOSTIC_TRACE" ]; then
+            cp "$ION_LSP_DIAGNOSTIC_TRACE" performance-results/phase2-language-services/diagnostic-correlation.jsonl
+          else
+            echo 'Diagnostic correlation trace was not created.' > performance-results/phase2-language-services/diagnostic-correlation-missing.log
           fi
       - name: Build exact accepted editor baseline for matched Mac resources
         if: runner.os == 'macOS'
