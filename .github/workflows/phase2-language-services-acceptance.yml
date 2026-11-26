@@ -56,22 +56,35 @@ jobs:
             test -x "$lldb_dap"
             echo 'ION_CLANG=C:\Program Files\LLVM\bin\clang.exe' >> "$GITHUB_ENV"
             echo 'ION_LLDB_DAP=C:\Program Files\LLVM\bin\lldb-dap.exe' >> "$GITHUB_ENV"
+            python --version >> performance-results/phase2-debugger/revision.log 2>&1
+            python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))' >> performance-results/phase2-debugger/revision.log 2>&1
+            node --input-type=module <<'NODE' >> performance-results/phase2-debugger/revision.log 2>&1
+          import { spawnSync } from 'node:child_process';
+          const tools = [
+            ['clang', String.raw`C:\Program Files\LLVM\bin\clang.exe`],
+            ['lldb_dap', String.raw`C:\Program Files\LLVM\bin\lldb-dap.exe`],
+          ];
+          for (const [name, executable] of tools) {
+            const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 10_000, windowsHide: true });
+            process.stdout.write(result.stdout ?? '');
+            process.stderr.write(result.stderr ?? '');
+            console.log(`${name}=${executable}`);
+            if (result.error) throw result.error;
+            if (result.status !== 0) throw new Error(`${name} version probe exited ${result.status ?? result.signal ?? 'unknown'}`);
+          }
+          NODE
           else
             clang="$(xcrun --find clang)"
             lldb_dap="$(xcrun --find lldb-dap)"
             echo "ION_CLANG=$clang" >> "$GITHUB_ENV"
             echo "ION_LLDB_DAP=$lldb_dap" >> "$GITHUB_ENV"
-          fi
-          {
-            if [ "$RUNNER_OS" = "Windows" ]; then
-              python --version
-              python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))'
-            fi
+            {
             "$clang" --version
             "$lldb_dap" --version
             printf 'clang=%s\n' "$clang"
             printf 'lldb_dap=%s\n' "$lldb_dap"
-          } >> performance-results/phase2-debugger/revision.log 2>&1
+            } >> performance-results/phase2-debugger/revision.log 2>&1
+          fi
       - name: Build and type-check exact production candidate
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-debugger/typecheck.log

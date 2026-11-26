@@ -53,11 +53,12 @@ await withScratch('debugger-desktop', async scratch => {
       const panel = page.getByTestId('debug-panel')
       const phase = await panel.getAttribute('data-phase').catch(() => null)
       const status = (await panel.locator('[role="status"]').textContent().catch(() => null))?.slice(0, 200)
+      const failure = (await panel.locator('[role="alert"]').textContent().catch(() => null))?.slice(0, 500)
       const owner = await page.evaluate(async () => {
         const value = await window.ion.debug.status()
         return value ? { state: value.state, hasThreadId: value.threadId !== undefined } : null
       }).catch(() => null)
-      console.error(`DEBUG_ACCEPTANCE_STATE ${JSON.stringify({ phase, status, owner })}`)
+      console.error(`DEBUG_ACCEPTANCE_STATE ${JSON.stringify({ phase, status, failure, owner })}`)
       throw error
     }
     assert.ok(await page.getByTestId('debug-frame').count(), 'Production debugger exposed no paused stack frame.')
