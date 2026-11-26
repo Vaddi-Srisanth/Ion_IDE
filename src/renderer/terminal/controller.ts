@@ -62,14 +62,14 @@ export class TerminalController {
     if (!this.started) void this.create();
   }
 
-  async create() {
+  async create(root = this.workspaceRoot) {
     if (this.disposed || this.snapshot.opening || this.sessions.size >= maxTerminalSessions) return;
     this.started = true;
     this.update({ opening: true, error: null });
     const size = this.sessions.get(this.snapshot.active ?? '')?.size ?? initialSize;
     let created: TerminalSessionInfo | undefined;
     try {
-      created = await this.bridge.create(size.cols, size.rows, this.workspaceRoot);
+      created = await this.bridge.create(size.cols, size.rows, root);
       if (this.disposed) {
         await this.bridge.close(created.id);
         return;

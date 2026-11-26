@@ -20,6 +20,17 @@ export interface EditorGroupsSnapshot {
   activeGroupId: string
 }
 
+export interface EditorTabLocation {
+  groupId: string
+  tabId: string
+}
+
+export interface EditorTabTraversal {
+  readonly entries: readonly EditorTabLocation[]
+  readonly index: number
+  readonly origin: EditorTabLocation
+}
+
 interface DocumentSource {
   getSnapshot(): DocumentsSnapshot
   subscribe(listener: () => void): () => void
@@ -31,6 +42,99 @@ interface Rect { left: number; top: number; right: number; bottom: number }
 const groupLimit = 4
 const minimumPercent = 20
 const maximumPercent = 80
+export const defaultEditorMruLimit = 64
+const maximumEditorMruLimit = 256
+
+const sameLocation = (first: EditorTabLocation, second: EditorTabLocation) =>
+  first.groupId === second.groupId && first.tabId === second.tabId
+const cloneLocation = ({ groupId, tabId }: EditorTabLocation): EditorTabLocation => ({ groupId, tabId })
+
+/**
+ * A bounded, group-aware history of editor activations. Traversals operate on
+ * a stable snapshot so preview selections cannot reorder an in-progress cycle.
+ */
+export class EditorTabMru {
+  private entries: EditorTabLocation[] = []
+  private readonly limit: number
+
+  constructor(limit = defaultEditorMruLimit) {
+    this.limit = Math.max(1, Math.min(maximumEditorMruLimit,
+      Math.floor(Number.isFinite(limit) ? limit : defaultEditorMruLimit)))
+  }
+
+  snapshot(): readonly EditorTabLocation[] {
+    return this.entries.map(cloneLocation)
+  }
+
+  clear() {
+    this.entries = []
+  }
+
+  record(location: EditorTabLocation) {
+    this.entries = [cloneLocation(location), ...this.entries.filter((entry) => !sameLocation(entry, location))]
+      .slice(0, this.limit)
+  }
+
+  remove(location: EditorTabLocation) {
+    const next = this.entries.filter((entry) => !sameLocation(entry, location))
+    const changed = next.length !== this.entries.length
+    this.entries = next
+    return changed
+  }
+
+  move(from: EditorTabLocation, to: EditorTabLocation) {
+    if (sameLocation(from, to)) return false
+    const fromIndex = this.entries.findIndex((entry) => sameLocation(entry, from))
+    if (fromIndex < 0) return false
+    const toIndex = this.entries.findIndex((entry) => sameLocation(entry, to))
+    const insertionIndex = toIndex < 0 ? fromIndex : Math.min(fromIndex, toIndex)
+    const remaining = this.entries.filter((entry) => !sameLocation(entry, from) && !sameLocation(entry, to))
+    remaining.splice(Math.min(insertionIndex, remaining.length), 0, cloneLocation(to))
+    this.entries = remaining.slice(0, this.limit)
+    return true
+  }
+
+  prune(validLocations: Iterable<EditorTabLocation>) {
+    const valid = new Map<string, Set<string>>()
+    for (const { groupId, tabId } of validLocations) {
+      const tabs = valid.get(groupId) ?? new Set<string>()
+      tabs.add(tabId)
+      valid.set(groupId, tabs)
+    }
+    const next = this.entries.filter((entry) => valid.get(entry.groupId)?.has(entry.tabId)).slice(0, this.limit)
+    const changed = next.length !== this.entries.length
+    this.entries = next
+    return changed
+  }
+
+  begin(current?: EditorTabLocation | null): EditorTabTraversal | null {
+    const entries = current
+      ? [cloneLocation(current), ...this.entries.filter((entry) => !sameLocation(entry, current)).map(cloneLocation)]
+      : this.entries.map(cloneLocation)
+    if (!entries.length) return null
+    const bounded = entries.slice(0, this.limit)
+    return { entries: bounded, index: 0, origin: cloneLocation(current ?? bounded[0]) }
+  }
+
+  step(session: EditorTabTraversal, direction: -1 | 1): EditorTabTraversal {
+    if (!session.entries.length) return session
+    return { ...session, index: (session.index + direction + session.entries.length) % session.entries.length }
+  }
+
+  selected(session: EditorTabTraversal): EditorTabLocation {
+    return cloneLocation(session.entries[session.index] ?? session.origin)
+  }
+
+  commit(session: EditorTabTraversal): EditorTabLocation {
+    const selected = this.selected(session)
+    this.record(selected)
+    return selected
+  }
+
+  cancel(session: EditorTabTraversal): EditorTabLocation {
+    return cloneLocation(session.origin)
+  }
+}
 
 const cloneLayout = (layout: EditorGroupLayout): EditorGroupLayout => layout.kind === 'group' ? { ...layout } : {
   ...layout, first: cloneLayout(layout.first), second: cloneLayout(layout.second),
@@ -126,6 +230,7 @@ function normalizedLayout(value: unknown, validGroups: Set<string>, seenSplits: 
 
 export class EditorGroups {
   private groups = new Map<string, EditorGroup>()
+  private readonly mru = new EditorTabMru()
   private layout: EditorGroupLayout
   private activeGroupId: string
   private sequence = 1
@@ -141,6 +246,7 @@ export class EditorGroups {
     this.groups.set(group.id, group)
     this.layout = { kind: 'group', groupId: group.id }
     this.activeGroupId = group.id
+    this.resetMru()
     this.snapshot = this.buildSnapshot()
     this.unsubscribe = documents.subscribe(() => this.syncDocuments())
   }
@@ -152,16 +258,51 @@ export class EditorGroups {
 
   getSnapshot = () => this.snapshot
 
+  getMruSnapshot = () => this.mru.snapshot()
+
   dispose() {
     this.unsubscribe()
     this.listeners.clear()
   }
 
   select(groupId: string, tabId: string) {
+    return this.activate(groupId, tabId, true)
+  }
+
+  beginTabTraversal(): EditorTabTraversal | null {
+    this.pruneMru()
+    const group = this.groups.get(this.activeGroupId)
+    const current = group?.activeId ? { groupId: group.id, tabId: group.activeId } : null
+    return this.mru.begin(current)
+  }
+
+  stepTabTraversal(session: EditorTabTraversal, direction: -1 | 1): EditorTabTraversal {
+    return this.mru.step(session, direction)
+  }
+
+  previewTabTraversal(session: EditorTabTraversal) {
+    const selected = this.mru.selected(session)
+    return this.activate(selected.groupId, selected.tabId, false)
+  }
+
+  commitTabTraversal(session: EditorTabTraversal) {
+    const selected = this.mru.selected(session)
+    if (!this.activate(selected.groupId, selected.tabId, false)) return false
+    this.mru.commit(session)
+    return true
+  }
+
+  cancelTabTraversal(session: EditorTabTraversal) {
+    const origin = this.mru.cancel(session)
+    return this.activate(origin.groupId, origin.tabId, false)
+  }
+
+  private activate(groupId: string, tabId: string, record: boolean) {
     const group = this.groups.get(groupId)
     if (!group || !group.tabs.includes(tabId)) return false
     group.activeId = tabId
     this.activeGroupId = groupId
+    if (record) this.mru.record({ groupId, tabId })
     this.publish()
     if (this.documents.getSnapshot().activeId !== tabId) this.documents.select(tabId)
     return true
@@ -182,6 +323,7 @@ export class EditorGroups {
       kind: 'split', id: `split-${++this.splitSequence}`, orientation, percent: 50, first, second,
     })
     this.activeGroupId = id
+    if (created.activeId) this.mru.record({ groupId: id, tabId: created.activeId })
     this.publish()
     return id
   }
@@ -192,6 +334,7 @@ export class EditorGroups {
     const group = this.groups.get(target)
     if (!group) return false
     this.activeGroupId = target
+    if (group.activeId) this.mru.record({ groupId: group.id, tabId: group.activeId })
     this.publish()
     if (group.activeId && this.documents.getSnapshot().activeId !== group.activeId) this.documents.select(group.activeId)
     return true
@@ -205,6 +348,7 @@ export class EditorGroups {
     const group = this.groups.get(target)
     if (!group) return false
     this.activeGroupId = target
+    if (group.activeId) this.mru.record({ groupId: group.id, tabId: group.activeId })
     this.publish()
     if (group.activeId && this.documents.getSnapshot().activeId !== group.activeId) this.documents.select(group.activeId)
     return true
@@ -221,6 +365,8 @@ export class EditorGroups {
     if (!target.tabs.includes(tabId)) target.tabs.push(tabId)
     target.activeId = tabId
     this.activeGroupId = target.id
+    this.mru.move({ groupId: source.id, tabId }, { groupId: target.id, tabId })
+    this.mru.record({ groupId: target.id, tabId })
     if (!source.tabs.length && this.groups.size > 1) this.removeEmptyGroup(source.id)
     this.publish()
     return true
@@ -237,6 +383,8 @@ export class EditorGroups {
     target.tabs.splice(position, 0, tabId)
     target.activeId = tabId
     this.activeGroupId = target.id
+    this.mru.move({ groupId: source.id, tabId }, { groupId: target.id, tabId })
+    this.mru.record({ groupId: target.id, tabId })
     if (!source.tabs.length && this.groups.size > 1) this.removeEmptyGroup(source.id)
     this.publish()
     if (this.documents.getSnapshot().activeId !== tabId) this.documents.select(tabId)
@@ -251,10 +399,14 @@ export class EditorGroups {
     const targetId = ordered[index + 1] ?? ordered[index - 1]
     const target = this.groups.get(targetId)
     if (!target) return false
-    for (const tab of source.tabs) if (!target.tabs.includes(tab)) target.tabs.push(tab)
+    for (const tab of source.tabs) {
+      if (!target.tabs.includes(tab)) target.tabs.push(tab)
+      this.mru.move({ groupId: source.id, tabId: tab }, { groupId: target.id, tabId: tab })
+    }
     target.activeId = source.activeId ?? target.activeId ?? target.tabs.at(-1) ?? null
     this.removeEmptyGroup(groupId)
     this.activeGroupId = target.id
+    if (target.activeId) this.mru.record({ groupId: target.id, tabId: target.activeId })
     this.publish()
     if (target.activeId && this.documents.getSnapshot().activeId !== target.activeId) this.documents.select(target.activeId)
     return true
@@ -292,6 +444,7 @@ export class EditorGroups {
     this.groups = map
     this.layout = layout
     this.activeGroupId = activeGroupId
+    this.resetMru()
     this.sequence = Math.max(...[...map.keys()].map((id) => Number(id.slice(6))))
     const splitIds: number[] = []
     const collect = (node: EditorGroupLayout) => {
@@ -315,6 +468,7 @@ export class EditorGroups {
       const { tabs, activeId } = this.documents.getSnapshot()
       const valid = new Set(tabs.map(({ id }) => id))
       let changed = false
+      let activated: EditorTabLocation | null = null
       for (const group of this.groups.values()) {
         const next = group.tabs.filter((id) => valid.has(id))
         if (next.length !== group.tabs.length) {
@@ -330,12 +484,14 @@ export class EditorGroups {
         const group = this.groups.get(this.activeGroupId)!
         group.tabs.push(activeId)
         group.activeId = activeId
+        activated = { groupId: group.id, tabId: activeId }
         changed = true
       } else if (activeId) {
         const active = this.groups.get(this.activeGroupId)
         if (active?.tabs.includes(activeId)) {
           if (active.activeId !== activeId) {
             active.activeId = activeId
+            activated = { groupId: active.id, tabId: activeId }
             changed = true
           }
         } else {
@@ -343,6 +499,7 @@ export class EditorGroups {
           if (group) {
             this.activeGroupId = group.id
             group.activeId = activeId
+            activated = { groupId: group.id, tabId: activeId }
             changed = true
           }
         }
@@ -353,6 +510,7 @@ export class EditorGroups {
         if (this.activeGroupId === group.id) this.activeGroupId = groupIds(this.layout)[0]
         changed = true
       }
+      if (activated) this.mru.record(activated)
       if (changed) this.publish()
     } finally {
       this.syncing = false
@@ -370,7 +528,26 @@ export class EditorGroups {
       activeGroupId: this.activeGroupId }
   }
 
+  private tabLocations(): EditorTabLocation[] {
+    return [...this.groups.values()].flatMap((group) => group.tabs.map((tabId) => ({ groupId: group.id, tabId })))
+  }
+
+  private pruneMru() {
+    this.mru.prune(this.tabLocations())
+  }
+
+  private resetMru() {
+    this.mru.clear()
+    for (const groupId of groupIds(this.layout)) {
+      const group = this.groups.get(groupId)
+      for (const tabId of group?.tabs ?? []) this.mru.record({ groupId, tabId })
+    }
+    const active = this.groups.get(this.activeGroupId)
+    if (active?.activeId) this.mru.record({ groupId: active.id, tabId: active.activeId })
+  }
+
   private publish() {
+    this.pruneMru()
     this.snapshot = this.buildSnapshot()
     this.listeners.forEach((listener) => listener())
   }

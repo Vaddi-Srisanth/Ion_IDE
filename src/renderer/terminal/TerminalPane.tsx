@@ -8,17 +8,22 @@ export interface TerminalPaneProps {
   tabs: ReactNode;
   focusRequest: number;
   workspaceRoot?: string;
+  openRequest?: { id: number; root: string };
   onHide(): void;
 }
 
-export function TerminalPane({ controller, tabs, focusRequest, workspaceRoot, onHide }: TerminalPaneProps) {
+export function TerminalPane({ controller, tabs, focusRequest, workspaceRoot, openRequest, onHide }: TerminalPaneProps) {
   const [current, setCurrent] = useState(controller.current);
+  const handledOpenRequest = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     const instance = controller.current ??= new TerminalController(window.ion.terminal, window.ion.platform === 'darwin');
     instance.setWorkspaceRoot(workspaceRoot);
     setCurrent(instance);
-    instance.ensureFirst();
-  }, [controller, workspaceRoot]);
+    if (openRequest && handledOpenRequest.current !== openRequest.id) {
+      handledOpenRequest.current = openRequest.id;
+      void instance.create(openRequest.root);
+    } else instance.ensureFirst();
+  }, [controller, openRequest, workspaceRoot]);
 
   if (!current) return <section className="output integrated-terminal">
     <div className="pane-title">{tabs}</div>

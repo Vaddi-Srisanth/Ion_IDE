@@ -42,6 +42,7 @@ import type { ExplanationReview } from '../shared/explanations'
 import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
+import { copyAuthorizedPath, revealAuthorizedPath } from './path-actions'
 
 app.setName('Ion IDE')
 if (process.platform === 'win32') app.setAppUserModelId('dev.ionide.desktop')
@@ -1437,6 +1438,20 @@ function registerIpc(): void {
     const selection = await dialog.showOpenDialog(target, { title: 'Open File', properties: ['openFile'] })
     if (target !== window || selection.canceled || !selection.filePaths[0]) return null
     return remember(await files.grant(selection.filePaths[0], 'file'))
+  })
+  handle('copy-path', async (target, value) => {
+    const scope = files
+    await copyAuthorizedPath(scope, value, path => {
+      if (target !== window || scope !== files) throw new Error('The workspace changed before the path could be copied.')
+      clipboard.writeText(path)
+    })
+  })
+  handle('reveal-in-folder', async (target, value) => {
+    const scope = files
+    await revealAuthorizedPath(scope, value, path => {
+      if (target !== window || scope !== files) throw new Error('The workspace changed before the item could be revealed.')
+      shell.showItemInFolder(path)
+    })
   })
   // Only the isolated preload can send this request, after a trusted OS file drop.
   handle('open-dropped-files', async (target, paths) => {

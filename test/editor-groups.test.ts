@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { EditorGroups } from '../src/renderer/editor-groups'
+import { EditorGroups, EditorTabMru } from '../src/renderer/editor-groups'
 import type { DocumentsSnapshot } from '../src/renderer/documents'
 
 class FakeDocuments {
@@ -122,5 +122,96 @@ test('group count and resize bounds remain explicit', () => {
     assert.equal(resized.kind, 'split')
     if (resized.kind === 'split') assert.equal(resized.percent, 20)
   }
+  groups.dispose()
+})
+
+test('MRU identity includes the editor group and remains bounded', () => {
+  const mru = new EditorTabMru(3)
+  mru.record({ groupId: 'group-1', tabId: 'shared' })
+  mru.record({ groupId: 'group-2', tabId: 'shared' })
+  mru.record({ groupId: 'group-1', tabId: 'other' })
+  assert.deepEqual(mru.snapshot(), [
+    { groupId: 'group-1', tabId: 'other' },
+    { groupId: 'group-2', tabId: 'shared' },
+    { groupId: 'group-1', tabId: 'shared' },
+  ])
+  mru.record({ groupId: 'group-3', tabId: 'new' })
+  assert.deepEqual(mru.snapshot(), [
+    { groupId: 'group-3', tabId: 'new' },
+    { groupId: 'group-1', tabId: 'other' },
+    { groupId: 'group-2', tabId: 'shared' },
+  ])
+})
+
+test('MRU move and prune remove closed group-tab identities without conflating documents', () => {
+  const mru = new EditorTabMru()
+  mru.record({ groupId: 'group-1', tabId: 'one' })
+  mru.record({ groupId: 'group-1', tabId: 'two' })
+  mru.record({ groupId: 'group-2', tabId: 'one' })
+  assert.equal(mru.move({ groupId: 'group-1', tabId: 'two' }, { groupId: 'group-2', tabId: 'two' }), true)
+  assert.deepEqual(mru.snapshot(), [
+    { groupId: 'group-2', tabId: 'one' },
+    { groupId: 'group-2', tabId: 'two' },
+    { groupId: 'group-1', tabId: 'one' },
+  ])
+  assert.equal(mru.prune([
+    { groupId: 'group-2', tabId: 'one' },
+    { groupId: 'group-2', tabId: 'two' },
+  ]), true)
+  assert.deepEqual(mru.snapshot(), [
+    { groupId: 'group-2', tabId: 'one' },
+    { groupId: 'group-2', tabId: 'two' },
+  ])
+})
+
+test('MRU traversal sessions are stable while activation history changes', () => {
+  const mru = new EditorTabMru()
+  const one = { groupId: 'group-1', tabId: 'one' }
+  const two = { groupId: 'group-1', tabId: 'two' }
+  const three = { groupId: 'group-2', tabId: 'three' }
+  mru.record(one)
+  mru.record(two)
+  mru.record(three)
+  const started = mru.begin(three)!
+  const next = mru.step(started, 1)
+  assert.deepEqual(mru.selected(next), two)
+  mru.record({ groupId: 'group-3', tabId: 'later' })
+  const again = mru.step(next, 1)
+  assert.deepEqual(mru.selected(again), one)
+  assert.deepEqual(mru.commit(again), one)
+  assert.deepEqual(mru.snapshot()[0], one)
+  assert.deepEqual(mru.cancel(started), three)
+})
+
+test('editor groups track MRU moves, close pruning, preview, commit, and cancel', () => {
+  const documents = new FakeDocuments(['one', 'two', 'three'])
+  const groups = new EditorGroups(documents)
+  const right = groups.split('group-1', 'right')!
+  assert.deepEqual(groups.getMruSnapshot().slice(0, 2), [
+    { groupId: right, tabId: 'three' },
+    { groupId: 'group-1', tabId: 'three' },
+  ])
+  assert.equal(groups.select('group-1', 'one'), true)
+  assert.equal(groups.select('group-1', 'two'), true)
+  const history = groups.getMruSnapshot()
+  let traversal = groups.beginTabTraversal()!
+  traversal = groups.stepTabTraversal(traversal, 1)
+  assert.equal(groups.previewTabTraversal(traversal), true)
+  assert.deepEqual(groups.getMruSnapshot(), history)
+  traversal = groups.stepTabTraversal(traversal, 1)
+  assert.equal(groups.commitTabTraversal(traversal), true)
+  assert.deepEqual(groups.getMruSnapshot()[0], { groupId: right, tabId: 'three' })
+
+  const cancelSession = groups.beginTabTraversal()!
+  const cancelPreview = groups.stepTabTraversal(cancelSession, 1)
+  assert.equal(groups.previewTabTraversal(cancelPreview), true)
+  assert.equal(groups.cancelTabTraversal(cancelSession), true)
+  assert.equal(groups.getSnapshot().activeGroupId, right)
+  assert.equal(groups.getSnapshot().groups.find(({ id }) => id === right)?.activeId, 'three')
+
+  assert.equal(groups.moveTab('one', 'group-1', right), true)
+  assert.ok(!groups.getMruSnapshot().some((entry) => entry.groupId === 'group-1' && entry.tabId === 'one'))
+  assert.equal(groups.close(right), true)
+  assert.ok(groups.getMruSnapshot().every((entry) => entry.groupId === 'group-1'))
   groups.dispose()
 })

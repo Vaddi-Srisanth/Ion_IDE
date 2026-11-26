@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentProps, type ComponentType, type CSSProperties, type DragEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentProps, type ComponentType, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import type { Entry, EntryKind, MenuCommand, Settings, WorkspaceMode } from '../shared/contracts';
 import { displayShortcut } from '../shared/shortcuts';
 import type { ThemeData } from '../shared/themes';
@@ -26,7 +26,12 @@ import { isMarkdownFile } from '../shared/markdown-path';
 import { largeTextError } from '../shared/large-text';
 import { LargeTextPreview } from './LargeTextPreview';
 import { markdownHistoryLimit, readMarkdownModes, writeMarkdownModes, type MarkdownMode } from './markdown-view-state';
-import { EditorGroups, type EditorGroup, type EditorGroupLayout, type EditorGroupsSnapshot } from './editor-groups';
+import { EditorGroups, type EditorGroup, type EditorGroupLayout, type EditorGroupsSnapshot, type EditorTabTraversal } from './editor-groups';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+
+export type TabContextAction = 'close' | 'close-others' | 'close-right' | 'close-saved' | 'close-all';
+export type ExplorerContextAction = 'open' | 'new-file' | 'new-folder' | 'rename' | 'trash' | 'copy-path'
+  | 'reveal' | 'open-terminal' | 'remove-root';
 
 function EditorContent(props: ComponentProps<typeof MonacoSurface>) {
   const [editorModule, setEditorModule] = useState(loadedEditor);
@@ -69,6 +74,7 @@ interface GroupPaneProps {
   accentColor?: string;
   problemMarkers?: readonly ProblemMarker[];
   onCloseTab(id: string): void;
+  onTabMenu(event: MouseEvent<HTMLElement>, tabId: string, groupId: string): void;
   onSaveAs(id: string): void;
   onReload(id: string): void;
   onSettings(patch: Partial<Settings>): void;
@@ -79,7 +85,7 @@ interface GroupPaneProps {
 }
 
 function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, roots, hidden, settings, activeTheme, accentColor,
-  problemMarkers, onCloseTab, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
+  problemMarkers, onCloseTab, onTabMenu, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
   const active = tabs.find(({ id }) => id === group.activeId);
   const groupTabs = group.tabs.flatMap((id) => tabs.find((tab) => tab.id === id) ?? []);
   const focused = group.id === activeGroupId;
@@ -102,7 +108,7 @@ function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, 
     <div className="tab-strip editor-group-tabs">
       <div className="tab-scroll" role="tablist" aria-label={`Open files in ${group.id}`}>
         {groupTabs.map((tab) => <div key={tab.id} className={`editor-tab ${active?.id === tab.id ? 'active' : ''}`}
-          data-testid="group-tab" data-path={tab.path ?? undefined} draggable onDragStart={(event) => {
+          data-testid="group-tab" data-path={tab.path ?? undefined} draggable onContextMenu={(event) => onTabMenu(event, tab.id, group.id)} onDragStart={(event) => {
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('application/x-ion-editor-tab', JSON.stringify({ tabId: tab.id, groupId: group.id }));
           }}>
@@ -309,6 +315,7 @@ export interface DocumentSplitActions {
     cycle(step: -1 | 1): void;
     move(direction: 'left' | 'right' | 'up' | 'down'): void;
     close(): void;
+    cycleTab(direction: -1 | 1): void;
   };
 }
 
@@ -356,11 +363,15 @@ export interface WorkbenchProps {
   cursorRef: React.RefObject<HTMLSpanElement | null>;
   onSelect(id: string): void;
   onCloseTab(id: string): void;
+  onTabContextAction(action: TabContextAction, id: string): void;
+  canReopenClosedTab: boolean;
+  onReopenClosedTab(): void;
   onOpenEntry(entry: Entry): void;
   onTarget(path: string): void;
   onCreate(kind: EntryKind): void;
   onRename(entry: Entry): void;
   onTrash(entry: Entry): void;
+  onExplorerContextAction(action: ExplorerContextAction, entry: Entry, root: boolean): void;
   onRefresh(): void;
   onNew(): void;
   onInsertStarter?(): void;
@@ -394,7 +405,8 @@ export function Workbench(props: WorkbenchProps) {
     active, tabs, root, roots, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers, onRevealProblem, onExplainProblem,
     terminalFocus, terminalController, onBottomTab, onToggleBottom, canRun, canRerun, cursorRef,
-    onSelect, onCloseTab, onOpenEntry, onTarget, onCreate, onRename, onTrash, onRefresh,
+    onSelect, onCloseTab, onTabContextAction, canReopenClosedTab, onReopenClosedTab, onOpenEntry, onTarget, onCreate, onRename, onTrash,
+    onExplorerContextAction, onRefresh,
     onNew, onInsertStarter, formatting, onFormat, onOpenFile, onOpenFolder, onAddFolder, onRemoveFolder, onReorderFolder,
     onSaveWorkspace, onOpenWorkspace, onSettings, onRun, onRerun, onStop, onRunInput, onConsoleResize, onEditorActions, onSplitActions, onCursor,
     onFind, onSaveAs, onReload, onNavigateSource, navigation, onHistory,
@@ -406,16 +418,87 @@ export function Workbench(props: WorkbenchProps) {
   const [markdownPercent, setMarkdownPercent] = useState(50);
   const [markdownModes, setMarkdownModes] = useState(readMarkdownModes);
   const [languageReport, setLanguageReport] = useState<LiveToolReport | null>(null);
+  const [terminalOpenRequest, setTerminalOpenRequest] = useState<{ id: number; root: string }>();
+  const [tabMenu, setTabMenu] = useState<{ tabId: string; groupId: string; x: number; y: number } | null>(null);
+  const [explorerMenu, setExplorerMenu] = useState<{ entry: Entry; root: boolean; x: number; y: number } | null>(null);
   const [editorGroups] = useState(() => {
     const groups = new EditorGroups(documents);
     if (initialEditorGroups) groups.restore(initialEditorGroups);
     return groups;
   });
+  const tabTraversal = useRef<EditorTabTraversal | null>(null);
+  const cycleTab = useCallback((direction: -1 | 1) => {
+    const initial = tabTraversal.current ?? editorGroups.beginTabTraversal();
+    if (!initial) return;
+    const next = editorGroups.stepTabTraversal(initial, direction);
+    tabTraversal.current = next;
+    editorGroups.previewTabTraversal(next);
+  }, [editorGroups]);
+  useEffect(() => {
+    const finish = (commit: boolean) => {
+      const session = tabTraversal.current;
+      tabTraversal.current = null;
+      if (!session) return;
+      if (commit) editorGroups.commitTabTraversal(session);
+      else editorGroups.cancelTabTraversal(session);
+    };
+    const keyup = (event: globalThis.KeyboardEvent) => { if (event.key === 'Control') finish(true); };
+    const keydown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape' && tabTraversal.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        finish(false);
+      }
+    };
+    const blur = () => finish(true);
+    window.addEventListener('keyup', keyup, true);
+    window.addEventListener('keydown', keydown, true);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keyup', keyup, true);
+      window.removeEventListener('keydown', keydown, true);
+      window.removeEventListener('blur', blur);
+      finish(true);
+    };
+  }, [editorGroups]);
   useEffect(() => terminalController.current?.setWorkspaceRoot(root?.path), [root?.path, terminalController]);
   const groupSnapshot = useSyncExternalStore(editorGroups.subscribe, editorGroups.getSnapshot);
   useEffect(() => () => editorGroups.dispose(), [editorGroups]);
   useEffect(() => onEditorGroupsChange?.(groupSnapshot), [groupSnapshot, onEditorGroupsChange]);
   const groupMode = groupSnapshot.groups.length > 1;
+  const openTabMenu = (event: MouseEvent<HTMLElement>, tabId: string, groupId = groupSnapshot.activeGroupId) => {
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setTabMenu({ tabId, groupId, x: event.clientX || bounds.left + 16, y: event.clientY || bounds.top + bounds.height });
+  };
+  const menuTabIndex = tabMenu ? tabs.findIndex(({ id }) => id === tabMenu.tabId) : -1;
+  const tabMenuItems: readonly ContextMenuItem[] = tabMenu ? [
+    { type: 'item', id: 'split-right', label: 'Split Right' },
+    { type: 'item', id: 'split-down', label: 'Split Down' },
+    { type: 'separator', id: 'split-separator' },
+    { type: 'item', id: 'close', label: 'Close' },
+    { type: 'item', id: 'close-others', label: 'Close Others', disabled: tabs.length < 2 },
+    { type: 'item', id: 'close-right', label: 'Close to the Right', disabled: menuTabIndex < 0 || menuTabIndex === tabs.length - 1 },
+    { type: 'item', id: 'close-saved', label: 'Close Saved', disabled: !tabs.some((tab) => !tab.dirty) },
+    { type: 'item', id: 'close-all', label: 'Close All' },
+    { type: 'separator', id: 'history-separator' },
+    { type: 'item', id: 'reopen', label: 'Reopen Closed Editor', disabled: !canReopenClosedTab },
+  ] : [];
+  const explorerMenuItems: readonly ContextMenuItem[] = explorerMenu ? [
+    { type: 'item', id: 'open', label: explorerMenu.entry.kind === 'folder' ? 'Select Folder' : 'Open' },
+    { type: 'separator', id: 'create-separator' },
+    { type: 'item', id: 'new-file', label: 'New File…', disabled: explorerMenu.entry.kind !== 'folder' },
+    { type: 'item', id: 'new-folder', label: 'New Folder…', disabled: explorerMenu.entry.kind !== 'folder' },
+    { type: 'item', id: 'rename', label: 'Rename…', disabled: explorerMenu.root },
+    { type: 'item', id: 'trash', label: 'Move to Trash', disabled: explorerMenu.root, danger: true },
+    { type: 'separator', id: 'path-separator' },
+    { type: 'item', id: 'copy-path', label: 'Copy Path' },
+    { type: 'item', id: 'reveal', label: window.ion.platform === 'darwin' ? 'Reveal in Finder' : 'Show in File Explorer' },
+    { type: 'item', id: 'open-terminal', label: 'Open in Integrated Terminal' },
+    ...(explorerMenu.root && (roots?.length ?? 0) > 1
+      ? [{ type: 'separator', id: 'root-separator' } as const,
+        { type: 'item', id: 'remove-root', label: 'Remove Folder from Workspace' } as const] : []),
+  ] : [];
   const hasSmartSource = tabs.some((tab) => tab.path && settings.smartLanguages.includes(fileLanguage(tab.name).id));
   useEffect(() => {
     if (!hasSmartSource) void window.ion.languageTools.release(true).catch(() => {});
@@ -533,6 +616,7 @@ export function Workbench(props: WorkbenchProps) {
         cycle: (step) => { editorGroups.cycle(step); },
         move: (direction) => { editorGroups.moveActive(direction); },
         close: () => { editorGroups.close(groupSnapshot.activeGroupId); },
+        cycleTab,
       },
     });
     return () => onSplitActions(null);
@@ -596,6 +680,7 @@ export function Workbench(props: WorkbenchProps) {
               root={root} roots={roots} activePath={active?.path ?? null} target={target} tabs={tabs} revision={treeRevision}
               sourceControlEntries={sourceControlEntries}
               onOpen={onOpenEntry} onTarget={onTarget} onCreate={onCreate} onRename={onRename} onTrash={onTrash}
+              onContextMenu={(entry, isRoot, position) => setExplorerMenu({ entry, root: isRoot, ...position })}
               onRefresh={onRefresh} onOpenFolder={onOpenFolder} onAddFolder={onAddFolder} onRemoveFolder={onRemoveFolder}
               onReorderFolder={onReorderFolder} onSaveWorkspace={onSaveWorkspace} onOpenWorkspace={onOpenWorkspace}/>
           </div>
@@ -616,6 +701,7 @@ export function Workbench(props: WorkbenchProps) {
               activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} roots={roots} hidden={hidden}
               settings={settings} activeTheme={activeTheme} accentColor={accentColor} problemMarkers={problemMarkers}
               onCloseTab={onCloseTab} onSaveAs={onSaveAs} onReload={onReload} onSettings={onSettings}
+              onTabMenu={openTabMenu}
               onActions={registerGroupActions} onCursor={onCursor} onLanguageReport={setLanguageReport}
               onNavigateSource={onNavigateSource}/>}
             {!groupMode && <>
@@ -623,7 +709,7 @@ export function Workbench(props: WorkbenchProps) {
               <div className="tab-scroll" aria-label="Open files">
                 {tabs.map((tab) => (
                   <div key={tab.id} className={`editor-tab ${active?.id === tab.id ? 'active' : ''}`}
-                    data-testid="tab" data-path={tab.path ?? undefined}>
+                    data-testid="tab" data-path={tab.path ?? undefined} onContextMenu={(event) => openTabMenu(event, tab.id)}>
                     <button className="tab-name" title={tab.path ?? (tab.recoveredFrom ? `Recovered from ${tab.recoveredFrom}` : tab.name)} aria-current={active?.id === tab.id ? 'true' : undefined}
                       onClick={() => onSelect(tab.id)}>
                       <Icon name={/\.[ch]$/i.test(tab.name) ? 'code' : 'file'} size={14}/><span>{tab.name}</span>
@@ -744,7 +830,7 @@ export function Workbench(props: WorkbenchProps) {
             <div className="output-frame">
               {bottomTab === 'terminal'
                 ? <TerminalLoader controller={terminalController} tabs={bottomTabs} focusRequest={terminalFocus}
-                  workspaceRoot={root?.path} onHide={onToggleBottom}/>
+                  workspaceRoot={root?.path} openRequest={terminalOpenRequest} onHide={onToggleBottom}/>
                 : bottomTab === 'problems' ? <Problems tabs={bottomTabs} rows={problemRows} file={problemFile}
                   live={live ? { file: activeCode?.name, rows: live.rows, onReveal(index) {
                     const location = live.rows[index]?.problem.location;
@@ -757,6 +843,31 @@ export function Workbench(props: WorkbenchProps) {
           </>}
         </div>
       </main>
+      {tabMenu && <ContextMenu open position={{ x: tabMenu.x, y: tabMenu.y }} items={tabMenuItems}
+        ariaLabel="Editor tab actions" onClose={() => setTabMenu(null)} onSelect={(item) => {
+          if (item.id === 'split-right' || item.id === 'split-down') {
+            editorGroups.select(tabMenu.groupId, tabMenu.tabId);
+            editorGroups.split(tabMenu.groupId, item.id === 'split-right' ? 'right' : 'down');
+          } else if (item.id === 'reopen') onReopenClosedTab();
+          else {
+            const action = ({ close: 'close', 'close-others': 'close-others', 'close-right': 'close-right',
+              'close-saved': 'close-saved', 'close-all': 'close-all' } as const)[item.id as TabContextAction];
+            if (action) onTabContextAction(action, tabMenu.tabId);
+          }
+        }}/>
+      }
+      {explorerMenu && <ContextMenu open position={{ x: explorerMenu.x, y: explorerMenu.y }} items={explorerMenuItems}
+        ariaLabel="Explorer actions" onClose={() => setExplorerMenu(null)}
+        onSelect={(item) => {
+          if (item.id === 'open-terminal') {
+            const terminalRoot = explorerMenu.entry.kind === 'folder' ? explorerMenu.entry.path
+              : explorerMenu.entry.path.replace(/[\\/][^\\/]+$/, '');
+            if (bottomTab !== 'terminal') onBottomTab('terminal');
+            if (!settings.showOutput) onToggleBottom();
+            setTerminalOpenRequest({ id: Date.now(), root: terminalRoot });
+          } else onExplorerContextAction(item.id as ExplorerContextAction, explorerMenu.entry, explorerMenu.root);
+        }}/>
+      }
       <div className="document-status" style={hidden ? { display: 'none' } : undefined}>
         {codeTab && <span ref={cursorRef} hidden={!activeCode || Boolean(largeText) || sourceHidden}>Ln 1, Col 1</span>}
         {activeCode && !largeText && <><span>{settings.tabSize} spaces</span><span>UTF-8</span><span>{language}</span></>}

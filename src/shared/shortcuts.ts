@@ -8,10 +8,18 @@ const commands = {
   'open-file': { label: 'Open File…', key: 'Mod+O' },
   'open-folder': { label: 'Open Folder…', key: 'Mod+Shift+O' },
   save: { label: 'Save', key: 'Mod+S' },
+  'save-all': { label: 'Save All' },
   'save-as': { label: 'Save As…', key: 'Mod+Shift+S' },
   'close-tab': { label: 'Close Tab', key: 'Mod+W' },
+  'close-other-tabs': { label: 'Close Other Tabs' },
+  'close-tabs-to-right': { label: 'Close Tabs to the Right' },
+  'close-saved-tabs': { label: 'Close Saved Tabs' },
+  'close-all-tabs': { label: 'Close All Tabs' },
+  'reopen-closed-tab': { label: 'Reopen Closed Tab', key: 'Mod+Shift+T' },
   'next-tab': { label: 'Next Tab', key: 'Mod+Shift+]' },
   'previous-tab': { label: 'Previous Tab', key: 'Mod+Shift+[' },
+  'cycle-next-tab': { label: 'Cycle Open Editors', key: 'Ctrl+TAB', other: 'Mod+TAB' },
+  'cycle-previous-tab': { label: 'Cycle Open Editors Backward', key: 'Ctrl+Shift+TAB', other: 'Mod+Shift+TAB' },
   'move-tab-left': { label: 'Move Tab Left', key: 'Mod+Alt+Shift+ARROWLEFT' },
   'move-tab-right': { label: 'Move Tab Right', key: 'Mod+Alt+Shift+ARROWRIGHT' },
   find: { label: 'Find', key: 'Mod+F' },
@@ -52,6 +60,7 @@ const commands = {
   'toggle-document-split': { label: 'Toggle Document Split' },
   'focus-document-split': { label: 'Focus Document Split Divider' },
   welcome: { label: 'Welcome', key: 'Mod+Shift+1' },
+  'focus-explorer': { label: 'Focus Explorer', key: 'Mod+Shift+E' },
   'toggle-explorer': { label: 'Toggle Explorer', key: 'Mod+B' },
   'toggle-source-control': { label: 'Toggle Source Control' },
   'toggle-marketplace': { label: 'Manage Learning Content' },
@@ -79,9 +88,11 @@ export function commandLabel(command: MenuCommand): string {
 }
 
 const modifiers = ['Mod', 'Ctrl', 'Alt', 'Shift'] as const
-const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER|BACKSLASH|ARROW(?:UP|DOWN|LEFT|RIGHT))$/
+const keyPattern = /^(?:[A-Z0-9.,/\[\]-]|F[1-9]|F1[0-2]|ENTER|TAB|BACKSLASH|ARROW(?:UP|DOWN|LEFT|RIGHT))$/
 const roleKeys = new Set(['Mod+A', 'Mod+C', 'Mod+V', 'Mod+X', 'Mod+Z', 'Mod+Shift+Z'])
-const macRoleKeys = new Set(['Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+Ctrl+F', 'Ctrl+Mod+F'])
+const macRoleKeys = new Set([
+  'Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+Ctrl+F', 'Ctrl+Mod+F', 'Mod+TAB', 'Mod+Shift+TAB',
+])
 
 export function normalizeShortcut(value: string, platform: ShortcutPlatform): string | null {
   if (value.length > 64) return null
@@ -111,7 +122,8 @@ export function effectiveShortcut(command: MenuCommand, overrides: ShortcutOverr
     || command === 'toggle-terminal' || command === 'focus-terminal'
     || command === 'toggle-editor-split' || command === 'focus-editor-split'
     || command === 'focus-next-editor-group' || command === 'focus-previous-editor-group'
-    || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references' || command === 'rename-symbol')
+    || command === 'navigate-back' || command === 'navigate-forward' || command === 'find-references' || command === 'rename-symbol'
+    || command === 'focus-explorer')
     && Object.values(overrides).includes(fallback)) return ''
   return fallback
 }
@@ -158,11 +170,13 @@ export function displayShortcut(command: MenuCommand, overrides: ShortcutOverrid
   const binding = effectiveShortcut(command, overrides, platform)
   if (!binding) return ''
   if (platform !== 'darwin') return binding.replace('Mod', 'Ctrl')
+    .replace(/\bTAB\b/g, 'Tab')
     .replace(/BACKSLASH/g, '\\')
     .replace(/ARROWUP/g, '↑').replace(/ARROWDOWN/g, '↓')
     .replace(/ARROWLEFT/g, '←').replace(/ARROWRIGHT/g, '→')
   return binding.split('+').map((part) => ({
     Mod: '⌘', Ctrl: '⌃', Shift: '⇧', Alt: '⌥', Enter: '↩',
+    TAB: 'Tab',
     ARROWUP: '↑', ARROWDOWN: '↓', ARROWLEFT: '←', ARROWRIGHT: '→',
     BACKSLASH: '\\',
   })[part] ?? part).join('')
@@ -170,6 +184,7 @@ export function displayShortcut(command: MenuCommand, overrides: ShortcutOverrid
 
 export function menuAccelerator(binding: string): string | undefined {
   return binding ? binding.replace(/\bMod\b/g, 'CmdOrCtrl')
+    .replace(/\bTAB\b/g, 'Tab')
     .replace(/BACKSLASH/g, 'Backslash')
     .replace(/ARROWUP/g, 'Up').replace(/ARROWDOWN/g, 'Down')
     .replace(/ARROWLEFT/g, 'Left').replace(/ARROWRIGHT/g, 'Right') : undefined

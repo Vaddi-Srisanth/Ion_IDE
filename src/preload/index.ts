@@ -189,6 +189,8 @@ const bridge: IonBridge = {
   createEntry: (parent, name, kind, initialText) => ipcRenderer.invoke('ion:create-entry', parent, name, kind, initialText),
   renameEntry: (path, name) => ipcRenderer.invoke('ion:rename-entry', path, name),
   trashEntry: (path) => ipcRenderer.invoke('ion:trash-entry', path),
+  copyPath: (path) => ipcRenderer.invoke('ion:copy-path', path),
+  revealInFolder: (path) => ipcRenderer.invoke('ion:reveal-in-folder', path),
   learning: {
     getTopics: () => ipcRenderer.invoke('ion:learning-topics'),
     getConcept: (id) => ipcRenderer.invoke('ion:learning-concept', id),

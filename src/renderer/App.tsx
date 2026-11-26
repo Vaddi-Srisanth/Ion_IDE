@@ -15,7 +15,7 @@ import type { ThemeData } from '../shared/themes';
 import { documentFormat } from '../shared/viewers';
 import { canPreviewWeb, runLanguage } from '../shared/run-console';
 import { appearanceFor, systemAppearance, themeForPreference } from './appearance';
-import { Workbench, type DocumentSplitActions } from './Workbench';
+import { Workbench, type DocumentSplitActions, type ExplorerContextAction, type TabContextAction } from './Workbench';
 import { commandEntries, displayShortcut, effectiveShortcut, type ShortcutOverrides } from '../shared/shortcuts';
 import { starterCode, starterLanguageFor, starterLanguages, type StarterLanguage } from '../shared/starter-code';
 import type { WorkspaceSearchMatch } from '../shared/workspace-search';
@@ -102,6 +102,11 @@ interface RunReport {
   revision?: string;
   problems: CompilerProblem[];
   feedback?: LearningFeedback;
+}
+
+interface ClosedTab {
+  path: string | null;
+  name: string;
 }
 
 function reportMatchesTab(documents: Documents, report: RunReport, tab: Tab | undefined) {
@@ -250,6 +255,9 @@ export function App() {
   const cursorRef = useRef<HTMLSpanElement>(null);
   const commands = useRef<(value: MenuCommand) => void>(() => {});
   const closeRequest = useRef<() => void>(() => {});
+  const recentlyClosed = useRef<ClosedTab[]>([]);
+  const pendingTabClosures = useRef<string[]>([]);
+  const drainingTabClosures = useRef(false);
 
   const notify = useCallback((message: string, error = false) => {
     setNotice({ message, error });
@@ -697,6 +705,9 @@ export function App() {
     if (!/^F(?:[1-9]|1[0-2])$/.test(binding)) return;
     const invokeRename = (event: KeyboardEvent) => {
       if (event.key.toUpperCase() !== binding || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      if (!target?.closest('.monaco-editor')
+        && target?.closest('[role="tree"], input, textarea, select, dialog, [contenteditable="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
       commands.current('rename-symbol');
@@ -995,17 +1006,97 @@ export function App() {
     }
   }
 
-  async function closeTab(id: string) {
-    if (dialog || nativeDialogOpen.current) return;
-    await documents.settle([id]);
-    const tab = documents.getSnapshot().tabs.find((entry) => entry.id === id);
-    if (tab?.notebookRunning) { notify('Finish or stop the notebook run before closing its tab.', true); return; }
-    if (tab?.dirty) {
-      setNotice(null);
-      setDialog({ kind: 'close-tab', id, name: tab.name });
-    }
-    else documents.close(id);
+  function rememberClosedTab(tab: Tab) {
+    const history = recentlyClosed.current;
+    history.unshift({ path: tab.path, name: tab.name });
+    if (history.length > 24) history.length = 24;
   }
+
+  function closeSettledTab(id: string, remember = true) {
+    const tab = documents.getSnapshot().tabs.find((entry) => entry.id === id);
+    if (!tab) return;
+    if (remember) rememberClosedTab(tab);
+    documents.close(id);
+  }
+
+  async function drainTabClosures() {
+    if (drainingTabClosures.current || dialog || nativeDialogOpen.current) return;
+    drainingTabClosures.current = true;
+    try {
+      while (pendingTabClosures.current.length) {
+        const id = pendingTabClosures.current.shift()!;
+        await documents.settle([id]);
+        const tab = documents.getSnapshot().tabs.find((entry) => entry.id === id);
+        if (!tab) continue;
+        if (tab.notebookRunning) {
+          pendingTabClosures.current = [];
+          notify('Finish or stop the notebook run before closing its tab.', true);
+          return;
+        }
+        if (tab.dirty) {
+          setNotice(null);
+          setDialog({ kind: 'close-tab', id, name: tab.name });
+          return;
+        }
+        closeSettledTab(id);
+      }
+    } finally {
+      drainingTabClosures.current = false;
+    }
+  }
+
+  function requestCloseTabs(ids: readonly string[]) {
+    if (dialog || nativeDialogOpen.current || drainingTabClosures.current) return;
+    const open = new Set(documents.getSnapshot().tabs.map(({ id }) => id));
+    pendingTabClosures.current = [...new Set(ids)].filter((id) => open.has(id));
+    void drainTabClosures();
+  }
+
+  function handleTabContextAction(action: TabContextAction, id: string) {
+    const openTabs = documents.getSnapshot().tabs;
+    const position = openTabs.findIndex((tab) => tab.id === id);
+    if (position < 0) return;
+    if (action === 'close') requestCloseTabs([id]);
+    else if (action === 'close-others') requestCloseTabs(openTabs.filter((tab) => tab.id !== id).map((tab) => tab.id));
+    else if (action === 'close-right') requestCloseTabs(openTabs.slice(position + 1).map((tab) => tab.id));
+    else if (action === 'close-saved') requestCloseTabs(openTabs.filter((tab) => !tab.dirty).map((tab) => tab.id));
+    else requestCloseTabs(openTabs.map((tab) => tab.id));
+  }
+
+  function handleExplorerContextAction(action: ExplorerContextAction, entry: Entry, isRoot: boolean) {
+    if (action === 'open') {
+      if (entry.kind === 'file') openWorkbenchEntry(entry);
+      else selectWorkspaceTarget(entry.path);
+    } else if (action === 'new-file' || action === 'new-folder') {
+      if (entry.kind !== 'folder') return;
+      selectWorkspaceTarget(entry.path);
+      setDialog({ kind: 'create', entryKind: action === 'new-file' ? 'file' : 'folder', parent: entry.path });
+    } else if (action === 'rename' && !isRoot) setDialog({ kind: 'rename', entry });
+    else if (action === 'trash' && !isRoot) void trashEntry(entry);
+    else if (action === 'copy-path') {
+      void bridge.copyPath(entry.path).then(() => notify('Copied path.')).catch((reason: unknown) => notify(errorMessage(reason), true));
+    } else if (action === 'reveal') {
+      void bridge.revealInFolder(entry.path).catch((reason: unknown) => notify(errorMessage(reason), true));
+    } else if (action === 'remove-root' && isRoot) void removeFolder(entry.path);
+  }
+
+  async function closeTab(id: string) {
+    requestCloseTabs([id]);
+  }
+
+  function reopenClosedTab() {
+    const closed = recentlyClosed.current.shift();
+    if (!closed) return;
+    if (closed.path) openWorkbenchEntry({ kind: 'file', path: closed.path, name: closed.name });
+    else {
+      documents.open(undefined, { name: closed.name, text: '' });
+      enterWorkspace();
+    }
+  }
+
+  useEffect(() => {
+    if (!dialog && pendingTabClosures.current.length) void drainTabClosures();
+  }, [dialog]);
 
   async function checkpointBackup() {
     const resume = await documents.checkpointDrafts();
@@ -1275,10 +1366,26 @@ export function App() {
         case 'open-folder': openFolder(); break;
         case 'save': if (id && screen === 'editor') void saveTab(id); break;
         case 'save-as': if (id && screen === 'editor') void saveTab(id, 'as'); break;
+        case 'save-all': if (screen === 'editor') void saveMany(tabs); break;
         case 'close-tab':
           if (sourceControlDiff) setSourceControlDiff(undefined);
           else if (id && screen === 'editor') void closeTab(id);
           break;
+        case 'close-other-tabs':
+          if (id && screen === 'editor') requestCloseTabs(tabs.filter((tab) => tab.id !== id).map((tab) => tab.id));
+          break;
+        case 'close-tabs-to-right': {
+          const position = tabs.findIndex((tab) => tab.id === id);
+          if (position >= 0 && screen === 'editor') requestCloseTabs(tabs.slice(position + 1).map((tab) => tab.id));
+          break;
+        }
+        case 'close-saved-tabs':
+          if (screen === 'editor') requestCloseTabs(tabs.filter((tab) => !tab.dirty).map((tab) => tab.id));
+          break;
+        case 'close-all-tabs':
+          if (screen === 'editor') requestCloseTabs(tabs.map((tab) => tab.id));
+          break;
+        case 'reopen-closed-tab': reopenClosedTab(); break;
         case 'next-tab':
         case 'previous-tab': {
           if (screen !== 'editor' || tabs.length < 2) break;
@@ -1287,6 +1394,8 @@ export function App() {
           documents.select(tabs[(position + step + tabs.length) % tabs.length].id);
           break;
         }
+        case 'cycle-next-tab': splitActions.current?.groups.cycleTab(1); break;
+        case 'cycle-previous-tab': splitActions.current?.groups.cycleTab(-1); break;
         case 'move-tab-left':
         case 'move-tab-right':
           if (id && screen === 'editor') documents.move(id, value === 'move-tab-left' ? -1 : 1);
@@ -1363,6 +1472,12 @@ export function App() {
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
+        case 'focus-explorer':
+          if (screen !== 'editor') break;
+          if (!settingsRef.current.showExplorer) updateSettings({ showExplorer: true });
+          requestAnimationFrame(() => document.querySelector<HTMLElement>('[role="tree"][aria-label="Workspace files"]')
+            ?.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]')?.focus());
+          break;
         case 'toggle-source-control': if (screen === 'editor') toggleSourceControl(); break;
         // Preserve existing customized shortcut IDs while retiring the Marketplace experience.
         case 'toggle-marketplace': setDialog({ kind: 'learning-content' }); break;
@@ -1476,11 +1591,18 @@ export function App() {
       }
       case 'save':
       case 'save-as': return Boolean(active && !active.viewer && !active.error && active.notebookMode !== 'notebook');
+      case 'save-all': return tabs.some((tab) => tab.dirty && !tab.viewer && !tab.error && tab.notebookMode !== 'notebook');
       case 'replace':
       case 'go-to-line': return Boolean(active && !active.viewer && !active.error && active.notebookMode !== 'notebook'
         && splitActions.current?.markdown?.mode !== 'preview');
       case 'find': return Boolean(active && splitActions.current?.markdown?.mode !== 'preview');
       case 'close-tab': return Boolean(active);
+      case 'close-other-tabs': return Boolean(active) && tabs.length > 1;
+      case 'close-tabs-to-right': return Boolean(activeId) && tabs.findIndex((tab) => tab.id === activeId) < tabs.length - 1;
+      case 'close-saved-tabs': return tabs.some((tab) => !tab.dirty);
+      case 'close-all-tabs': return tabs.length > 0;
+      case 'reopen-closed-tab': return recentlyClosed.current.length > 0;
+      case 'focus-explorer': return Boolean(root);
       case 'markdown-preview':
       case 'markdown-split': return Boolean(splitActions.current?.markdown);
       case 'focus-editor': return tabs.some((tab) => !tab.viewer);
@@ -1503,7 +1625,9 @@ export function App() {
       case 'move-editor-down':
       case 'close-editor-group': return (splitActions.current?.groups.count ?? 0) > 1;
       case 'next-tab':
-      case 'previous-tab': return tabs.length > 1;
+      case 'previous-tab':
+      case 'cycle-next-tab':
+      case 'cycle-previous-tab': return tabs.length > 1;
       case 'move-tab-left':
       case 'move-tab-right': return tabs.length > 1 && Boolean(active);
       case 'add-cursor-above':
@@ -1600,9 +1724,12 @@ export function App() {
           onNavigateSource={(path, line, column) => { void navigateSource({ path, line, column }); }}
           navigation={navigationState} onHistory={walkHistory}
           onBottomTab={selectBottomTab} onToggleBottom={toggleBottom}
-          onSelect={selectWorkbenchTab} onCloseTab={(id) => void closeTab(id)} onOpenEntry={openWorkbenchEntry} onTarget={selectWorkspaceTarget}
+          onSelect={selectWorkbenchTab} onCloseTab={(id) => void closeTab(id)} onTabContextAction={handleTabContextAction}
+          canReopenClosedTab={recentlyClosed.current.length > 0} onReopenClosedTab={reopenClosedTab}
+          onOpenEntry={openWorkbenchEntry} onTarget={selectWorkspaceTarget}
           onCreate={(kind) => { if (target) setDialog({ kind: 'create', entryKind: kind, parent: target }); }}
           onRename={(entry) => setDialog({ kind: 'rename', entry })} onTrash={(entry) => void trashEntry(entry)}
+          onExplorerContextAction={handleExplorerContextAction}
           onRefresh={refreshTree} onNew={newFile} onOpenFile={openFile} onOpenFolder={openFolder}
           onAddFolder={() => void addFolder()} onRemoveFolder={(path) => void removeFolder(path)}
           onReorderFolder={(path, offset) => void reorderFolder(path, offset)}
@@ -1741,7 +1868,7 @@ export function App() {
         message={`Save changes to ${dialog.name} before closing the tab?`} action="Save" alternative="Discard"
         error={notice?.error ? notice.message : undefined}
         onConfirm={async () => { if (await saveMany(documents.getSnapshot().tabs.filter(({ id }) => id === dialog.id))) {
-          documents.close(dialog.id);
+          closeSettledTab(dialog.id);
           setDialog(null);
         } }}
         onAlternative={async () => {
@@ -1752,7 +1879,8 @@ export function App() {
             notify(errorMessage(reason), true);
           }
         }}
-        onClose={() => setDialog(null)}/>}
+        onClose={() => { pendingTabClosures.current = []; setDialog(null); }}/>
+      }
       {dialog?.kind === 'close-workspace-draft' && <ConfirmDialog title="Unsaved workspace changes"
         message="Save your project or practice draft in its panel to keep those changes."
         action="Continue Closing" onConfirm={() => { setDialog(null); requestCloseFiles(); }}

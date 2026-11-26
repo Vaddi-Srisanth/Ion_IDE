@@ -38,6 +38,8 @@ jobs:
         run: npm test 2>&1 | tee performance-results/phase2-editor-windows/unit.log
       - name: Native Windows production editor workflow
         run: npm run test:keyboard 2>&1 | tee performance-results/phase2-editor-windows/keyboard.log
+      - name: Editor Essentials menus, MRU and Explorer keyboard workflow
+        run: npm run test:editor-essentials 2>&1 | tee performance-results/phase2-editor-windows/editor-essentials.log
       - name: Session, recovery and model-retention regression
         run: npm run test:editor-session 2>&1 | tee performance-results/phase2-editor-windows/session.log
       - name: Ten split lifecycle cycles with native process-tree resources

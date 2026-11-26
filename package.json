@@ -21,6 +21,7 @@
     "test:recovery": "node scripts/test-recovery.mjs",
     "test:editor-session": "node scripts/test-editor-session.mjs && node scripts/test-editor-retention.mjs",
     "test:keyboard": "node scripts/test-keyboard.mjs",
+    "test:editor-essentials": "node scripts/test-editor-essentials.mjs",
     "test:java-tools": "node scripts/test-java-tools.mjs",
     "test:language-services": "node scripts/test-language-services.mjs",
     "test:format": "node scripts/test-format-code.mjs",

@@ -231,6 +231,8 @@ export interface IonBridge {
   createEntry(parent: string, name: string, kind: EntryKind, initialText?: string): Promise<Entry>
   renameEntry(path: string, name: string): Promise<Entry>
   trashEntry(path: string): Promise<boolean>
+  copyPath(path: string): Promise<void>
+  revealInFolder(path: string): Promise<void>
   stopRun(): Promise<void>
   onCommand(callback: (command: MenuCommand) => void): () => void
   onOpenEntry(callback: (entry: Entry) => void): () => void
