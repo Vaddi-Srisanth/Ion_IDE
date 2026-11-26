@@ -1,4 +1,4 @@
-name: Phase 2 debugger native acceptance (no publication)
+name: Phase 2 build tasks native acceptance (no publication)
 on:
   workflow_dispatch:
     inputs:
@@ -10,124 +10,69 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: phase2-debugger-${{ github.ref }}
+  group: phase2-tasks-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  debugger:
-    name: Native ${{ matrix.os }} debugger
+  tasks:
+    name: Native ${{ matrix.os }} build tasks
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
+    env:
+      ION_TASKS_APPLICATION_SHA: d5d89e19b6a10b0727071c2283c6774baf1b842d
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 4
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.22.2
           cache: npm
-      # The hosted LLVM 20.1.8 lldb-dap crashes on Windows before DAP startup.
-      # Keep the current verified acceptance toolchain and its Python runtime
-      # pinned explicitly without changing Ion's production discovery policy.
-      - name: Install the Windows LLDB Python runtime
-        if: runner.os == 'Windows'
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.11.9'
-      - name: Record immutable candidate and native host
+      - name: Verify immutable application source and native host
         run: |
-          mkdir -p performance-results/phase2-debugger
-          printf 'source_sha=%s\n' "$(git rev-parse HEAD)" > performance-results/phase2-debugger/revision.log
-          node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-debugger/revision.log
+          mkdir -p performance-results/phase2-tasks
+          git cat-file -e "$ION_TASKS_APPLICATION_SHA^{commit}"
+          git diff --exit-code "$ION_TASKS_APPLICATION_SHA" HEAD -- src package.json package-lock.json test/tasks.test.ts
+          {
+            printf 'application_sha=%s\nverification_sha=%s\n' "$ION_TASKS_APPLICATION_SHA" "$(git rev-parse HEAD)"
+            node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))'
+            node --version
+            npm --version
+          } > performance-results/phase2-tasks/identity.log 2>&1
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Select trusted LLVM tools and record exact versions
+      - name: Record exact task tool versions
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            llvm_version='23.1.6'
-            runner_temp="$(cygpath -u "$RUNNER_TEMP")"
-            llvm_installer="$runner_temp/LLVM-$llvm_version-win64.msi"
-            llvm_sha256='81f7eb520ca698eb2d5cd8bc4b8f24f7add9ed66ed40a6f722a6e6f060737c00'
-            llvm_root="$runner_temp/ion-llvm-$llvm_version"
-            curl --fail --location --retry 2 --output "$llvm_installer" \
-              "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvm_version/LLVM-$llvm_version-win64.msi"
-            printf '%s *%s\n' "$llvm_sha256" "$llvm_installer" | sha256sum --check --strict
-            mkdir -p "$llvm_root"
-            ION_LLVM_INSTALLER="$(cygpath -w "$llvm_installer")" ION_LLVM_ROOT="$(cygpath -w "$llvm_root")" \
-              powershell.exe -NoProfile -NonInteractive -Command \
-              '$process = Start-Process msiexec.exe -ArgumentList @("/a", $env:ION_LLVM_INSTALLER, "/qn", "TARGETDIR=$($env:ION_LLVM_ROOT)") -Wait -PassThru; exit $process.ExitCode'
-            clang="$(find "$llvm_root" -type f -iname 'clang.exe' -print -quit)"
-            lldb_dap="$(find "$llvm_root" -type f -iname 'lldb-dap.exe' -print -quit)"
-            test -f "$clang"
-            test -f "$lldb_dap"
-            clang_win="$(cygpath -w "$clang")"
-            lldb_dap_win="$(cygpath -w "$lldb_dap")"
-            echo "ION_CLANG=$clang_win" >> "$GITHUB_ENV"
-            echo "ION_LLDB_DAP=$lldb_dap_win" >> "$GITHUB_ENV"
-            # Production Ion deliberately ignores test-only executable overrides.
-            # Put the pinned installation on the trusted discovery path so the
-            # packaged Electron journey exercises the same selection policy as users.
-            cygpath -w "$(dirname "$lldb_dap")" >> "$GITHUB_PATH"
-            python --version >> performance-results/phase2-debugger/revision.log 2>&1
-            python -c 'import os,sys; print("python_root=" + os.path.dirname(sys.executable))' >> performance-results/phase2-debugger/revision.log 2>&1
-            printf 'llvm_installer_sha256=%s\n' "$llvm_sha256" >> performance-results/phase2-debugger/revision.log
-            ION_TOOL_CLANG="$clang_win" ION_TOOL_LLDB_DAP="$lldb_dap_win" node --input-type=module <<'NODE' >> performance-results/phase2-debugger/revision.log 2>&1
-          import { spawnSync } from 'node:child_process';
-          const tools = [
-            ['clang', process.env.ION_TOOL_CLANG],
-            ['lldb_dap', process.env.ION_TOOL_LLDB_DAP],
-          ];
-          for (const [name, executable] of tools) {
-            if (!executable) throw new Error(`${name} path is missing`);
-            const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 10_000, windowsHide: true });
-            process.stdout.write(result.stdout ?? '');
-            process.stderr.write(result.stderr ?? '');
-            console.log(`${name}=${executable}`);
-            if (result.error) throw result.error;
-            if (result.status !== 0) throw new Error(`${name} version probe exited ${result.status ?? result.signal ?? 'unknown'}`);
-          }
-          NODE
-          else
-            clang="$(xcrun --find clang)"
-            lldb_dap="$(xcrun --find lldb-dap)"
-            echo "ION_CLANG=$clang" >> "$GITHUB_ENV"
-            echo "ION_LLDB_DAP=$lldb_dap" >> "$GITHUB_ENV"
-            {
-            "$clang" --version
-            "$lldb_dap" --version
-            printf 'clang=%s\n' "$clang"
-            printf 'lldb_dap=%s\n' "$lldb_dap"
-            } >> performance-results/phase2-debugger/revision.log 2>&1
-          fi
-      - name: Build and type-check exact production candidate
+          {
+            node --version
+            npm --version
+            node -p 'process.execPath'
+            npm root -g
+          } > performance-results/phase2-tasks/tools.log 2>&1
+      - name: Type-check and build exact production candidate
         run: |
-          npm run typecheck 2>&1 | tee performance-results/phase2-debugger/typecheck.log
-          npm run build 2>&1 | tee performance-results/phase2-debugger/build.log
+          npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
+          npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
       - name: Full unit and security regression
-        run: npm test 2>&1 | tee performance-results/phase2-debugger/unit.log
-      - name: Deterministic bounded fake-DAP lifecycle
-        run: node scripts/test-debugger.mjs 2>&1 | tee performance-results/phase2-debugger/fake-dap.log
-      - name: Production Electron debugger journey
-        id: desktop_debugger
+        run: npm test 2>&1 | tee performance-results/phase2-tasks/unit.log
+      - name: Focused task model and lifecycle tests
+        run: node scripts/test.mjs tasks 2>&1 | tee performance-results/phase2-tasks/tasks-unit.log
+      - name: Production Electron task journey and resource cleanup
+        id: desktop_tasks
         continue-on-error: true
-        run: node scripts/test-debugger-desktop.mjs 2>&1 | tee performance-results/phase2-debugger/desktop-dap.log
-      - name: Native clang and lldb-dap breakpoint lifecycle
-        id: native_debugger
-        continue-on-error: true
-        run: node scripts/test-debugger-native.mjs 2>&1 | tee performance-results/phase2-debugger/native-dap.log
-      - name: Record debugger acceptance result
+        run: node scripts/test-tasks-desktop.mjs 2>&1 | tee performance-results/phase2-tasks/desktop-tasks.log
+      - name: Record acceptance result
         if: always()
         env:
-          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
-          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
-        run: printf 'desktop_result=%s\nnative_result=%s\n' "$DESKTOP_RESULT" "$NATIVE_RESULT" > performance-results/phase2-debugger/acceptance-result.log
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+        run: printf 'desktop_result=%s\n' "$DESKTOP_RESULT" > performance-results/phase2-tasks/acceptance-result.log
       - name: Prove immutable source and collect bounded evidence
         if: always()
         run: |
@@ -137,7 +82,7 @@ jobs:
           import { mkdir, open, readdir, writeFile } from 'node:fs/promises';
           import { homedir, tmpdir } from 'node:os';
           import { join } from 'node:path';
-          const source='performance-results/phase2-debugger', destination='performance-results/phase2-debugger-safe';
+          const source='performance-results/phase2-tasks', destination='performance-results/phase2-tasks-safe';
           await mkdir(destination,{recursive:true});
           for(const name of await readdir(source).catch(()=>[])) {
             let handle; try { handle=await open(join(source,name),'r'); } catch { continue; }
@@ -149,20 +94,17 @@ jobs:
               await writeFile(join(destination,name),text);
             } finally { await handle.close(); }
           }
-          if(!(await readdir(destination)).length) throw Error('No debugger evidence was collected.');
+          if(!(await readdir(destination)).length) throw Error('No build-task evidence was collected.');
           NODE
+      - name: Enforce task acceptance result
+        if: always()
+        env:
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+        run: test "$DESKTOP_RESULT" = success
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
-          name: phase2-debugger-${{ matrix.os }}-${{ github.sha }}
-          path: performance-results/phase2-debugger-safe/*
+          name: phase2-tasks-${{ matrix.os }}-${{ github.sha }}
+          path: performance-results/phase2-tasks-safe/*
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce debugger acceptance result
-        if: always()
-        env:
-          DESKTOP_RESULT: ${{ steps.desktop_debugger.outcome }}
-          NATIVE_RESULT: ${{ steps.native_debugger.outcome }}
-        run: |
-          test "$DESKTOP_RESULT" = success
-          test "$NATIVE_RESULT" = success
