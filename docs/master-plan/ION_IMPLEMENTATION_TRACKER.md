@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current branch: `codex/ion-core-excellence-phase-2-lsp`<br>
-Current Phase 2 language-services remediation source: `f458dd4238ab247de184f710f4cf5f8b384d4516` (local checks passed; native acceptance not rerun)<br>
+Current Phase 2 language-services application source: `0e1442fb360d9b72a642b63d874cb1e037538566` (final local gates passed; immutable native acceptance pending)<br>
 Accepted editor/workspace foundation: `0718aa7b35894474e1932efba7cee3286dcf0aab`<br>
 Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`<br>
@@ -114,7 +114,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | 2.1D — Different-file editor groups | **Accepted on macOS and Windows** | Nested horizontal/vertical layouts, up to four groups, same/different files, shared models, independent view state, drag/move/focus/close/rebalance, keyboard resize and production relaunch persistence pass. |
 | 2.1E — Restored editor-group layouts | **Accepted on macOS and Windows** | Orientation, 56% resize ratio, membership and active files survived production relaunch. Invalid/older layouts fail closed. |
 | 2.2 — Multi-root workspace | **Accepted on macOS and Windows** | Explicit grants, add/remove/reorder, bounded saved descriptors/settings, root-aware search/replace/Quick Open/breadcrumbs/terminal/Git/run/projects/notebooks and session restoration pass. Windows casing, junction, Unicode, long-path and sharing-lock gates passed. |
-| 2.3 — Reusable LSP host | **FAIL — remediation checkpoint verified locally** | `f458dd4238ab247de184f710f4cf5f8b384d4516` separates process-start/initialize/ready-request budgets, configures Pyright lazily, makes premature or stale Run Console input explicit, fixes the Windows stdin acceptance false trigger, and makes CI select MinGW independently from explicit clangd. Local typecheck, production build, and 401/427 unit tests passed with 26 Windows-only skips and zero failures. Native reruns, full clangd capability routing, reviewed rename/workspace edits, exact active-service resources, and final unused-LSP comparison remain required. See `ION_PHASE_2_LANGUAGE_SERVICES.md`. |
+| 2.3 — Reusable LSP host | **OPEN — final native acceptance pending** | Application source `0e1442fb360d9b72a642b63d874cb1e037538566` completes secure Windows npm discovery, genuine TypeScript/Pyright execution, full bounded semantic routing, reviewed rename/workspace edits, root-removal cleanup and matched unused-LSP/resource gates. Local typecheck, build and full suite passed (426 pass, 26 skips, 0 fail). Windows run `45842413385` passed the earlier genuine server gate. One immutable macOS ARM64 + Windows x64 final run is still required; DAP remains blocked. See `ION_PHASE_2_LANGUAGE_SERVICES.md`. |
 | 2.4 — DAP | Not started | No production debug adapter host yet. |
 | 2.5 — Build/tasks | Not started | Existing run plans remain intact; general reviewed tasks are pending. |
 | 2.6 — Test Explorer | Not started | Existing saved project tests remain intact; general discovery/tree/history is pending. |

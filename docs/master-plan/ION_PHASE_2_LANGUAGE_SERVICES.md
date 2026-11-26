@@ -1,6 +1,6 @@
 # Ion Phase 2 — On-Demand Language Services
 
-Status: local macOS implementation accepted; native Windows and installed TypeScript-server acceptance remain pending on `codex/ion-core-excellence-phase-2-lsp`.
+Status: final semantic/editing candidate verified locally; immutable macOS and Windows native acceptance pending on `codex/ion-core-excellence-phase-2-lsp`.
 
 ## Accepted baseline
 
@@ -143,4 +143,39 @@ Local evidence at this checkpoint:
 | Final LSP capability/rename/resource contract | Incomplete; Milestone remains FAIL |
 
 The failed native run remains evidence. No timeout was globally increased, no ConPTY implementation was rewritten, and no performance value was invented or reused as current acceptance.
+
+## Final local candidate — `0e1442fb360d9b72a642b63d874cb1e037538566`
+
+The secure Windows npm discovery correction at `2d2767900a680199ad1deb57f52f73d5f7c724d2` passed native Windows run [45842413385](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45842413385). The run exercised real JavaScript and TypeScript through TypeScript Language Server 4.4.0 and TypeScript 5.9.3, alongside Node 24.22.2, clangd 20.1.8, Java 17.0.21.1 and Pyright 1.1.407. Its unit/security result was 420 passed, 17 skipped and 0 failed. Runs `45828091548` and `45825449360` remain preserved evidence of the preceding success and portability failure.
+
+The final local candidate completes the remaining bounded semantic surface and reviewed-edit path:
+
+- clangd diagnostics, completion, hover, signature help, definitions, declarations, references, document/workspace symbols, rename and code-action queries;
+- Python and JavaScript/TypeScript diagnostics, completion, hover, signatures, definitions, references and rename through the shared host;
+- main-owned workspace-edit review with canonical-root authorization, dirty-buffer, revision/hash, external-change, overlap, symlink/junction and removed-root checks before atomic publication;
+- an expiring, single-use approval token; language servers never write files directly;
+- immediate service cleanup when a root is removed, including shared JavaScript/TypeScript adapter identity;
+- F2 Rename Symbol through the production menu/shortcut path without recreating Monaco models.
+
+Local gates passed: type checking, production build, Java production workflow, native clangd production workflow, exact pinned Pyright/TypeScript lifecycle, and the full unit/security suite (**426 passed, 26 platform/toolchain skips, 0 failed; 452 total**). One earlier full-suite worker stall and one new-test assertion defect were retained during development; the isolated LSP lane passed and the corrected final full suite completed cleanly.
+
+### Exact matched unused-LSP comparison
+
+Five alternating AB/BA production pairs compared accepted source `0718aa7b35894474e1932efba7cee3286dcf0aab` with this exact application source. All samples are retained locally in ignored evidence at `performance-results/lsp-final-exact/desktop-2026-11-26T15-31-02.221Z.json`.
+
+| Metric | Accepted baseline | Final candidate | Delta |
+| --- | ---: | ---: | ---: |
+| Fresh startup | 330.38 ms | 315.19 ms | -15.19 ms / -4.60% |
+| Warm startup | 337.92 ms | 346.93 ms | +9.01 ms / +2.67% |
+| First file | 178.89 ms | 180.04 ms | +1.15 ms / +0.64% |
+| Idle summed RSS | 427.95 MiB | 428.78 MiB | +0.83 MiB / +0.19% |
+| One-tab summed RSS | 517.08 MiB | 518.59 MiB | +1.51 MiB / +0.29% |
+| Ten-tab summed RSS | 530.47 MiB | 532.03 MiB | +1.56 MiB / +0.29% |
+| Idle CPU | 0.62% | 0.61% | -0.01 pp |
+| Subsequent file | 46.54 ms | 46.50 ms | -0.04 ms |
+| Typing key-to-second-frame | 31.70 ms | 31.55 ms | -0.15 ms |
+
+Ordinary editing started no language server and no background indexer or poller. The historical `610.62 -> 959.05 ms` startup regression did not reproduce under matched artifact placement and alternating order; the final candidate is within the required 10% startup and first-file gates.
+
+Active-service measurements remain separate from Ion. Locally, clangd added 19.52 MiB attributed footprint / 37.14 MiB RSS and returned definition in 104.73 ms. Pyright added 247.34 MiB service RSS in this fixture and cleaned to zero service processes. TypeScript Language Server plus tsserver added 525.45 MiB service RSS and cleaned to zero; this external tool cost is reported rather than attributed to Ion. Final immutable macOS/Windows acceptance is still required before Milestone 2.3 can become PASS.
 
