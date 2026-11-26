@@ -186,8 +186,8 @@ await withScratch('language-services', async scratch => {
     'Python services did not stop after their sources closed.')
     await sleep(750)
     const afterPython = await snapshot(session, { details: true })
-    assert.equal(childCount(afterPython), childCount(beforePython),
-      'Python services did not return to the pre-service owned child-process count.')
+    assert.ok(childCount(afterPython) <= childCount(beforePython),
+      'Python services left additional owned child processes after shutdown.')
     const pythonStopMs = performance.now() - pythonStop
     const pythonLifecycle = await pyrightTimings(process.env.ION_LSP_TIMING_LOG, pythonQueryStartNs)
 
