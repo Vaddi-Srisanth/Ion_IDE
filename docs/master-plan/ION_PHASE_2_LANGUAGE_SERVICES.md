@@ -1,6 +1,6 @@
 # Ion Phase 2 — On-Demand Language Services
 
-Status: final semantic/editing candidate verified locally; immutable macOS and Windows native acceptance pending on `codex/ion-core-excellence-phase-2-lsp`.
+Status: **PASS**. The final semantic/editing candidate passed immutable macOS ARM64 and Windows x64 native acceptance on `codex/ion-core-excellence-phase-2-lsp`.
 
 ## Accepted baseline
 
@@ -177,5 +177,78 @@ Five alternating AB/BA production pairs compared accepted source `0718aa7b358944
 
 Ordinary editing started no language server and no background indexer or poller. The historical `610.62 -> 959.05 ms` startup regression did not reproduce under matched artifact placement and alternating order; the final candidate is within the required 10% startup and first-file gates.
 
-Active-service measurements remain separate from Ion. Locally, clangd added 19.52 MiB attributed footprint / 37.14 MiB RSS and returned definition in 104.73 ms. Pyright added 247.34 MiB service RSS in this fixture and cleaned to zero service processes. TypeScript Language Server plus tsserver added 525.45 MiB service RSS and cleaned to zero; this external tool cost is reported rather than attributed to Ion. Final immutable macOS/Windows acceptance is still required before Milestone 2.3 can become PASS.
+Active-service measurements remain separate from Ion. Locally, clangd added 19.52 MiB attributed footprint / 37.14 MiB RSS and returned definition in 104.73 ms. Pyright added 247.34 MiB service RSS in this fixture and cleaned to zero service processes. TypeScript Language Server plus tsserver added 525.45 MiB service RSS and cleaned to zero; this external tool cost is reported rather than attributed to Ion.
+
+## Final immutable native acceptance — run 45859946256
+
+Final run: [GitHub Actions 45859946256](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45859946256)<br>
+Production implementation: `6bcc06c059a13461b145e5e4ccec55d22bb3bced`<br>
+Verification harness: `9aaeaeffff5cbb5b20a00ddbe373ba51c4e24578`
+
+The harness commit changes only bounded Windows test-fixture cleanup. The shipped `src` tree is identical to the production implementation above. Both final jobs checked out and built the full harness SHA, proved its identity, and exercised the same production sources.
+
+| Gate | macOS 15 ARM64 | Windows 2025 x64 |
+| --- | --- | --- |
+| Production build and typecheck | PASS | PASS |
+| Unit/security suite | 428 pass, 26 skip, 0 fail / 454 | 427 pass, 17 skip, 0 fail / 444 |
+| Java intelligence and cleanup | PASS | PASS |
+| clangd semantic surface, reviewed rename and cleanup | PASS | PASS |
+| Pyright diagnostics, cold/warm semantics and cleanup | PASS | PASS |
+| TypeScript Language Server lifecycle and cleanup | PASS | PASS |
+| Multi-root isolation, stale-result rejection and cancellation | PASS | PASS |
+| Malformed/oversized protocol and unauthorized-path protection | PASS | PASS |
+| Owned service processes after shutdown | 0 | 0 |
+
+Pinned/recorded tools were Node 24.22.2, Pyright 1.1.407, TypeScript Language Server 4.4.0 and TypeScript 5.9.3. macOS used Apple clangd 17.0.0 and Java 21.0.13; Windows used clangd 20.1.8 and Java 17.0.21. Windows independently selected MinGW GCC while clangd remained the explicitly validated semantic executable.
+
+### Native semantic timing and resource evidence
+
+| Measurement | macOS ARM64 | Windows x64 |
+| --- | ---: | ---: |
+| clangd cold definition workflow | 872.08 ms | 2,376.28 ms |
+| clangd service RSS | 46.88 MiB | 87.84 MiB |
+| clangd shutdown observed | 251.56 ms | 775.51 ms |
+| Pyright discovery upper bound | 135.38 ms | 111.39 ms |
+| Pyright process spawn | 3.43 ms | 5.97 ms |
+| Pyright initialization | 536.68 ms | 222.66 ms |
+| Pyright workspace configuration | 7.36 ms | 1.49 ms |
+| Pyright document synchronization dispatch | 2.41 ms | 2.19 ms |
+| Pyright cold definition | 900.12 ms | 655.98 ms |
+| Pyright warm completion | 21.12 ms | 25.10 ms |
+| Pyright first diagnostics | 274.00 ms | 281.92 ms |
+| Pyright active service RSS | 384.84 MiB | 388.78 MiB |
+| TypeScript service RSS | 519.25 MiB | 434.60 MiB |
+
+Ion's own process tree remained separate in the measurements. After Pyright and TypeScript shutdown, service RSS returned to zero and the Electron process count returned to four on both hosts. The macOS trace observed the protocol exit notification but not the later process-exit callback inside its narrow trace window; independent process-tree sampling verified no retained server process.
+
+### Matched unused-LSP performance
+
+The final hosted macOS comparison retained five alternating samples per build. No language server or background indexer started in ordinary editing.
+
+| Metric | Accepted comparison | Final candidate | Delta |
+| --- | ---: | ---: | ---: |
+| Fresh startup | 911.19 ms | 958.76 ms | +47.57 ms / +5.22% |
+| Warm startup | 746.19 ms | 671.17 ms | -75.02 ms / -10.05% |
+| First file | 491.45 ms | 356.36 ms | -135.09 ms / -27.49% |
+| Idle summed RSS | 368.66 MiB | 369.31 MiB | +0.65 MiB / +0.18% |
+| One tab | 461.88 MiB | 461.95 MiB | +0.07 MiB / +0.02% |
+| Ten tabs | 477.00 MiB | 477.58 MiB | +0.58 MiB / +0.12% |
+| Idle CPU | 2.47% | 2.20% | -0.27 pp |
+| Typing key-to-second-frame | 30.50 ms | 30.65 ms | +0.15 ms / +0.49% |
+
+The required startup and first-file limits pass, and unused LSP adds no meaningful idle resource cost. Active Java Smart mode is reported separately: its one retained hosted sample increased editor RSS from 469.17 to 550.61 MiB and attributed footprint from 189.54 to 241.28 MiB while the JDK service was active; warm completion was 20.36 ms, first diagnostics 1,748.56 ms, and the post-close Electron tree was within 3.45 MiB of Basic mode.
+
+### Preserved failures
+
+- [45850775625](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45850775625): brittle Pyright raw-exit observation and Windows root-removal handling.
+- [45851929847](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45851929847): cleanup assertion treated a lower post-cleanup count as failure.
+- [45852597271](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45852597271): Smart C++ opt-in eagerly launched clangd before an explicit semantic request.
+- [45854295177](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45854295177): transient Windows scratch deletion after TypeScript shutdown.
+- [45855793417](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45855793417): measured cold Windows clangd definition exceeded the generic eight-second request budget.
+- [45858699825](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45858699825): all reftable assertions passed, then test-fixture removal hit transient Windows `EBUSY`; bounded test-only recursive cleanup retries corrected the harness.
+- [45857558803](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45857558803): intermediate Windows-only proof that the bounded clangd correction passed before the final cross-platform run.
+
+No failed sample was deleted or relabeled as a pass. No global timeout was increased, no server was made eager, and no workspace-controlled executable or direct server file write was permitted.
+
+**Milestone 2.3 verdict: PASS.** DAP was not started during this milestone. The next work item is the previously requested Editor Essentials / Interaction Audit and its bounded corrections before any debugger implementation.
 
