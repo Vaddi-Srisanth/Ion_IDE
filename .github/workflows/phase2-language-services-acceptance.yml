@@ -59,6 +59,7 @@ jobs:
           printf '%s\n' "$real_pyright" > "$proxy_bin/pyright-entry.txt"
           echo "ION_LSP_TIMING_LOG=$timing_log" >> "$GITHUB_ENV"
           echo "ION_LSP_DIAGNOSTIC_TRACE=$diagnostic_trace" >> "$GITHUB_ENV"
+          echo "ION_REQUIRE_TYPESCRIPT_LSP=1" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = "Windows" ]; then
             '/c/mingw64/bin/g++.exe' -std=c++17 -O2 -municode scripts/windows/lsp-timing-launcher.cpp -o "$proxy_bin/pyright-langserver.exe"
           else
@@ -91,6 +92,11 @@ jobs:
             pyright --version
             typescript-language-server --version
             tsc --version
+            printf 'node_cli=%s\n' "$(command -v node)"
+            printf 'pyright_cli=%s\n' "$(command -v pyright-langserver)"
+            printf 'typescript_cli=%s\n' "$(command -v typescript-language-server)"
+            printf 'npm_prefix=%s\n' "$(npm prefix --global)"
+            printf 'npm_root=%s\n' "$(npm root --global)"
             printf 'PATH=%s\n' "$PATH"
             command -v gcc || true
             command -v g++ || true

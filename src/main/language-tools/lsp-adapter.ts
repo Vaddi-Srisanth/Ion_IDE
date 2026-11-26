@@ -8,8 +8,14 @@ import type { ToolReply, ToolSnapshot } from '../../shared/language-tools'
 import { sourceDriveSpelling } from '../../shared/source-path'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { LspProcess } from './lsp-process'
+import { discoverWindowsNodeCli } from './windows-node-cli'
 
-interface ServerCandidate { executable: string; args: string[]; kind: 'pyright' | 'pylsp' | 'typescript' }
+interface ServerCandidate {
+  executable: string
+  args: string[]
+  kind: 'pyright' | 'pylsp' | 'typescript'
+  verify?: () => Promise<void>
+}
 export interface PublishedDiagnostics { version?: number; diagnostics: unknown[] }
 interface SynchronizedDocument { sourceVersion: number; protocolVersion: number; digest: string; protocolUri: string; identity: string }
 interface DiagnosticWaiter { resolve(): void; reject(reason?: unknown): void; dispose(): void }
@@ -366,6 +372,9 @@ async function discover(adapter: string, root: string, paths: string[]): Promise
     const executable = await onPath(name, root, paths)
     if (executable) return { executable, args, kind: name === 'pyright-langserver' ? 'pyright'
       : name === 'pylsp' ? 'pylsp' : 'typescript' }
+    const nodeCli = await discoverWindowsNodeCli(name, root, paths)
+    if (nodeCli) return { executable: nodeCli.executable, args: [...nodeCli.args, ...args], verify: nodeCli.verify,
+      kind: name === 'pyright-langserver' ? 'pyright' : 'typescript' }
   }
   throw new Error(adapter === 'python-lsp'
     ? 'Install pyright-langserver or python-lsp-server outside the workspace to enable Smart Python.'
@@ -399,6 +408,7 @@ export class ExternalLspService {
       const boundary = root ?? dirname(source)
       const paths = await commandPaths(boundary)
       const server = await discover(adapter, boundary, paths)
+      await server.verify?.()
       const host = await LspProcess.start({
         executable: server.executable, args: server.args, cwd: directory, env: envFor(paths, directory), root,
         deadlines: { initializationMs: server.kind === 'pyright' ? 20_000 : 8_000 },

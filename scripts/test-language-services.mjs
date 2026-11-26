@@ -67,15 +67,27 @@ await withScratch('language-services', async scratch => {
   await writeFile(source, text)
   const jsHelper = join(project.directory, 'helper.js')
   const jsSource = join(project.directory, 'main.js')
+  const tsHelper = join(project.directory, 'typed-helper.ts')
+  const tsSource = join(project.directory, 'main.ts')
   await writeFile(join(project.directory, 'jsconfig.json'), JSON.stringify({
     compilerOptions: { checkJs: true, module: 'esnext', moduleResolution: 'node' }, include: ['*.js'],
   }))
-  await writeFile(jsHelper, 'export function total(a, b) { return a + b }\n')
-  const jsText = 'import { total } from "./helper.js"\nconsole.log(total(2, 3))\n'
+  await writeFile(jsHelper, '/** @param {number} a @param {number} b @returns {number} */\nexport function total(a, b) { return a + b }\n')
+  const jsText = 'import { total } from "./helper.js"\nconsole.log(total(2, 3))\nconsole.log(Math.max(2, 3))\n'
+  await writeFile(join(project.directory, 'tsconfig.json'), JSON.stringify({
+    compilerOptions: { strict: true, module: 'esnext', moduleResolution: 'node' }, include: ['*.ts'],
+  }))
+  await writeFile(tsHelper, 'export function typedTotal(a: number, b: number): number { return a + b }\n')
+  const tsText = 'import { typedTotal } from "./typed-helper"\nconst answer: number = typedTotal(2, 3)\nconsole.log(answer)\n'
+  await writeFile(tsSource, tsText)
   const second = await createProject(join(scratch, 'second project'), { fileCount: 0 })
   const secondSource = join(second.directory, 'other.py')
   const secondText = 'def second_value() -> int:\n    return 2\n\nprint(second_value())\n'
+  const secondTsSource = join(second.directory, 'other.ts')
+  const secondTsText = 'export function secondValue(): number { return 2 }\nconsole.log(secondValue())\n'
   await writeFile(secondSource, secondText)
+  await writeFile(join(second.directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true }, include: ['*.ts'] }))
+  await writeFile(secondTsSource, secondTsText)
   await writeFile(jsSource, jsText)
   const session = await launch(target, join(scratch, 'profile'))
   const { page, app } = session
@@ -174,6 +186,9 @@ await withScratch('language-services', async scratch => {
       } catch (error) { return { error: String(error) } }
     }, { path: jsSource, text: jsText })
     const jsStartMs = performance.now() - jsStart
+    if (jsResult.error && process.env.ION_REQUIRE_TYPESCRIPT_LSP === '1') {
+      assert.fail(`The pinned TypeScript language server was installed but Ion could not use it: ${jsResult.error}`)
+    }
     if (jsResult.error) assert.match(jsResult.error, /Install typescript-language-server/)
     else {
       assert.ok(jsResult.result?.rows.some(([path, line]) => path === jsSource && line === '1'),
@@ -181,7 +196,7 @@ await withScratch('language-services', async scratch => {
       assert.ok((await query('javascript', jsSource, jsText, 'hover', jsText.lastIndexOf('total') + 2, 1))?.rows.length,
         'TypeScript service returned no JavaScript hover.')
       for (let request = 0; request < 3; request++) {
-        assert.ok((await query('javascript', jsSource, jsText, 'signature', jsText.lastIndexOf('total') + 6, 1))?.rows.length,
+        assert.ok((await query('javascript', jsSource, jsText, 'signature', jsText.lastIndexOf('Math.max') + 10, 1))?.rows.length,
           `TypeScript service returned no JavaScript signature help on unchanged request ${request + 1}.`)
       }
       assert.ok((await query('javascript', jsSource, jsText, 'references', jsText.lastIndexOf('total') + 2, 1))?.rows.length,
@@ -192,6 +207,36 @@ await withScratch('language-services', async scratch => {
       const invalidJs = 'const value = ;\n'
       assert.ok((await query('javascript', jsSource, invalidJs, 'diagnostics', 0, 3))?.rows.some(([severity]) => severity === 'error'),
         'TypeScript service did not report an unsaved JavaScript syntax error.')
+
+      const tsDefinition = await query('typescript', tsSource, tsText, 'definition', tsText.lastIndexOf('typedTotal') + 3, 1)
+      assert.ok(tsDefinition?.rows.some(([path]) => path === tsHelper || path === tsSource),
+        'TypeScript service did not resolve a TypeScript definition.')
+      assert.ok((await query('typescript', tsSource, tsText, 'hover', tsText.lastIndexOf('typedTotal') + 3, 1))?.rows.length,
+        'TypeScript service returned no TypeScript hover.')
+      assert.ok((await query('typescript', tsSource, tsText, 'signature', tsText.lastIndexOf('typedTotal') + 12, 1))?.rows.length,
+        'TypeScript service returned no TypeScript signature help.')
+      assert.ok((await query('typescript', tsSource, tsText, 'references', tsText.lastIndexOf('typedTotal') + 3, 1))?.rows.length,
+        'TypeScript service returned no TypeScript references.')
+      const tsCompletionText = tsText + '\nconst label = "Ion"\nlabel.'
+      assert.ok((await query('typescript', tsSource, tsCompletionText, 'complete', tsCompletionText.length, 2))?.rows.length,
+        'TypeScript service returned no TypeScript completions from an unsaved buffer.')
+      const invalidTs = 'const answer: number = ;\n'
+      assert.ok((await query('typescript', tsSource, invalidTs, 'diagnostics', 0, 3))?.rows.some(([severity]) => severity === 'error'),
+        'TypeScript service did not report an unsaved TypeScript syntax error.')
+      const changedTs = 'export const changedValue: string = "updated"\nchangedValue.\n'
+      assert.ok((await query('typescript', tsSource, changedTs, 'complete', changedTs.lastIndexOf('.') + 1, 4))?.rows.length,
+        'TypeScript service did not synchronize a changed TypeScript document.')
+      const secondTs = await query('typescript', secondTsSource, secondTsText, 'definition', secondTsText.lastIndexOf('secondValue') + 3, 1)
+      assert.ok(secondTs?.rows.some(([path]) => path === secondTsSource),
+        'TypeScript service did not route the second workspace root independently.')
+      assert.equal((await page.evaluate(() => window.ion.languageTools.status()))
+        .filter(({ language, state }) => (language === 'javascript' || language === 'typescript') && state === 'ready').length, 2,
+      'TypeScript roots did not receive isolated language-service state.')
+      await page.getByRole('button', { name: 'Remove second project from workspace' }).click()
+      await eventually(async () => await page.getByTestId('workspace-root').count() === 1,
+        'The second workspace root was not removed.')
+      await assert.rejects(query('typescript', secondTsSource, secondTsText, 'definition', 1, 2),
+        /Open the file|outside|workspace|authorized|grant/i, 'A removed workspace root remained authorized for TypeScript requests.')
     }
     let jsStatus = (await page.evaluate(() => window.ion.languageTools.status())).filter(status => status.language === 'javascript').at(-1)
     assert.ok(jsStatus && (jsStatus.state === 'ready' || jsStatus.state === 'error'))
