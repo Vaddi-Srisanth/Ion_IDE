@@ -1,0 +1,103 @@
+name: Phase 2 debugger native acceptance (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Native platform set to verify
+        type: choice
+        options: [all, windows]
+        default: all
+permissions:
+  contents: read
+concurrency:
+  group: phase2-debugger-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  debugger:
+    name: Native ${{ matrix.os }} debugger
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Record immutable candidate and native host
+        run: |
+          mkdir -p performance-results/phase2-debugger
+          printf 'source_sha=%s\n' "$(git rev-parse HEAD)" > performance-results/phase2-debugger/revision.log
+          node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-debugger/revision.log
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Select trusted LLVM tools and record exact versions
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            clang='/c/Program Files/LLVM/bin/clang.exe'
+            lldb_dap='/c/Program Files/LLVM/bin/lldb-dap.exe'
+            test -x "$clang"
+            test -x "$lldb_dap"
+            echo 'ION_CLANG=C:\Program Files\LLVM\bin\clang.exe' >> "$GITHUB_ENV"
+            echo 'ION_LLDB_DAP=C:\Program Files\LLVM\bin\lldb-dap.exe' >> "$GITHUB_ENV"
+          else
+            clang="$(xcrun --find clang)"
+            lldb_dap="$(xcrun --find lldb-dap)"
+            echo "ION_CLANG=$clang" >> "$GITHUB_ENV"
+            echo "ION_LLDB_DAP=$lldb_dap" >> "$GITHUB_ENV"
+          fi
+          {
+            "$clang" --version
+            "$lldb_dap" --version
+            printf 'clang=%s\n' "$clang"
+            printf 'lldb_dap=%s\n' "$lldb_dap"
+          } >> performance-results/phase2-debugger/revision.log 2>&1
+      - name: Build and type-check exact production candidate
+        run: |
+          npm run typecheck 2>&1 | tee performance-results/phase2-debugger/typecheck.log
+          npm run build 2>&1 | tee performance-results/phase2-debugger/build.log
+      - name: Full unit and security regression
+        run: npm test 2>&1 | tee performance-results/phase2-debugger/unit.log
+      - name: Deterministic bounded fake-DAP lifecycle
+        run: node scripts/test-debugger.mjs 2>&1 | tee performance-results/phase2-debugger/fake-dap.log
+      - name: Native clang and lldb-dap breakpoint lifecycle
+        run: node scripts/test-debugger-native.mjs 2>&1 | tee performance-results/phase2-debugger/native-dap.log
+      - name: Prove immutable source and collect bounded evidence
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --exit-code
+          node --input-type=module <<'NODE'
+          import { mkdir, open, readdir, writeFile } from 'node:fs/promises';
+          import { homedir, tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          const source='performance-results/phase2-debugger', destination='performance-results/phase2-debugger-safe';
+          await mkdir(destination,{recursive:true});
+          for(const name of await readdir(source).catch(()=>[])) {
+            let handle; try { handle=await open(join(source,name),'r'); } catch { continue; }
+            try {
+              const size=(await handle.stat()).size; if(size>16*1024*1024) throw Error(`${name} exceeded 16 MiB`);
+              const bytes=Buffer.alloc(size); await handle.read(bytes,0,size,0); let text=bytes.toString('utf8');
+              for(const [value,label] of [[process.cwd(),'<checkout>'],[tmpdir(),'<tmp>'],[homedir(),'<home>']])
+                for(const spelling of new Set([value,value.replaceAll('\\','/')])) text=text.split(spelling).join(label);
+              await writeFile(join(destination,name),text);
+            } finally { await handle.close(); }
+          }
+          if(!(await readdir(destination)).length) throw Error('No debugger evidence was collected.');
+          NODE
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: phase2-debugger-${{ matrix.os }}-${{ github.sha }}
+          path: performance-results/phase2-debugger-safe/*
+          if-no-files-found: error
+          retention-days: 7
