@@ -272,9 +272,10 @@ export async function stubDialogs(app, choices) {
       const gitIndex = buttons.indexOf('Trust Repository')
       const workspaceIndex = buttons.indexOf('Open Workspace')
       const debugIndex = buttons.indexOf('Start Debugging')
+      const taskIndex = buttons.indexOf('Run Task')
       const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
         : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
-        : debugIndex >= 0 && data.allowDebug ? debugIndex
+        : debugIndex >= 0 && data.allowDebug ? debugIndex : taskIndex >= 0 && data.allowTask ? taskIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)
       return { response, checkboxChecked: false }
