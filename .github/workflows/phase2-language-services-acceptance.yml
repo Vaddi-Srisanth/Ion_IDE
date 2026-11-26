@@ -1,8 +1,12 @@
 name: Phase 2 language services native acceptance (no publication)
 on:
-  push:
-    branches: [codex/ion-core-excellence-phase-2-lsp]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Native platform set to verify
+        type: choice
+        options: [all, windows]
+        default: all
 permissions:
   contents: read
 concurrency:
@@ -14,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, windows-2025]
+        os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     defaults:

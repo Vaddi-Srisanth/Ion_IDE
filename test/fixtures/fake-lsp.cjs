@@ -25,6 +25,11 @@ process.stdin.on('data', chunk => {
       changes: { 'file:///outside/not-authorized.c': [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: 'unsafe' }] },
     } } })
     else if (message.method === 'ion/echo') send({ jsonrpc: '2.0', id: message.id, result: message.params })
+    else if (message.method === 'ion/publishDiagnostics') {
+      send({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: message.params })
+      send({ jsonrpc: '2.0', id: message.id, result: null })
+    }
+    else if (message.method === 'textDocument/hover') send({ jsonrpc: '2.0', id: message.id, result: null })
     else if (message.method === 'ion/huge') process.stdout.write('Content-Length: 9000000\r\n\r\n')
     else if (message.method === 'shutdown') send({ jsonrpc: '2.0', id: message.id, result: null })
     else if (message.method === 'exit') process.exit(0)

@@ -9,9 +9,9 @@ import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { LspProcess } from './lsp-process'
 
 interface ServerCandidate { executable: string; args: string[]; kind: 'pyright' | 'pylsp' | 'typescript' }
-interface PublishedDiagnostics { version?: number; diagnostics: unknown[] }
+export interface PublishedDiagnostics { version?: number; diagnostics: unknown[] }
 interface SynchronizedDocument { sourceVersion: number; protocolVersion: number; digest: string }
-interface DiagnosticWaiter { version: number; afterSequence: number; resolve(): void }
+interface DiagnosticWaiter { resolve(): void; reject(reason?: unknown): void; dispose(): void }
 
 type DocumentNotification = (method: string, params: unknown) => Promise<void>
 
@@ -22,11 +22,80 @@ function textDigest(text: string) {
   return createHash('sha256').update(text).digest('hex')
 }
 
-/** Unversioned reports are reusable only while the synchronized document is
- * unchanged; after an edit they may belong to the previous snapshot. */
-export function isCurrentDiagnosticReport(report: PublishedDiagnostics | undefined, version: number, documentChanged: boolean) {
-  if (!report) return false
-  return report.version === undefined ? !documentChanged : report.version === version
+/** Correlates pushed diagnostics with the exact synchronized document
+ * generation. LSP does not carry enough information to correlate an
+ * unversioned report after the first edit, so those reports fail closed. */
+export class DiagnosticGenerationFence {
+  private readonly reports = new Map<string, Map<number, PublishedDiagnostics>>()
+  private readonly waiters = new Map<string, Map<number, Set<DiagnosticWaiter>>>()
+
+  publish(uri: string, synchronizedVersion: number | undefined, report: PublishedDiagnostics) {
+    if (synchronizedVersion === undefined) return false
+    const generation = report.version ?? (synchronizedVersion === 1 ? 1 : undefined)
+    if (generation === undefined || generation < 1 || generation > synchronizedVersion) return false
+    const versions = this.reports.get(uri) ?? new Map<number, PublishedDiagnostics>()
+    versions.set(generation, report)
+    while (versions.size > 8) versions.delete(versions.keys().next().value as number)
+    this.reports.set(uri, versions)
+    const generations = this.waiters.get(uri)
+    const waiting = generations?.get(generation)
+    for (const waiter of waiting ?? []) waiter.resolve()
+    waiting?.clear()
+    generations?.delete(generation)
+    if (!generations?.size) this.waiters.delete(uri)
+    return true
+  }
+
+  take(uri: string, generation: number) { return this.reports.get(uri)?.get(generation) }
+
+  wait(uri: string, generation: number, signal?: AbortSignal) {
+    if (this.take(uri, generation)) return Promise.resolve()
+    return new Promise<void>((resolve, reject) => {
+      const generations = this.waiters.get(uri) ?? new Map<number, Set<DiagnosticWaiter>>()
+      const waiting = generations.get(generation) ?? new Set<DiagnosticWaiter>()
+      this.waiters.set(uri, generations)
+      generations.set(generation, waiting)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let waiter: DiagnosticWaiter
+      const remove = () => {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', abort)
+        waiting.delete(waiter)
+        if (!waiting.size) generations.delete(generation)
+        if (!generations.size) this.waiters.delete(uri)
+      }
+      const done = () => { remove(); resolve() }
+      const failed = (reason?: unknown) => { remove(); reject(reason) }
+      const abort = () => failed(signal?.reason ?? new Error('The operation was aborted.'))
+      waiter = { resolve: done, reject: failed, dispose: done }
+      waiting.add(waiter)
+      if (signal?.aborted) abort()
+      else {
+        signal?.addEventListener('abort', abort, { once: true })
+        timer = setTimeout(done, 600)
+      }
+    })
+  }
+
+  clear(uri?: string) {
+    if (uri !== undefined) {
+      this.reports.delete(uri)
+      for (const waiting of this.waiters.get(uri)?.values() ?? []) for (const waiter of waiting) waiter.dispose()
+      this.waiters.delete(uri)
+      return
+    }
+    this.reports.clear()
+    for (const generations of this.waiters.values()) for (const waiting of generations.values()) {
+      for (const waiter of waiting) waiter.dispose()
+    }
+    this.waiters.clear()
+  }
+
+  get pendingWaiterCount() {
+    let count = 0
+    for (const generations of this.waiters.values()) for (const waiting of generations.values()) count += waiting.size
+    return count
+  }
 }
 
 /** Serializes document lifecycle updates per URI and suppresses duplicate
@@ -45,10 +114,15 @@ export class LspDocumentSynchronizer {
       const current = this.documents.get(uri)
       if (!current) {
         const next = { sourceVersion, protocolVersion: 1, digest }
-        await notify('textDocument/didOpen', {
-          textDocument: { uri, languageId: language, version: next.protocolVersion, text },
-        })
         this.documents.set(uri, next)
+        try {
+          await notify('textDocument/didOpen', {
+            textDocument: { uri, languageId: language, version: next.protocolVersion, text },
+          })
+        } catch (error) {
+          if (this.documents.get(uri) === next) this.documents.delete(uri)
+          throw error
+        }
         return next.protocolVersion
       }
       if (sourceVersion < current.sourceVersion) return current.protocolVersion
@@ -60,10 +134,15 @@ export class LspDocumentSynchronizer {
         return current.protocolVersion
       }
       const next = { sourceVersion, protocolVersion: current.protocolVersion + 1, digest }
-      await notify('textDocument/didChange', {
-        textDocument: { uri, version: next.protocolVersion }, contentChanges: [{ text }],
-      })
       this.documents.set(uri, next)
+      try {
+        await notify('textDocument/didChange', {
+          textDocument: { uri, version: next.protocolVersion }, contentChanges: [{ text }],
+        })
+      } catch (error) {
+        if (this.documents.get(uri) === next) this.documents.set(uri, current)
+        throw error
+      }
       return next.protocolVersion
     })
   }
@@ -159,9 +238,7 @@ async function discover(adapter: string, root: string, paths: string[]): Promise
 /** Shared document adapter for installed standards-compliant LSP servers. */
 export class ExternalLspService {
   private readonly documents = new LspDocumentSynchronizer()
-  private readonly diagnostics = new Map<string, PublishedDiagnostics>()
-  private readonly diagnosticSequences = new Map<string, number>()
-  private readonly diagnosticWaiters = new Map<string, Set<DiagnosticWaiter>>()
+  private readonly diagnostics = new DiagnosticGenerationFence()
   private stopped = false
 
   private constructor(private readonly host: LspProcess, private readonly directory: string) {
@@ -170,22 +247,15 @@ export class ExternalLspService {
       const report = params as { uri?: unknown; version?: unknown; diagnostics?: unknown }
       if (typeof report.uri !== 'string' || !Array.isArray(report.diagnostics)) return
       const version = Number.isSafeInteger(report.version) ? report.version as number : undefined
-      const sequence = (this.diagnosticSequences.get(report.uri) ?? 0) + 1
-      this.diagnosticSequences.set(report.uri, sequence)
-      this.diagnostics.set(report.uri, {
+      this.diagnostics.publish(report.uri, this.documents.version(report.uri), {
         version,
         diagnostics: report.diagnostics.slice(0, maxRows),
       })
-      const waiters = this.diagnosticWaiters.get(report.uri)
-      for (const waiter of waiters ?? []) {
-        if (sequence > waiter.afterSequence && (version === undefined || version >= waiter.version)) {
-          waiter.resolve()
-          waiters?.delete(waiter)
-        }
-      }
-      if (!waiters?.size) this.diagnosticWaiters.delete(report.uri)
     })
   }
+
+  /** Internal test seam: production callers still use trusted discovery. */
+  static attach(host: LspProcess, directory: string) { return new ExternalLspService(host, directory) }
 
   static async start(adapter: string, root: string | null, source: string, signal: AbortSignal) {
     const directory = await mkdtemp(join(tmpdir(), 'ion-lsp-'))
@@ -223,9 +293,6 @@ export class ExternalLspService {
     this.stopped = true
     await this.documents.closeAll((method, params) => this.host.notify(method, params)).catch(() => {})
     this.diagnostics.clear()
-    this.diagnosticSequences.clear()
-    for (const waiters of this.diagnosticWaiters.values()) for (const waiter of waiters) waiter.resolve()
-    this.diagnosticWaiters.clear()
     await this.host.stop()
     await rm(this.directory, { recursive: true, force: true })
   }
@@ -233,10 +300,7 @@ export class ExternalLspService {
   async close(path: string) {
     const uri = pathToFileURL(path).href
     await this.documents.close(uri, (method, params) => this.host.notify(method, params))
-    this.diagnostics.delete(uri)
-    this.diagnosticSequences.delete(uri)
-    for (const waiter of this.diagnosticWaiters.get(uri) ?? []) waiter.resolve()
-    this.diagnosticWaiters.delete(uri)
+    this.diagnostics.clear(uri)
   }
 
   async saved(path: string) {
@@ -246,7 +310,6 @@ export class ExternalLspService {
 
   async query(snapshot: ToolSnapshot, signal?: AbortSignal): Promise<ToolReply> {
     const uri = pathToFileURL(snapshot.path).href
-    const previousVersion = this.documents.version(uri)
     const version = await this.documents.synchronize(uri, snapshot.language, snapshot.version, snapshot.text,
       (method, params) => this.host.notify(method, params))
     const location = { textDocument: { uri }, position: positionAt(snapshot.text, snapshot.offset) }
@@ -280,19 +343,9 @@ export class ExternalLspService {
         return [[String(result?.activeParameter ?? 0), value.label.slice(0, 1_000), ...parameters]]
       })
     } else if (snapshot.operation === 'diagnostics') {
-      const documentChanged = previousVersion !== version
-      let current = this.diagnostics.get(uri)
-      if (current && !isCurrentDiagnosticReport(current, version, documentChanged)) {
-        // Unversioned diagnostics already in flight for the previous snapshot
-        // must not satisfy a request made after a new didOpen/didChange.
-        this.diagnostics.delete(uri)
-        current = undefined
-      }
-      if (!current || (current.version !== undefined && current.version < version)) {
-        await this.waitForDiagnostics(uri, version, this.diagnosticSequences.get(uri) ?? 0)
-      }
-      const report = this.diagnostics.get(uri)
-      if (!report || (report.version !== undefined && report.version !== version)) return { version: snapshot.version, rows }
+      if (!this.diagnostics.take(uri, version)) await this.diagnostics.wait(uri, version, signal)
+      const report = this.diagnostics.take(uri, version)
+      if (!report) return { version: snapshot.version, rows }
       rows = report.diagnostics.flatMap(item => {
         if (!item || typeof item !== 'object') return []
         const value = item as { severity?: unknown; message?: unknown; range?: { start?: unknown; end?: unknown }; source?: unknown }
@@ -305,23 +358,5 @@ export class ExternalLspService {
       })
     }
     return { version: snapshot.version, rows }
-  }
-
-  private waitForDiagnostics(uri: string, version: number, afterSequence: number) {
-    return new Promise<void>(resolve => {
-      const waiters = this.diagnosticWaiters.get(uri) ?? new Set<DiagnosticWaiter>()
-      this.diagnosticWaiters.set(uri, waiters)
-      let timer: ReturnType<typeof setTimeout>
-      let waiter: DiagnosticWaiter
-      const done = () => {
-        clearTimeout(timer)
-        waiters.delete(waiter)
-        if (!waiters.size) this.diagnosticWaiters.delete(uri)
-        resolve()
-      }
-      waiter = { version, afterSequence, resolve: done }
-      waiters.add(waiter)
-      timer = setTimeout(done, 600)
-    })
   }
 }
