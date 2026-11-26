@@ -199,12 +199,14 @@ export class DebugController {
 
   private acceptSession(session: DebugSession) {
     this.session = session;
-    this.threadId = undefined;
+    this.threadId = session.threadId;
     this.selectedFrameId = undefined;
+    const phase = phaseFor(session.state);
     this.publish({ sessionId: session.id, phase: phaseFor(session.state), status: labelFor(session.state),
       activeFile: session.sourcePath, activeName: session.sourcePath.split(/[/\\]/).at(-1), error: undefined,
       frames: [], scopes: [], breakpoints: session.breakpoints.map((item, index) => breakpointView(item, index)),
-      canPause: true, canRestart: true, canEvaluate: false });
+      canPause: phase === 'running', canRestart: true, canEvaluate: phase === 'paused' });
+    if (phase === 'paused' && this.threadId !== undefined) void this.loadStack(this.threadId);
   }
 
   private append(category: DebugUiOutput['category'], value: string) {

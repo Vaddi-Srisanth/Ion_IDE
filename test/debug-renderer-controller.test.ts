@@ -16,7 +16,8 @@ class FakeBridge implements DebugBridge {
   listeners = new Set<(event: DebugEvent) => void>()
   current: DebugSession | null = null
   evaluations: string[] = []
-  async start(_request: DebugStartRequest) { this.starts++; this.current = session; return session }
+  startSession: DebugSession = session
+  async start(_request: DebugStartRequest) { this.starts++; this.current = this.startSession; return this.startSession }
   async stop() { this.stops++; this.current = null }
   async action(_id: string, action: import('../src/shared/debug').DebugAction) { this.actions.push(action) }
   async stack() { return [{ id: 7, name: 'main', path: '/workspace/main.c', line: 3, column: 1 }] }
@@ -61,6 +62,19 @@ test('session events load stack, scopes and variables only after a paused genera
   assert.deepEqual(controller.getSnapshot().scopes[0].variables?.map(({ name, value }) => ({ name, value })), [
     { name: 'count', value: '4' },
   ])
+  await controller.dispose(true)
+})
+
+test('an early stopped start result retains its thread and loads paused state', async () => {
+  const bridge = new FakeBridge()
+  bridge.startSession = { ...session, state: 'stopped', threadId: 2 }
+  const controller = new DebugController(bridge)
+  await controller.start(request)
+  await drain(); await drain()
+  const paused = controller.getSnapshot()
+  assert.equal(paused.phase, 'paused')
+  assert.equal(paused.canEvaluate, true)
+  assert.deepEqual(paused.frames.map(({ name, line }) => ({ name, line })), [{ name: 'main', line: 3 }])
   await controller.dispose(true)
 })
 

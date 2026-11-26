@@ -25,6 +25,16 @@ function inside(root: string, path: string) {
   return relation !== '..' && !relation.startsWith('..' + sep) && !isAbsolute(relation)
 }
 
+/**
+ * A DAP adapter may publish `stopped` before its launch response resolves.
+ * Launch completion must not overwrite that newer adapter-owned state.
+ */
+export function completeDebugLaunch(session: DebugSession): boolean {
+  if (session.state !== 'starting') return false
+  session.state = 'running'
+  return true
+}
+
 export async function validateDebugSource(path: string, root: string, expectedRevision: string): Promise<string> {
   if (!isAbsolute(path) || !isAbsolute(root) || !expectedRevision || expectedRevision.length > 256) {
     throw new Error('The saved source revision is invalid.')
@@ -115,7 +125,7 @@ export class DebugService {
       this.emit({ type: 'breakpoints', sessionId: id, breakpoints: session.breakpoints })
       await adapterProcess.request('configurationDone', {}, requestTimeout, signal)
       await launch
-      session.state = 'running'; this.emit({ type: 'state', sessionId: id, state: 'running' })
+      if (completeDebugLaunch(session)) this.emit({ type: 'state', sessionId: id, state: 'running' })
       return this.status()!
     } catch (error) {
       await adapterProcess?.stop().catch(() => undefined)
@@ -207,10 +217,14 @@ export class DebugService {
     if (this.active !== active) return
     const body = object(event.body)
     if (event.event === 'stopped') {
-      active.threadId = integer(body.threadId) || undefined; active.session.state = 'stopped'
+      active.threadId = integer(body.threadId) || undefined
+      active.session.threadId = active.threadId
+      active.session.state = 'stopped'
       this.emit({ type: 'state', sessionId: active.session.id, state: 'stopped', reason: text(body.reason, 200) || undefined, threadId: active.threadId })
     } else if (event.event === 'continued') {
-      active.threadId = undefined; active.session.state = 'running'
+      active.threadId = undefined
+      active.session.threadId = undefined
+      active.session.state = 'running'
       this.emit({ type: 'state', sessionId: active.session.id, state: 'running' })
     } else if (event.event === 'terminated' || event.event === 'exited') {
       active.session.state = 'terminated'; this.emit({ type: 'state', sessionId: active.session.id, state: 'terminated' })

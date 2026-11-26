@@ -28,6 +28,7 @@ export interface DebugBreakpointResult extends DebugBreakpoint {
 export interface DebugSession {
   id: string
   state: DebugState
+  threadId?: number
   sourcePath: string
   adapter: string
   compiler: string

@@ -4,13 +4,26 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { revision } from '../src/main/files'
-import { DebugService, validateDebugSource } from '../src/main/debug/service'
+import { completeDebugLaunch, DebugService, validateDebugSource } from '../src/main/debug/service'
+import type { DebugSession } from '../src/shared/debug'
 
 test('debug service remains inert until an explicit start', () => {
   const events: unknown[] = []
   const service = new DebugService(event => events.push(event))
   assert.equal(service.status(), null)
   assert.deepEqual(events, [])
+})
+
+test('launch completion never overwrites an early adapter stop', () => {
+  const session: DebugSession = { id: 'early-stop', state: 'stopped', threadId: 7,
+    sourcePath: '/workspace/main.c', adapter: 'lldb-dap', compiler: 'clang', breakpoints: [] }
+  assert.equal(completeDebugLaunch(session), false)
+  assert.equal(session.state, 'stopped')
+  assert.equal(session.threadId, 7)
+
+  const starting = { ...session, id: 'normal-launch', state: 'starting' as const, threadId: undefined }
+  assert.equal(completeDebugLaunch(starting), true)
+  assert.equal(starting.state, 'running')
 })
 
 test('debug source validation binds canonical path to the exact saved revision', async () => {
