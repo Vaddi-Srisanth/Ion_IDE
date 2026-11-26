@@ -10,6 +10,8 @@ import { LspProcess } from '../src/main/language-tools/lsp-process'
 
 interface Notification { method: string; params: unknown }
 
+const nativeTestUri = (name: string) => pathToFileURL(resolve(tmpdir(), 'ion-lsp-document-sync', name)).href
+
 function recorder() {
   const notifications: Notification[] = []
   return {
@@ -21,7 +23,7 @@ function recorder() {
 test('unchanged semantic requests share one open document without redundant changes', async () => {
   const sync = new LspDocumentSynchronizer()
   const { notifications, notify } = recorder()
-  const uri = 'file:///workspace/main.js'
+  const uri = nativeTestUri('main.js')
   const text = 'export function total(a, b) { return a + b }\n'
   assert.equal(await sync.synchronize(uri, 'javascript', 7, text, notify), 1)
   for (let request = 0; request < 6; request++) {
@@ -34,7 +36,7 @@ test('unchanged semantic requests share one open document without redundant chan
 test('an actual edit emits one monotonic update while equivalent versions stay quiet', async () => {
   const sync = new LspDocumentSynchronizer()
   const { notifications, notify } = recorder()
-  const uri = 'file:///workspace/main.js'
+  const uri = nativeTestUri('main.js')
   await sync.synchronize(uri, 'javascript', 1, 'const value = 1\n', notify)
   assert.equal(await sync.synchronize(uri, 'javascript', 2, 'const value = 2\n', notify), 2)
   assert.equal(await sync.synchronize(uri, 'javascript', 3, 'const value = 2\n', notify), 2)
@@ -47,7 +49,7 @@ test('an actual edit emits one monotonic update while equivalent versions stay q
 test('closing and restarting clears document synchronization state', async () => {
   const sync = new LspDocumentSynchronizer()
   const { notifications, notify } = recorder()
-  const first = 'file:///workspace/first.py', second = 'file:///workspace/second.py'
+  const first = nativeTestUri('first.py'), second = nativeTestUri('second.py')
   await Promise.all([
     sync.synchronize(first, 'python', 1, 'value = 1\n', notify),
     sync.synchronize(second, 'python', 1, 'value = 2\n', notify),
@@ -65,7 +67,7 @@ test('closing and restarting clears document synchronization state', async () =>
 test('equal Monaco versions with conflicting content fail closed', async () => {
   const sync = new LspDocumentSynchronizer()
   const { notify } = recorder()
-  const uri = 'file:///workspace/main.ts'
+  const uri = nativeTestUri('main.ts')
   await sync.synchronize(uri, 'typescript', 4, 'const value = 1\n', notify)
   await assert.rejects(() => sync.synchronize(uri, 'typescript', 4, 'const value = 2\n', notify),
     /Conflicting language document snapshot/)
@@ -73,7 +75,7 @@ test('equal Monaco versions with conflicting content fail closed', async () => {
 
 test('diagnostic generations reject unversioned reports after an edit and retain reordered versions', () => {
   const fence = new DiagnosticGenerationFence()
-  const uri = 'file:///workspace/main.py'
+  const uri = nativeTestUri('main.py')
   assert.equal(fence.publish(uri, 1, { diagnostics: [] }).decision, 'accepted', 'The initial generation has no stale predecessor.')
   assert.deepEqual(fence.publish(uri, 3, { diagnostics: [{ message: 'stale A' }] }).decision, 'ignored')
   assert.equal(fence.publish(uri, 3, { version: 3, diagnostics: [{ message: 'current C' }] }).decision, 'accepted')
@@ -125,7 +127,7 @@ test('Windows URI identity decodes spaces and Unicode and normalizes long equiva
 test('cancelled diagnostic waits release their generation waiter', async () => {
   const fence = new DiagnosticGenerationFence()
   const abort = new AbortController()
-  const waiting = fence.wait('file:///workspace/main.py', 2, abort.signal)
+  const waiting = fence.wait(nativeTestUri('main.py'), 2, abort.signal)
   assert.equal(fence.pendingWaiterCount, 1)
   abort.abort(new Error('cancelled by test'))
   await assert.rejects(waiting, /cancelled by test/)
