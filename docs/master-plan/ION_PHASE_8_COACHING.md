@@ -14,6 +14,8 @@ The headless Chromium check verified the lazy chunk, both search outcomes, trans
 
 ## Local topic focus signal — 27 November 2026
 
+Local checkpoint: `d471127` on `codex/ion-phase-6-copilot` (not pushed).
+
 Practice → Progress can identify a topic to strengthen when at least two different catalog challenges have locally judged, current-suite wrong-answer results and no later local accepted result. It links back to one of those challenges for review or another attempt. A later accepted result clears that challenge's unresolved signal. Imported/restored results and mismatched suite versions do not count. If progress contains unreadable records, Ion withholds the focus signal rather than drawing a conclusion from incomplete evidence.
 
 This is a deterministic practice hint, not a skill score. It reads only the same on-demand metadata and local verdict ledgers as Progress; it stores no extra profile data and reads no source. The UI states which evidence triggered the suggestion.
