@@ -70,9 +70,16 @@ jobs:
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
           npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
-          test -f dist/main/tasks/service.cjs
-          rg -q 'ion-task-' dist/main/tasks/service.cjs
-          ! rg -q 'ion-task-' dist/main/index.cjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          const [main, tasks] = await Promise.all([
+            readFile('dist/main/index.cjs', 'utf8'),
+            readFile('dist/main/tasks/service.cjs', 'utf8'),
+          ]);
+          assert.match(tasks, /ion-task-/);
+          assert.doesNotMatch(main, /ion-task-/);
+          NODE
           npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
       - name: Matched unused-task startup, editor and resource comparison
         id: matched_tasks
