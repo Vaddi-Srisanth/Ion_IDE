@@ -1149,7 +1149,7 @@ async function runInteractive(record: ActiveRun, value: unknown, learn: boolean,
 }
 
 async function runPracticeSamples(
-  target: BrowserWindow, value: string, inputs: readonly string[], expectedRevision: string, signal: AbortSignal,
+  target: BrowserWindow, value: string, inputs: readonly string[], expectedRevision: string, signal: AbortSignal, expectedHash?: string,
 ): Promise<RunResult[]> {
   if (signal.aborted) return [cancelledRun()]
   try {
@@ -1165,12 +1165,19 @@ async function runPracticeSamples(
     if (signal.aborted) return [cancelledRun()]
     if (denied) return [rejectedRun(denied)]
     const source = await scope.read(path)
-    if (source.revision !== sourceRevision) return [rejectedRun('The source changed before the sample run.')]
-    const stillCurrent = async () => {
-      const current = await scope.inspect(path, 'file').catch(() => undefined)
-      return target === window && !target.isDestroyed() && current !== undefined && revision(current.stats) === sourceRevision
+    if (source.revision !== sourceRevision || expectedHash && source.contentHash !== expectedHash) {
+      return [rejectedRun('The source changed before execution.')]
     }
-    if (language === 'c') return await runner.runSamples(path, inputs, stillCurrent, signal, source.text)
+    const stillCurrent = async () => {
+      if (signal.aborted || target !== window || target.isDestroyed()) return false
+      if (expectedHash) {
+        const current = await scope.read(path).catch(() => undefined)
+        return current?.revision === sourceRevision && current?.contentHash === expectedHash
+      }
+      const current = await scope.inspect(path, 'file').catch(() => undefined)
+      return current !== undefined && revision(current.stats) === sourceRevision
+    }
+    if (language === 'c' && !expectedHash) return await runner.runSamples(path, inputs, stillCurrent, signal, source.text)
     const { runPracticeBatch } = await import('./run-console')
     return await runPracticeBatch(path, source.text, inputs, stillCurrent, signal)
   } catch (error) {
@@ -2315,24 +2322,26 @@ function registerIpc(): void {
     if (target !== window) throw new Error('The practice window has closed.')
     return files.grant(path, 'file', true)
   })
-  handle('practice-run-samples', async (target, id, attempt) => {
-    if (target !== window || panel !== 'learn' && panel !== 'practice') throw new Error('Open Learn or Practice before running samples.')
+  function judgePractice(target: BrowserWindow, id: unknown, attempt: unknown, submit: boolean) {
+    if (target !== window || (panel !== 'practice' && (submit || panel !== 'learn'))) {
+      throw new Error(submit ? 'Open Practice before submitting a solution.' : 'Open Learn or Practice before running samples.')
+    }
     if (practiceRun || runner.busy || activeRun || activeTask || activeTestExplorer || projectHandlers?.busy) throw new Error('A program, task or test is already running.')
     const generation = panelGeneration
     const controller = new AbortController()
-    const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
+    const execute = async (path: string, inputs: readonly string[], revision: string, expectedHash?: string) => {
       if (controller.signal.aborted || target !== window || generation !== panelGeneration) return [cancelledRun()]
       const entry = await files.grant(path, 'file', true)
       if (controller.signal.aborted || target !== window || generation !== panelGeneration) return [cancelledRun()]
-      return runPracticeSamples(target, entry.path, inputs, sourceRevision, controller.signal)
-    }))
-    practiceRun = { controller, job, panel }
-    try {
-      return await job
-    } finally {
-      practiceRun = null
+      return runPracticeSamples(target, entry.path, inputs, revision, controller.signal, expectedHash)
     }
-  })
+    const job = practice().then(library => submit
+      ? library.submit(id, attempt, execute, controller.signal) : library.runSamples(id, attempt, execute))
+    practiceRun = { controller, job, panel }
+    return job.finally(() => { practiceRun = null })
+  }
+  handle('practice-run-samples', (target, id, attempt) => judgePractice(target, id, attempt, false))
+  handle('practice-submit', (target, id, attempt) => judgePractice(target, id, attempt, true))
   handle('practice-cancel-samples', (target) => {
     if (target === window) practiceRun?.controller.abort()
   })

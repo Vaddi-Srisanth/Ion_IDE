@@ -127,7 +127,7 @@ async function saveAsTarget(path: string): Promise<{ path: string; before: BigIn
   }
 }
 
-async function readStableBytes(path: string, limit: number): Promise<{ data: Buffer; stats: BigIntStats }> {
+export async function readStableBytes(path: string, limit: number): Promise<{ data: Buffer; stats: BigIntStats }> {
   const handle = await open(path, constants.O_RDONLY | noFollow | nonBlock)
   try {
     const before = await handle.stat({ bigint: true })

@@ -1,13 +1,34 @@
-import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { cp, lstat, mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { RunResult, RunStatus } from '../../shared/contracts'
 import { maxPracticeSamples } from '../../shared/practice'
 import { defaultRunLimits, execute, validStdin } from '../runner'
 import { MissingToolchainError, prepareRun } from '../run-console/plans'
+import { removeServiceScratch } from '../language-tools/service-scratch'
 import { processTempEnvironment } from '../windows-process'
 
 type ProcessOutcome = Awaited<ReturnType<typeof execute>>
+
+class PracticeCleanupError extends Error {
+  constructor() { super('Practice could not verify cleanup of its temporary files. The run was not recorded.') }
+}
+
+export async function makePracticeScratch(prefix: string) {
+  const path = await mkdtemp(prefix)
+  const original = await lstat(path, { bigint: true })
+  async function dispose() {
+    try {
+      const current = await lstat(path, { bigint: true })
+      if (!current.isDirectory() || current.dev !== original.dev || current.ino !== original.ino) throw new PracticeCleanupError()
+      await removeServiceScratch(path)
+    } catch {
+      throw new PracticeCleanupError()
+    }
+  }
+  return { path, dispose }
+}
+
 
 function outcomeMessage(outcome: ProcessOutcome, stage: 'Compilation' | 'Program'): [RunStatus, string] {
   if (outcome.state === 'cancelled') return ['cancelled', 'Run stopped.']
@@ -32,7 +53,7 @@ export async function runPracticeBatch(
   const results: RunResult[] = []
   const limits = defaultRunLimits
   const budget = { remaining: limits.outputBytes }
-  let scratch: string | undefined
+  let scratch: Awaited<ReturnType<typeof makePracticeScratch>> | undefined
   let compiler: string | null = null
   let compileOutput = ''
   let compileMs: number | undefined
@@ -55,8 +76,8 @@ export async function runPracticeBatch(
     const initial = await invalidSource()
     if (initial) return [initial]
     const temporary = await realpath(tmpdir())
-    scratch = await mkdtemp(join(temporary, 'ion-practice-'))
-    const build = join(scratch, 'build')
+    scratch = await makePracticeScratch(join(temporary, 'ion-practice-'))
+    const build = join(scratch.path, 'build')
     const snapshot = join(build, basename(path))
     await mkdir(build, { mode: 0o700 })
     await writeFile(snapshot, text, { flag: 'wx', mode: 0o600 })
@@ -85,9 +106,9 @@ export async function runPracticeBatch(
       const start = index === 0 ? started : performance.now()
       const invalid = await invalidSource()
       if (invalid) { results.push(invalid); break }
-      const caseScratch = await mkdtemp(join(temporary, 'ion-practice-case-'))
+      const caseScratch = await makePracticeScratch(join(temporary, 'ion-practice-case-'))
       try {
-        const sampleDirectory = join(caseScratch, 'run')
+        const sampleDirectory = join(caseScratch.path, 'run')
         // Each case starts with fresh source and artifacts, even when the previous case writes to its working directory.
         await cp(build, sampleDirectory, { recursive: true, force: false, errorOnExist: true })
         const relocate = (value: string) => value.replaceAll(build, sampleDirectory)
@@ -103,16 +124,17 @@ export async function runPracticeBatch(
         }, start))
         if (status === 'cancelled' || status === 'output-limit') break
       } finally {
-        await rm(caseScratch, { recursive: true, force: true }).catch(() => undefined)
+        await caseScratch.dispose()
       }
     }
     return results
   } catch (error) {
+    if (error instanceof PracticeCleanupError) throw error
     const message = error instanceof Error ? error.message : 'Unable to start the sample run.'
     results.push(signal.aborted ? result('cancelled', 'Run stopped.')
       : result(error instanceof MissingToolchainError ? 'missing-toolchain' : stage, message))
     return results
   } finally {
-    if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
+    await scratch?.dispose()
   }
 }

@@ -65,6 +65,7 @@ async function buildDesktop() {
       'main/learning/index': 'src/main/learning/index.ts',
       'main/learning/catalog-store': 'src/main/learning/catalog-store.ts',
       'main/practice/index': 'src/main/practice/index.ts',
+      'main/practice/judge': 'src/main/practice/judge.ts',
       'main/projects/ipc': 'src/main/projects/ipc.ts',
       'main/project-lens/session': 'src/main/project-lens/session.ts',
       'main/explanations/session': 'src/main/explanations/session.ts',
@@ -95,6 +96,9 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
+        build.onResolve({ filter: /^\.\/judge$/ }, ({ importer, kind }) => {
+          if (kind === 'dynamic-import' && basename(dirname(importer)) === 'practice') return { path: './judge.cjs', external: true }
+        })
         build.onResolve({ filter: /^\.\/(?:github|clone)$/ }, ({ path, importer, kind }) => {
           if (kind === 'dynamic-import' && basename(dirname(importer)) === 'source-control') return { path: path + '.cjs', external: true }
         })

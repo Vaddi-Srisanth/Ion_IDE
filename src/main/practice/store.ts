@@ -10,15 +10,22 @@ import {
   type PracticeSample, type PracticeSampleResult,
 } from '../../shared/practice'
 import type { RunLanguage } from '../../shared/run-console'
-import { maxFileBytes, revision } from '../files'
+import { maxFileBytes, readStableBytes, revision } from '../files'
 import { practiceChallenges } from './catalog-data'
 import { isId, isTopicId } from '../learning/pack-format'
+import { submissionFileLimit, submissionHistoryLimit, validatePracticeSubmissions, type StoredSubmissions } from './submissions'
+export { validatePracticeSubmissions } from './submissions'
 
 const maxProblems = 200
 const maxAttempts = 20
 const maxMetadataBytes = 1 * 1024 * 1024
 const previewLength = 2000
 const idPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+// Each released catalog problem has independently verified local cases. Custom and lesson problems keep sample runs.
+function suiteVersion(catalogId?: string) {
+  return catalogId && practiceChallenges.some(challenge => challenge.id === catalogId) ? 1 : undefined
+}
+
 const resultStatuses = ['passed', 'failed', 'unavailable', 'skipped'] as const
 const challengeIdPattern = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 const supportedLanguages = Object.keys(practiceLanguages) as RunLanguage[]
@@ -31,7 +38,7 @@ const starters: Record<RunLanguage, string> = {
   javascript: '// Write your solution here. Read input from stdin.\n',
 }
 
-type RunSamples = (path: string, inputs: readonly string[], sourceRevision: string) => Promise<readonly RunResult[]>
+type RunSamples = (path: string, inputs: readonly string[], sourceRevision: string, expectedHash?: string) => Promise<readonly RunResult[]>
 
 interface StoredReport {
   restored?: boolean
@@ -42,9 +49,9 @@ interface StoredReport {
   results: PracticeSampleResult[]
 }
 
-type StoredAttempt = Omit<PracticeAttempt, 'lastRun'>
+type StoredAttempt = Omit<PracticeAttempt, 'lastRun' | 'submissions'>
 
-interface StoredProblem extends Omit<PracticeProblem, 'attempts'> {
+interface StoredProblem extends Omit<PracticeProblem, 'attempts' | 'canSubmit'> {
   version: 1
   catalogId?: string
   attempts: StoredAttempt[]
@@ -288,7 +295,8 @@ export class PracticeStore {
     }
   }
 
-  private async publish(directory: string, name: string, value: StoredProblem | StoredReport): Promise<void> {
+  private async publish(directory: string, name: string, value: StoredProblem | StoredReport | StoredSubmissions,
+    beforePublish?: () => Promise<void>): Promise<void> {
     const file = join(directory, name)
     const temporary = join(directory, '.problem-' + randomUUID() + '.tmp')
     const contents = JSON.stringify(value) + '\n'
@@ -302,6 +310,7 @@ export class PracticeStore {
         await handle.close()
       }
       await this.requireDirectory(directory)
+      if (beforePublish) await beforePublish()
       await rename(temporary, file)
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined)
@@ -333,21 +342,53 @@ export class PracticeStore {
     return { path, token: revision(stats) }
   }
 
+  private async sourceHash(source: { path: string; token: string }): Promise<string> {
+    const { data, stats } = await readStableBytes(source.path, maxFileBytes)
+    if (revision(stats) !== source.token) throw new Error('The saved attempt changed. Review it and submit again.')
+    return createHash('sha256').update(data).digest('hex')
+  }
+
+  private async submissionFile(directory: string, attempt: StoredAttempt) {
+    const name = 'attempt-' + attempt.id + '.submissions.json'
+    const path = join(directory, name)
+    try {
+      const previous = await lstat(path, { bigint: true }).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') throw error
+        return null
+      })
+      if (!previous) return { name, token: undefined, file: { version: 1 as const, submissions: [] } }
+      if (!previous.isFile() || previous.size > BigInt(submissionFileLimit) || await realpath(path) !== path) throw new Error()
+      const { data, stats } = await readStableBytes(path, submissionFileLimit)
+      if (revision(previous) !== revision(stats)) throw new Error()
+      return { name, token: revision(stats), file: validatePracticeSubmissions(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(data))) }
+    } catch {
+      throw new Error('The local submission history could not be read. Its file was preserved.')
+    }
+  }
+
   private async view(problem: StoredProblem, root?: string): Promise<PracticeProblem> {
-    const { version: _version, catalogId: _catalogId, attempts, ...fields } = problem
+    const { version: _version, catalogId, attempts, ...fields } = problem
+    const suite = suiteVersion(catalogId)
+    const directory = suite && await this.problemDirectory(problem.id, root)
     const key = samplesKey(fields.samples)
     return {
       ...fields,
+      ...(suite && { canSubmit: true }),
       attempts: await Promise.all(attempts.map(async (attempt): Promise<PracticeAttempt> => {
         const lastRun = await this.readReport(problem, attempt, root)
-        if (!lastRun) return attempt
+        // An unreadable result must not prevent opening the problem or its independent source files.
+        const history = directory ? await this.submissionFile(directory, attempt).catch(() => undefined) : undefined
+        if (!lastRun && !history?.file.submissions.length) return attempt
         const source = await this.attemptSource(problem, attempt, root).catch(() => undefined)
+        const digest = source && history?.file.submissions.length ? await this.sourceHash(source).catch(() => undefined) : undefined
         return {
           ...attempt,
-          lastRun: {
+          ...(lastRun && { lastRun: {
             testedAt: lastRun.testedAt, results: lastRun.results,
             current: !lastRun.restored && source?.token === lastRun.sourceRevision && lastRun.samplesKey === key,
-          },
+          } }),
+          ...(history?.file.submissions.length ? { submissions: history.file.submissions.map(({ restored, suiteVersion, sourceSha256, ...row }) =>
+            ({ ...row, current: !restored && suiteVersion === suite && sourceSha256 === digest })) } : {}),
         }
       })),
     }
@@ -386,8 +427,10 @@ export class PracticeStore {
     const filters = record(value)
     if (filters.language !== undefined) choice(filters.language, supportedLanguages, 'practice language')
     const topic = filters.topic === undefined ? undefined : choice(filters.topic, practiceTopics, 'practice topic')
-    const difficulty = choice(filters.difficulty, catalogDifficulties, 'practice difficulty')
-    return practiceChallenges.filter((item) => item.difficulty === difficulty && (topic === undefined || item.topic === topic))
+    const search = filters.search === undefined ? '' : text(filters.search, 'Search', 100, false, true).toLowerCase()
+    const difficulty = filters.difficulty === undefined && search ? undefined : choice(filters.difficulty, catalogDifficulties, 'practice difficulty')
+    return practiceChallenges.filter(item => (!difficulty || item.difficulty === difficulty) && (!topic || item.topic === topic)
+      && (!search || item.title.toLowerCase().includes(search) || item.topic.toLowerCase().includes(search)))
       .map(({ id, title, topic, difficulty }) => ({ id, title, topic, difficulty }))
   }
 
@@ -535,10 +578,50 @@ export class PracticeStore {
     return (await this.attemptSource(problem, this.findAttempt(problem, identifier(attemptId)))).path
   }
 
+  async submit(value: unknown, attemptValue: unknown, execute: RunSamples, signal: AbortSignal): Promise<PracticeProblem> {
+    const id = identifier(value), attemptId = identifier(attemptValue)
+    if (this.running) throw new Error('A practice run or submission is already running.')
+    this.running = true
+    try {
+      signal.throwIfAborted()
+      const problem = await this.readProblem(id)
+      const attempt = this.findAttempt(problem, attemptId)
+      const suite = suiteVersion(problem.catalogId)
+      if (!suite || !problem.catalogId) throw new Error('Local Submit is unavailable for this problem.')
+      const directory = await this.problemDirectory(id)
+      const history = await this.submissionFile(directory, attempt)
+      const source = await this.attemptSource(problem, attempt)
+      const sourceSha256 = await this.sourceHash(source)
+      const { judgeChallenge } = await import('./judge')
+      signal.throwIfAborted()
+      const result = await judgeChallenge(problem.catalogId, inputs => execute(source.path, inputs, source.token, sourceSha256))
+      signal.throwIfAborted()
+      return await this.serialize(async () => {
+        const latest = await this.readProblem(id)
+        const current = this.findAttempt(latest, attemptId)
+        if (latest.catalogId !== problem.catalogId || latest.language !== problem.language) throw new Error('The practice problem changed during judging.')
+        const entry = { ...result, sourceSha256, suiteVersion: suite }
+        const file = validatePracticeSubmissions({ version: 1, submissions: [...history.file.submissions, entry].slice(-submissionHistoryLimit) })
+        await this.publish(directory, history.name, file, async () => {
+          const currentHistory = await this.submissionFile(directory, current)
+          if (currentHistory.token !== history.token) throw new Error('The submission history changed. Reopen the problem and submit again.')
+          const checked = await this.attemptSource(latest, current)
+          if (checked.token !== source.token || await this.sourceHash(checked) !== sourceSha256) {
+            throw new Error('The saved attempt changed during judging. Review it and submit again.')
+          }
+          signal.throwIfAborted()
+        })
+        return this.view(latest)
+      })
+    } finally {
+      this.running = false
+    }
+  }
+
   async runSamples(value: unknown, attemptValue: unknown, execute: RunSamples): Promise<PracticeProblem> {
     const id = identifier(value)
     const attemptId = identifier(attemptValue)
-    if (this.running) throw new Error('Practice samples are already running.')
+    if (this.running) throw new Error('A practice run or submission is already running.')
     this.running = true
     try {
       const problem = await this.readProblem(id)

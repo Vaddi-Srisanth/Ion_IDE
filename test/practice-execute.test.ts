@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { runPracticeBatch } from '../src/main/practice/execute-samples'
+import { makePracticeScratch, runPracticeBatch } from '../src/main/practice/execute-samples'
 import { defaultRunLimits } from '../src/main/runner'
 
 const examples = [
@@ -116,4 +116,16 @@ setInterval(() => {}, 1000)
   assert.deepEqual((await job).map(({ status }) => status), ['cancelled'])
   assert.throws(() => process.kill(live.pid, 0), { code: 'ESRCH' })
   await assert.rejects(access(live.cwd), { code: 'ENOENT' })
+})
+
+
+test('practice cleanup preserves a replacement at the temporary directory name', async t => {
+  const pool = await mkdtemp(join(tmpdir(), 'ion-practice-ownership-'))
+  t.after(() => rm(pool, { recursive: true, force: true }))
+  const scratch = await makePracticeScratch(join(pool, 'case-'))
+  await rename(scratch.path, join(pool, 'original'))
+  await mkdir(scratch.path)
+  await writeFile(join(scratch.path, 'keep.txt'), 'external data')
+  await assert.rejects(scratch.dispose(), /could not verify cleanup/)
+  assert.equal(await readFile(join(scratch.path, 'keep.txt'), 'utf8'), 'external data')
 })

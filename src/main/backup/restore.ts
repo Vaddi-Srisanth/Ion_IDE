@@ -6,7 +6,7 @@ import { validateBackupPreferences, isRecent } from '../preferences'
 import { validateEditorSnapshot } from '../editor-session'
 import { validateSavedProject } from '../projects/repository'
 import { restoreStoredTests, maxTestRecordBytes } from '../test-explorer/model'
-import { validatePracticeReport } from '../practice/store'
+import { validatePracticeReport, validatePracticeSubmissions } from '../practice/store'
 import { RecoveryStore } from '../recovery'
 import { limits, plain, sha256, type BackupManifest } from './format'
 import { profileFiles, inertPath } from './profile'
@@ -96,6 +96,11 @@ export async function prepareProfile(profile: string, payload: string, target: s
     }
   }
   if (selected.includes('practice')) {
+    for (const entry of manifest.entries.filter(e => e.category === 'practice' && e.path.endsWith('.submissions.json'))) {
+      const name = entry.path.slice(8)
+      const ledger = validatePracticeSubmissions(await readValue(target, name, 64 * 1024))
+      await durableJson(join(target, name), { ...ledger, submissions: ledger.submissions.map(row => ({ ...row, restored: true })) })
+    }
     for (const entry of manifest.entries.filter(e => e.category === 'practice' && e.path.endsWith('.report.json'))) {
       const name = entry.path.slice(8), report = validatePracticeReport(await readValue(target, name, 1024 * 1024))
       await durableJson(join(target, name), { ...report, restored: true })

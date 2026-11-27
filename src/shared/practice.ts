@@ -21,7 +21,8 @@ export type PracticeCompletion = typeof practiceCompletion[number]
 export interface PracticeFilters {
   language?: RunLanguage
   topic?: PracticeTopic
-  difficulty: CatalogDifficulty
+  difficulty?: CatalogDifficulty
+  search?: string
 }
 
 export interface PracticeChallengeSummary {
@@ -78,14 +79,25 @@ export interface PracticeReport {
   results: PracticeSampleResult[]
 }
 
+export interface PracticeSubmission {
+  judgedAt: number
+  verdict: 'accepted' | 'wrong-answer' | 'compile-error' | 'runtime-error' | 'timeout' | 'output-limit'
+  passed: number
+  total: number
+  runtimeMs: number
+  current: boolean
+}
+
 export interface PracticeAttempt {
   id: string
   label: string
   createdAt: number
+  submissions?: PracticeSubmission[]
   lastRun?: PracticeReport
 }
 
 export interface PracticeProblem extends PracticeFields {
+  canSubmit?: boolean
   id: string
   revision: number
   language: RunLanguage
@@ -116,5 +128,6 @@ export interface PracticeBridge {
   createAttempt(problemId: string, label: string): Promise<{ problem: PracticeProblem; attempt: PracticeAttempt }>
   openAttempt(problemId: string, attemptId: string): Promise<Entry>
   runSamples(problemId: string, attemptId: string): Promise<PracticeProblem>
+  submit(problemId: string, attemptId: string): Promise<PracticeProblem>
   cancelSamples(): Promise<void>
 }

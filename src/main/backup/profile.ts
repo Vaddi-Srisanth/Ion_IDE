@@ -5,7 +5,7 @@ import { validateBackupPreferences } from '../preferences'
 import { validateEditorSnapshot } from '../editor-session'
 import { validateLearningHistory } from '../learning'
 import { LearningPackStore, packProfileFiles, parseInstalledLibrary } from '../learning/catalog-store'
-import { validatePracticeProblem, validatePracticeReport } from '../practice/store'
+import { validatePracticeProblem, validatePracticeReport, validatePracticeSubmissions } from '../practice/store'
 import { validateSavedProject } from '../projects/repository'
 import { testId, validateStoredTests, maxTestRecordBytes } from '../test-explorer/model'
 import { RecoveryStore } from '../recovery'
@@ -112,6 +112,9 @@ export async function profileFiles(root: string, categories: readonly BackupCate
           const source = base + '/attempt-' + attempt.id + (problem.language === 'java' ? '/Main.java' : '.' + extensions[problem.language])
           await add(category, source, 2 * 1024 * KiB, true)
           new TextDecoder('utf-8', { fatal: true }).decode(await readBounded(root, source, 2 * 1024 * KiB))
+          const submissions = base + '/attempt-' + attempt.id + '.submissions.json'
+          await add(category, submissions, 64 * KiB)
+          if (await exists(join(root, submissions))) validatePracticeSubmissions(await readValue(root, submissions, 64 * KiB))
           const report = base + '/attempt-' + attempt.id + '.report.json'
           await add(category, report, 1024 * KiB)
           if (await exists(join(root, report))) {

@@ -1,0 +1,57 @@
+name: Phase 4 local practice judge
+on:
+  push:
+    branches: [codex/ion-phase-4-practice]
+    paths:
+      - '.github/workflows/phase4-practice.yml'
+      - 'src/**'
+      - 'scripts/**'
+      - 'test/**'
+permissions:
+  contents: read
+jobs:
+  practice:
+    name: Local Submit on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, platform: darwin, arch: arm64 }
+          - { os: windows-2025, platform: win32, arch: x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.3'
+      - name: Build the candidate
+        id: build
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node -e "const a=require('node:assert/strict');a.equal(process.platform,process.env.EXPECTED_PLATFORM);a.equal(process.arch,process.env.EXPECTED_ARCH)"
+          npm ci
+          node node_modules/electron/install.js
+          npm run typecheck
+          npm run build
+      - name: Verify judging, data safety and history restoration
+        run: node scripts/test.mjs practice-submit practice practice-catalog-data practice-judge-catalog practice-execute backup
+      - name: Submit Python solutions and reopen a disposable profile
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          ION_SHOW_TEST_WINDOWS: '0'
+        run: node scripts/test-practice-submit.mjs --target dist
+      - name: Verify tracked files
+        run: git diff --exit-code HEAD

@@ -19,6 +19,7 @@ import { RecoveryStore } from '../src/main/recovery'
 import { LearningService } from '../src/main/learning'
 import { ThemeStore } from '../src/main/themes'
 import { PracticeStore } from '../src/main/practice/store'
+import { runPracticeBatch } from '../src/main/practice/execute-samples'
 import { ProjectRepository } from '../src/main/projects/repository'
 import { unavailableTest } from '../src/main/projects/evidence'
 import { EditorSessionStore } from '../src/main/editor-session'
@@ -149,6 +150,94 @@ if (process.env.ION_RESTORE_CRASH_CHILD) {
     await readArchive(ready.rollback, verification)
     assert.equal(await finishPendingRestore(f.target), 'none')
     await service.cancel()
+  })
+  test('Practice submission archives contain only aggregate evidence and restore each past verdict as historical', async t => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'ion-submission-backup-')))
+    t.after(() => rm(root, { recursive: true, force: true }))
+    const source = join(root, 'source'), target = join(root, 'target'), extracted = join(root, 'extracted')
+    for (const directory of [source, target, extracted]) await mkdir(directory)
+    const practice = new PracticeStore(join(source, 'practice'))
+    const { problem, attempt } = await practice.start('minutes-to-clock', 'javascript')
+    const sourcePath = await practice.openAttempt(problem.id, attempt.id)
+    const publicProblem = await readFile(join(source, 'practice', problem.id, 'problem.json'))
+    const submit = async (store: PracticeStore) => {
+      const signal = new AbortController().signal
+      return store.submit(problem.id, attempt.id, async (path, inputs, _revision, hash) => {
+        const text = await readFile(path, 'utf8')
+        assert.equal(hash, sha256(text))
+        return runPracticeBatch(path, text, inputs, async () => sha256(await readFile(path)) === hash, signal)
+      }, signal)
+    }
+
+    const wrong = 'process.stdout.write("private-verdict-stdout"); process.stderr.write("private-verdict-stderr");'
+    const correct = [
+      "let input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', part => { input += part })",
+      "process.stdin.on('end', () => { const n = Number(input); console.log(Math.floor(n / 60), n % 60) })",
+    ].join('\n')
+    await writeFile(sourcePath, wrong)
+    const failed = await submit(practice)
+    assert.equal(failed.attempts[0].submissions?.[0].verdict, 'wrong-answer')
+    await writeFile(sourcePath, correct)
+    const solved = await submit(practice)
+    const results = solved.attempts[0].submissions!
+    assert.deepEqual(results.map(({ verdict, current }) => [verdict, current]), [['wrong-answer', false], ['accepted', true]])
+    const rows = results.map(({ judgedAt, verdict, passed, total, runtimeMs }, i) => ({
+      judgedAt, verdict, passed, total, runtimeMs, suiteVersion: 1, sourceSha256: sha256(i === 0 ? wrong : correct),
+    }))
+
+    const prefix = 'profile/practice/' + problem.id + '/', base = 'attempt-' + attempt.id
+    const ledger = prefix + base + '.submissions.json', problemEntry = prefix + 'problem.json', codeEntry = prefix + base + '.js'
+    const producer = new BackupService({ profile: source, appVersion: '0.9.9' })
+    const reviewed = await producer.review({ categories: ['practice'], folders: [] })
+    const archive = join(root, 'practice.ionbackup')
+    await producer.create(reviewed.token, archive)
+    const manifest = await readArchive(archive, extracted)
+    // Check every decompressed entry against the public problem, the saved source or the exact aggregate ledger.
+    assert.deepEqual(manifest.entries.map(e => e.path).sort(), [ledger, problemEntry, codeEntry].sort())
+    assert.deepEqual(await readFile(join(extracted, problemEntry)), publicProblem)
+    assert.equal(await readFile(join(extracted, codeEntry), 'utf8'), correct)
+    assert.deepEqual(JSON.parse(await readFile(join(extracted, ledger), 'utf8')), { version: 1, submissions: rows })
+    for (const entry of manifest.entries) {
+      assert.doesNotMatch(await readFile(join(extracted, entry.path), 'utf8'), /private-verdict-(stdout|stderr)/)
+    }
+
+    const consumer = new BackupService({ profile: target, appVersion: '0.9.9' })
+    const review = await consumer.openRestore(archive)
+    const plan = await consumer.prepareRestore(review.token, { replace: ['practice'], mappings: [], copyFolders: [] })
+    await consumer.finalize(plan.token)
+    assert.equal(await finishPendingRestore(target), 'applied')
+    const restored = new PracticeStore(join(target, 'practice'))
+    const history = (await restored.get(problem.id)).attempts[0].submissions!
+    assert.deepEqual(history, results.map(result => ({ ...result, current: false })))
+    assert.equal(await readFile(await restored.openAttempt(problem.id, attempt.id), 'utf8'), correct)
+    const fresh = await submit(restored)
+    const refreshed = fresh.attempts[0].submissions!
+    assert.deepEqual(refreshed.slice(0, -1), history)
+    assert.equal(refreshed.at(-1)?.verdict, 'accepted')
+    assert.equal(refreshed.at(-1)?.current, true)
+    const localLedger = join(target, 'practice', problem.id, base + '.submissions.json')
+    const retained = await readFile(localLedger, 'utf8')
+    const published = JSON.parse(retained).submissions
+    assert.deepEqual(published.slice(0, -1), rows.map(row => ({ ...row, restored: true })))
+    assert.equal(published.at(-1).restored, undefined)
+    assert.equal(published.at(-1).sourceSha256, rows[1].sourceSha256)
+
+    // A valid checksum must not authorize new fields carrying private judge material, or an oversized history.
+    const altered = [
+      { version: 1, submissions: [{ ...rows[0], expectedOutput: 'private test answer' }] },
+      { version: 1, submissions: rows, stdout: 'private-verdict-stdout' },
+      { version: 1, submissions: Array.from({ length: 11 }, () => rows[0]) },
+    ]
+    for (const [i, invalid] of altered.entries()) {
+      const data = Buffer.from(JSON.stringify(invalid)), path = join(root, 'bad-submissions-' + i + '.ionbackup')
+      const adjusted = { ...manifest, entries: manifest.entries.map(entry => entry.path === ledger
+        ? { ...entry, bytes: data.length, sha256: sha256(data) } : entry) }
+      await writeFile(join(extracted, ledger), data)
+      await writeArchive(extracted, adjusted, path)
+      await assert.rejects(consumer.openRestore(path), /submission|history|field/i)
+      assert.equal(await readFile(localLedger, 'utf8'), retained)
+    }
+    await consumer.cancel()
   })
   test('legacy folder exports are validated and label their missing original checksums', async t => {
     const f = await fixture(t), legacy = await exportLocalProfile(f.source, f.root, f.prefs)

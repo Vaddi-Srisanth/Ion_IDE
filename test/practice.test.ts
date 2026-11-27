@@ -80,6 +80,10 @@ test('practice IPC inputs reject path traversal, cross-problem attempts, and sym
 
 test('filtered catalog challenges open prepared, independent language attempts without replacing saved work', () => scratch(async (directory, store) => {
   const easy = store.browse({ difficulty: 'Easy', topic: 'Basics', language: 'python' })
+  assert.deepEqual(store.browse({ search: '  ClOcK ' }).map(item => item.id), ['minutes-to-clock'])
+  assert.ok(store.browse({ search: 'graphs' }).every(item => item.topic === 'Graphs'))
+  assert.equal(store.browse({ search: 'clock', difficulty: 'Hard' }).length, 0)
+  assert.throws(() => store.browse({ search: 'a'.repeat(101) }), /Search/)
   assert.ok(easy.length > 0)
   assert.ok(easy.every(({ difficulty, topic }) => difficulty === 'Easy' && topic === 'Basics'))
   assert.throws(() => store.browse({ difficulty: 'Easy', language: 'unknown' }), /practice language/)

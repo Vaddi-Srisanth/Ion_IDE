@@ -10,7 +10,7 @@ import {
 import { EntryDialog, Modal } from '../Dialogs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
-import { PracticeResults } from './PracticeResults'
+import { PracticeResults, SubmissionHistory } from './PracticeResults'
 import './practice.css'
 
 export interface PracticePaneProps {
@@ -21,7 +21,6 @@ export interface PracticePaneProps {
   onClose(): void
   onLearn?(): void
   onDirtyChange?(dirty: boolean): void
-  onStopRun?(): void
 }
 
 interface RetainedDraft { value: PracticeDraft; dirty: boolean }
@@ -99,24 +98,33 @@ function BrowsePractice({ bridge, hidden, busy, onStart }: {
   const [language, setLanguage] = useState<RunLanguage | ''>('')
   const [topic, setTopic] = useState<PracticeTopic | ''>('')
   const [difficulty, setDifficulty] = useState<CatalogDifficulty | ''>('')
+  const [searchText, setSearchText] = useState('')
+  const [search, setSearch] = useState('')
   const [previewId, setPreviewId] = useState('')
   const [retry, setRetry] = useState(0)
   const [loaded, setLoaded] = useState<{ key: string; matches: PracticeChallengeSummary[]; error?: string }>()
   const section = useRef<HTMLElement>(null)
-  const query = difficulty && (language || topic) ? [language, topic, difficulty, retry].join(':') : ''
+  const query = search || (difficulty && (language || topic)) ? JSON.stringify([language, topic, difficulty, search, retry]) : ''
   const result = query && loaded?.key === query ? loaded : undefined
 
   useEffect(() => {
-    if (!query || !difficulty) return
+    if (hidden || !query || loaded?.key === query) return
     let active = true
-    void bridge.browse({ language: language || undefined, topic: topic || undefined, difficulty }).then(
+    void bridge.browse({ language: language || undefined, topic: topic || undefined,
+      difficulty: difficulty || undefined, search: search || undefined }).then(
       (matches) => { if (active) setLoaded({ key: query, matches }) },
       (reason) => { if (active) setLoaded({ key: query, matches: [], error: errorMessage(reason) }) },
     )
     return () => { active = false }
-  }, [bridge, difficulty, language, query, topic])
+  }, [bridge, difficulty, hidden, language, loaded?.key, query, search, topic])
 
   useEffect(() => { section.current?.parentElement?.scrollTo(0, 0) }, [previewId])
+
+  function clearSearch() {
+    setSearchText('')
+    setSearch('')
+    setPreviewId('')
+  }
 
   if (hidden) return null
   return (
@@ -124,8 +132,21 @@ function BrowsePractice({ bridge, hidden, busy, onStart }: {
       <div className="practice-intro">
         <h3>Find a challenge</h3>
         <span className="practice-catalog-badge">Offline catalog</span>
-        <p className="practice-muted">Choose a language or topic, then a difficulty. Ion brings the problem, examples, and tests.</p>
       </div>
+      <form className="practice-search" role="search" aria-label="Practice catalog" onSubmit={(event) => {
+        event.preventDefault()
+        setSearch(searchText.trim())
+        setPreviewId('')
+      }}>
+        <label className="practice-label">Search by title or topic
+          <input type="search" maxLength={100} value={searchText} onChange={(event) => {
+            if (!event.target.value) clearSearch()
+            else setSearchText(event.target.value)
+          }}/>
+        </label>
+        <button className="button" type="submit" disabled={!searchText.trim()}>Search</button>
+        {(searchText || search) && <button className="button" type="button" onClick={clearSearch} aria-label="Clear search">Clear</button>}
+      </form>
       <div className="practice-filters">
         <label className="practice-label">Language
           <select data-testid="practice-language" value={language}
@@ -155,7 +176,7 @@ function BrowsePractice({ bridge, hidden, busy, onStart }: {
       ) : !query ? (
         <div className="practice-catalog-state">
           <Icon name="search" size={17} />
-          <p>Matching challenges will appear here as you choose your filters.</p>
+          <p>To browse with filters, choose a difficulty and a language or topic.</p>
         </div>
       ) : !result ? (
         <p className="practice-muted" role="status">Finding challenges…</p>
@@ -167,12 +188,12 @@ function BrowsePractice({ bridge, hidden, busy, onStart }: {
       ) : !result.matches.length ? (
         <div className="practice-catalog-state">
           <Icon name="search" size={17} />
-          <p role="status">No matches. Try another topic or difficulty.</p>
+          <p role="status">No matches. Try different search terms or filters.</p>
         </div>
       ) : (
         <div className="practice-matches">
           <div className="practice-section-heading">
-            <h4>Matching challenges</h4>
+            <h4>{search ? 'Matches for “' + search + '”' : 'Matching challenges'}</h4>
             <span role="status">{result.matches.length} found</span>
           </div>
           <ul className="practice-challenge-list">
@@ -276,7 +297,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 }
 
 
-export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun, onLearn }: PracticePaneProps) {
+export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onLearn }: PracticePaneProps) {
   const [view, setView] = useState<'browse' | 'saved'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
@@ -284,9 +305,11 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
   const [draft, setDraft] = useState(retainedDraft)
   const [editing, setEditing] = useState(false)
   const [attemptDialog, setAttemptDialog] = useState(false)
-  const [pending, setPending] = useState<'load' | 'save' | 'open' | 'run' | 'start' | null>('load')
+  const [pending, setPending] = useState<'load' | 'save' | 'open' | 'run' | 'submit' | 'refresh' | 'start' | null>('load')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const activeRun = useRef<{ started: boolean; stopped: boolean } | null>(null)
+  const [stopping, setStopping] = useState(false)
   const mounted = useRef(false)
   const scroll = useRef<HTMLDivElement>(null)
 
@@ -419,20 +442,63 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
     await open(created.attempt.id)
   }
 
-  async function run() {
-    if (!problem || !attemptId || pending) return
-    setPending('run')
+  async function run(action: 'run' | 'submit') {
+    if (!problem || !attemptId || pending || activeRun.current || (action === 'submit' && problem.canSubmit !== true)) return
+    const request = { started: false, stopped: false }
+    activeRun.current = request
+    setPending(action)
     setError('')
     setNotice('')
     try {
       const entry = await bridge.openAttempt(problem.id, attemptId)
-      if (!await onPrepareRun(entry.path)) throw new Error('Save your edits before running the samples.')
-      if (!mounted.current) return
-      const tested = await bridge.runSamples(problem.id, attemptId)
+      if (!mounted.current || request.stopped) return
+      const ready = await onPrepareRun(entry.path)
+      if (!mounted.current || request.stopped) return
+      if (!ready) throw new Error('Save your edits before running this attempt.')
+      request.started = true
+      const tested = action === 'submit' ? await bridge.submit(problem.id, attemptId) : await bridge.runSamples(problem.id, attemptId)
       if (mounted.current) {
         setProblem(tested)
-        setNotice('Sample run finished. Results are saved locally.')
+        setNotice(action === 'submit' ? 'Local submission saved.' : 'Sample run finished. Results are saved locally.')
       }
+    } catch (reason) {
+      if (mounted.current) setError(errorMessage(reason))
+    } finally {
+      activeRun.current = null
+      if (mounted.current) {
+        if (request.stopped && !request.started) setNotice('Stopped before running the saved attempt.')
+        setStopping(false)
+        setPending(null)
+      }
+    }
+  }
+
+  async function stop() {
+    const request = activeRun.current
+    if (!request || request.stopped) return
+    request.stopped = true
+    setStopping(true)
+    if (request.started) {
+      try {
+        await bridge.cancelSamples()
+      } catch (reason) {
+        if (mounted.current && activeRun.current === request) {
+          request.stopped = false
+          setStopping(false)
+          setError(errorMessage(reason))
+        }
+      }
+    }
+  }
+
+  async function refreshHistory() {
+    if (!problem || pending) return
+    setPending('refresh')
+    setError('')
+    setNotice('')
+    try {
+      const latest = await bridge.get(problem.id)
+      if (mounted.current) setProblem(latest)
     } catch (reason) {
       if (mounted.current) setError(errorMessage(reason))
     } finally {
@@ -479,13 +545,13 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
                   <h3>{problem.title}</h3>
                   <button className="button" data-testid="practice-edit" disabled={Boolean(pending) || Boolean(draft)}
                     onClick={() => {
-                      const { attempts: _attempts, ...draft } = problem
+                      const { attempts: _attempts, canSubmit: _canSubmit, ...draft } = problem
                       setError('')
                       edit({ value: draft, dirty: false })
                       setEditing(true)
                     }}>Edit problem</button>
                 </div>
-                <p className="practice-muted">{[practiceLanguages[problem.language], problem.difficulty, problem.topic, problem.completion].filter(Boolean).join(' · ')}</p>
+                <p className="practice-muted">{[practiceLanguages[problem.language], problem.difficulty, problem.topic, problem.canSubmit === true ? 'Manual status · ' + problem.completion : problem.completion].filter(Boolean).join(' · ')}</p>
                 <p className="practice-statement" data-testid="practice-problem-statement">{problem.statement}</p>
                 {problem.sourceUrl && <p className="practice-source" title={problem.sourceUrl}>{problem.sourceUrl}</p>}
                 {problem.notes && <><h4>Personal notes</h4><p className="practice-statement" data-testid="practice-saved-notes">{problem.notes}</p></>}
@@ -506,15 +572,25 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
                       <button className="button" data-testid="practice-open-attempt" disabled={Boolean(pending) || !attemptId}
                         onClick={() => void open(attemptId)}>Open in editor</button>
                     </div>}
-                {problem.samples.length > 0 && (
+                {(problem.samples.length > 0 || problem.canSubmit === true) && (
                   <div className="practice-run-actions">
-                    <button className="button primary" data-testid="practice-run-samples" disabled={Boolean(pending) || !attemptId}
-                      onClick={() => void run()}>{pending === 'run' ? 'Running…' : 'Run samples'}</button>
-                    {pending === 'run' && onStopRun && <button className="button" onClick={onStopRun}>Stop</button>}
-                    <span className="practice-muted">{problem.samples.length} sample{problem.samples.length === 1 ? '' : 's'}</span>
+                    {problem.samples.length > 0 && <>
+                      <button className="button primary" data-testid="practice-run-samples" disabled={Boolean(pending) || !attemptId}
+                        onClick={() => void run('run')}>{pending === 'run' ? 'Running…' : 'Run samples'}</button>
+                      <span className="practice-muted">{problem.samples.length} sample{problem.samples.length === 1 ? '' : 's'}</span>
+                    </>}
+                    {problem.canSubmit === true && <button className="button" data-testid="practice-submit"
+                      disabled={Boolean(pending) || !attemptId} onClick={() => void run('submit')}>
+                      {pending === 'submit' ? 'Submitting…' : 'Local Submit'}
+                    </button>}
+                    {(pending === 'run' || pending === 'submit') && <button className="button" data-testid="practice-stop"
+                      disabled={stopping} onClick={() => void stop()}>{stopping ? 'Stopping…' : 'Stop'}</button>}
                   </div>
                 )}
+                {problem.canSubmit === true && <p className="practice-muted">Local Submit checks the saved file against hidden cases offline. You control completion in Edit problem.</p>}
               </section>
+              {problem.canSubmit === true && <SubmissionHistory attempt={attempt} busy={Boolean(pending)}
+                onRefresh={() => void refreshHistory()}/>}
               <PracticeResults attempt={attempt} />
             </>
           ) : pending !== 'load' && <p className="practice-muted">Start a challenge from Browse to save its problem and first attempt here.</p>}

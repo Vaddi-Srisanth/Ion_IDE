@@ -272,6 +272,7 @@ const bridge: IonBridge = {
     createAttempt: (id, label) => ipcRenderer.invoke('ion:practice-create-attempt', id, label),
     openAttempt: (id, attempt) => ipcRenderer.invoke('ion:practice-open-attempt', id, attempt),
     runSamples: (id, attempt) => ipcRenderer.invoke('ion:practice-run-samples', id, attempt),
+    submit: (id, attempt) => ipcRenderer.invoke('ion:practice-submit', id, attempt),
     cancelSamples: () => ipcRenderer.invoke('ion:practice-cancel-samples'),
   },
   stopRun: () => ipcRenderer.invoke('ion:stop-run'),

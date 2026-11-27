@@ -1771,7 +1771,7 @@ export function App() {
       case 'practice': return <module.Component bridge={bridge.practice} onOpenEntry={openEntry}
         onLearn={() => selectWorkspace('learn')}
         initialProblem={practiceExercise}
-        onPrepareRun={(path) => saveMany(documents.affected(path))} onStopRun={stop}
+        onPrepareRun={(path) => saveMany(documents.affected(path))}
         onClose={closeAuxiliary} onDirtyChange={markPracticeDraft}/>;
     }
   }
