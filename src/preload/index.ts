@@ -263,6 +263,8 @@ const bridge: IonBridge = {
     onSourceSaved: (callback) => subscribe('ion:projects-source-saved', callback),
   },
   practice: {
+    progress: () => ipcRenderer.invoke('ion:practice-progress'),
+    cancelProgress: () => ipcRenderer.invoke('ion:practice-cancel-progress'),
     browse: (filters) => ipcRenderer.invoke('ion:practice-browse', filters),
     getChallenge: (id) => ipcRenderer.invoke('ion:practice-challenge', id),
     start: (id, language) => ipcRenderer.invoke('ion:practice-start', id, language),

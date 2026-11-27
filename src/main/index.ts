@@ -141,6 +141,7 @@ let terminalFocused = false
 let ignoreTerminalAccelerators = false
 let webPreview: BrowserWindow | undefined
 let webPreviewOpening = false
+let practiceProgress: { controller: AbortController; job: Promise<import('../shared/practice').PracticeProgress> } | undefined
 let practiceRun: { controller: AbortController; job?: Promise<unknown>; panel: OptionalPanel | null } | null = null
 let resourceProfile = defaultSettings.resourceProfile
 let panel: OptionalPanel | null = null
@@ -531,6 +532,7 @@ function releasePanel() {
   if (panel === 'learn') void learningService?.release().catch(() => undefined)
   if (panel === 'projects') projectHandlers?.close()
   if (panel === 'practice') {
+    practiceProgress?.controller.abort()
     practiceRun?.controller.abort()
     practiceStore?.release()
   }
@@ -2304,6 +2306,22 @@ function registerIpc(): void {
     if (target === window) return projectLensService?.then(service => service.cancel(), () => undefined)
   })
 
+  handle('practice-progress', (target) => {
+    if (target !== window || panel !== 'practice') throw new Error('Open Practice to view progress.')
+    const previous = practiceProgress
+    if (previous && !previous.controller.signal.aborted) return previous.job
+    const controller = new AbortController()
+    const job = (async () => {
+      if (previous) await previous.job.catch(() => {})
+      controller.signal.throwIfAborted()
+      const summary = await (await practice()).progress(controller.signal)
+      controller.signal.throwIfAborted()
+      return summary
+    })().finally(() => { if (practiceProgress?.controller === controller) practiceProgress = undefined })
+    practiceProgress = { controller, job }
+    return job
+  })
+  handle('practice-cancel-progress', (target) => { if (target === window) practiceProgress?.controller.abort() })
   handle('practice-browse', async (_target, filters) => (await practice()).browse(filters))
   handle('practice-challenge', async (_target, id) => (await practice()).getChallenge(id))
   handle('practice-start', async (target, challengeId, language) => {

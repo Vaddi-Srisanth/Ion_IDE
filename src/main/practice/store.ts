@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { constants } from 'node:fs'
 import { lstat, mkdir, mkdtemp, open, opendir, realpath, rename, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { RunResult } from '../../shared/contracts'
@@ -7,7 +6,7 @@ import type { LearningTaskEvidence } from '../../shared/learning'
 import {
   catalogDifficulties, maxPracticeSamples, practiceCompletion, practiceDifficulties, practiceLanguages, practiceTopics,
   type PracticeAttempt, type PracticeChallenge, type PracticeChallengeSummary, type PracticeFields, type PracticeLibrary, type PracticeProblem,
-  type PracticeSample, type PracticeSampleResult,
+  type PracticeProgress, type PracticeSample, type PracticeSampleResult,
 } from '../../shared/practice'
 import type { RunLanguage } from '../../shared/run-console'
 import { maxFileBytes, readStableBytes, revision } from '../files'
@@ -248,6 +247,15 @@ export class PracticeStore {
     return path
   }
 
+  private async existingDirectory(): Promise<string | null> {
+    try {
+      return await this.requireDirectory(join(await realpath(dirname(this.path)), basename(this.path)))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+  }
+
   private async problemDirectory(id: string, root?: string): Promise<string> {
     return this.requireDirectory(join(root ?? await this.directory(), id))
   }
@@ -259,21 +267,13 @@ export class PracticeStore {
   }
 
   private async readJson(file: string): Promise<unknown> {
-    const handle = await open(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0))
-    try {
-      const stats = await handle.stat()
-      if (!stats.isFile() || stats.size > maxMetadataBytes) throw new Error('Invalid practice metadata file.')
-      const buffer = Buffer.allocUnsafe(stats.size)
-      let offset = 0
-      while (offset < buffer.length) {
-        const { bytesRead } = await handle.read(buffer, offset, buffer.length - offset, offset)
-        if (!bytesRead) break
-        offset += bytesRead
-      }
-      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, offset))) as unknown
-    } finally {
-      await handle.close()
+    const original = await lstat(file, { bigint: true })
+    if (!original.isFile() || original.size > BigInt(maxMetadataBytes) || await realpath(file) !== file) {
+      throw new Error('Invalid practice metadata file.')
     }
+    const { data, stats } = await readStableBytes(file, maxMetadataBytes)
+    if (revision(original) !== revision(stats)) throw new Error('Practice metadata changed while reading.')
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(data))
   }
 
   private async readProblem(id: string, root?: string): Promise<StoredProblem> {
@@ -394,11 +394,12 @@ export class PracticeStore {
     }
   }
 
-  private async problemIds(root?: string): Promise<string[]> {
+  private async problemIds(root?: string, signal?: AbortSignal): Promise<string[]> {
     const ids: string[] = []
     const directory = await opendir(root ?? await this.directory())
     let seen = 0
     for await (const entry of directory) {
+      signal?.throwIfAborted()
       if (++seen > maxProblems + 100) throw new Error('Too many entries in the practice library.')
       if (entry.isDirectory() && idPattern.test(entry.name)) ids.push(entry.name)
     }
@@ -416,6 +417,60 @@ export class PracticeStore {
       }
     }
     result.problems.sort((a, b) => a.title.localeCompare(b.title))
+    return result
+  }
+
+  async progress(signal: AbortSignal): Promise<PracticeProgress> {
+    signal.throwIfAborted()
+    // Start after already queued writes. Later saves can publish while these atomic records are read.
+    await this.pending
+    signal.throwIfAborted()
+    const result: PracticeProgress = { catalogSize: practiceChallenges.length, opened: 0, submitted: 0, accepted: 0, unavailable: 0, challenges: [] }
+    const root = await this.existingDirectory()
+    signal.throwIfAborted()
+    if (!root) return result
+    const evidence = new Map<string, { submitted: boolean; accepted: boolean; judgedHere: boolean }>()
+    const ids = await this.problemIds(root, signal)
+    if (ids.length > maxProblems) throw new Error('Too many practice problems to summarize.')
+    for (const id of ids) {
+      signal.throwIfAborted()
+      let problem: StoredProblem
+      try {
+        problem = await this.readProblem(id, root)
+      } catch {
+        result.unavailable++
+        continue
+      }
+      const suite = suiteVersion(problem.catalogId)
+      if (!suite || !problem.catalogId || !problem.attempts.length) continue
+      const row = evidence.get(problem.catalogId) ?? { submitted: false, accepted: false, judgedHere: false }
+      evidence.set(problem.catalogId, row)
+      // A stored attempt records that the challenge was opened. Progress measures
+      // retained verdicts across all languages and never needs the attempt's source.
+      for (const attempt of problem.attempts) {
+        signal.throwIfAborted()
+        try {
+          const { file } = await this.submissionFile(join(root, id), attempt)
+          for (const item of file.submissions) {
+            row.submitted = true
+            if (!item.restored) row.judgedHere = true
+            if (item.verdict === 'accepted' && item.suiteVersion === suite) row.accepted = true
+          }
+        } catch {
+          result.unavailable++
+        }
+      }
+    }
+    signal.throwIfAborted()
+    for (const { id, title } of practiceChallenges) {
+      const row = evidence.get(id)
+      if (!row) continue
+      result.opened++
+      if (row.submitted) result.submitted++
+      if (row.accepted) result.accepted++
+      result.challenges.push({ id, title, state: row.accepted ? 'accepted' : row.submitted ? 'submitted' : 'opened',
+        importedOnly: row.submitted && !row.judgedHere })
+    }
     return result
   }
 
@@ -463,12 +518,7 @@ export class PracticeStore {
     return this.serialize(async () => {
       const empty: LearningTaskEvidence = { problemId: null, attemptCount: 0, manualStatus: null, samples: null }
       // Reading lesson evidence must not create a practice library or an attempt.
-      const root = await realpath(dirname(this.path))
-        .then(parent => this.requireDirectory(join(parent, basename(this.path))))
-        .catch((error: NodeJS.ErrnoException) => {
-          if (error.code === 'ENOENT') return null
-          throw error
-        })
+      const root = await this.existingDirectory()
       if (!root) return empty
       for (const id of await this.problemIds(root)) {
         const problem = await this.readProblem(id, root).catch(() => undefined)

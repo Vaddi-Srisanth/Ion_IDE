@@ -15,3 +15,11 @@ Each attempt retains its ten most recent verdicts. A changed file is marked hist
 Minutes to Clock has six judge cases. The other 26 problems have three each. Independent reference calculations check all 78 of those private cases and all 104 public examples for those problems. A real Python fixture exercises Minutes to Clock. A solution matching only the public examples fails the private cases, while a general solution passes. Unit cases also exercise compilation and runtime errors, output limits, cancellation, same-size file edits, private-output redaction, bounded history and restoration.
 
 The hosted acceptance uses a disposable profile and the production Electron build. It exercises Python as the representative language. Individual fixture successes and native results are recorded against their tested commit. Extended stress testing and performance comparisons remain assigned to Phase 10.
+
+## Catalog progress
+
+Practice → Progress counts each of the 27 challenges once across attempts and languages. Opening a saved attempt, submitting a solution, and obtaining an accepted verdict are separate events. Accepted counts require a retained verdict for the current suite. Imported-only submission history is identified. An unreadable record produces an incomplete-count notice without changing the saved data.
+
+Opening the tab requests one cancellable scan of problem metadata and verdict ledgers. Refresh requests a new scan. Closing the tab cancels an active request. The scan reads no source files and does not hold the write queue while iterating. A regression test pauses a real ledger read and saves notes on a different problem before resuming it.
+
+The initial Local Submit candidate `7c065a21378db6db9b7203c7cfe9cb8599265d6c` passed the real Python submit, close and reopen journey on both platforms. The focused suites passed 73 tests on macOS ARM64 and 71 on Windows x64. Windows skipped the privilege-dependent backup symlink fixture and the C fixture because its runner had no configured C compiler. Neither skip affected the Python journey. [Native results](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45934035322)

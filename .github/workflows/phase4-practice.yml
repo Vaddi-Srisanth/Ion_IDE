@@ -47,7 +47,7 @@ jobs:
           npm run typecheck
           npm run build
       - name: Verify judging, data safety and history restoration
-        run: node scripts/test.mjs practice-submit practice practice-catalog-data practice-judge-catalog practice-execute backup
+        run: node scripts/test.mjs practice-submit practice-progress practice practice-catalog-data practice-judge-catalog practice-execute backup
       - name: Submit Python solutions and reopen a disposable profile
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:

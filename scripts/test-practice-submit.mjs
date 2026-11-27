@@ -142,6 +142,15 @@ await withScratch('practice-local-submit', async scratch => {
     await page.getByTestId('practice-open-attempt').click()
     await (await editorShows(page, correct.trim())).dispose()
     assert.equal(await readFile(path, 'utf8'), correct)
+    await page.getByRole('button', { name: 'Progress', exact: true }).click()
+    const progress = page.getByRole('region', { name: 'Catalog progress' })
+    const challenges = progress.getByRole('list', { name: 'Saved catalog challenges' })
+    await challenges.getByText('Minutes to Clock', { exact: true }).waitFor()
+    assert.equal(await challenges.getByRole('listitem').count(), 1)
+    await challenges.getByText('Accepted', { exact: true }).waitFor()
+    assert.deepEqual(await progress.locator('dl > div').evaluateAll(items =>
+      Object.fromEntries(items.map(item => [item.querySelector('dt').textContent, item.querySelector('dd').textContent]))),
+    { Opened: '1', Submitted: '1', Accepted: '1' })
     assert.deepEqual(reopened.requests, [])
     assert.deepEqual(reopened.errors, [])
     console.log('PASS both verdicts, the previous sample run, source, notes and manual status survive offline relaunch')

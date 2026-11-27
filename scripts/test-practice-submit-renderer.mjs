@@ -15,7 +15,11 @@ const fixture = `
   window.calls = []
   window.searches = []
   window.finishSearch = []
+  window.progressReads = []
+  window.progressStops = 0
   const bridge = {
+    progress:() => new Promise((resolve, reject) => window.progressReads.push({resolve,reject})),
+    cancelProgress:async () => {window.progressStops++},
     browse:filters => new Promise(resolve => {
       window.searches.push(filters)
       window.finishSearch.push(title => resolve([{id:title,title,topic:'Basics',difficulty:'Easy'}]))
@@ -31,9 +35,10 @@ const fixture = `
     }),
     cancelSamples:async () => { window.calls.push(['stop']); window.cancel() }
   }
-  createRoot(document.querySelector('#root')).render(<PracticePane bridge={bridge} initialProblem="supported"
+  const root = createRoot(document.querySelector('#root'))
+  root.render(<PracticePane bridge={bridge} initialProblem="supported"
     onPrepareRun={path=>new Promise(resolve=>{window.calls.push(['save',path]);window.save=resolve})}
-    onOpenEntry={()=>{}} onClose={()=>{}}/>)
+    onOpenEntry={()=>{}} onClose={()=>root.unmount()}/>)
 `
 const bundle = await build({ stdin: { contents: fixture, loader: 'tsx', resolveDir: resolve('.') },
   bundle: true, jsx: 'automatic', write: false, outdir: 'out', format: 'iife', logLevel: 'silent' })
@@ -119,6 +124,46 @@ try {
   ])
   await page.evaluate(() => window.finishSearch[3]('Topic and difficulty match'))
   await page.getByRole('heading', { name: 'Topic and difficulty match' }).waitFor()
+  const progressTab = page.getByRole('button', { name: 'Progress', exact: true })
+  const progress = page.getByRole('region', { name: 'Catalog progress' })
+  assert.equal(await page.evaluate(() => window.progressReads.length), 0)
+  await progressTab.click()
+  await page.waitForFunction(() => window.progressReads.length === 1)
+  await page.getByTestId('practice-saved-tab').click()
+  await page.waitForFunction(() => window.progressStops === 1)
+  await progressTab.click()
+  await page.waitForFunction(() => window.progressReads.length === 2)
+  const populated = { catalogSize:8,opened:2,submitted:1,accepted:1,unavailable:1,challenges:[
+    {id:'a',title:'Imported solution',state:'accepted',importedOnly:true},
+    {id:'b',title:'Opened locally',state:'opened',importedOnly:false},
+  ] }
+  await page.evaluate(result => {
+    window.progressReads[1].resolve(result)
+    window.progressReads[0].reject(Error('Stale failure'))
+  }, populated)
+  const imported = progress.getByRole('listitem').filter({ hasText: 'Imported solution' })
+  await imported.getByText('Imported history').waitFor()
+  await imported.getByText('Accepted').waitFor()
+  await progress.getByText(/Counts may be incomplete/).waitFor()
+  assert.equal(await progress.getByRole('alert').count(), 0)
+  await progress.getByRole('button', { name: 'Refresh' }).click()
+  await page.waitForFunction(() => window.progressReads.length === 3)
+  await page.evaluate(() => window.progressReads[2].reject(Error('Profile is unavailable')))
+  await progress.getByRole('alert').filter({ hasText: 'Profile is unavailable' }).waitFor()
+  await progress.getByRole('button', { name: 'Try again' }).click()
+  await page.waitForFunction(() => window.progressReads.length === 4)
+  await page.evaluate(() => window.progressReads[3].resolve({
+    catalogSize:8, opened:0, submitted:0, accepted:0, unavailable:0, challenges:[],
+  }))
+  await progress.getByText('Open a catalog challenge to start tracking progress.').waitFor()
+  assert.equal(await page.evaluate(() => window.progressStops), 1)
+  await progress.getByRole('button', { name: 'Refresh' }).click()
+  await page.waitForFunction(() => window.progressReads.length === 5)
+  await page.getByRole('button', { name: 'Hide Practice' }).click()
+  await page.waitForFunction(() => window.progressStops === 2)
+  await page.evaluate(() => window.progressReads[4].resolve({}))
+  assert.equal(await progress.count(), 0)
+  console.log('PASS progress loads only on request, distinguishes imported history and ignores replies after navigation or teardown')
   assert.deepEqual(errors, [])
   console.log('PASS catalog search waits for Enter, accepts text alone, preserves filters and ignores superseded responses')
   console.log('PASS Practice Submit honors saved-source preflight, Stop, problem capability, and the selected attempt’s ten newest verdicts')

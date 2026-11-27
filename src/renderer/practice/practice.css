@@ -150,3 +150,10 @@
 .practice-submissions { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .practice-submissions li { display: grid; gap: 3px; padding-left: 8px; border-left: 2px solid var(--border); font-size: 12px; }
 .practice-submissions li[data-verdict="accepted"] { border-color: var(--mint); }
+
+.practice-progress { display: grid; gap: 9px; }
+.practice-progress h3 { margin: 0; font-size: 13px; color: var(--ink); }
+.practice-progress-counts { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 8px 0; border-block: 1px solid var(--border); }
+.practice-progress-counts > div { flex: 1 0 auto; }
+.practice-progress-counts dt, .practice-progress .practice-challenge > span { font-size: 11px; color: var(--muted); }
+.practice-progress-counts dd { margin: 2px 0 0; font-size: 16px; font-variant-numeric: tabular-nums; }

@@ -10,6 +10,7 @@ import {
 import { EntryDialog, Modal } from '../Dialogs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import { CatalogProgress } from './CatalogProgress'
 import { PracticeResults, SubmissionHistory } from './PracticeResults'
 import './practice.css'
 
@@ -298,7 +299,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 
 
 export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onLearn }: PracticePaneProps) {
-  const [view, setView] = useState<'browse' | 'saved'>(initialProblem ? 'saved' : 'browse')
+  const [view, setView] = useState<'browse' | 'saved' | 'progress'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
   const [attemptId, setAttemptId] = useState('')
@@ -519,6 +520,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
           onClick={() => { setView('browse'); setError(''); setNotice('') }}><Icon name="search" size={14} /> Browse</button>
         <button data-testid="practice-saved-tab" aria-pressed={view === 'saved'}
           onClick={() => { setView('saved'); setError(''); setNotice('') }}><Icon name="folder" size={14} /> Saved</button>
+        <button data-testid="practice-progress-tab" aria-pressed={view === 'progress'}
+          onClick={() => { setView('progress'); setError(''); setNotice('') }}><Icon name="map" size={14} /> Progress</button>
       </nav>
       <div className="practice-scroll" ref={scroll}>
         {!editing && error && <p className="form-error" role="alert">{error}</p>}
@@ -526,6 +529,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         {pending === 'start' && <p className="practice-muted" role="status">Opening your challenge…</p>}
         <BrowsePractice bridge={bridge} hidden={view !== 'browse'} busy={Boolean(pending)}
           onStart={(id, language) => void start(id, language)} />
+        {view === 'progress' && <CatalogProgress bridge={bridge}/>}
         {view === 'saved' && <>
           <div className="practice-library">
             <label className="practice-label">Saved problems

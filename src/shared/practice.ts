@@ -118,7 +118,18 @@ export interface PracticeLibrary {
   unavailable: number
 }
 
+export interface PracticeProgress {
+  catalogSize: number
+  opened: number
+  submitted: number
+  accepted: number
+  unavailable: number
+  challenges: { id: string; title: string; state: 'opened' | 'submitted' | 'accepted'; importedOnly: boolean }[]
+}
+
 export interface PracticeBridge {
+  progress(): Promise<PracticeProgress>
+  cancelProgress(): Promise<void>
   browse(filters: PracticeFilters): Promise<PracticeChallengeSummary[]>
   getChallenge(challengeId: string): Promise<PracticeChallenge>
   start(challengeId: string, language: RunLanguage): Promise<{ problem: PracticeProblem; attempt: PracticeAttempt; entry: Entry }>
