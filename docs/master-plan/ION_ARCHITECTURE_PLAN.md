@@ -2,7 +2,7 @@
 
 ## Accepted checkpoint and scope
 
-This report describes accepted development checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`, whose latest production correction is `036781e7fe99be4480e5f0803fb6b22124be72a8`. Phase 0, Phase 1, the editor/workspace foundation, LSP, Editor Essentials, C/C++ DAP and the Phase 2.5 task-adapter foundation have passed their documented acceptance scopes. **Phase 2 overall remains incomplete.** Broader task functionality remains open; Phase 2.6 Test Explorer is **paused and incomplete on a separate development branch**, and is excluded from this accepted source.
+Phase 2 is complete for its documented adapter scope. Phase 2.5 covers the accepted task foundation. Phase 2.6 added pytest, JUnit Jupiter and Vitest discovery, execution and result history. Subsequent Git, Practice, provider, Copilot feasibility and learning-related development checkpoints are tracked separately in the [implementation tracker](ION_IMPLEMENTATION_TRACKER.md).
 
 Acceptance is scoped to the builds and platforms in the [implementation tracker](ION_IMPLEMENTATION_TRACKER.md), [editor/workspace report](ION_PHASE_2_EDITOR_EXCELLENCE.md), [language-services report](ION_PHASE_2_LANGUAGE_SERVICES.md), [debugger report](ION_PHASE_2_DEBUGGER.md) and [build/tasks report](ION_PHASE_2_BUILD_TASKS.md). Their earlier pending/failed sections preserve investigation history; final acceptance sections establish the later verdicts. This architecture update adds no new runtime or benchmark evidence and does not assert that a published installer contains this development checkpoint.
 
@@ -23,7 +23,7 @@ Renderer shell
 Sandboxed preload
   ├─ files/recovery/settings
   ├─ processes/terminal/tools
-  ├─ Git/language/debug/tasks + existing Project Tests
+  ├─ Git/language/debug/tasks + Test Explorer and Project Tests
   └─ viewers/notebooks/backup/update
           │ validated IPC
 Main capability host
@@ -77,19 +77,19 @@ Native acceptance covers clangd, Java's JDK adapter, Pyright and TypeScript Lang
 
 `src/main/debug/` implements one lazy, bounded C/C++ path through installed clang and `lldb-dap`. Opening the panel starts no compiler or adapter. Explicit Start Debugging reviews the canonical saved-source revision/hash and trusted executable plan; main owns adapter, debuggee and scratch files. The renderer displays breakpoints, call stack, scopes, variables, watches and the debug console, with step/continue/pause/restart/stop actions. One session per window is supported and Stop/close drains its process tree. Python/Java debugging, attach, remote debugging and advanced breakpoint types remain unimplemented. Active-adapter RAM and long-session growth are not established by the cleanup tests.
 
-### Build/task host and paused Test Explorer
+### Build/task host and Test Explorer
 
 `src/main/tasks/` provides static, bounded top-level manifest discovery, profile-owned declarative records, revision validation and bounded sequential dependency graphs. Main constructs structured plans from trusted external tools; records cannot store arbitrary executables, environments, shell commands or approvals. Each execution receives native review and reuses the existing interactive runner/Run Console. Stop, root removal and shutdown cancel owned work. Production execution is natively verified for npm; other built-in adapters require representative native journeys. Workspace-authored task definitions, safe problem matching, parallel/watch tasks and broader task scope remain open.
 
 The task backend and picker are separate on-demand build chunks. Acceptance found and corrected an eager-backend bundling defect in `scripts/build.mjs`; a source-level dynamic import alone was insufficient. Ordinary editing keeps the picker unloaded and starts no task child process or polling service.
 
-Existing Project Tests retain their established approvals, saved C console tests and historical evidence. General Test Explorer is not in this accepted checkpoint. Its separate, paused work must establish approved framework discovery/execution, cancellation, bounded results/history and backup-safe persistence before acceptance. No automatic migration of existing tests is claimed.
+Existing Project Tests retain their established approvals, saved C console tests and historical evidence. Test Explorer is lazy. Each framework discovery and run requires a separate review. Main verifies saved source, owns the process, and persists bounded history. Restored and archived results remain available for inspection and confer no execution grant. See the [Test Explorer evidence](ION_PHASE_2_TEST_EXPLORER.md).
 
-## Planned Phase 3: Git and GitHub
+## Phase 3: Git and GitHub
 
-Keep Git CLI invocation in main with structured arguments and a validated repository root. Add remote operations as explicit state machines with cancellation and conflict states. Never parse shell strings or inherit workspace-controlled Git config across a security boundary without validation.
+Git's bounded main-process operations use structured arguments and a validated repository root. The browser covers history, committed line attribution, branches, tags, stash and cached remote comparisons. Working-tree branch mutations and remote transfers still need explicit state, cancellation and recovery.
 
-GitHub is a separate provider: official device/OAuth flow, OS-backed token storage, minimum scopes, explicit sign-out/revoke, rate/error handling, and no requirement for offline editing. Pull-request views consume remote data but never execute repository content.
+GitHub reads reuse the official CLI and its keyring. A separate anonymous HTTPS clone flow uses reviewed destinations. Pull-request views consume remote data without executing repository content. See the [Git and GitHub checkpoint](ION_PHASE_3_SOURCE_CONTROL.md).
 
 ## Planned AI and Copilot boundary
 

@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
-Current delivery: `main` — accepted development through Phase 2.5 plus reviewed reports<br>
-Accepted checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
+Current development: `codex/ion-phase-6-copilot` — stacked checkpoints from Test Explorer through declarative learning-pack update review<br>
+Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
 Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
 Phase 2.6 Test Explorer: **native acceptance PASS** on `codex/ion-core-excellence-phase-2-tests` at `fee7580cf3a107f54126dff7daa1d0e683a3198d`<br>
 Current Phase 2 debugger production source: `bcd2d5560510492b7dae8c69c97a925b2c7db787` with workflow-only evidence commit `041a5b02c886bcbe7255e58b0fb711aeac6e69ac` (**native acceptance PASS**)<br>
@@ -17,9 +17,9 @@ Phase 2.6 uses disposable profiles on a development branch. The public v0.9.9 re
 
 ## Current cutoff and roadmap decision — 27 November 2026
 
-Phase 0, Phase 1, Phase 2.1, Phase 2.2, Phase 2.3, Editor Essentials, Phase 2.4 (accepted C/C++ DAP scope), and Phase 2.5 (accepted adapter foundation) are complete for their documented acceptance scope. **Phase 2 is accepted within the documented adapter scopes.** Test Explorer resumed from the preserved branch after Windows Setup for 0.9.9 was published. The development sequence now uses focused correctness and data-safety checks at each checkpoint. Extended qualification belongs to Phase 10.
+**Phase 2 is complete within its documented adapter scopes.** That includes the editor/workspace foundation, LSP, Editor Essentials, C/C++ DAP, Tasks and Test Explorer. Development resumed from the preserved Test Explorer branch. Focused correctness, data safety and platform-relevant checks determine each checkpoint. Extended qualification belongs to Phase 10.
 
-Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend tests with zero skips. Hosted macOS ARM64 and Windows x64 passed the [same candidate](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45931559561). See the [Test Explorer report](ION_PHASE_2_TEST_EXPLORER.md) and [Phase 2.5 handoff](ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
+Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend tests with zero skips. Hosted macOS ARM64 and Windows x64 passed the [same candidate](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45931559561). The subsequent macOS production journey verified that an archived failure remains inspectable after rediscovery in `c805d52`. See the [Test Explorer report](ION_PHASE_2_TEST_EXPLORER.md) and [Phase 2.5 handoff](ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
 
 ## Phase status
 
@@ -27,11 +27,15 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 | --- | --- | --- |
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
-| 2 — Core editor excellence | **Editor/workspace foundation, LSP Milestone 2.3, Editor Essentials and C/C++ DAP Milestone 2.4 accepted** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed its focused native gates. DAP production source `bcd2d55` passed packaged and native macOS in [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321) and the identical production tree passed Windows x64 under workflow-only SHA `041a5b0` in [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977). |
-| 3 — Git and GitHub | In progress on a development branch | History, branches, tag creation, branch/stash comparisons, conflict review and GitHub public cloning passed the [macOS/Windows checkpoint](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45932532117). Committed line history, signed-out clone review and linked-worktree safety passed [native verification](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45933464062). [Evidence and remaining gates](ION_PHASE_3_SOURCE_CONTROL.md). |
-| 4 — Practice Arena | Built-in judge, history and progress checkpoint passed on macOS and Windows. | Both platforms verified a real Python submission and recovered its progress after relaunch. The local judge covers 27 challenges. [Native run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45934414618). [Scope and evidence](ION_PHASE_4_PRACTICE.md). |
+| 2 — Core editor excellence | **Complete at the documented adapter scope** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed its focused native gates. DAP production source `bcd2d55` passed packaged and native macOS in [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321) and the identical production tree passed Windows x64 under workflow-only SHA `041a5b0` in [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977). [Tasks](ION_PHASE_2_BUILD_TASKS.md) and [Test Explorer](ION_PHASE_2_TEST_EXPLORER.md) cover 2.5 and 2.6. |
+| 3 — Git and GitHub | In progress | The established Git browser and public clone passed native macOS and Windows. Cached remote comparison passed focused macOS desktop and backend checks. Remote transfers and working-tree branch changes remain open. [Evidence and limits](ION_PHASE_3_SOURCE_CONTROL.md) |
+| 4 — Practice Arena | Built-in judge, history and progress checkpoint | Both platforms verified a real Python submission and recovered its progress after relaunch. The local judge covers 27 challenges. [Scope and native evidence](ION_PHASE_4_PRACTICE.md) |
 | 5 — Provider infrastructure | Native functional checks passed on both platforms. The Windows job was cancelled during post-job cleanup. | One-use approval, cancellation and complete-answer validation. [Provider report](ION_PHASE_5_PROVIDERS.md). |
-| 6–10 | Pending | Targeted correctness and data safety at each checkpoint. Extended release hardening is scheduled for Phase 10. |
+| 6 — GitHub Copilot | Signed-out feasibility verified on macOS ARM64 | The official language server initialized and drained in a network-denied disposable profile. Windows and authenticated editor verification remain open. [Copilot report](ION_PHASE_6_COPILOT_FEASIBILITY.md) |
+| 7 — Ion AI experiences | Ask Ion checkpoint | Explicit question or editor excerpt review in Code, with a read-only validated answer. Native macOS fixture passed. Edit and Agent remain open. [Ask Ion report](ION_PHASE_7_ASK_ION.md) |
+| 8 — Education and DSA coaching | Offline practice guidance and DSA walkthrough | Saved local evidence drives a next-challenge suggestion. A lazy binary-search walkthrough explains how the search range changes. Broader adaptive learning remains open. [Coaching report](ION_PHASE_8_COACHING.md) |
+| 9 — Extension platform | Declarative pack checkpoint | Learning pack updates show and bind to the reviewed differences. Executable extension isolation remains open. [Learning pack report](ION_PHASE_9_LEARNING_PACKS.md) |
+| 10 — Production hardening | Pending | Full performance, stability, accessibility, security, data safety and exact native qualification. |
 
 ## Phase 0 completion
 

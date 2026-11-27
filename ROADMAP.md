@@ -2,6 +2,8 @@
 
 These milestones describe product scope. The current package uses its own release sequence. See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for implementation and verification status and [PERFORMANCE.md](PERFORMANCE.md) for measured resource use.
 
+The [current implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md) records the accepted Phase 2 scope, the active Phase 3–9 increments and their verification limits. Development checkpoints use focused correctness, data-safety and native checks where relevant. Extended benchmarking and qualification are scheduled for Phase 10. The earlier product milestones below preserve the project's history.
+
 ## Current engineering checkpoint
 
 The audit and renderer profiling are recorded in [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md) and [BOTTLENECK_REPORT.md](BOTTLENECK_REPORT.md). The 0.9.6 stabilization follow-up fixes the reproduced Git launch boundary, adds owned index publication and cancellation, and traces protected quits and natural memory recovery. Final native Windows, installer, performance and extended-session gates precede delivery. Physical lower-memory hardware remains an independent check. Focus Mode, debugger integration, learning progression and accessibility verification stay in later increments.

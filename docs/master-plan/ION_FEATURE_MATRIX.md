@@ -2,7 +2,7 @@
 
 ## Current accepted scope
 
-Updated through accepted checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c` and latest production correction `036781e7fe99be4480e5f0803fb6b22124be72a8`. Phase 0/1, editor/workspace milestones 2.1/2.2, LSP 2.3, Editor Essentials, C/C++ DAP 2.4 and the bounded 2.5 task-adapter foundation are accepted at their documented scopes. **Phase 2 remains incomplete.** Test Explorer 2.6 is paused/incomplete on a separate branch and is not included here. This matrix describes accepted development source, not an assertion that every published installer contains it.
+Phase 2 is complete at the documented editor, language, debugger, task and test-adapter scopes. Later development increments have their own focused verification. See the [implementation tracker](ION_IMPLEMENTATION_TRACKER.md) for the current branch and evidence.
 
 Evidence and limits: [tracker](ION_IMPLEMENTATION_TRACKER.md), [editor/workspaces](ION_PHASE_2_EDITOR_EXCELLENCE.md), [LSP](ION_PHASE_2_LANGUAGE_SERVICES.md), [DAP](ION_PHASE_2_DEBUGGER.md), [tasks](ION_PHASE_2_BUILD_TASKS.md). Counts and measurements in older catalog/feature audits remain historical unless those reports explicitly reran them; no new runtime measurements were performed for this documentation update.
 
@@ -63,7 +63,7 @@ Status vocabulary is deliberately strict:
 | Reviewed server-provided workspace edits | Verified at text-edit scope | Main-owned expiring review; canonical-root, dirty-buffer, revision/hash, overlap, link and removed-root checks before safe publication. Server requests do not grant filesystem authority or automatic approval. |
 | C/C++ debugger / DAP | Verified at Milestone 2.4 scope | Lazy trusted clang/lldb-dap path with reviewed saved-source launch, breakpoints, call stack, scopes, variables, watches/evaluate, stepping, continue/restart/stop and owned cleanup. Python/Java debugging, attach, remote and advanced breakpoint types remain unimplemented. |
 | Build/task adapter foundation | Verified at bounded scope | Lazy Run Task picker; static top-level Make/CMake/npm/Python/Maven/Gradle/Cargo/Go manifest inspection, profile records and bounded sequential graph. Native execution/Stop/cleanup proves npm; remaining adapter journeys, workspace task definitions and safe problem matching stay open. |
-| General Test Explorer | Paused / incomplete | Phase 2.6 work is isolated on its unfinished branch and excluded from this checkpoint. Existing saved Project Tests and historical C console evidence remain available. Framework discovery/tree/history and debugging tests are not accepted features. |
+| General Test Explorer | Verified at adapter scope | Reviewed pytest, JUnit Jupiter and Vitest discovery, runs, cancellation and backup-safe history. macOS and Windows exercised the native foundation. Archived cases remain inspectable after rediscovery. [Evidence](ION_PHASE_2_TEST_EXPLORER.md) |
 | Problems panel | Verified at runner scope | Compiler/run diagnostics and Learning Lens links. Cross-language live problem aggregation is incomplete. |
 
 ## Git, GitHub, updates, and distribution
@@ -71,12 +71,12 @@ Status vocabulary is deliberately strict:
 | Capability | Status | Current scope and next gap |
 | --- | --- | --- |
 | Git status/diff/stage/unstage/commit | Verified | Explicit, short-lived commands; scoped root; bounded output; secure index handling. |
-| Git history/blame/branches/stash | Missing | No complete user-facing workflows. |
+| Git history/blame/branches/stash | Verified at browse scope | Commit history, committed line history, local branch/tag creation, and comparisons for branches, the latest stash and cached remote refs. [Evidence and limits](ION_PHASE_3_SOURCE_CONTROL.md) |
 | Fetch/pull/push | Missing | Remote credential and conflict model must be designed first. |
-| Merge/rebase/conflict editor | Missing | No three-way merge UI or safe operation state machine. |
-| GitHub sign-in/repos/issues/PRs | Missing | Requires official OAuth/device flow and token storage review. |
+| Merge/rebase/conflict editor | Incomplete | Conflict preview shows the index sides. Three-way editing, merge/rebase execution and recovery remain open. |
+| GitHub sign-in/repos/issues/PRs | Incomplete | Account, open issues and pull requests use the official CLI keyring. Public repositories can be cloned anonymously into a reviewed destination. |
 | GitHub Copilot sign-in/chat/agent | External | An official Copilot SDK now exists for custom applications, but Ion has no implementation or authenticated acceptance. Authentication, subscription/licensing, bundled runtime cost, permissions, and shutdown behavior require a proof of concept. [Official SDK](https://github.com/github/copilot-sdk) · [GitHub usage overview](https://docs.github.com/en/copilot/get-started/where-to-use-github-copilot) |
-| Copilot inline completion | Official protocol available. Ion integration pending. | GitHub documents third-party inline completions and device sign-in. Signed-out protocol testing and authenticated editor acceptance are separate. [Language Server SDK](https://github.com/github/copilot-language-server-release#inline-completions). |
+| Copilot inline completion | Native signed-out probe | The pinned official language server advertises inline completion on macOS ARM64. Authenticated editor acceptance remains open. [Evidence](ION_PHASE_6_COPILOT_FEASIBILITY.md) |
 | Update check/download | Incomplete | GitHub release comparison/checksum flow exists; signing/notarization, exact-candidate upgrade/rollback, and cross-platform acceptance remain release gates. |
 | macOS installer | External | Builds exist; trusted public distribution requires Apple Developer ID/notarization credentials. |
 | Windows installer | Incomplete | Build and native CI exist; exact-current-candidate upgrade/rollback acceptance remains required. |
@@ -91,14 +91,14 @@ Status vocabulary is deliberately strict:
 | Local learning history | Verified | Encountered/resolved diagnostic events with conservative mastery semantics. |
 | Practice browser | Verified at local scope | Topic/difficulty filtering and 27 bundled challenges. |
 | Multi-language local samples | Verified at adapter scope | C/C++/Java/Python/JavaScript adapters with installed runtimes. |
-| Competitive-programming judge | Missing | No large hidden-test corpus, scoring, constraints engine, submissions, or isolation-grade sandbox. |
+| Offline practice judge | Verified at built-in catalog scope | Reviewed Local Submit, separate case data and saved verdicts for 27 built-in challenges. Competitive grading and stronger isolation remain open. [Evidence](ION_PHASE_4_PRACTICE.md) |
 | LeetCode account/submission integration | Unsupported | No official integration has been verified; premium login scraping is not acceptable. |
-| Algorithm visualizer | Missing | No production visualization engine or trace protocol. |
-| Adaptive learning path | Missing | History exists, but no evidence-based personalization engine. |
+| Algorithm visualizer | First offline walkthrough | Practice steps through binary search for found and absent targets. Other algorithms and a general trace protocol remain open. [Evidence](ION_PHASE_8_COACHING.md) |
+| Adaptive learning path | Incomplete | Offline Practice Progress suggests a next challenge using readable local records. Assessment and adaptive lesson paths remain open. [Evidence](ION_PHASE_8_COACHING.md) |
 | Projects/roadmaps/test evidence | Verified at local scope | Versioned specifications, milestones, reviewed tests, historical evidence, manual/verified status. |
 | Project Lens planning | Incomplete | Optional reviewed provider workflow exists; authenticated live-provider breadth and multi-provider acceptance are incomplete. |
 | AI provider vault | Incomplete | OS-backed credential storage and explicit provider requests exist. Universal streaming/tool permission architecture is not complete. |
-| Ask/Tutor/Edit/Agent modes | Missing | Tutor/planning pieces exist, but the requested four-mode cross-workspace system is not implemented. |
+| Ask/Tutor/Edit/Agent modes | Incomplete | Ask Ion, Tutor and reviewed Project Lens explanations use one-use consent. Edit and Agent modes remain open. [Ask Ion](ION_PHASE_7_ASK_ION.md) |
 | Offline local AI model | External | No model is bundled or downloaded; future support must be opt-in and measured. |
 | AI code completion by default | Deferred | Conflicts with Ion's learning-first principle. Any future completion must be explicit and separately scoped. |
 
@@ -116,9 +116,9 @@ Status vocabulary is deliberately strict:
 | Built-in themes | Verified | 16 declarative themes plus automatic system mode. |
 | Theme import/export/create | Verified | Validated data-only definitions; active palette loaded, metadata registry retained. |
 | Theme scale benchmarks | Verified historically | 5/20/100-theme and repeated-switch evidence exists historically; current exact candidate should retain regression coverage. |
-| Extension API/marketplace | Missing | Learning packs/themes are data packages, not arbitrary code extensions. |
+| Extension API/marketplace | Incomplete | Declarative learning packs and themes can be installed. Reviewed pack updates bind to the installed version and contents. An executable extension host remains open. [Evidence](ION_PHASE_9_LEARNING_PACKS.md) |
 | Remote development/containers/SSH | Deferred | Major security/resource/product surface; not Phase 1–2. |
 
 ## Remaining ordering and boundaries
 
-Phase 1's defined hosted acceptance passed before professional-tooling development. Phase 2.5's adapter foundation is accepted, but broader task requirements and Phase 2.6 remain incomplete. The user paused Test Explorer development; no resumed feature work is implied by this report. Later AI, Copilot, extension and remote-development proposals remain unimplemented or limited exactly as described above. Release/installation authority and exact-artifact verification remain separate from source-milestone acceptance.
+Phase 2 is complete for its documented adapters. Later milestones use focused correctness and data-safety verification before checkpointing. The tracker records what has passed locally and on hosted native runners. Extended performance, stability, accessibility and native qualification are scheduled for Phase 10.
