@@ -266,6 +266,8 @@ export async function stubDialogs(app, choices) {
     dialog.showSaveDialog = async () => ({ canceled: !data.save, filePath: data.save })
     dialog.showMessageBox = async (_window, options) => {
       const buttons = options?.buttons ?? []
+      globalThis.ionMessageBoxReviews ??= []
+      globalThis.ionMessageBoxReviews.push({ buttons, defaultId: options?.defaultId, cancelId: options?.cancelId, message: options?.message })
       const runIndex = buttons.findIndex((label) => /^Run(?: (?:C )?Program| (?:Maven|Gradle|C\/C\+\+) Build)?$/i.test(label))
       const testIndex = buttons.findIndex((label) => /^(Approve|Run) Test$/.test(label))
       const automaticIndex = buttons.indexOf('Enable Automatic Test')
@@ -274,10 +276,13 @@ export async function stubDialogs(app, choices) {
       const debugIndex = buttons.indexOf('Start Debugging')
       const taskIndex = buttons.indexOf('Run Task')
       const frameworkTestIndex = buttons.findIndex(label => label === 'Discover Tests' || label === 'Run Tests')
+      const switchIndex = buttons.indexOf('Switch Branch')
+      const fetchIndex = buttons.indexOf('Fetch Branch')
       const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
         : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
         : debugIndex >= 0 && data.allowDebug ? debugIndex : taskIndex >= 0 && data.allowTask ? taskIndex
         : frameworkTestIndex >= 0 && data.allowFrameworkTests ? frameworkTestIndex
+        : switchIndex >= 0 && data.allowBranchSwitch ? switchIndex : fetchIndex >= 0 && data.allowFetch ? fetchIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)
       return { response, checkboxChecked: false }

@@ -1736,6 +1736,28 @@ function registerIpc(): void {
     useSourceControl(target, root, (service, path) => service.createTag(path, request)))
   handle('source-control-create-branch', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.createBranch(path, request)))
+  handle('source-control-switch-branch', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.switchBranch(path, request, async (review, signal) => {
+      const answer = await dialog.showMessageBox(target, {
+        signal, type: 'question', buttons: ['Cancel', 'Switch Branch'], cancelId: 0, defaultId: 0,
+        message: 'Switch to local branch ' + review.target + '?',
+        detail: review.current + ' (' + review.from.slice(0, 12) + ') → ' + review.target + ' (' + review.to.slice(0, 12)
+          + '). Ion will verify matching file trees and update only the checkout reference. Staged files and working files are preserved.',
+      })
+      return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
+    })))
+  handle('source-control-fetch-public', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.fetchPublic(path, request, [...files.rootPaths],
+      safeMutations, async (review, signal) => {
+        const answer = await dialog.showMessageBox(target, {
+          signal, type: 'question', buttons: ['Cancel', 'Fetch Branch'], cancelId: 0, defaultId: 0,
+          message: 'Fetch ' + review.branch + ' from ' + review.repository + '?',
+          detail: 'Contact github.com over anonymous HTTPS and update the local cached ref ' + review.remote + '/' + review.branch
+            + ' from ' + review.previous.slice(0, 12)
+            + ' if it can advance. Your active branch, working files and staged changes are preserved.',
+        })
+        return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
+      })))
   handle('source-control-conflict', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.conflict(path, request)))
   handle('source-control-cancel-blame', async (target, root, path) => {
@@ -1759,6 +1781,18 @@ function registerIpc(): void {
       ...overview.issues.map(item => item.url),
     ])
     return overview
+  }))
+  handle('source-control-github-pull-request', (target, root, value) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    const pages = session.gitHubPages
+    const { checkPullRequestRequest, pullRequestUrl } = await import('./source-control/github-repository')
+    const request = checkPullRequestRequest(value)
+    const url = pullRequestUrl(request)
+    const isReviewed = () => session === sourceControl && session.gitHubPages === pages && Boolean(pages?.has(url))
+    if (!isReviewed()) throw new Error('Load the pull request list before opening its details.')
+    const result = await service.githubPullRequest(path, request, [...files.rootPaths])
+    if (!isReviewed() || result.url !== url) throw new Error('The reviewed GitHub list changed.')
+    return result
   }))
   handle('source-control-github-clone', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!

@@ -9,6 +9,7 @@ import { browseLocalRefs } from './browse'
 import type { SourceControlComparisonRequest } from '../../shared/source-control'
 import { commonGitDirectory, withFrozenConfiguration } from './configuration'
 import { withIndexTransaction } from './index-transaction'
+import { verifyCachedRemoteBranch } from './remote-branches'
 import { safeGitPath } from './status'
 import { reviewedRemotes } from './remotes'
 
@@ -141,10 +142,32 @@ interface GitOptions {
 
 const objectId = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
 
-function plumbingCommand(args: string[]): boolean {
+function switchTransaction(input: string): boolean {
+  const lines = input.split('\n')
+  if (lines.length !== 8 || lines[0] !== 'start' || lines[1] !== 'option no-deref'
+    || lines[3] !== 'option no-deref' || lines[5] !== 'prepare' || lines[6] !== 'commit' || lines[7] !== '') return false
+  const update = /^symref-update HEAD refs\/heads\/([^\s]+) oid ([0-9a-f]{40}|[0-9a-f]{64})$/.exec(lines[2])
+  const target = /^verify refs\/heads\/([^\s]+) ([0-9a-f]{40}|[0-9a-f]{64})$/.exec(lines[4])
+  if (!update || !target || update[1] !== target[1] || update[1] === '@' || update[2].length !== target[2].length) return false
+  const safeBranch = (name: string) => name.length <= 1024 && name !== '@' && !name.startsWith('-')
+    && !/[\x00-\x20\x7f~^:?*\[\\<>"|]/u.test(name) && !name.includes('..') && !name.includes('@{')
+    && name.split('/').every(part => part && !part.startsWith('.') && !part.endsWith('.') && !/\.lock$/i.test(part))
+  return safeBranch(update[1])
+}
+
+function plumbingCommand(args: string[], input = ''): boolean {
+  const fetchedRef = args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
+    && args[3] === 'fetch: updated in Ion' && args[4].startsWith('refs/remotes/')
+    && objectId.test(args[5]) && objectId.test(args[6]) && args[5].length === args[6].length
+    && args[5] !== args[6] && args[6] !== '0'.repeat(args[6].length)
+    && args[4].slice('refs/remotes/'.length).split('/').every(part => part && !part.startsWith('.')
+      && !part.endsWith('.') && !/\.lock$/i.test(part) && !/[\x00-\x20\x7f~^:?*\[\\<>"|]/u.test(part)
+      && !part.includes('..') && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part))
   switch (args[0]) {
-    case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
     case 'rev-parse': return args.join(' ') === 'rev-parse --verify HEAD'
+      || args.length === 3 && args[1] === '--verify' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})\^\{tree\}$/.test(args[2])
+    case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
+      || args.length === 3 && args[1] === '-t' && objectId.test(args[2])
     case 'ls-tree': return args.length === 5 && args[1] === '-z' && objectId.test(args[2]) && args[3] === '--' && safeGitPath(args[4])
     case 'ls-files': return args.length === 5 && (args[1] === '--unmerged' || args[1] === '--stage') && args[2] === '-z' && args[3] === '--' && safeGitPath(args[4])
     case 'read-tree': return args.length === 2 && (args[1] === '--empty' || objectId.test(args[1]))
@@ -157,10 +180,11 @@ function plumbingCommand(args: string[]): boolean {
       && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
     case 'symbolic-ref': return args.join(' ') === 'symbolic-ref --quiet --no-recurse HEAD'
     case 'worktree': return args.length === 4 && args[1] === 'list' && args[2] === '--porcelain' && args[3] === '-z'
-    case 'update-ref': return args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
+    case 'update-ref': return fetchedRef || args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
       && objectId.test(args[5]) && objectId.test(args[6])
       && (args[4].startsWith('refs/heads/') || args[4].startsWith('refs/tags/')
         && args[3] === 'tag: created in Ion' && args[6] === '0'.repeat(args[5].length))
+      || args.length === 2 && args[1] === '--stdin' && switchTransaction(input)
     default: return false
   }
 }
@@ -188,7 +212,7 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
     return withProjectedRepository(repository, signal, (projected, environment) => invokeGit({ ...projected, root: projected.directory },
       signal, args, options, { ...environment, GIT_ATTR_NOSYSTEM: '1' }), 'committed-history')
   }
-  if (!plumbingCommand(args)) throw new Error('This Git operation is outside Ion Source Control.')
+  if (!plumbingCommand(args, options.input)) throw new Error('This Git operation is outside Ion Source Control.')
   if (!options.indexFile && ['read-tree', 'update-index', 'restore', 'write-tree'].includes(args[0])) {
     return withIndexTransaction(repository.directory, signal, indexFile =>
       invokeGit(repository, signal, args, { ...options, indexFile }))
@@ -210,6 +234,20 @@ export function browseRepository(repository: Repository, signal: AbortSignal) {
     signal.throwIfAborted()
     return invokeGit(projected, signal, args, { limit: 128 * 1024, allowTruncation: true }, environment)
   }, commonGitDirectory(repository), reviewedRemotes(configuration)))
+}
+
+/** Recheck only the reviewed public remote and exact cached branch before a fetch. */
+export function verifyFetchSelection(repository: Repository, signal: AbortSignal,
+  selection: { repository: string; remote: string; branch: string; previous: string }): Promise<boolean> {
+  return withProjectedRepository(repository, signal, async (projected, environment, _verify, configuration) => {
+    const remotes = reviewedRemotes(configuration).remotes
+    if (!remotes.some(row => row.name === selection.remote && row.repository === selection.repository)) return false
+    const ref = selection.remote + '/' + selection.branch
+    return verifyCachedRemoteBranch(async args => {
+      signal.throwIfAborted()
+      return invokeGit(projected, signal, args, { limit: 4096 }, environment)
+    }, commonGitDirectory(repository), ref, selection.previous)
+  })
 }
 
 export async function compareRepository(repository: Repository, signal: AbortSignal, request: SourceControlComparisonRequest) {

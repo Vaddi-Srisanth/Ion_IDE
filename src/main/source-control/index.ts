@@ -1,12 +1,15 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
+import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff,
+  SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubPullRequest,
+  SourceControlGitHubPullRequestRequest, SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
 import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
-  type Repository, UnavailableDiff } from './repository'
+  type Repository, UnavailableDiff, verifyFetchSelection } from './repository'
 import { parseStatus, safeGitPath, type ParsedStatus, type StatusEntry } from './status'
 import { blob, checkLines, textLimit } from './text-preview'
+import type { RemoteFetchDependencies } from './remote-fetch'
 
 const statusLimit = 512 * 1024
 
@@ -64,14 +67,15 @@ export class SourceControlService {
   private activeBlame?: { path: string; controller: AbortController }
   private githubRead?: AbortController
   private clone?: { controller: AbortController; done: Promise<string> }
-  private write?: Promise<void>
+  private write?: Promise<unknown>
   private writeController?: AbortController
   private snapshot?: Snapshot
   private reviewedRefs?: {
-    root: string; head?: string; branches: Map<string, string>; cachedRemoteBranches: Map<string, string>; stash?: string
+    root: string; head?: string; branches: Map<string, string>; cachedRemoteBranches: Map<string, string>
+    remotes: Map<string, string | null>; stash?: string
   }
 
-  constructor(private readonly runGit: typeof git = git) {}
+  constructor(private readonly runGit: typeof git = git, private readonly remoteFetchDependencies: RemoteFetchDependencies = {}) {}
 
   async status(root: string): Promise<SourceControlStatus> {
     const controller = this.beginRead()
@@ -111,7 +115,8 @@ export class SourceControlService {
       controller.signal.throwIfAborted()
       this.reviewedRefs = {
         root, head: result.commits[0]?.oid, branches: new Map(result.branches.map(ref => [ref.name, ref.oid])),
-        cachedRemoteBranches: new Map(result.cachedRemoteBranches.map(ref => [ref.name, ref.oid])), stash: result.stash?.oid,
+        cachedRemoteBranches: new Map(result.cachedRemoteBranches.map(ref => [ref.name, ref.oid])),
+        remotes: new Map(result.remotes.map(remote => [remote.name, remote.repository])), stash: result.stash?.oid,
       }
       return result
     } finally {
@@ -144,16 +149,31 @@ export class SourceControlService {
     }
   }
 
-  async github(root: string, selected: unknown, workspaceRoots: readonly string[]): Promise<SourceControlGitHub> {
+  github(root: string, selected: unknown, workspaceRoots: readonly string[]): Promise<SourceControlGitHub> {
+    return this.readGitHub(root, async signal => {
+      const { githubOverview } = await import('./github')
+      signal.throwIfAborted()
+      return githubOverview(root, workspaceRoots, selected, signal)
+    })
+  }
+
+  githubPullRequest(root: string, request: SourceControlGitHubPullRequestRequest,
+    workspaceRoots: readonly string[]): Promise<SourceControlGitHubPullRequest> {
+    return this.readGitHub(root, async signal => {
+      const { githubPullRequest } = await import('./github')
+      signal.throwIfAborted()
+      return githubPullRequest(root, workspaceRoots, request, signal)
+    })
+  }
+
+  private async readGitHub<T>(root: string, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
     const { repository } = this.requireSnapshot(root)
     this.githubRead?.abort()
     const controller = new AbortController()
     this.githubRead = controller
     try {
       await this.verifyRepository(repository, controller.signal)
-      const { githubOverview } = await import('./github')
-      controller.signal.throwIfAborted()
-      const result = await githubOverview(root, workspaceRoots, selected, controller.signal)
+      const result = await operation(controller.signal)
       controller.signal.throwIfAborted()
       return result
     } finally {
@@ -182,6 +202,69 @@ export class SourceControlService {
 
   createBranch(root: string, value: unknown) { return this.createRef(root, value, 'branch') }
   createTag(root: string, value: unknown) { return this.createRef(root, value, 'tag') }
+
+  switchBranch(root: string, value: unknown,
+    approve: (review: SourceControlSwitchRequest, signal: AbortSignal) => Promise<boolean>): Promise<boolean> {
+    const { repository, status } = this.requireSnapshot(root)
+    const request = requestObject(value)
+    if (Array.isArray(value) || Object.keys(request).length !== 4
+      || !['current', 'target', 'from', 'to'].every(key => Object.hasOwn(request, key))) {
+      throw new Error('Choose a reviewed local branch.')
+    }
+    const { current, target, from, to } = request
+    const refs = this.reviewedRefs
+    if (!refs || refs.root !== root || status.detached || status.unborn || status.truncated || typeof current !== 'string'
+      || typeof from !== 'string' || !gitObjectId.test(from) || from !== status.head || from !== refs.head
+      || current !== status.branch || typeof target !== 'string' || target === current
+      || typeof to !== 'string' || !gitObjectId.test(to) || refs.branches.get(target) !== to) {
+      throw new Error('Refresh the repository browser and choose a reviewed local branch.')
+    }
+    const review = { current, target, from, to }
+    return this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      if (!await approve(review, signal)) return false
+      await this.verifyRepository(repository, signal)
+      const { switchBranchAtSameTree } = await import('./switch-branch')
+      await switchBranchAtSameTree(repository, signal, review, this.runGit)
+      this.reviewedRefs = undefined
+      return true
+    })
+  }
+
+  fetchPublic(root: string, value: unknown, workspaceRoots: readonly string[], mutations: FileMutations,
+    approve: (review: SourceControlFetchRequest, signal: AbortSignal) => Promise<boolean>): Promise<SourceControlFetchResult | null> {
+    const { repository } = this.requireSnapshot(root)
+    const request = requestObject(value)
+    if (Array.isArray(value) || Object.keys(request).length !== 4
+      || !['repository', 'remote', 'branch', 'previous'].every(key => Object.hasOwn(request, key))) {
+      throw new Error('Choose a reviewed cached branch on a GitHub remote.')
+    }
+    const { repository: slug, remote, branch, previous } = request
+    const refs = this.reviewedRefs
+    if (!refs || refs.root !== root || typeof slug !== 'string' || typeof remote !== 'string'
+      || refs.remotes.get(remote) !== slug || typeof branch !== 'string' || typeof previous !== 'string'
+      || !gitObjectId.test(previous) || refs.cachedRemoteBranches.get(remote + '/' + branch) !== previous) {
+      throw new Error('Refresh the repository browser and choose a cached branch on a reviewed GitHub remote.')
+    }
+    // Ref names may include slashes. Refuse a cached name that could belong to a more specific configured remote.
+    if ([...refs.remotes.keys()].some(name => name.length > remote.length && (remote + '/' + branch).startsWith(name + '/'))) {
+      throw new Error('This cached Git branch has an ambiguous remote name.')
+    }
+    const review = { repository: slug, remote, branch, previous }
+    return this.mutate(async signal => {
+      const validate = async () => {
+        await this.verifyRepository(repository, signal)
+        if (!await verifyFetchSelection(repository, signal, review)) {
+          throw new Error('The cached branch or remote changed. Refresh and review it again.')
+        }
+      }
+      if (!await approve(review, signal)) return null
+      const { fetchPublicGitHub } = await import('./remote-fetch')
+      const result = await fetchPublicGitHub(repository, workspaceRoots, review, signal, validate, mutations, this.remoteFetchDependencies)
+      this.reviewedRefs = undefined
+      return result
+    }, { preserveSnapshot: true })
+  }
 
   private createRef(root: string, value: unknown, kind: 'branch' | 'tag'): Promise<void> {
     const { repository, status } = this.requireSnapshot(root)
@@ -368,14 +451,15 @@ export class SourceControlService {
     if (!actual || relative(actual, repository.directory)) throw new Error('The repository moved. Refresh before continuing.')
   }
 
-  private mutate(operation: (signal: AbortSignal) => Promise<void>, { preserveSnapshot = false } = {}): Promise<void> {
+  private mutate<T>(operation: (signal: AbortSignal) => Promise<T>, { preserveSnapshot = false } = {}): Promise<T> {
     if (this.write) throw new Error('Another Git operation is running.')
     this.read?.abort()
     const current = this.snapshot
     const controller = new AbortController()
     this.writeController = controller
-    const pending = operation(controller.signal).then(() => {
-      if (!preserveSnapshot && this.snapshot === current) this.snapshot = undefined
+    const pending = operation(controller.signal).then(result => {
+      if (!preserveSnapshot && result !== false && result !== null && this.snapshot === current) this.snapshot = undefined
+      return result
     }).finally(() => {
       this.write = undefined
       this.writeController = undefined

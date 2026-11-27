@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison, SourceControlComparisonRequest } from '../../shared/source-control'
+import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison, SourceControlComparisonRequest,
+  SourceControlFetchRequest, SourceControlSwitchRequest } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 
@@ -14,11 +15,12 @@ const empty: Record<View, string> = {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
-export default function RepositoryBrowser({ bridge, busy, perform, currentBranch }: {
+export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus }: {
   bridge: SourceControlBridge
   busy: boolean
   perform(task: () => Promise<void>): Promise<void>
   currentBranch?: string
+  refreshStatus(): Promise<void>
 }) {
   const [state, setState] = useState<State>()
   const [view, setView] = useState<View>('commits')
@@ -64,6 +66,30 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
+  function switchBranch(selection: SourceControlSwitchRequest) {
+    void perform(async () => {
+      const id = request.current
+      setFeedback(undefined)
+      if (!await bridge.switchBranch(selection) || request.current !== id) return
+      await refreshStatus()
+      if (request.current !== id) return
+      setFeedback({ message: 'Switched to ' + selection.target + '.' })
+      await read()
+    })
+  }
+
+  function fetchPublic(selection: SourceControlFetchRequest) {
+    void perform(async () => {
+      const id = request.current
+      setFeedback(undefined)
+      const result = await bridge.fetchPublic(selection)
+      if (!result || request.current !== id) return
+      setFeedback({ message: selection.remote + '/' + selection.branch
+        + (result.changed ? ' advanced to ' + result.oid.slice(0, 10) + '.' : ' is already up to date.') })
+      await read()
+    })
+  }
+
   function toggle() {
     if (!state) { load(); return }
     request.current++
@@ -90,7 +116,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchPublic }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -113,15 +139,19 @@ type ComparisonProps = {
   view: 'branches' | 'cachedRemoteBranches' | 'stash'; bridge: SourceControlBridge; data: SourceControlBrowse; busy: boolean; currentBranch?: string
   perform(task: () => Promise<void>): Promise<void>
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
+  switchBranch(selection: SourceControlSwitchRequest): void
+  fetchPublic(selection: SourceControlFetchRequest): void
 }
 
-function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef }: ComparisonProps) {
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchPublic }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
   const head = data.commits[0]?.oid
   const cached = view === 'cachedRemoteBranches'
   const offlineNote = cached && <p className="source-control-empty">Comparisons use the Git refs stored on this computer and run offline.</p>
+  const remote = cached && preview ? data.remotes.filter(row => preview.label.startsWith(row.name + '/'))
+    .sort((left, right) => right.name.length - left.name.length)[0] : undefined
   function compare(kind: SourceControlComparisonRequest['kind'], name: string, to: string) {
     if (!head) return
     void perform(async () => {
@@ -147,7 +177,22 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
     {offlineNote}
     {preview.kind === 'loading' && <p className="source-control-empty" role="status">Comparing revisions…</p>}
     {preview.kind === 'error' && <p className="source-control-notice" role="alert">{preview.message}</p>}
-    {preview.kind === 'ready' && <ComparisonResult result={preview.result}/>}
+    {preview.kind === 'ready' && <>
+      <ComparisonResult result={preview.result}/>
+      {view === 'branches' && currentBranch && currentBranch !== preview.label && (
+        !preview.result.truncated && !preview.result.changes.length
+          ? <div className="git-browser-create"><button type="button" className="button" disabled={busy}
+              onClick={() => switchBranch({ current: currentBranch, target: preview.label, from: preview.result.from, to: preview.result.to })}>
+              Review switch…
+            </button></div>
+          : <p className="source-control-empty">Ion can switch here when both branches have identical file trees.</p>)}
+      {remote?.repository && <div className="git-browser-create">
+        <p>Fetch one public branch from {remote.repository} and update the local cache.</p>
+        <button type="button" className="button" disabled={busy} onClick={() => fetchPublic({
+          repository: remote.repository!, remote: remote.name, branch: preview.label.slice(remote.name.length + 1), previous: preview.result.to,
+        })}>Review fetch…</button>
+      </div>}
+    </>}
   </section>
 
   const stash = data.stash

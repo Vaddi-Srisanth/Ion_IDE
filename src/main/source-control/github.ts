@@ -1,17 +1,18 @@
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
-import type { SourceControlGitHub } from '../../shared/source-control'
+import type { SourceControlGitHub, SourceControlGitHubPullRequest } from '../../shared/source-control'
 import { isWithin } from '../files'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { execute } from '../runner'
 import { windowsSystemDirectory } from '../windows-process'
-import { accountName, checkRepository } from './github-repository'
+import { accountName, checkPullRequestRequest, checkRepository, pullRequestUrl } from './github-repository'
 export { checkRepository } from './github-repository'
 
 const pageSize = 20
 const outputLimit = 64 * 1024
 const requestMs = 12_000
+const bodyLimit = 8192
 
 async function trustedGh(root: string, roots: readonly string[], signal: AbortSignal) {
   const paths = await commandPaths(root)
@@ -34,6 +35,26 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+/** GitHub descriptions are untrusted text and can contain accidentally pasted credentials. */
+function redactHostedText(value: string): string {
+  return value.replace(/\r\n?/g, '\n')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g, '')
+    .replace(/-----BEGIN [A-Z0-9 ]{0,48}PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]{0,48}PRIVATE KEY-----|$)/gi, '[redacted private key]')
+    .replace(/\b(?:https?|ssh|git\+https?):\/\/[^\s"'<>/@]+@[^\s"'<>]+/gi, '[redacted URL]')
+    .replace(/(\bAuthorization\s*:\s*)(?:Bearer|Basic)\s+[\w.+/=-]+/gi, '$1[redacted authorization]')
+    .replace(/\bBearer\s+[\w.+/=-]+/gi, '[redacted authorization]')
+    .replace(/\b(?:gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]{8,}/g, '[redacted token]')
+    .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, '[redacted key]')
+    .replace(/([\w.-]*(?:token|secret|password|passwd|api[_-]?key|authorization)[\w.-]*["']?\s*[:=]\s*)(?!\[redacted\b)(?:"[^"\n]*"|'[^'\n]*'|[^\s;]+)/gi, '$1[redacted]')
+}
+
+function displayLine(value: unknown, limit: number): string {
+  if (typeof value !== 'string' || !value.trim() || value.length > 2048) throw new Error('GitHub returned invalid display text.')
+  const label = Array.from(redactHostedText(value).replace(/[\n\t]/g, ' ').trim()).slice(0, limit).join('')
+  if (!label) throw new Error('GitHub returned empty display text.')
+  return label
+}
+
 function items(value: unknown, repository: string, segment: 'pull' | 'issues') {
   if (!Array.isArray(value) || value.length > pageSize) throw new Error('GitHub returned an unexpected number of items.')
   const seen = new Set<number>()
@@ -43,10 +64,8 @@ function items(value: unknown, repository: string, segment: 'pull' | 'issues') {
       || typeof title !== 'string' || !title.trim() || title.length > 2048 || state !== 'open') throw new Error('GitHub returned an invalid open item.')
     const link = 'https://github.com/' + repository + '/' + segment + '/' + number
     if (typeof url !== 'string' || url.toLowerCase() !== link.toLowerCase()) throw new Error('GitHub returned an item outside the requested repository.')
-    const label = Array.from(title.replace(/[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g, ' ').trim()).slice(0, 256).join('')
-    if (!label) throw new Error('GitHub returned an empty item title.')
     seen.add(number)
-    return { number, title: label, url: link }
+    return { number, title: displayLine(title, 256), url: link }
   })
 }
 
@@ -55,10 +74,11 @@ interface Dependencies {
   findGh?: typeof trustedGh
 }
 
+type Reader = (endpoint: string, filter: string, textBody?: boolean) => Promise<unknown>
+
 /** Explicit read only. GH_CONFIG_DIR isolates the endpoint, socket, aliases and pager. gh obtains its own credential from the OS keyring. */
-export async function githubOverview(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
-  dependencies: Dependencies = {}): Promise<SourceControlGitHub> {
-  const repository = checkRepository(input)
+async function withGitHubReader<T>(root: string, workspaceRoots: readonly string[], repository: string, signal: AbortSignal,
+  dependencies: Dependencies, read: (get: Reader) => Promise<T>): Promise<T> {
   signal.throwIfAborted()
   if (!isAbsolute(root) || !workspaceRoots.includes(root)) throw new Error('Choose an open workspace root.')
   const tool = await (dependencies.findGh ?? trustedGh)(root, workspaceRoots, signal)
@@ -76,12 +96,13 @@ export async function githubOverview(root: string, workspaceRoots: readonly stri
       GH_CONFIG_DIR: scratch, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1',
       GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1', GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: join(scratch, 'empty-gitconfig'), GIT_TERMINAL_PROMPT: '0', GIT_CEILING_DIRECTORIES: temp }
-    async function get(endpoint: string, filter: string): Promise<unknown> {
+    async function get(endpoint: string, filter: string, textBody = false): Promise<unknown> {
       signal.throwIfAborted()
       if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root) || workspaceRoots.some(other => isWithin(other, tool))) {
         throw new Error('The installed GitHub CLI changed. Review the repository again.')
       }
-      const result = await (dependencies.run ?? execute)(tool, ['api', '--hostname', 'github.com', '--method', 'GET', '--jq', filter, endpoint],
+      const headers = textBody ? ['--header', 'Accept: application/vnd.github.text+json'] : []
+      const result = await (dependencies.run ?? execute)(tool, ['api', '--hostname', 'github.com', '--method', 'GET', '--jq', filter, ...headers, endpoint],
         { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: outputLimit }, environment, splitOutput: true, collectOutput: false })
       signal.throwIfAborted()
       if (result.state === 'timeout') throw new Error('The GitHub read timed out.')
@@ -98,6 +119,16 @@ export async function githubOverview(root: string, workspaceRoots: readonly stri
       }
       try { return JSON.parse(result.stdout) as unknown } catch { throw new Error('GitHub returned an invalid response.') }
     }
+    return await read(get)
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
+}
+
+export async function githubOverview(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<SourceControlGitHub> {
+  const repository = checkRepository(input)
+  return withGitHubReader(root, workspaceRoots, repository, signal, dependencies, async get => {
     const account = record(await get('user', '{login}'))
     if (typeof account.login !== 'string' || !accountName.test(account.login)) throw new Error('GitHub returned an invalid account.')
     const fields = '{number,title,url:.html_url,state}'
@@ -109,7 +140,29 @@ export async function githubOverview(root: string, workspaceRoots: readonly stri
       '{incomplete:.incomplete_results,items:[.items[] | ' + fields + ']}'))
     if (response.incomplete !== false) throw new Error('GitHub returned an incomplete issue search. Try again.')
     return { repository, login: account.login, pullRequests, issues: items(response.items, repository, 'issues') }
-  } finally {
-    await rm(scratch, { recursive: true, force: true })
-  }
+  })
+}
+
+export async function githubPullRequest(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<SourceControlGitHubPullRequest> {
+  const request = checkPullRequestRequest(input)
+  return withGitHubReader(root, workspaceRoots, request.repository, signal, dependencies, async get => {
+    const description = '(.body_text // "")'
+    const fields = '{number,title,url:.html_url,state,merged,draft,author:.user.login,base:.base.ref,head:.head.label'
+      + ',body:' + description + '[:' + bodyLimit + '],bodyTruncated:(' + description + ' | length > ' + bodyLimit + ')}'
+    const result = record(await get('repos/' + request.repository + '/pulls/' + request.number, fields, true))
+    const { number, title, url, state, merged, draft, author, base, head, body, bodyTruncated } = result
+    const expectedUrl = pullRequestUrl(request)
+    if (number !== request.number || typeof url !== 'string' || url.toLowerCase() !== expectedUrl.toLowerCase()
+      || (state !== 'open' && state !== 'closed') || typeof merged !== 'boolean' || (merged && state !== 'closed')
+      || typeof draft !== 'boolean' || (author !== null && (typeof author !== 'string' || !accountName.test(author.replace(/\[bot\]$/, ''))))
+      || typeof body !== 'string' || body.length > bodyLimit * 2 || typeof bodyTruncated !== 'boolean') {
+      throw new Error('GitHub returned invalid pull request details.')
+    }
+    const cleanBody = redactHostedText(body)
+    const characters = Array.from(cleanBody)
+    return { number: request.number, title: displayLine(title, 256), url: expectedUrl, state: merged ? 'merged' : state,
+      draft, author, base: displayLine(base, 160), head: displayLine(head, 160), body: characters.slice(0, bodyLimit).join('').trim(),
+      bodyTruncated: bodyTruncated || characters.length > bodyLimit }
+  })
 }

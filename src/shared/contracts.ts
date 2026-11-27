@@ -199,12 +199,15 @@ export interface IonBridge {
   sourceControl: {
     createTag(root: string, request: Parameters<SourceControlBridge['createTag']>[0]): Promise<void>
     createBranch(root: string, request: Parameters<SourceControlBridge['createBranch']>[0]): Promise<void>
+    switchBranch(root: string, request: Parameters<SourceControlBridge['switchBranch']>[0]): ReturnType<SourceControlBridge['switchBranch']>
+    fetchPublic(root: string, request: Parameters<SourceControlBridge['fetchPublic']>[0]): ReturnType<SourceControlBridge['fetchPublic']>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>
     cancelBlame(root: string, path: string): Promise<void>
     blame(root: string, request: { path: string }): ReturnType<SourceControlBridge['blame']>
     previewComparison(root: string, request: Parameters<SourceControlBridge['previewComparison']>[0]): ReturnType<SourceControlBridge['previewComparison']>
     browse(root: string): ReturnType<SourceControlBridge['browse']>
     github(root: string, repository: string): ReturnType<SourceControlBridge['github']>
+    githubPullRequest(root: string, request: Parameters<SourceControlBridge['githubPullRequest']>[0]): ReturnType<SourceControlBridge['githubPullRequest']>
     cloneGitHub(root: string, repository: string): Promise<string | null>
     closeGitHub(root: string): Promise<void>
     openGitHubPage(root: string, url: string): Promise<void>

@@ -87,7 +87,7 @@ Existing Project Tests retain their established approvals, saved C console tests
 
 ## Phase 3: Git and GitHub
 
-Git's bounded main-process operations use structured arguments and a validated repository root. The browser covers history, committed line attribution, branches, tags, stash and cached remote comparisons. Working-tree branch mutations and remote transfers still need explicit state, cancellation and recovery.
+Git's bounded main-process operations use structured arguments and a validated repository root. The browser covers history, committed line attribution, branches, tags, stash and cached remote comparisons. A reviewed same-tree switch changes only `HEAD`; a selected public GitHub fetch updates only a fast-forward cached remote ref after validating the received pack. Different-tree checkout/merge, stash writes and authenticated pull/push still need explicit state, cancellation and recovery.
 
 GitHub reads reuse the official CLI and its keyring. A separate anonymous HTTPS clone flow uses reviewed destinations. Pull-request views consume remote data without executing repository content. See the [Git and GitHub checkpoint](ION_PHASE_3_SOURCE_CONTROL.md).
 

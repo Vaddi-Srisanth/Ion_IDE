@@ -19,6 +19,8 @@ await withScratch('git-desktop', async (scratch) => {
   await mkdir(profile)
   await writeFile(join(profile, 'preferences.json'), JSON.stringify({ version: 1, settings: { autoSave: false } }))
   const session = await launch(await artifact('dist'), profile)
+  let mainTrace = ''
+  session.appProcess.stderr?.on('data', chunk => { mainTrace = (mainTrace + chunk.toString()).slice(-12000) })
   const { page, app } = session
   try {
     await page.context().setOffline(true)
@@ -192,6 +194,63 @@ await withScratch('git-desktop', async (scratch) => {
     await panel.getByTestId('git-commit').click()
     await change(staged, file).waitFor({ state: 'detached' })
     assert.equal((await git(project.directory, 'log', '-1', '--format=%s')).trim(), 'Save reviewed changes')
+    const switchIndex = await readFile(join(project.directory, '.git', 'index'))
+    const switchFile = await readFile(project.changed)
+    await git(project.directory, 'branch', 'feature/same-tree')
+    await toggleBrowse.click()
+    await view.selectOption('branches')
+    const branches = browse.getByRole('list', { name: 'Local branches' })
+    const switchCompare = branches.getByRole('button', { name: 'Compare feature/same-tree with HEAD' })
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('button')].find(node => node.getAttribute('aria-label') === 'Compare feature/same-tree with HEAD')
+      return Boolean(button && !button.disabled)
+    })
+    await switchCompare.click()
+    const switchPreview = browse.getByRole('region', { name: 'Comparison preview' })
+    await switchPreview.getByRole('button', { name: 'Review switch…' }).waitFor()
+    await stubDialogs(app, { folder: project.directory, allowGit: true, allowBranchSwitch: true })
+    await switchPreview.getByRole('button', { name: 'Review switch…' }).click()
+    await panel.getByTestId('git-branch').getByText('feature/same-tree').waitFor()
+    await browse.getByText('Switched to feature/same-tree.', { exact: true }).waitFor()
+    await branches.getByText('feature/same-tree', { exact: true }).waitFor()
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('button')].find(node => node.getAttribute('aria-label') === 'Compare feature/same-tree with HEAD')
+      return Boolean(button && !button.disabled)
+    })
+    assert.equal((await git(project.directory, 'symbolic-ref', '--quiet', '--no-recurse', 'HEAD')).trim(), 'refs/heads/feature/same-tree')
+    assert.deepEqual(await readFile(join(project.directory, '.git', 'index')), switchIndex)
+    assert.deepEqual(await readFile(project.changed), switchFile)
+    const switchDialog = await app.evaluate(() => globalThis.ionMessageBoxReviews.at(-1))
+    assert.deepEqual(switchDialog.buttons, ['Cancel', 'Switch Branch'])
+    assert.equal(switchDialog.defaultId, 0)
+    assert.equal(switchDialog.cancelId, 0)
+
+    await view.selectOption('cachedRemoteBranches')
+    const cachedAfterSwitch = browse.getByRole('list', { name: 'Cached remote branches' })
+    await cachedAfterSwitch.getByRole('button', { name: 'Compare origin/main with HEAD' }).click()
+    const fetchPreview = browse.getByRole('region', { name: 'Comparison preview' })
+    const fetchButton = fetchPreview.getByRole('button', { name: 'Review fetch…' })
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('button')].find(node => node.textContent?.trim() === 'Review fetch…')
+      return Boolean(button && !button.disabled)
+    })
+    const reviewedDialogCount = await app.evaluate(() => globalThis.ionMessageBoxReviews.length)
+    await fetchButton.click()
+    const currentDialogCount = await app.evaluate(async count => {
+      const deadline = Date.now() + 8000
+      while (globalThis.ionMessageBoxReviews.length <= count && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+      return globalThis.ionMessageBoxReviews.length
+    }, reviewedDialogCount)
+    assert.equal(currentDialogCount, reviewedDialogCount + 1)
+    const fetchDialog = await app.evaluate(() => globalThis.ionMessageBoxReviews.at(-1))
+    assert.equal(await app.evaluate(() => globalThis.ionMessageBoxReviews.length), reviewedDialogCount + 1)
+    assert.deepEqual(fetchDialog.buttons, ['Cancel', 'Fetch Branch'])
+    assert.equal(fetchDialog.defaultId, 0)
+    assert.equal(fetchDialog.cancelId, 0)
+    assert.equal((await git(project.directory, 'rev-parse', 'refs/remotes/origin/main')).trim(), reviewedHead)
+    await toggleBrowse.click()
     assert.equal(await git(other.directory, 'status', '--porcelain=v2'), otherBefore)
     assert.equal(await readFile(project.changed, 'utf8'), project.modified)
     for (let cycle = 0; cycle < 4; cycle++) {
@@ -205,9 +264,9 @@ await withScratch('git-desktop', async (scratch) => {
     assert.equal(await page.locator('.monaco-diff-editor').count(), 0)
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
-    console.log('PASS native Git status, history, branches, tags, branch creation at reviewed HEAD, diff navigation, stage/unstage, commit, workspace isolation and cleanup')
+    console.log('PASS native Git history, same-tree branch switching, fetch cancellation, tags, diff, staging, commit and cleanup')
   } catch (error) {
-    console.error('Source Control fixture failed', error, session.errors)
+    console.error('Source Control fixture failed', error, session.errors, mainTrace)
     throw error
   } finally { await close(session) }
 })

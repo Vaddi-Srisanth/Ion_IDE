@@ -20,13 +20,43 @@ async function directory(path: string, previous?: BigIntStats) {
   return info
 }
 
-async function externalTool(path: string, roots: readonly string[]) {
+export async function externalGitTool(path: string, roots: readonly string[]) {
   if (!isAbsolute(path)) throw new Error('Install Git outside every open workspace.')
   const canonical = await realpath(path)
   if (roots.some(root => isWithin(root, path) || isWithin(root, canonical)) || !await executable(canonical, roots[0])) {
     throw new Error('Install Git outside every open workspace.')
   }
   return canonical
+}
+
+export async function anonymousGitEnvironment(git: string, workspaceRoots: readonly string[], neutral: string, scratch: string, template: string) {
+  const paths: string[] = []
+  for (const item of [dirname(git), ...(process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin'])]) {
+    const path = await realpath(item)
+    if (workspaceRoots.every(other => !isWithin(other, item) && !isWithin(other, path))) paths.push(path)
+  }
+  return { ...envFor(paths, neutral), HOME: neutral, USERPROFILE: neutral, CURL_HOME: neutral,
+    APPDATA: neutral, LOCALAPPDATA: neutral, XDG_CONFIG_HOME: neutral, GIT_CEILING_DIRECTORIES: scratch,
+    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_ATTR_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_ALLOW_PROTOCOL: 'https', GIT_TEMPLATE_DIR: template }
+}
+
+export async function anonymousGitHelper(execPath: string, workspaceRoots: readonly string[]) {
+  if (!isAbsolute(execPath) || /[\x00-\x1f]/.test(execPath)) throw new Error('The installed Git HTTPS helper is unavailable.')
+  const httpsHelper = join(execPath, process.platform === 'win32' ? 'git-remote-https.exe' : 'git-remote-https')
+  await externalGitTool(httpsHelper, workspaceRoots)
+  const helperDirectory = await realpath(execPath)
+  if (workspaceRoots.some(other => isWithin(other, execPath) || isWithin(other, helperDirectory))) {
+    throw new Error('Install Git outside every open workspace.')
+  }
+  return helperDirectory
+}
+
+export function anonymousHttpsOptions(template: string): string[] {
+  return ['--no-pager', '-c', 'credential.helper=', '-c', 'credential.interactive=false',
+    '-c', 'core.hooksPath=' + template, '-c', 'http.followRedirects=false', '-c', 'http.sslVerify=true',
+    '-c', 'protocol.allow=never', '-c', 'protocol.https.allow=always', '-c', 'transfer.bundleURI=false',
+    '-c', 'submodule.recurse=false', '-c', 'core.protectHFS=true', '-c', 'core.protectNTFS=true']
 }
 
 export async function clonePublicGitHub(ownerRepo: unknown, parent: string, root: string, workspaceRoots: readonly string[], signal: AbortSignal,
@@ -63,19 +93,11 @@ export async function clonePublicGitHub(ownerRepo: unknown, parent: string, root
     payload = { output, outputId, checkout, checkoutId }
     const tool = await (deps.findGit ?? resolveGit)(neutral, signal)
     if (!tool) throw new Error('Install Git to clone a public GitHub repository.')
-    const git = await externalTool(tool.executable, workspaceRoots)
-    const paths: string[] = []
-    for (const item of [dirname(git), ...(process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin'])]) {
-      const path = await realpath(item)
-      if (workspaceRoots.every(other => !isWithin(other, item) && !isWithin(other, path))) paths.push(path)
-    }
-    const environment: NodeJS.ProcessEnv = { ...envFor(paths, neutral), HOME: neutral, USERPROFILE: neutral, CURL_HOME: neutral,
-      APPDATA: neutral, LOCALAPPDATA: neutral, XDG_CONFIG_HOME: neutral, GIT_CEILING_DIRECTORIES: scratch,
-      GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
-      GIT_ATTR_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_ALLOW_PROTOCOL: 'https', GIT_TEMPLATE_DIR: template }
+    const git = await externalGitTool(tool.executable, workspaceRoots)
+    const environment: NodeJS.ProcessEnv = await anonymousGitEnvironment(git, workspaceRoots, neutral, scratch, template)
     async function run(args: string[], timeoutMs: number, limit: number) {
       signal.throwIfAborted()
-      if (await externalTool(git, workspaceRoots) !== git) throw new Error('The installed Git changed.')
+      if (await externalGitTool(git, workspaceRoots) !== git) throw new Error('The installed Git changed.')
       const result = await (deps.run ?? execute)(git, args, { input: '', cwd: neutral, signal, timeoutMs, budget: { remaining: limit },
         environment, splitOutput: true, collectOutput: false })
       if (result.outputComplete === false) {
@@ -90,16 +112,8 @@ export async function clonePublicGitHub(ownerRepo: unknown, parent: string, root
       return result.stdout ?? ''
     }
     const execPath = (await run(['--exec-path'], 5000, 4096)).trim()
-    const httpsHelper = join(execPath, process.platform === 'win32' ? 'git-remote-https.exe' : 'git-remote-https')
-    if (!isAbsolute(execPath) || /[\x00-\x1f]/.test(execPath)) throw new Error('The installed Git HTTPS helper is unavailable.')
-    await externalTool(httpsHelper, workspaceRoots)
-    const helperDirectory = await realpath(execPath)
-    if (workspaceRoots.some(other => isWithin(other, execPath) || isWithin(other, helperDirectory))) throw new Error('Install Git outside every open workspace.')
-    environment.GIT_EXEC_PATH = helperDirectory
-    await run(['--no-pager', '-c', 'credential.helper=', '-c', 'credential.interactive=false',
-      '-c', 'core.hooksPath=' + template, '-c', 'http.followRedirects=false', '-c', 'http.sslVerify=true',
-      '-c', 'protocol.allow=never', '-c', 'protocol.https.allow=always', '-c', 'transfer.bundleURI=false',
-      '-c', 'submodule.recurse=false', '-c', 'core.protectHFS=true', '-c', 'core.protectNTFS=true',
+    environment.GIT_EXEC_PATH = await anonymousGitHelper(execPath, workspaceRoots)
+    await run([...anonymousHttpsOptions(template),
       'clone', '--depth=1', '--single-branch', '--no-tags', '--no-local', '--no-recurse-submodules',
       '--template=' + template, '--', 'https://github.com/' + repository + '.git', checkout], cloneMs, outputLimit)
 

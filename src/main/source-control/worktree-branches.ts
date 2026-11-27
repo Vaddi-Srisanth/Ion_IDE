@@ -74,3 +74,22 @@ export async function verifyBranchUnoccupied(repository: Repository, signal: Abo
   }
   if (!paths.has('')) throw new Error(incomplete)
 }
+
+/** Branch switching only changes HEAD today, so keep it to the one ordinary checkout Ion can fully observe. */
+export async function verifySingleWorktree(repository: Repository, signal: AbortSignal, ref: string, oid: string): Promise<void> {
+  if (relative(join(repository.root, '.git'), repository.directory)) {
+    throw new Error('Switch branches from the primary repository, not a linked worktree.')
+  }
+  if (await registeredCount(repository, signal) !== 1) {
+    throw new Error('Branch switching is unavailable while this repository has linked worktrees.')
+  }
+  const result = await git(repository, signal, ['worktree', 'list', '--porcelain', '-z'], { limit: 128 * 1024 })
+  if (!result.complete || !result.text.endsWith('\0\0')) throw new Error(incomplete)
+  const records = result.text.slice(0, -2).split('\0\0')
+  if (records.length !== 1) throw new Error('Branch switching is unavailable while this repository has linked worktrees.')
+  const [location, head, branch, ...extra] = records[0].split('\0')
+  if (location !== 'worktree ' + repository.root || !head?.startsWith('HEAD ')
+    || head !== 'HEAD ' + oid || branch !== 'branch ' + ref || extra.length) {
+    throw new Error(incomplete)
+  }
+}

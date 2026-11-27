@@ -15,15 +15,19 @@ const fixture = `
   window.browseCalls = []
   window.conflictCalls = []
   window.githubCalls = []
+  window.switchCalls = []
+  window.fetchCalls = []
+  window.finishPullRequest = []
   window.finish = []
   window.previews = []
   window.finishPreview = []
   window.tagCalls = []
   function bridge(root) {
     const tags = []
+    const state = { branch: 'main' }
     const directory = '/repositories/' + root
     return {
-      status: async () => ({ kind:'repository', root:directory, branch:'main',
+      status: async () => ({ kind:'repository', root:directory, branch:state.branch,
         entries:[{path:'merge.txt',absolutePath:directory+'/merge.txt',worktree:'U',index:'U',unmerged:true},
           {path:'changed.ts',absolutePath:directory+'/changed.ts',worktree:'M',index:'',unmerged:false},
           {path:'new.ts',absolutePath:directory+'/new.ts',worktree:'?',index:'',unmerged:false}] }),
@@ -40,15 +44,22 @@ const fixture = `
       }),
       previewComparison: request => new Promise(resolve => { window.previews.push([root,request]); window.finishPreview.push(resolve) }),
       createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
+      switchBranch: async request => { window.switchCalls.push([root,request]); state.branch=request.target; return true },
+      fetchPublic: async request => { window.fetchCalls.push([root,request]); return {oid:'f'.repeat(40),changed:true} },
       conflict: async ({path}) => {
         window.conflictCalls.push([root,path])
         return { path, absolutePath:root+'/'+path, base:'before', ours:'left', theirs:'right' }
       },
       github: async repository => {
         window.githubCalls.push(['load',root,repository])
-        return {repository:'Team/Demo', login:'octo', pullRequests:[],
+        return {repository:'Team/Demo', login:'octo', pullRequests:[{number:9, title:'Read the changes', url:'https://github.com/Team/Demo/pull/9'}],
           issues:[{number:7,title:'Reviewed issue',url:'https://github.com/Team/Demo/issues/7'}]}
       },
+      githubPullRequest: request => new Promise(resolve => {
+        window.githubCalls.push(['pull',root,request])
+        window.finishPullRequest.push(() => resolve({number:9, title:'Read the changes', url:'https://github.com/Team/Demo/pull/9',
+          state:'open', draft:true, author:'author', base:'main', head:'author:fix', body:'<em>Inert description</em>', bodyTruncated:true}))
+      }),
       openGitHubPage: async url => { window.githubCalls.push(['open',root,url]) },
       cloneGitHub: async repository => { window.githubCalls.push(['clone',root,repository]); return null },
       closeGitHub: async () => { window.githubCalls.push(['close',root]) },
@@ -188,13 +199,37 @@ try {
   const anonymous = ['clone', 'second', 'team/demo']
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous])
   await hosted.getByRole('button', { name: 'Load from GitHub' }).click()
+  const pull = hosted.getByRole('button', { name: '#9 Read the changes' })
+  await pull.waitFor()
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo']])
+  await pull.click()
+  await hosted.getByText('Loading pull request…').waitFor()
+  await page.evaluate(() => window.finishPullRequest.at(-1)())
+  const pullDetail = hosted.getByRole('region', { name: 'Pull request details' })
+  await pullDetail.getByText('Draft by author').waitFor()
+  await pullDetail.getByText('author:fix').waitFor()
+  await pullDetail.getByText('<em>Inert description</em>').waitFor()
+  assert.equal(await pullDetail.locator('em').count(), 0)
+  assert.equal(await pullDetail.getByRole('heading').evaluate(node => node === document.activeElement), true)
+  await pullDetail.getByRole('button', { name: 'Open pull request on GitHub' }).click()
+  await pullDetail.getByRole('button', { name: 'Hide details' }).click()
+  await pullDetail.waitFor({ state: 'detached' })
+  assert.equal(await pull.evaluate(node => node === document.activeElement), true)
   await hosted.getByRole('button', { name: '#7 Reviewed issue' }).click()
-  const reviewed = [anonymous, ['load', 'second', 'team/demo'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
+  const reviewed = [anonymous, ['load', 'second', 'team/demo'], ['pull', 'second', {repository:'Team/Demo', number:9}],
+    ['open', 'second', 'https://github.com/Team/Demo/pull/9'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
   assert.deepEqual(await page.evaluate(() => window.githubCalls), reviewed)
   await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo']])
   assert.equal(await hosted.getByText(/Cloned to/).count(), 0)
   assert.equal(await page.getByTestId('git-branch').innerText(), 'main')
+  await pull.click()
+  await hosted.getByText('Loading pull request…').waitFor()
+  await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await page.evaluate(() => window.finishPullRequest.at(-1)())
+  await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
+  assert.equal(await pullDetail.count(), 0)
+  assert.deepEqual((await page.evaluate(() => window.githubCalls)).at(-1), ['close', 'second'])
 
   const head = 'a'.repeat(40), tip = 'b'.repeat(40), stash = 'c'.repeat(40), base = 'd'.repeat(40)
   const compare = page.getByRole('button', { name: 'Compare topic with HEAD' })
@@ -266,9 +301,31 @@ try {
   assert.equal(await view.inputValue(), 'tags')
   assert.equal(await page.getByTestId('git-branch').innerText(), 'main')
   assert.deepEqual(await page.evaluate(() => window.tagCalls), [['first',{name:'v2.1',from:head}]])
+  await view.selectOption('branches')
+  await compare.click()
+  await finishPreview({...branchResult,relation:'same',changes:[]})
+  const switchButton = region.getByRole('button', {name:'Review switch…'})
+  const switchBrowseCount = await page.evaluate(() => window.finish.length)
+  await switchButton.click()
+  assert.deepEqual(await page.evaluate(() => window.switchCalls), [['first',{current:'main',target:'topic',from:head,to:tip}]])
+  await page.waitForFunction(count => window.finish.length > count, switchBrowseCount)
+  await page.evaluate(() => window.finish.at(-1)('switched repository'))
+  await page.getByText('Switched to topic.').waitFor()
+  assert.equal(await page.getByTestId('git-branch').innerText(), 'topic')
+  await view.selectOption('cachedRemoteBranches')
+  await page.getByRole('button', {name:'Compare origin/topic with HEAD'}).click()
+  await finishPreview({...branchResult,to:'e'.repeat(40),changes:[]})
+  const fetchButton = region.getByRole('button', {name:'Review fetch…'})
+  const fetchBrowseCount = await page.evaluate(() => window.finish.length)
+  await fetchButton.click()
+  assert.deepEqual(await page.evaluate(() => window.fetchCalls), [['first',{
+    repository:'team/demo',remote:'origin',branch:'topic',previous:'e'.repeat(40)}]])
+  await page.waitForFunction(count => window.finish.length > count, fetchBrowseCount)
+  await page.evaluate(() => window.finish.at(-1)('fetched repository'))
+  await page.getByText('origin/topic advanced to ffffffffff.').waitFor()
   assert.deepEqual(network, [])
   assert.deepEqual(errors, [])
-  console.log('PASS repository browse lifecycle, remotes, conflict review, GitHub lookup/link/clone cancellation, branch and stash previews, lightweight tags')
+  console.log('PASS repository browsing, reviewed switch and fetch requests, conflict and GitHub details, previews, tags and cancellation')
 } finally {
   await browser.close()
 }

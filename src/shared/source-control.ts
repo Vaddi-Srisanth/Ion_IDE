@@ -77,15 +77,55 @@ export interface SourceControlGitHub {
   issues: { number: number; title: string; url: string }[]
 }
 
+export interface SourceControlSwitchRequest {
+  current: string
+  target: string
+  from: string
+  to: string
+}
+
+export interface SourceControlFetchRequest {
+  repository: string
+  remote: string
+  branch: string
+  previous: string
+}
+
+export interface SourceControlFetchResult {
+  oid: string
+  changed: boolean
+}
+
+export interface SourceControlGitHubPullRequestRequest {
+  repository: string
+  number: number
+}
+
+export interface SourceControlGitHubPullRequest {
+  number: number
+  title: string
+  url: string
+  state: 'open' | 'closed' | 'merged'
+  draft: boolean
+  author: string | null
+  base: string
+  head: string
+  body: string
+  bodyTruncated: boolean
+}
+
 export interface SourceControlBridge {
   createTag(request: { name: string; from: string }): Promise<void>
   createBranch(request: { name: string; from: string }): Promise<void>
+  switchBranch(request: SourceControlSwitchRequest): Promise<boolean>
+  fetchPublic(request: SourceControlFetchRequest): Promise<SourceControlFetchResult | null>
   conflict(request: { path: string }): Promise<SourceControlConflict>
   cancelBlame(path: string): Promise<void>
   blame(request: { path: string }): Promise<SourceControlBlame>
   previewComparison(request: SourceControlComparisonRequest): Promise<SourceControlComparison>
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>
+  githubPullRequest(request: SourceControlGitHubPullRequestRequest): Promise<SourceControlGitHubPullRequest>
   cloneGitHub(repository: string): Promise<string | null>
   closeGitHub(): Promise<void>
   openGitHubPage(url: string): Promise<void>

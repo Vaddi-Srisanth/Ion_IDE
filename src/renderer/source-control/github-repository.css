@@ -9,3 +9,11 @@
 .git-hosted-results ul { list-style: none; margin: 0; padding: 0; }
 .git-hosted-results button { padding: 3px 0; color: var(--accent); background: transparent; border: 0; text-align: start; overflow-wrap: anywhere; }
 .git-hosted-results button:hover { text-decoration: underline; }
+.git-hosted-results button:disabled { opacity: .6; text-decoration: none; }
+.git-hosted-pull-detail { min-width: 0; padding-inline-start: 8px; border-inline-start: 2px solid var(--border); }
+.git-hosted-pull-detail h3 { overflow-wrap: anywhere; }
+.git-hosted-pull-detail dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 8px; margin-block: 8px; font-size: 12px; }
+.git-hosted-pull-detail dt { color: var(--muted); }
+.git-hosted-pull-detail dd { margin: 0; overflow-wrap: anywhere; }
+.git-hosted-pull-detail .git-hosted-pull-body { max-block-size: 180px; overflow-y: auto; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.git-hosted-pull-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }

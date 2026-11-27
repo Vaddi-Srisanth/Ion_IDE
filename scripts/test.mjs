@@ -33,7 +33,7 @@ try {
     await buildWindowsPty(detachedControlHelper, process.arch, detachedControl)
     await buildWindowsConsoleProbe(consoleProbe)
   }
-  if (files.some((name) => /^(backend|editor-session|source-control-clone|file-mutation-races|file-metadata|lsp-workspace-edit-review|workspace-files-windows|workspace-search)\.test\.ts$/.test(name))) {
+  if (files.some((name) => /^(backend|editor-session|source-control-clone|source-control-fetch|source-control-switch-branch|file-mutation-races|file-metadata|lsp-workspace-edit-review|workspace-files-windows|workspace-search)\.test\.ts$/.test(name))) {
     await buildFileMutations(native)
   }
   await build({

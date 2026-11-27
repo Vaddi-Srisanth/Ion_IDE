@@ -152,7 +152,7 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
           {repository.unborn && <span>First commit</span>}
         </div>
         <RepositoryBrowser key={'browse:' + repository.root} bridge={bridge} busy={busy} perform={act}
-          currentBranch={repository.detached ? undefined : repository.branch}/>
+          currentBranch={repository.detached ? undefined : repository.branch} refreshStatus={loadStatus}/>
         {historyPath && activePath && !repository.unborn && <LineHistoryAction key={historyPath} path={historyPath}
           repository={repository} bridge={bridge} busy={busy} perform={act} dirty={isDirty(activePath)} changed={Boolean(activeEntry)}/>}
         <GitHubRepository key={repository.root} bridge={bridge}/>

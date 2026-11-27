@@ -71,10 +71,10 @@ Status vocabulary is deliberately strict:
 | Capability | Status | Current scope and next gap |
 | --- | --- | --- |
 | Git status/diff/stage/unstage/commit | Verified | Explicit, short-lived commands; scoped root; bounded output; secure index handling. |
-| Git history/blame/branches/stash | Verified at browse scope | Commit history, committed line history, local branch/tag creation, and comparisons for branches, the latest stash and cached remote refs. [Evidence and limits](ION_PHASE_3_SOURCE_CONTROL.md) |
-| Fetch/pull/push | Missing | Remote credential and conflict model must be designed first. |
+| Git history/blame/branches/stash | Verified at browse and same-tree switch scope | Commit history, committed line history, local branch/tag creation, branch/stash/cached-remote comparisons, and reviewed switching where committed file trees match. Different-tree switching remains open. [Evidence and limits](ION_PHASE_3_SOURCE_CONTROL.md) |
+| Fetch/pull/push | Partial | One selected branch can be fetched anonymously from a recognized public GitHub remote after native confirmation, with fast-forward and cached-ref checks. Pull and push remain open. |
 | Merge/rebase/conflict editor | Incomplete | Conflict preview shows the index sides. Three-way editing, merge/rebase execution and recovery remain open. |
-| GitHub sign-in/repos/issues/PRs | Incomplete | Account, open issues and pull requests use the official CLI keyring. Public repositories can be cloned anonymously into a reviewed destination. |
+| GitHub sign-in/repos/issues/PRs | Incomplete | Account, open issues and PR lists use the official CLI keyring; selected PR details are available on demand. Public repositories can be cloned anonymously into a reviewed destination. Private clone and in-app PR creation remain open. |
 | GitHub Copilot sign-in/chat/agent | External | An official Copilot SDK now exists for custom applications, but Ion has no implementation or authenticated acceptance. Authentication, subscription/licensing, bundled runtime cost, permissions, and shutdown behavior require a proof of concept. [Official SDK](https://github.com/github/copilot-sdk) · [GitHub usage overview](https://docs.github.com/en/copilot/get-started/where-to-use-github-copilot) |
 | Copilot inline completion | Native signed-out probe | The pinned official language server advertises inline completion on macOS ARM64. Authenticated editor acceptance remains open. [Evidence](ION_PHASE_6_COPILOT_FEASIBILITY.md) |
 | Update check/download | Incomplete | GitHub release comparison/checksum flow exists; signing/notarization, exact-candidate upgrade/rollback, and cross-platform acceptance remain release gates. |
