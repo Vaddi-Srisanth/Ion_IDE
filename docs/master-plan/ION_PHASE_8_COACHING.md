@@ -59,3 +59,9 @@ Targeted macOS checks passed: 27 explanation context/provider/renderer tests, th
 When local unresolved-topic evidence is shown in Practice → Progress, Ion now offers a matching existing offline lesson for Search (binary search), Sorting (merge sort), or Graphs (BFS). Topics without a matching lesson receive no lesson action. Selecting it opens the lesson on demand; returning restores focus to the Browse lesson entry. The mapping is fixed and transparent and reads no source code, makes no network request, and adds no tracking or profile data.
 
 The focused macOS offline Chromium journey verified the Sorting action opens merge sort, preserves lazy chunk loading and keyboard return, and uses only the existing local list/progress bridge calls. The existing merge-sort transitions, bounds, narrow viewport check and offline constraints, `npm run typecheck`, and production build passed. Windows was not run. This adds one bounded hint action; broader personalized lesson paths and guided sequencing remain open.
+
+## Binary-tree traversals — 27 November 2026
+
+Practice → Browse now includes a lazy offline lesson over one fixed six-node binary tree. Learners can step through preorder, inorder, postorder, and level-order traversals; see the current node, visited sequence, recursion path or queue, and switch order or reset at any time. The lesson states O(n) time, O(h) recursive stack for depth-first orders, and O(w) queue for level order, with n, h and w defined by the tree. It identifies retained replay snapshots as UI storage and runs no learner code or network requests.
+
+The focused macOS offline Chromium journey checked the exact six-node sequence for all four orders, completion and reset, lazy chunk loading, no bridge/network activity, 250 px viewport fit, keyboard focus return and no browser errors. `npm run typecheck` and production build passed. Windows remains unverified.
