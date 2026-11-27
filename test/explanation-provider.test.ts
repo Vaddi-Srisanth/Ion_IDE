@@ -59,6 +59,17 @@ test('explanation review builds immutable exact payload bytes without network ca
   assert.equal('token' in result, false, 'Only the review session can issue a reply token.')
 })
 
+test('complexity prompt requires cited estimates, explicit assumptions and no fabricated benchmarks', () => {
+  const value = { ...input(), action: 'complexity' as const }
+  const prepared = buildExplanationPayload(options, value)
+  const body = JSON.parse(prepared.body)
+  assert.equal(JSON.parse(body.messages[1].content).action, 'complexity')
+  assert.match(body.messages[0].content, /Define the input-size variable/)
+  assert.match(body.messages[0].content, /Separate running time from auxiliary space/)
+  assert.match(body.messages[0].content, /do not invent benchmarks/)
+  assert.match(body.messages[0].content, /inferred sections with citations/)
+})
+
 test('explanation context is bounded by UTF-8 bytes and validated identities and ranges', () => {
   for (const invalid of [
     { ...input(), question: 'é'.repeat(1025) },

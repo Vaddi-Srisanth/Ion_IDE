@@ -16,7 +16,9 @@ const fixture = `
       calls.reviews.push(request)
       token = 'review-' + calls.reviews.length
       return { token, provider, question:request.question, purpose:request.purpose, action:request.action,
-        stream:request.stream, bodyBytes:100, expiresAt:Date.now()+60_000, sources:[], exclusions:[] }
+        stream:request.stream, bodyBytes:100, expiresAt:Date.now()+60_000,
+        sources:request.code ? [{id:'code-1',label:request.code.label,origin:'editor-buffer',revision:'buffer-v1',startLine:1,endLine:3,text:request.code.text}] : [],
+        exclusions:[] }
     },
     send:async value => {
       if (!token || token !== value) throw Error('Unexpected send token')
@@ -32,7 +34,8 @@ const fixture = `
     const [purpose, setPurpose] = useState()
     return <><button onClick={() => setPurpose('tutor')}>Tutor</button>
       <button onClick={() => setPurpose('project-lens')}>Project Lens</button>
-      {purpose && <ExplanationDialog initialRequest={{purpose,action:purpose==='tutor'?'hint':'understand', question:'Explain this.'}}
+      {purpose && <ExplanationDialog initialRequest={{purpose,action:purpose==='tutor'?'hint':'understand', question:'Explain this.',
+        ...(purpose==='tutor' ? {code:{label:'main.py',text:'for item in items:\\n    print(item)\\n',version:1}} : {})}}
         bridge={bridge} onClose={() => setPurpose(undefined)} onOpenCitation={() => {}}/>}</>
   }
   createRoot(document.querySelector('#root')).render(<App/>)
@@ -87,9 +90,26 @@ try {
     await dialog.getByRole('button', { name:'Close dialog' }).click()
     await dialog.waitFor({ state:'detached' })
   }
+  await page.getByRole('button', { name:'Tutor', exact:true }).click()
+  const tutor = page.getByRole('dialog')
+  const action = tutor.getByRole('combobox', { name:'Action' })
+  const review = tutor.getByRole('button', { name:'Review request' })
+  await action.selectOption('complexity')
+  assert.equal(await review.isDisabled(), true, 'Complexity cannot be reviewed until code is explicitly selected.')
+  await tutor.getByRole('checkbox', { name:'Current unsaved code: main.py (off by default)' }).check()
+  await review.click()
+  const preview = tutor.getByRole('region', { name:'Exact request review' })
+  await preview.getByText('main.py · editor-buffer · lines 1–3').waitFor()
+  const selected = await page.evaluate(() => window.calls.reviews.at(-1))
+  assert.equal(selected.action, 'complexity')
+  assert.deepEqual(selected.code, { label:'main.py', text:'for item in items:\n    print(item)\n', version:1 })
+  assert.equal(selected.lesson, undefined)
+  assert.equal(selected.project, undefined)
+  await tutor.getByRole('button', { name:'Close dialog' }).click()
+  await tutor.waitFor({ state:'detached' })
   assert.deepEqual(errors, [])
   assert.deepEqual(network, [])
-  console.log('PASS Tutor and Project Lens default to a single response, retire changed reviews and display the completed reply after explicit Send')
+  console.log('PASS Tutor and Project Lens review flow, explicit streaming and selected-code complexity consent')
 } finally {
   await browser.close()
 }

@@ -20,7 +20,8 @@ export interface ExplanationSelection {
   lesson: boolean; code: boolean; diagnostic: boolean; structure: boolean; refs: number[]
 }
 const tutorActions: Array<[ExplanationAction, string]> = [['hint', 'Hint'], ['concept', 'Explain a concept'], ['debug', 'Understand an error'],
-  ['walkthrough', 'Walk through code'], ['review-attempt', 'Review my attempt'], ['quiz', 'Ask me a question']]
+  ['walkthrough', 'Walk through code'], ['review-attempt', 'Review my attempt'], ['quiz', 'Ask me a question'],
+  ['complexity', 'Analyze time and space complexity']]
 const projectActions: Array<[ExplanationAction, string]> = [['understand', 'Understand this project'], ['architecture', 'Explain architecture'],
   ['health', 'Review project health'], ['teach-project', 'Teach through this project'], ['next-steps', 'Suggest next steps'], ['ask-codebase', 'Ask about the codebase']]
 
@@ -111,6 +112,10 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
       setProvider(settings)
       if (!settings.hasKey || !settings.model) { setFeedback('Configure a provider and API key before sending an optional online request.'); return }
       const selected = selectedExplanationRequest(initialRequest, selection, action, question, stream)
+      if (action === 'complexity' && (!selection.code || !selected.code?.text.trim())) {
+        setFeedback('Select the code excerpt before reviewing a complexity analysis.')
+        return
+      }
       const request = refreshContext ? await refreshContext(selected) : selected
       if (!alive()) return
       const prepared = await bridge.review(request)
@@ -150,7 +155,8 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
     <div className="explanation-body" data-testid="explanation-dialog">
       <p className="explanation-note">Choose what to share. Ion prepares an exact local review before any online request. AI responses are unverified and cannot change or run your code.</p>
       {!ask && <label>Action<select value={action} disabled={busy} onChange={event => { changed(); setAction(event.target.value as ExplanationAction) }}>
-        {actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}
+        {actions.map(([value, label]) => <option key={value} value={value}
+          disabled={value === 'complexity' && !initialRequest.code?.text.trim()}>{label}</option>)}</select></label>}
       <label>Your question<textarea rows={3} maxLength={2048} value={question} disabled={busy} aria-describedby="explanation-question-limit"
         onChange={event => { changed(); setQuestion(event.target.value) }}/></label>
       <p id="explanation-question-limit" className="explanation-note">{questionBytes}/2,048 UTF-8 bytes{questionBytes > 2048 ? ' · Shorten your question before reviewing.' : ''}</p>
@@ -158,6 +164,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
         {initialRequest.lesson && <label><input type="checkbox" checked={selection.lesson} onChange={event => check('lesson', event.target.checked)}/>Installed lesson: {initialRequest.lesson.lessonId}</label>}
         {initialRequest.code && <label><input type="checkbox" checked={selection.code} onChange={event => check('code', event.target.checked)}/>
           {ask ? 'Editor excerpt: ' : 'Current unsaved code: '}{initialRequest.code.label}{ask ? ' (first 8 KiB)' : ' (off by default)'}</label>}
+        {action === 'complexity' && <p className="explanation-note">Select the code excerpt to review its complexity. The answer is an unverified estimate, not a benchmark.</p>}
         {initialRequest.diagnostic && <label><input type="checkbox" checked={selection.diagnostic} onChange={event => check('diagnostic', event.target.checked)}/>Compiler diagnostic</label>}
         {initialRequest.project && <>
           <label><input type="checkbox" checked={selection.structure} onChange={event => check('structure', event.target.checked)}/>Bounded offline project structure</label>
@@ -175,7 +182,8 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
           onChange={event => { changed(); setStream(event.target.checked) }}/>Stream provider response</label>
         <p id="explanation-stream-help" className="explanation-note">Ion shows the answer after validating the complete response and its citations.</p>
       </fieldset>
-      <div className="explanation-actions"><button className="button" data-testid="explanation-review" onClick={() => start(reviewRequest)} disabled={busy || !question.trim() || questionBytes > 2048}><Icon name="eye"/>Review request</button>
+      <div className="explanation-actions"><button className="button" data-testid="explanation-review" onClick={() => start(reviewRequest)}
+        disabled={busy || !question.trim() || questionBytes > 2048 || action === 'complexity' && (!selection.code || !initialRequest.code?.text.trim())}><Icon name="eye"/>Review request</button>
         {busy && <button className="button" onClick={() => cancel()}>Cancel request</button>}</div>
       <p role="status" className="explanation-status">{feedback}</p>
       {review && <ExplanationReviewView review={review} disabled={busy} onSend={() => start(send)}/>}

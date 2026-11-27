@@ -21,3 +21,9 @@ Practice → Progress can identify a topic to strengthen when at least two diffe
 This is a deterministic practice hint, not a skill score. It reads only the same on-demand metadata and local verdict ledgers as Progress; it stores no extra profile data and reads no source. The UI states which evidence triggered the suggestion.
 
 The local macOS ARM64 increment passed type checking, production build, seven focused progress tests, 11 practice progress/submission tests, the offline headless Practice renderer journey and the production Electron Practice journey. The tests cover distinct-challenge counting, later acceptance, restored history exclusion, unreadable-history suppression, explicit preview, and keyboard focus returning to the topic-focus action. Native Windows verification remains open; no update to the broader coaching scope is claimed.
+
+## Reviewed complexity tutor action — 27 November 2026
+
+The optional Tutor now offers **Analyze time and space complexity**. It requires a nonempty code excerpt, and code remains unchecked by default. The user must select it, review the exact bounded request and choose Send before anything leaves the device. The provider guidance asks for an input-size definition, evidence for loops/recursion/data structures, separate time and auxiliary-space estimates, explicit assumptions and unknowns, citations, and no fabricated benchmark claims. The response remains labeled unverified and cannot edit or run code. Existing offline Practice and lessons continue to work without an AI provider.
+
+Targeted macOS checks passed: 27 explanation context/provider/renderer tests, the offline browser journey for action gating and explicit excerpt selection, type checking and production build. No provider call or model-quality claim was made. Native Windows verification was not run. Phase 8 still lacks broader offline complexity lessons and adaptive coaching beyond its documented current scope.

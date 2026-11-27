@@ -76,6 +76,17 @@ test('question-only and explicit lesson/buffer context preserve authoritative an
     { packId: 'python', lessonId: 'values' })
 })
 
+test('complexity guidance requires and includes only a nonempty explicitly reviewed code excerpt', async t => {
+  const f = await fixture(t)
+  await assert.rejects(prepareContext(tutor({ action: 'complexity' }), signal(), f.options), safe)
+  await assert.rejects(prepareContext(tutor({ action: 'complexity', code: { label: 'empty.py', text: '  \n', version: 1 } }), signal(), f.options), safe)
+  const code = { label: 'search.py (unsaved)', text: 'for item in items:\n    print(item)\n', version: 3 }
+  const context = await prepareContext(tutor({ action: 'complexity', code }), signal(), f.options)
+  assert.equal(context.input.action, 'complexity')
+  assert.deepEqual(context.input.sources.map(({ origin, text }) => ({ origin, text })), [{ origin: 'editor-buffer', text: code.text }])
+  assert.ok(context.exclusions.some(row => row.includes('renderer-provided, unverified')))
+})
+
 test('Ask Ion context can include only a question and one optional editor excerpt', async t => {
   const f = await fixture(t)
   const request: ExplanationRequest = { purpose: 'ask', action: 'ask-question', question: 'What is a pure function?' }

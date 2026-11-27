@@ -321,6 +321,12 @@ const explanationPrompt = [
   'Recommendations are optional draft next steps with observable acceptance criteria and valid dependencies; they do not execute or modify anything. Use empty arrays when evidence is insufficient.',
 ].join(' ')
 
+const complexityGuidance = [
+  'For a complexity action, analyze only the explicitly reviewed code excerpt. Define the input-size variable in terms of the relevant input, not source-code length.',
+  'Explain the dominant loops, recursion and data structures that support each estimate. Separate running time from auxiliary space and state worst-case, average-case or best-case only when evidence supports it.',
+  'Put complexity conclusions in inferred sections with citations to reviewed code. State assumptions and mark missing behavior or omitted code as unknown; do not invent benchmarks or claim measured performance.',
+].join(' ')
+
 export interface PreparedExplanation extends Readonly<ExplanationInput> {
   readonly stream: boolean
   readonly endpoint: string
@@ -338,7 +344,8 @@ export function buildExplanationPayload(settings: Pick<ProviderSettings, 'endpoi
   for (const source of input.sources) Object.freeze(source)
   Object.freeze(input.sources)
   const body = JSON.stringify({ model, max_completion_tokens: 2400, store: false, ...(stream ? { stream: true } : {}),
-    messages: [{ role: 'system', content: explanationPrompt }, { role: 'user', content: JSON.stringify(input) }],
+    messages: [{ role: 'system', content: input.action === 'complexity' ? explanationPrompt + ' ' + complexityGuidance : explanationPrompt },
+      { role: 'user', content: JSON.stringify(input) }],
     response_format: { type: 'json_schema', json_schema: { name: 'ion_explanation_v1', strict: true, schema: explanationSchema } },
   })
   const prepared = Object.freeze({ ...input, endpoint, model, stream, body, bodyBytes: Buffer.byteLength(body) })

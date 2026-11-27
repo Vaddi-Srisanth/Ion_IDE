@@ -19,15 +19,18 @@ test('context selection excludes source by default, caps explicit references and
   assert.equal(selected.code?.text, request.code?.text)
   assert.deepEqual(selected.project?.refs.map(reference => reference.path), ['source-3.py', 'source-1.py', 'source-0.py', 'source-2.py'])
   assert.equal(request.project?.refs.length, 6)
+  assert.equal(selectedExplanationRequest(request, { lesson: false, code: true, diagnostic: false, structure: false, refs: [] },
+    'complexity', 'Estimate the complexity.').code?.text, request.code?.text)
 })
 
-test('opening renderer is dormant until effects and context is opt-in with six appropriate actions', () => {
+test('opening renderer is dormant until effects and context is opt-in with seven appropriate actions', () => {
   let calls = 0
   const forbidden = async () => { calls++; throw new Error('No bridge operation during rendering') }
   const bridge: ExplanationBridge = { provider: forbidden, configure: forbidden, review: forbidden, send: forbidden, cancel: forbidden, openCitation: forbidden }
   const html = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: request, bridge, onClose() {}, onOpenCitation() {} }))
   assert.equal(calls, 0)
-  assert.equal((html.match(/<option /g) ?? []).length, 6)
+  assert.equal((html.match(/<option /g) ?? []).length, 7)
+  assert.ok(html.includes('Analyze time and space complexity'))
   assert.doesNotMatch(html, / checked=""/)
   assert.ok(html.includes('Stream provider response') && html.includes('validating the complete response and its citations'))
   assert.ok(html.includes('Current unsaved code: unsaved.py (off by default)'))
@@ -36,6 +39,8 @@ test('opening renderer is dormant until effects and context is opt-in with six a
   const project = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, purpose: 'project-lens', action: 'understand' }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.ok(project.includes('Explain architecture') && !project.includes('Review my attempt'))
   assert.ok(project.includes('Stream provider response'))
+  const noCode = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, code: undefined }, bridge, onClose() {}, onOpenCitation() {} }))
+  assert.match(noCode, /<option value="complexity" disabled="">Analyze time and space complexity<\/option>/)
   const oversized = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, question: '\u754c'.repeat(800) }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.ok(oversized.includes('2400/2,048 UTF-8 bytes') && oversized.includes('Shorten your question before reviewing.'))
   assert.match(oversized, /<button[^>]*data-testid="explanation-review"[^>]*disabled=""/)

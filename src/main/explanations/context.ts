@@ -26,7 +26,7 @@ const invalid = (): never => { throw new Error(unsafe) }
 const bytes = (text: string) => Buffer.byteLength(text)
 const digest = (text: string) => createHash('sha256').update(text).digest('hex')
 const identity = (a: BigIntStats, b: BigIntStats) => a.dev === b.dev && a.ino === b.ino
-const tutorActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz']
+const tutorActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity']
 const projectActions = ['understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase']
 const excludedDirectories = /^(?:node_modules|vendors?|target|dist|build|out|coverage|generated|gen|bin|obj|__pycache__|venv|env|pods|carthage|secrets?|credentials?|private[-_]?keys?)$/i
 const secretName = /(?:^\.|(?:^|[._-])(?:secrets?|credentials?|id_rsa|id_ed25519)(?:[._-]|$)|\.(?:pem|key|p12|pfx|keystore)$|(?:lock$)|^go\.sum$)/i
@@ -95,6 +95,7 @@ function parse(value: unknown): ExplanationContextRequest {
     if (path !== undefined && (!isAbsolute(path) || resolve(path) !== path || /[\r\n]/.test(path))) invalid()
     result.code = { label, text: content, version: code.version as number, ...(path ? { path } : {}) }
   }
+  if (result.action === 'complexity' && (!result.code || !result.code.text.trim())) invalid()
   if (data.diagnostic !== undefined) result.diagnostic = text(data.diagnostic, 2048)
   if (data.project !== undefined) {
     const project = object(data.project, ['root', 'refs'])

@@ -3,7 +3,7 @@ import type { Entry } from './contracts'
 import type { ProjectLensReference } from './project-lens'
 
 export const explanationPurposes = ['tutor', 'project-lens', 'ask'] as const
-export const explanationActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz',
+export const explanationActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity',
   'understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase', 'ask-question'] as const
 export type ExplanationPurpose = typeof explanationPurposes[number]
 export type ExplanationAction = typeof explanationActions[number]
