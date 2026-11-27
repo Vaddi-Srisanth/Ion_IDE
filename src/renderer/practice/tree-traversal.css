@@ -1,0 +1,23 @@
+.practice-tree { display: grid; gap: 10px; min-width: 0; }
+.practice-tree-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px; }
+.practice-tree-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
+.practice-tree-heading .practice-label { flex: 0 1 150px; }
+.practice-tree-figure { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--subtle-border); border-radius: 8px; }
+.practice-tree-level { display: flex; justify-content: center; gap: 22px; margin: 0; padding: 0; list-style: none; }
+.practice-tree-level li { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); font-weight: 600; }
+.practice-tree-level li[data-node-state="current"] { border-color: var(--accent); background: var(--accent-bg); }
+.practice-tree-level li[data-node-state="visited"] { border-color: var(--mint); }
+.practice-tree-level li[data-node-state="unvisited"] { color: var(--muted); }
+.practice-tree-figure p { margin: 0; color: var(--muted); font-size: 11px; text-align: center; }
+.practice-tree-state dl { display: grid; gap: 5px; margin: 0; }
+.practice-tree-state dl > div { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 8px; padding: 5px 7px; border-bottom: 1px solid var(--subtle-border); font-size: 11px; }
+.practice-tree-state dt { color: var(--muted); }
+.practice-tree-state dd { margin: 0; overflow-wrap: anywhere; }
+.practice-tree-explanation { display: grid; gap: 4px; padding: 9px 10px; border-left: 2px solid var(--accent); background: var(--surface-2); }
+.practice-tree-explanation h4, .practice-tree-complexity h4 { margin: 0; color: var(--ink); font-size: 12px; }
+.practice-tree-explanation p, .practice-tree-complexity p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.practice-tree-complexity { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--subtle-border); border-radius: 8px; }
+.practice-tree-complexity dl { display: grid; gap: 6px; margin: 0; }
+.practice-tree-complexity dl > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px; }
+.practice-tree-complexity dt { color: var(--muted); font-size: 11px; }
+.practice-tree-complexity dd { margin: 0; font-size: 11px; }

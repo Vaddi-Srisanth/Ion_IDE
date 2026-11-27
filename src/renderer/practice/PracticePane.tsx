@@ -19,6 +19,7 @@ const BreadthFirstSearchWalkthrough = lazy(() => import('./BreadthFirstSearchWal
 const DepthFirstSearchWalkthrough = lazy(() => import('./DepthFirstSearchWalkthrough'))
 const DijkstraWalkthrough = lazy(() => import('./DijkstraWalkthrough'))
 const MergeSortWalkthrough = lazy(() => import('./MergeSortWalkthrough'))
+const TreeTraversalWalkthrough = lazy(() => import('./TreeTraversalWalkthrough'))
 
 export interface PracticePaneProps {
   bridge: PracticeBridge
@@ -122,7 +123,7 @@ function ProgressPractice({ bridge, busy, onStart, onLearnLesson }: {
   </>
 }
 
-function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEntry, depthFirstEntry, dijkstraEntry, mergeSortEntry, onWalkthrough, onStart }: {
+function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEntry, depthFirstEntry, dijkstraEntry, mergeSortEntry, treeTraversalEntry, onWalkthrough, onStart }: {
   bridge: PracticeBridge
   hidden: boolean
   busy: boolean
@@ -131,7 +132,8 @@ function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEn
   depthFirstEntry: RefObject<HTMLButtonElement | null>
   dijkstraEntry: RefObject<HTMLButtonElement | null>
   mergeSortEntry: RefObject<HTMLButtonElement | null>
-  onWalkthrough(kind: 'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort'): void
+  treeTraversalEntry: RefObject<HTMLButtonElement | null>
+  onWalkthrough(kind: 'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort' | 'tree-traversal'): void
   onStart(id: string, language: RunLanguage): void
 }) {
   const [language, setLanguage] = useState<RunLanguage | ''>('')
@@ -190,6 +192,10 @@ function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEn
       <button ref={mergeSortEntry} className="button practice-walkthrough-entry" type="button"
         onClick={() => onWalkthrough('merge-sort')}>
         <Icon name="book" size={14} /> Walk through merge sort
+      </button>
+      <button ref={treeTraversalEntry} className="button practice-walkthrough-entry" type="button"
+        onClick={() => onWalkthrough('tree-traversal')}>
+        <Icon name="book" size={14} /> Walk through binary-tree traversals
       </button>
       <form className="practice-search" role="search" aria-label="Practice catalog" onSubmit={(event) => {
         event.preventDefault()
@@ -356,7 +362,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 
 
 export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onLearn }: PracticePaneProps) {
-  const [view, setView] = useState<'browse' | 'saved' | 'progress' | 'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort'>(initialProblem ? 'saved' : 'browse')
+  const [view, setView] = useState<'browse' | 'saved' | 'progress' | 'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort' | 'tree-traversal'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
   const [attemptId, setAttemptId] = useState('')
@@ -375,7 +381,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
   const depthFirstEntry = useRef<HTMLButtonElement>(null)
   const dijkstraEntry = useRef<HTMLButtonElement>(null)
   const mergeSortEntry = useRef<HTMLButtonElement>(null)
-  const walkthroughKind = useRef<'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort'>('binary-search')
+  const treeTraversalEntry = useRef<HTMLButtonElement>(null)
+  const walkthroughKind = useRef<'binary-search' | 'breadth-first-search' | 'depth-first-search' | 'dijkstra' | 'merge-sort' | 'tree-traversal'>('binary-search')
   const returningFromWalkthrough = useRef(false)
 
   function setSelected(next: PracticeProblem | undefined) {
@@ -414,7 +421,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
       (walkthroughKind.current === 'binary-search' ? walkthroughEntry.current
         : walkthroughKind.current === 'breadth-first-search' ? breadthFirstEntry.current
           : walkthroughKind.current === 'depth-first-search' ? depthFirstEntry.current
-            : walkthroughKind.current === 'dijkstra' ? dijkstraEntry.current : mergeSortEntry.current)?.focus()
+          : walkthroughKind.current === 'dijkstra' ? dijkstraEntry.current
+            : walkthroughKind.current === 'merge-sort' ? mergeSortEntry.current : treeTraversalEntry.current)?.focus()
     }
   }, [view])
 
@@ -589,7 +597,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         <button className="icon-button" onClick={onClose} aria-label="Hide Practice" title="Hide Practice"><Icon name="x" size={15} /></button>
       </div>
       <nav className="practice-nav" aria-label="Practice views">
-        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse' || view === 'binary-search' || view === 'breadth-first-search' || view === 'depth-first-search' || view === 'dijkstra' || view === 'merge-sort'}
+        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse' || view === 'binary-search' || view === 'breadth-first-search' || view === 'depth-first-search' || view === 'dijkstra' || view === 'merge-sort' || view === 'tree-traversal'}
           onClick={() => { setView('browse'); setError(''); setNotice('') }}><Icon name="search" size={14} /> Browse</button>
         <button data-testid="practice-saved-tab" aria-pressed={view === 'saved'}
           onClick={() => { setView('saved'); setError(''); setNotice('') }}><Icon name="folder" size={14} /> Saved</button>
@@ -604,6 +612,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
           walkthroughEntry={walkthroughEntry} breadthFirstEntry={breadthFirstEntry} depthFirstEntry={depthFirstEntry}
           dijkstraEntry={dijkstraEntry}
           mergeSortEntry={mergeSortEntry}
+          treeTraversalEntry={treeTraversalEntry}
           onWalkthrough={kind => { walkthroughKind.current = kind; setView(kind); setError(''); setNotice('') }}
           onStart={(id, language) => void start(id, language)} />
         {view === 'binary-search' && <div className="practice-discovery practice-walkthrough">
@@ -649,6 +658,15 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
           }}>Back to Browse</button>
           <Suspense fallback={<p className="practice-muted" role="status">Opening walkthrough…</p>}>
             <MergeSortWalkthrough />
+          </Suspense>
+        </div>}
+        {view === 'tree-traversal' && <div className="practice-discovery practice-walkthrough">
+          <button className="button" type="button" autoFocus onClick={() => {
+            returningFromWalkthrough.current = true
+            setView('browse')
+          }}>Back to Browse</button>
+          <Suspense fallback={<p className="practice-muted" role="status">Opening walkthrough…</p>}>
+            <TreeTraversalWalkthrough />
           </Suspense>
         </div>}
         {view === 'progress' && <ProgressPractice bridge={bridge} busy={Boolean(pending)}
