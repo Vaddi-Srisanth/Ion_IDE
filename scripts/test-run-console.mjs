@@ -344,10 +344,8 @@ int main(void) {
     await page.getByTestId('run').click()
     await waitForNewRun(page, previousRunId, 'ION-DISK-V1')
     await page.locator('[data-testid="output"][data-status="success"]').waitFor()
-    await page.waitForFunction(() => {
-      const run = globalThis.ionRunTestEvents.findLast(({ update }) => update.kind === 'phase' && update.phase === 'preparing')
-      return run && globalThis.ionRunTestEvents.some(({ id, update }) => id === run.id && update.kind === 'data' && update.stream === 'compiler' && update.text.includes('Running the last saved version.'))
-    }, null, { timeout })
+    assert.equal(await page.getByTestId('run-console-saved-version').textContent(),
+      'Running the last saved version. Editor changes are unsaved.')
     assert.match(await readFile(version, 'utf8'), /ION-DISK-V1/)
     assert.doesNotMatch(await page.getByTestId('run-console-terminal').innerText(), /ION-EDITOR-V2/)
     await runPreferences(page, true)

@@ -1464,10 +1464,8 @@ export function App() {
       if (request.cancelled) return;
       setBottomTab('run');
       if (!settingsRef.current.showOutput) updateSettings({ showOutput: true });
-      runConsole.start(tab.name, settingsRef.current.keepRunOutput);
-      if ('dirty' in tab && tab.dirty) {
-        runConsole.update({ kind: 'data', stream: 'compiler', text: 'Running the last saved version. Editor changes are unsaved.\n' });
-      }
+      const savedVersion = 'dirty' in tab && tab.dirty && !settingsRef.current.saveBeforeRun;
+      runConsole.start(tab.name, settingsRef.current.keepRunOutput, savedVersion);
       setLastRun({ id: tab.id, path: tab.path, name: tab.name });
       try {
         const expectedRevision = selected && save ? documents.savedRevision(tab.id) : undefined;

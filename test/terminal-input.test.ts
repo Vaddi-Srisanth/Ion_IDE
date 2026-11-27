@@ -34,3 +34,11 @@ test('input rejection is visible and leaves the active program and transcript in
   assert.equal(store.getSnapshot().hasOutput, true)
   assert.match(store.getSnapshot().error!, /not sent/)
 })
+
+test('Run Console retains a saved-version notice for the active run and resets it on the next run', () => {
+  const store = new RunConsoleStore()
+  store.start('edited.js', false, true)
+  assert.equal(store.getSnapshot().savedVersion, true)
+  store.start('saved.js', false)
+  assert.equal(store.getSnapshot().savedVersion, false)
+})

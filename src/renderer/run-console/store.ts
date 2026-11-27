@@ -11,6 +11,7 @@ interface ConsoleState {
   error: string | null;
   run: number;
   hasOutput: boolean;
+  savedVersion: boolean;
 }
 
 type OutputEvent =
@@ -26,7 +27,7 @@ interface Transcript {
 const runLimit = 272 * 1024;
 const chunkLimit = 8 * 1024;
 const initialState: ConsoleState = {
-  phase: 'idle', name: null, label: null, result: null, error: null, run: 0, hasOutput: false,
+  phase: 'idle', name: null, label: null, result: null, error: null, run: 0, hasOutput: false, savedVersion: false,
 };
 
 const newTranscript = (): Transcript => ({ parts: [], length: 0, clipped: false });
@@ -59,13 +60,13 @@ export class RunConsoleStore {
     return () => { this.outputListeners.delete(listener); };
   };
 
-  start(name: string, preserveOutput: boolean): void {
+  start(name: string, preserveOutput: boolean, savedVersion = false): void {
     this.previous = preserveOutput && this.transcript.length ? this.transcript : null;
     this.transcript = newTranscript();
     this.output(this.replacement());
     this.publish({
       phase: 'preparing', name, label: null, result: null, error: null,
-      run: this.state.run + 1, hasOutput: true,
+      run: this.state.run + 1, hasOutput: true, savedVersion,
     });
     this.append(plainText(`${this.previous ? '\n' : ''}› Run ${name}\n`));
   }

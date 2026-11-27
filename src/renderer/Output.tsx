@@ -30,7 +30,7 @@ const statusLabel: Record<RunStatus, string> = {
 };
 
 export function Output({ store, canRun, canRerun, tabs, onRun, onRerun, onStop, onInput, onResize, onClose }: OutputProps) {
-  const { phase, name, label, result, error, hasOutput } = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const { phase, name, label, result, error, hasOutput, savedVersion } = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [Surface, setSurface] = useState<ComponentType<TerminalSurfaceProps> | null>(null);
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
@@ -78,9 +78,12 @@ export function Output({ store, canRun, canRerun, tabs, onRun, onRerun, onStop, 
           </p>
         )}
         <div className="run-console-footer">
-          <span className={bad ? 'console-error' : undefined} title={error ?? result?.message ?? label ?? undefined}>
-            {error ?? result?.message ?? (phase === 'running' ? 'Type here to send input to the program.' : label)
-              ?? 'Run a file to see output and enter input here.'}
+          <span className={bad && !savedVersion ? 'console-error' : undefined}
+            title={savedVersion ? 'Running the last saved version. Editor changes are unsaved.' : error ?? result?.message ?? label ?? undefined}
+            role={savedVersion ? 'status' : undefined} data-testid={savedVersion ? 'run-console-saved-version' : undefined}>
+            {savedVersion ? 'Running the last saved version. Editor changes are unsaved.'
+              : error ?? result?.message ?? (phase === 'running' ? 'Type here to send input to the program.' : label)
+                ?? 'Run a file to see output and enter input here.'}
           </span>
           {result && <span className="run-console-duration" data-testid="run-console-duration">
             {result.exitCode !== null ? `Exit ${result.exitCode} · ` : result.programSignal ? `${result.programSignal} · ` : ''}

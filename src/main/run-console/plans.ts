@@ -435,7 +435,7 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
   const libraries = await jarPaths([cwd, sources, dirname(path)])
   const compilerArgs = ['-encoding', 'UTF-8', '-proc:none', '-d', classes, '-classpath', classpath([classes, ...libraries]),
     '-sourcepath', classpath([sources]), path]
-  const compileArgs = windows ? ['@ion-javac-arguments.txt'] : compilerArgs
+  const compileArgs = windows ? ['-J-Dfile.encoding=UTF-8', '@ion-javac-arguments.txt'] : compilerArgs
   const compileCwd = windows ? scratch : cwd
   if (windows) {
     // javac's Windows argument-file parser treats backslashes as escapes. Use

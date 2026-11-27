@@ -116,7 +116,7 @@ class Actual {
   const plan = await prepareRun({ path, root, scratch: build, signal })
   assert.equal(plan.cwd, root)
   if (process.platform === 'win32') {
-    assert.deepEqual(plan.compile?.args, ['@ion-javac-arguments.txt'])
+    assert.deepEqual(plan.compile?.args, ['-J-Dfile.encoding=UTF-8', '@ion-javac-arguments.txt'])
     assert.equal(plan.compile?.cwd, build)
     const argumentFile = await readFile(join(build, 'ion-javac-arguments.txt'), 'utf8')
     assert.ok(argumentFile.includes(javaCompilerArgumentFile([path.replaceAll('\\', '/')])))
