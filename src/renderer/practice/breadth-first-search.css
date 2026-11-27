@@ -1,0 +1,24 @@
+.practice-breadth-first { display: grid; gap: 10px; min-width: 0; }
+.practice-bfs-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px; }
+.practice-bfs-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
+.practice-bfs-heading .practice-label { flex: 0 0 90px; }
+.practice-bfs-graph, .practice-bfs-nodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; list-style: none; margin: 0; padding: 0; }
+.practice-bfs-graph li, .practice-bfs-nodes li { display: grid; gap: 3px; min-width: 0; padding: 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); font-size: 11px; }
+.practice-bfs-graph li { grid-template-columns: max-content minmax(0, 1fr); }
+.practice-bfs-graph li span, .practice-bfs-nodes li span { color: var(--muted); overflow-wrap: anywhere; }
+.practice-bfs-nodes li[data-node-state="current"] { border-color: var(--accent); background: var(--accent-bg); }
+.practice-bfs-nodes li[data-node-state="processed"] { border-color: var(--mint); }
+.practice-bfs-nodes li[data-node-state="queued"] { border-color: var(--amber); }
+.practice-bfs-state { display: grid; gap: 5px; margin: 0; }
+.practice-bfs-state > div { display: grid; grid-template-columns: minmax(100px, max-content) minmax(0, 1fr); gap: 8px; padding: 5px 7px; border-bottom: 1px solid var(--subtle-border); font-size: 11px; }
+.practice-bfs-state dt { color: var(--muted); }
+.practice-bfs-state dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.practice-bfs-explanation { display: grid; gap: 4px; padding: 9px 10px; border-left: 2px solid var(--accent); background: var(--surface-2); }
+.practice-bfs-explanation h4, .practice-bfs-complexity h4 { margin: 0; color: var(--ink); font-size: 12px; }
+.practice-bfs-explanation p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.practice-bfs-complexity { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--subtle-border); border-radius: 8px; }
+.practice-bfs-complexity dl { display: grid; gap: 6px; margin: 0; }
+.practice-bfs-complexity dl > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px; }
+.practice-bfs-complexity dt { color: var(--muted); font-size: 11px; }
+.practice-bfs-complexity dd { margin: 0; font-size: 11px; }
+.practice-bfs-complexity p { margin: 0; color: var(--muted); font-size: 12px; }
