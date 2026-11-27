@@ -17,6 +17,7 @@ const fixture = `
   window.githubCalls = []
   window.switchCalls = []
   window.mergeCalls = []
+  window.pushCalls = []
   window.cleanSource = false
   window.fetchCalls = []
   window.finishPullRequest = []
@@ -49,6 +50,7 @@ const fixture = `
       createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
       switchBranch: async request => { window.switchCalls.push([root,request]); state.branch=request.target; return true },
       mergeBranch: async request => { window.mergeCalls.push([root,request]); return {applied:true,conflicts:false} },
+      pushGitHub: async request => { window.pushCalls.push([root,request]); return {head:'a'.repeat(40),cachedRefUpdated:true} },
       fetchGitHub: async request => { window.fetchCalls.push([root,request]); return {oid:'f'.repeat(40),changed:true} },
       conflict: async ({path}) => {
         window.conflictCalls.push([root,path])
@@ -417,6 +419,16 @@ try {
   await page.waitForFunction(count => window.finish.length > count, authFetchBrowseCount)
   await page.evaluate(() => window.finish.at(-1)('fetched repository'))
   await page.getByText('origin/topic advanced to ffffffffff.').waitFor()
+  await page.getByRole('button', {name:'Compare origin/topic with HEAD'}).click()
+  await finishPreview({...branchResult,to:'f'.repeat(40),relation:'behind',changes:[]})
+  const pushButton = region.getByRole('button', {name:'Review push…'})
+  const pushBrowseCount = await page.evaluate(() => window.finish.length)
+  await pushButton.click()
+  assert.deepEqual(await page.evaluate(() => window.pushCalls), [['first',{
+    repository:'team/demo',remote:'origin',branch:'topic',previous:'f'.repeat(40),head,dirtyPaths:[]}]])
+  await page.waitForFunction(count => window.finish.length > count, pushBrowseCount)
+  await page.evaluate(() => window.finish.at(-1)('pushed repository'))
+  await page.getByText('Pushed aaaaaaaaaa to GitHub and refreshed its local tracking ref.').waitFor()
   assert.deepEqual(network, [])
   assert.deepEqual(errors, [])
   console.log('PASS repository browsing, reviewed switch and merge requests, fetch, conflict and GitHub details, previews, tags and cancellation')

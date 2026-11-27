@@ -1774,6 +1774,20 @@ function registerIpc(): void {
         })
         return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
       })))
+  handle('source-control-push-github', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.pushGitHub(path, request, [...files.rootPaths], async (review, signal) => {
+      const size = review.bytes < 1024 * 1024 ? Math.ceil(review.bytes / 1024) + ' KiB' : (review.bytes / 1024 / 1024).toFixed(1) + ' MiB'
+      const answer = await dialog.showMessageBox(target, {
+        signal, type: 'warning', buttons: ['Cancel', 'Push Reviewed Commit'], cancelId: 0, defaultId: 0,
+        message: 'Push ' + review.branch + ' to ' + review.repository + '?',
+        detail: 'Ion will send commit ' + review.head.slice(0, 12) + ' (' + review.commits + ' commit'
+          + (review.commits === 1 ? '' : 's') + ', ' + review.objects + ' objects, up to ' + size + ' uncompressed data) '
+          + 'to ' + review.remote + '/' + review.branch + '. GitHub must still have the reviewed commit '
+          + review.previous.slice(0, 12) + '; a changed remote branch is rejected. This does not force-push or change local files. '
+          + 'The signed-in GitHub CLI account is used only for this HTTPS request.',
+      })
+      return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
+    })))
   handle('source-control-stash-snapshot', (target, root) =>
     useSourceControl(target, root, (service, path) => service.saveStashSnapshot(path, async (review, signal) => {
       const answer = await dialog.showMessageBox(target, {

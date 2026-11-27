@@ -58,3 +58,15 @@ export function reviewedRemotes(configuration: string): Pick<SourceControlBrowse
   })
   return { remotes, truncated: truncated || names.length > remoteLimit }
 }
+
+/** Ensure Ion's canonical HTTPS endpoint is not redirected by repository URL rewrite rules. */
+export function reviewedGitHubEndpoint(configuration: string, repository: string): boolean {
+  const rewrites = new Map<string, string | null>()
+  for (const { section, name, subsection, value } of configurationEntries(configuration)) {
+    if (section.toLowerCase() !== 'url' || name.toLowerCase() !== 'insteadof' || value === undefined || value.length > urlLimit) continue
+    const previous = rewrites.get(value)
+    rewrites.set(value, subsection && subsection.length <= urlLimit && (previous === undefined || previous === subsection) ? subsection : null)
+  }
+  const endpoint = 'https://github.com/' + repository + '.git'
+  return reviewedIdentity(endpoint, rewrites)?.toLowerCase() === repository.toLowerCase()
+}

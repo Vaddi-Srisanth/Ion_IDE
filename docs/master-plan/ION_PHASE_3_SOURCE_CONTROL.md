@@ -58,6 +58,14 @@ Source Control → Browse Repository → Cached remote branches compares HEAD wi
 
 On macOS ARM64, 38 focused Git tests passed, along with the headless renderer check and the offline production Electron journey. The focused fixtures cover packed refs, stale and symbolic selections, and preservation of staged and dirty bytes. The cached-branch increment still needs a native Windows run. Fetch, pull, push and changes to working-tree branches remain open.
 
+## Reviewed GitHub push — 27 November 2026
+
+The cached-branch comparison can now offer **Review push…** when the current branch is ahead of its same-named cached GitHub branch and the editor/repository are clean. The native cancel-by-default review displays the destination, exact local commit, outgoing commit/object counts and uncompressed object size, plus the reviewed previous remote OID. Before approval and again before transport, Ion validates repository identity, branch/ref OIDs, remote endpoint and worktree state. It pushes only the pinned commit to that exact branch using a compare-and-swap lease; force push, tags, hooks, submodules, credential helpers, SSH, redirects, global/system Git configuration and interactive prompts are excluded. The GitHub token comes from the installed official GitHub CLI and remains in the isolated main-process transport environment. Ion verifies the remote OID after push, then updates only the matching local tracking ref with a CAS check. If the remote advances after review, the lease rejects the write without changing the cached ref or local worktree.
+
+Targeted macOS checks passed: **2/2 real-Git backend tests**, renderer push journey, TypeScript checking, production build and `git diff --check`. The backend fixtures use a disposable local bare repository and a test-only credential; they verify cancel performs no credential/network work, approval pushes only the selected commit, token absence from argv, clean-worktree preservation, tracking-ref update, and rejection of a concurrent remote advance. No live GitHub push was made. Native Windows and production Electron native-confirmation journeys remain unverified. The Source Control renderer test is headless; it is not evidence of native dialog behavior.
+
+This closes the planned core Phase 3 workflow at the implemented review-gated scope. Different-tree checkout remains intentionally unavailable; users can use the reviewed merge workflow instead. Native Windows, authenticated private transfer and native dialog qualification are recorded for Phase 10 rather than treated as completed checks. No release, update feed, installed app or public branch was changed.
+
 ## Same-tree switching, public fetch, and pull-request details — 27 November 2026
 
 Local implementation checkpoint: `fefb4a2` on `codex/ion-phase-6-copilot` (not pushed).

@@ -163,6 +163,8 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
           dirtyPaths={dirtyPaths}
           canMergeBranch={!repository.detached && !repository.unborn && !repository.truncated && !conflict
             && !repository.entries.length && !dirtyPaths.length}
+          canPushBranch={!repository.detached && !repository.unborn && !repository.truncated && !conflict
+            && !repository.entries.length && !dirtyPaths.length}
           canPopStash={!repository.detached && !repository.unborn && !repository.truncated && !conflict
             && !repository.entries.length && !dirtyPaths.length}
           canSnapshotStash={!repository.detached && !repository.unborn && !repository.truncated && !conflict

@@ -211,6 +211,7 @@ export function App() {
       switchBranch: (request) => bridge.sourceControl.switchBranch(sourceControlRoot, request),
       mergeBranch: (request) => bridge.sourceControl.mergeBranch(sourceControlRoot, request),
       fetchGitHub: (request) => bridge.sourceControl.fetchGitHub(sourceControlRoot, request),
+      pushGitHub: (request) => bridge.sourceControl.pushGitHub(sourceControlRoot, request),
       saveStashSnapshot: () => bridge.sourceControl.saveStashSnapshot(sourceControlRoot),
       popStash: (request) => bridge.sourceControl.popStash(sourceControlRoot, request),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),

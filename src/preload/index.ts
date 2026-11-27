@@ -205,6 +205,7 @@ const bridge: IonBridge = {
     switchBranch: (root, request) => ipcRenderer.invoke('ion:source-control-switch-branch', root, request),
     mergeBranch: (root, request) => ipcRenderer.invoke('ion:source-control-merge-branch', root, request),
     fetchGitHub: (root, request) => ipcRenderer.invoke('ion:source-control-fetch-github', root, request),
+    pushGitHub: (root, request) => ipcRenderer.invoke('ion:source-control-push-github', root, request),
     saveStashSnapshot: (root) => ipcRenderer.invoke('ion:source-control-stash-snapshot', root),
     popStash: (root, request) => ipcRenderer.invoke('ion:source-control-stash-pop', root, request),
     conflict: (root, request) => ipcRenderer.invoke('ion:source-control-conflict', root, request),

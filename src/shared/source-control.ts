@@ -108,6 +108,9 @@ export interface SourceControlStashPopResult { applied: boolean; conflicts: bool
 export interface SourceControlStashPopRequest { oid: string; dirtyPaths: string[] }
 export interface SourceControlMergeRequest extends SourceControlSwitchRequest { targetKind: 'local' | 'cached-remote'; dirtyPaths: string[] }
 export interface SourceControlMergeResult { applied: boolean; conflicts: boolean }
+export interface SourceControlPushRequest { repository: string; remote: string; branch: string; previous: string; head: string; dirtyPaths: string[] }
+export interface SourceControlPushReview extends Omit<SourceControlPushRequest, 'dirtyPaths'> { commits: number; objects: number; bytes: number }
+export interface SourceControlPushResult { head: string; cachedRefUpdated: boolean }
 
 export interface SourceControlGitHubPullRequestRequest {
   repository: string
@@ -168,6 +171,7 @@ export interface SourceControlBridge {
   saveStashSnapshot(): Promise<string | null>
   popStash(request: SourceControlStashPopRequest): Promise<SourceControlStashPopResult | null>
   mergeBranch(request: SourceControlMergeRequest): Promise<SourceControlMergeResult | null>
+  pushGitHub(request: SourceControlPushRequest): Promise<SourceControlPushResult | null>
   conflict(request: { path: string }): Promise<SourceControlConflict>
   cancelBlame(path: string): Promise<void>
   blame(request: { path: string }): Promise<SourceControlBlame>

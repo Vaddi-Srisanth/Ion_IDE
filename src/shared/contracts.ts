@@ -202,6 +202,7 @@ export interface IonBridge {
     switchBranch(root: string, request: Parameters<SourceControlBridge['switchBranch']>[0]): ReturnType<SourceControlBridge['switchBranch']>
     mergeBranch(root: string, request: Parameters<SourceControlBridge['mergeBranch']>[0]): ReturnType<SourceControlBridge['mergeBranch']>
     fetchGitHub(root: string, request: Parameters<SourceControlBridge['fetchGitHub']>[0]): ReturnType<SourceControlBridge['fetchGitHub']>
+    pushGitHub(root: string, request: Parameters<SourceControlBridge['pushGitHub']>[0]): ReturnType<SourceControlBridge['pushGitHub']>
     saveStashSnapshot(root: string): ReturnType<SourceControlBridge['saveStashSnapshot']>
     popStash(root: string, request: Parameters<SourceControlBridge['popStash']>[0]): ReturnType<SourceControlBridge['popStash']>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>

@@ -6,13 +6,15 @@ import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, 
   SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubIssue, SourceControlGitHubIssueRequest,
   SourceControlGitHubPullRequest, SourceControlGitHubPullRequestRequest,
   SourceControlMergeRequest, SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
+import type { SourceControlPushRequest, SourceControlPushReview, SourceControlPushResult } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
 import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
-  type Repository, UnavailableDiff, verifyFetchSelection } from './repository'
+  type Repository, UnavailableDiff, verifyFetchSelection, verifyPushSelection } from './repository'
 import { parseStatus, safeGitPath, type ParsedStatus, type StatusEntry } from './status'
 import { blob, checkLines, textLimit } from './text-preview'
 import type { RemoteFetchDependencies } from './remote-fetch'
+import { measurePush } from './remote-push'
 
 const statusLimit = 512 * 1024
 
@@ -340,6 +342,58 @@ export class SourceControlService {
       if (after.head !== from || after.branch !== current) throw new Error('Git changed the active branch unexpectedly. Inspect the repository before continuing.')
       this.reviewedRefs = undefined
       return { applied: mergePending, conflicts }
+    })
+  }
+
+  pushGitHub(root: string, value: unknown, workspaceRoots: readonly string[],
+    approve: (review: SourceControlPushReview, signal: AbortSignal) => Promise<boolean>): Promise<SourceControlPushResult | null> {
+    const { repository, status } = this.requireSnapshot(root)
+    const request = requestObject(value)
+    if (Array.isArray(value) || Object.keys(request).length !== 6
+      || !['repository', 'remote', 'branch', 'previous', 'head', 'dirtyPaths'].every(key => Object.hasOwn(request, key))) {
+      throw new Error('Choose a reviewed GitHub branch push.')
+    }
+    const { repository: slug, remote, branch, previous, head, dirtyPaths } = request
+    const refs = this.reviewedRefs
+    if (!refs || refs.root !== root || status.detached || status.unborn || status.truncated || status.entries.size
+      || typeof slug !== 'string' || typeof remote !== 'string' || refs.remotes.get(remote)?.toLowerCase() !== slug.toLowerCase()
+      || typeof branch !== 'string' || branch !== status.branch || typeof previous !== 'string' || !gitObjectId.test(previous)
+      || refs.cachedRemoteBranches.get(remote + '/' + branch) !== previous || typeof head !== 'string' || head !== status.head
+      || !Array.isArray(dirtyPaths) || dirtyPaths.length > 512
+      || dirtyPaths.some(path => typeof path !== 'string' || !isAbsolute(path) || !inside(repository.root, path))) {
+      throw new Error('Refresh and choose the current branch and its reviewed GitHub remote in a clean repository.')
+    }
+    if (dirtyPaths.length) throw new Error('Save or close modified editor files before pushing a branch.')
+    const selection: SourceControlPushRequest = { repository: slug, remote, branch, previous, head, dirtyPaths: [] }
+    const validate = async (signal: AbortSignal) => {
+      await this.verifyRepository(repository, signal)
+      const current = await statusOf(repository, signal)
+      if (current.detached || current.unborn || current.truncated || current.entries.size
+        || current.branch !== branch || current.head !== head
+        || !await verifyPushSelection(repository, signal, selection)) {
+        throw new Error('The branch or remote changed. Refresh and review the push again.')
+      }
+      const comparison = await compareRepository(repository, signal,
+        { kind: 'cached-remote-branch', name: remote + '/' + branch, from: head, to: previous })
+      if (comparison.relation !== 'behind') throw new Error('The remote branch is no longer behind this commit. Refresh and compare again.')
+    }
+    return this.mutate(async signal => {
+      await validate(signal)
+      const plan = await measurePush(repository, signal, head, previous)
+      const review: SourceControlPushReview = { repository: slug, remote, branch, previous, head, ...plan }
+      if (!await approve(review, signal)) return null
+      await validate(signal)
+      const { pushGitHubBranch } = await import('./remote-push')
+      const pushed = await pushGitHubBranch(repository, workspaceRoots, selection, signal,
+        () => validate(signal), this.remoteFetchDependencies)
+      let cachedRefUpdated = false
+      try {
+        await git(repository, signal, ['update-ref', '--no-deref', '-m', 'push: updated in Ion',
+          'refs/remotes/' + remote + '/' + branch, head, previous])
+        cachedRefUpdated = true
+      } catch { /* Remote push is confirmed; leave a moved local tracking ref untouched. */ }
+      this.reviewedRefs = undefined
+      return { head: pushed, cachedRefUpdated }
     })
   }
 

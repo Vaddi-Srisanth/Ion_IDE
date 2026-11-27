@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison, SourceControlComparisonRequest,
-  SourceControlFetchRequest, SourceControlMergeRequest, SourceControlSwitchRequest } from '../../shared/source-control'
+  SourceControlFetchRequest, SourceControlMergeRequest, SourceControlPushRequest, SourceControlSwitchRequest } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 
@@ -15,7 +15,8 @@ const empty: Record<View, string> = {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
-export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash, canPopStash, canMergeBranch, dirtyPaths }: {
+export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash, canPopStash,
+  canMergeBranch, canPushBranch, dirtyPaths }: {
   bridge: SourceControlBridge
   busy: boolean
   perform(task: () => Promise<void>): Promise<void>
@@ -24,6 +25,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
   canSnapshotStash: boolean
   canPopStash: boolean
   canMergeBranch: boolean
+  canPushBranch: boolean
   dirtyPaths: string[]
 }) {
   const [state, setState] = useState<State>()
@@ -162,6 +164,29 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
+  function pushGitHub(selection: Omit<SourceControlPushRequest, 'dirtyPaths'>) {
+    void perform(async () => {
+      const id = ++request.current
+      setFeedback(undefined)
+      try {
+        const result = await bridge.pushGitHub({ ...selection, dirtyPaths })
+        if (!result || request.current !== id) return
+        await refreshStatus()
+        if (request.current !== id) return
+        await read()
+        if (request.current !== id) return
+        setFeedback({ message: 'Pushed ' + result.head.slice(0, 10) + (result.cachedRefUpdated
+          ? ' to GitHub and refreshed its local tracking ref.' : ' to GitHub. The local tracking ref moved meanwhile; refresh it before comparing again.') })
+      } catch (reason) {
+        if (request.current !== id) return
+        await refreshStatus().catch(() => {})
+        if (request.current !== id) return
+        setFeedback({ message: errorMessage(reason), error: true })
+        await read()
+      }
+    })
+  }
+
   function toggle() {
     if (!state) { load(); return }
     request.current++
@@ -188,7 +213,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, mergeBranch, fetchGitHub, canSnapshotStash, canPopStash, canMergeBranch, saveStashSnapshot, popStash }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, mergeBranch, fetchGitHub, pushGitHub, canSnapshotStash, canPopStash, canMergeBranch, canPushBranch, saveStashSnapshot, popStash }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -214,15 +239,17 @@ type ComparisonProps = {
   switchBranch(selection: SourceControlSwitchRequest): void
   fetchGitHub(selection: SourceControlFetchRequest): void
   mergeBranch(selection: Omit<SourceControlMergeRequest, 'dirtyPaths'>): void
+  pushGitHub(selection: Omit<SourceControlPushRequest, 'dirtyPaths'>): void
   canSnapshotStash: boolean
   canPopStash: boolean
   canMergeBranch: boolean
+  canPushBranch: boolean
   saveStashSnapshot(): void
   popStash(oid: string): void
 }
 
-function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, mergeBranch, fetchGitHub,
-  canSnapshotStash, canPopStash, canMergeBranch, saveStashSnapshot, popStash }: ComparisonProps) {
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, mergeBranch, fetchGitHub, pushGitHub,
+  canSnapshotStash, canPopStash, canMergeBranch, canPushBranch, saveStashSnapshot, popStash }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
@@ -273,6 +300,16 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
             onClick={() => mergeBranch({ current: currentBranch, target: preview.label, from: preview.result.from, to: preview.result.to,
               targetKind: cached ? 'cached-remote' : 'local' })}>
             {cached ? 'Review pull…' : 'Review merge…'}
+          </button>
+        </div>)}
+      {cached && remote?.repository && currentBranch && preview.label.slice(remote.name.length + 1) === currentBranch
+        && preview.result.relation === 'behind' && (
+        <div className="git-browser-create">
+          <p>Your clean local branch is ahead of this fetched GitHub branch. The push sends the reviewed commit only; GitHub rejects a changed remote tip.</p>
+          <button type="button" className="button" disabled={!canPushBranch || busy}
+            onClick={() => pushGitHub({ repository: remote.repository!, remote: remote.name, branch: currentBranch,
+              previous: preview.result.to, head: preview.result.from })}>
+            Review push…
           </button>
         </div>)}
       {remote?.repository && <div className="git-browser-create">

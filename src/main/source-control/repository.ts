@@ -11,7 +11,7 @@ import { commonGitDirectory, withFrozenConfiguration } from './configuration'
 import { withIndexTransaction } from './index-transaction'
 import { verifyCachedRemoteBranch } from './remote-branches'
 import { safeGitPath } from './status'
-import { reviewedRemotes } from './remotes'
+import { reviewedGitHubEndpoint, reviewedRemotes } from './remotes'
 
 export function inside(root: string, path: string): boolean {
   const fromRoot = relative(root, path)
@@ -157,7 +157,7 @@ function switchTransaction(input: string): boolean {
 
 function plumbingCommand(args: string[], input = ''): boolean {
   const fetchedRef = args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
-    && args[3] === 'fetch: updated in Ion' && args[4].startsWith('refs/remotes/')
+    && ['fetch: updated in Ion', 'push: updated in Ion'].includes(args[3]) && args[4].startsWith('refs/remotes/')
     && objectId.test(args[5]) && objectId.test(args[6]) && args[5].length === args[6].length
     && args[5] !== args[6] && args[6] !== '0'.repeat(args[6].length)
     && args[4].slice('refs/remotes/'.length).split('/').every(part => part && !part.startsWith('.')
@@ -165,9 +165,15 @@ function plumbingCommand(args: string[], input = ''): boolean {
       && !part.includes('..') && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part))
   switch (args[0]) {
     case 'rev-parse': return args.join(' ') === 'rev-parse --verify HEAD'
+      || args.length === 3 && args[1] === '--verify' && /^refs\/heads\/[A-Za-z0-9._/-]{1,1024}$/.test(args[2])
       || args.length === 3 && args[1] === '--verify' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})\^\{tree\}$/.test(args[2])
     case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
       || args.length === 3 && args[1] === '-t' && objectId.test(args[2])
+      || args.length === 2 && args[1] === '--batch-check=%(objectname) %(objecttype) %(objectsize)'
+        && Boolean(input) && input.split('\n').filter(Boolean).length <= 25_000
+        && input.split('\n').filter(Boolean).every(objectId.test.bind(objectId))
+    case 'rev-list': return args.length === 5 && args[1] === '--objects' && objectId.test(args[2])
+      && args[3] === '--not' && objectId.test(args[4])
     case 'ls-tree': return args.length === 5 && args[1] === '-z' && objectId.test(args[2]) && args[3] === '--' && safeGitPath(args[4])
     case 'ls-files': return args.length === 5 && (args[1] === '--unmerged' || args[1] === '--stage') && args[2] === '-z' && args[3] === '--' && safeGitPath(args[4])
     case 'read-tree': return args.length === 2 && (args[1] === '--empty' || objectId.test(args[1]))
@@ -271,6 +277,23 @@ export function verifyFetchSelection(repository: Repository, signal: AbortSignal
       signal.throwIfAborted()
       return invokeGit(projected, signal, args, { limit: 4096 }, environment)
     }, commonGitDirectory(repository), ref, selection.previous)
+  })
+}
+
+export function verifyPushSelection(repository: Repository, signal: AbortSignal,
+  selection: { repository: string; remote: string; branch: string; previous: string; head: string }): Promise<boolean> {
+  return withProjectedRepository(repository, signal, async (projected, environment, _verify, configuration) => {
+    const remotes = reviewedRemotes(configuration).remotes
+    if (!remotes.some(row => row.name === selection.remote && row.repository?.toLowerCase() === selection.repository.toLowerCase())
+      || !reviewedGitHubEndpoint(configuration, selection.repository)) return false
+    const cached = await verifyCachedRemoteBranch(async args => {
+      signal.throwIfAborted()
+      return invokeGit(projected, signal, args, { limit: 4096 }, environment)
+    }, commonGitDirectory(repository), selection.remote + '/' + selection.branch, selection.previous)
+    if (!cached) return false
+    const current = (await invokeGit(projected, signal, ['rev-parse', '--verify', 'refs/heads/' + selection.branch],
+      { limit: 128 }, environment)).text.trim()
+    return current === selection.head
   })
 }
 
