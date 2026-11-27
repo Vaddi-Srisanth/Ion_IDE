@@ -1,0 +1,45 @@
+.practice-binary-search { display: grid; gap: 10px; min-width: 0; }
+.practice-binary-heading { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; justify-content: space-between; }
+.practice-binary-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
+.practice-binary-heading .practice-label { flex: 0 0 72px; }
+.practice-binary-values {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+.practice-binary-values li { display: grid; gap: 3px; text-align: center; }
+.practice-binary-value {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 12px;
+}
+.practice-binary-index { color: var(--muted); font-size: 10px; }
+.practice-binary-values [data-search-state="mid"] .practice-binary-value,
+.practice-binary-values [data-search-state="found"] .practice-binary-value {
+  border-color: currentColor;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 650;
+}
+.practice-binary-values [data-search-state="found"] .practice-binary-value { color: var(--mint); }
+.practice-binary-values [data-search-state="eliminated"] .practice-binary-value {
+  background: transparent;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.practice-binary-range { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; }
+.practice-binary-range div { display: flex; gap: 5px; align-items: baseline; font-size: 11px; }
+.practice-binary-range dt { color: var(--muted); }
+.practice-binary-range dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+.practice-binary-explanation { display: grid; gap: 4px; padding: 9px 10px; border-left: 2px solid var(--accent); background: var(--surface-2); }
+.practice-binary-explanation h4 { margin: 0; color: var(--ink); font-size: 12px; }
+.practice-binary-explanation p { color: var(--muted); font-size: 12px; line-height: 1.45; }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
 import type { Entry } from '../../shared/contracts'
 import type { RunLanguage } from '../../shared/run-console'
 import {
@@ -13,6 +13,8 @@ import { Icon } from '../icons'
 import { CatalogProgress } from './CatalogProgress'
 import { PracticeResults, SubmissionHistory } from './PracticeResults'
 import './practice.css'
+
+const BinarySearchWalkthrough = lazy(() => import('./BinarySearchWalkthrough'))
 
 export interface PracticePaneProps {
   bridge: PracticeBridge
@@ -54,11 +56,12 @@ function PracticeSamples({ samples }: { samples: readonly (Omit<PracticeSample, 
   </section>
 }
 
-function ChallengePreview({ bridge, id, language, busy, onBack, onStart }: {
+function ChallengePreview({ bridge, id, language, busy, backLabel, onBack, onStart }: {
   bridge: PracticeBridge
   id: string
   language: RunLanguage | ''
   busy: boolean
+  backLabel?: string
   onBack(): void
   onStart(id: string, language: RunLanguage): void
 }) {
@@ -73,7 +76,9 @@ function ChallengePreview({ bridge, id, language, busy, onBack, onStart }: {
   }, [bridge, id])
   const challenge = loaded && 'challenge' in loaded ? loaded.challenge : undefined
   return <section className="practice-challenge-preview" data-testid="practice-challenge-preview">
-    <button className="button practice-back" type="button" onClick={onBack}>Back to matches</button>
+    <button className="button practice-back" type="button" autoFocus={Boolean(backLabel)} onClick={onBack}>
+      {backLabel ?? 'Back to matches'}
+    </button>
     {!loaded && <p className="practice-muted" role="status">Opening the problem…</p>}
     {loaded && 'error' in loaded && <p className="form-error" role="alert">{loaded.error}</p>}
     {challenge && <>
@@ -90,10 +95,34 @@ function ChallengePreview({ bridge, id, language, busy, onBack, onStart }: {
   </section>
 }
 
-function BrowsePractice({ bridge, hidden, busy, onStart }: {
+function ProgressPractice({ bridge, busy, onStart }: {
+  bridge: PracticeBridge
+  busy: boolean
+  onStart(id: string, language: RunLanguage): void
+}) {
+  const [previewId, setPreviewId] = useState('')
+  const [language, setLanguage] = useState<RunLanguage | ''>('')
+  return <>
+    <CatalogProgress bridge={bridge} hidden={Boolean(previewId)} onViewChallenge={setPreviewId} />
+    {previewId && <section className="practice-discovery" aria-label="Suggested practice challenge">
+      <label className="practice-label">Language
+        <select value={language} onChange={(event) => setLanguage(event.target.value as RunLanguage | '')}>
+          <option value="">Choose language</option>
+          {languageOptions}
+        </select>
+      </label>
+      <ChallengePreview key={previewId} bridge={bridge} id={previewId} language={language} busy={busy}
+        backLabel="Back to progress" onBack={() => setPreviewId('')} onStart={onStart} />
+    </section>}
+  </>
+}
+
+function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, onWalkthrough, onStart }: {
   bridge: PracticeBridge
   hidden: boolean
   busy: boolean
+  walkthroughEntry: RefObject<HTMLButtonElement | null>
+  onWalkthrough(): void
   onStart(id: string, language: RunLanguage): void
 }) {
   const [language, setLanguage] = useState<RunLanguage | ''>('')
@@ -134,6 +163,9 @@ function BrowsePractice({ bridge, hidden, busy, onStart }: {
         <h3>Find a challenge</h3>
         <span className="practice-catalog-badge">Offline catalog</span>
       </div>
+      <button ref={walkthroughEntry} className="button practice-walkthrough-entry" type="button" onClick={onWalkthrough}>
+        <Icon name="book" size={14} /> Walk through binary search
+      </button>
       <form className="practice-search" role="search" aria-label="Practice catalog" onSubmit={(event) => {
         event.preventDefault()
         setSearch(searchText.trim())
@@ -299,7 +331,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 
 
 export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onLearn }: PracticePaneProps) {
-  const [view, setView] = useState<'browse' | 'saved' | 'progress'>(initialProblem ? 'saved' : 'browse')
+  const [view, setView] = useState<'browse' | 'saved' | 'progress' | 'binary-search'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
   const [attemptId, setAttemptId] = useState('')
@@ -313,6 +345,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
   const [stopping, setStopping] = useState(false)
   const mounted = useRef(false)
   const scroll = useRef<HTMLDivElement>(null)
+  const walkthroughEntry = useRef<HTMLButtonElement>(null)
+  const returningFromWalkthrough = useRef(false)
 
   function setSelected(next: PracticeProblem | undefined) {
     setProblem(next)
@@ -344,6 +378,12 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
 
   useEffect(() => { onDirtyChange?.(draft?.dirty ?? false) }, [draft?.dirty, onDirtyChange])
   useEffect(() => { scroll.current?.scrollTo(0, 0) }, [view, problem?.id])
+  useEffect(() => {
+    if (view === 'browse' && returningFromWalkthrough.current) {
+      returningFromWalkthrough.current = false
+      walkthroughEntry.current?.focus()
+    }
+  }, [view])
 
   function edit(next: RetainedDraft | null) {
     retainedDraft = next
@@ -516,7 +556,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         <button className="icon-button" onClick={onClose} aria-label="Hide Practice" title="Hide Practice"><Icon name="x" size={15} /></button>
       </div>
       <nav className="practice-nav" aria-label="Practice views">
-        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse'}
+        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse' || view === 'binary-search'}
           onClick={() => { setView('browse'); setError(''); setNotice('') }}><Icon name="search" size={14} /> Browse</button>
         <button data-testid="practice-saved-tab" aria-pressed={view === 'saved'}
           onClick={() => { setView('saved'); setError(''); setNotice('') }}><Icon name="folder" size={14} /> Saved</button>
@@ -528,8 +568,19 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         {notice && <p className="practice-notice" role="status">{notice}</p>}
         {pending === 'start' && <p className="practice-muted" role="status">Opening your challenge…</p>}
         <BrowsePractice bridge={bridge} hidden={view !== 'browse'} busy={Boolean(pending)}
+          walkthroughEntry={walkthroughEntry} onWalkthrough={() => { setView('binary-search'); setError(''); setNotice('') }}
           onStart={(id, language) => void start(id, language)} />
-        {view === 'progress' && <CatalogProgress bridge={bridge}/>}
+        {view === 'binary-search' && <div className="practice-discovery practice-walkthrough">
+          <button className="button" type="button" autoFocus onClick={() => {
+            returningFromWalkthrough.current = true
+            setView('browse')
+          }}>Back to Browse</button>
+          <Suspense fallback={<p className="practice-muted" role="status">Opening walkthrough…</p>}>
+            <BinarySearchWalkthrough />
+          </Suspense>
+        </div>}
+        {view === 'progress' && <ProgressPractice bridge={bridge} busy={Boolean(pending)}
+          onStart={(id, language) => void start(id, language)} />}
         {view === 'saved' && <>
           <div className="practice-library">
             <label className="practice-label">Saved problems

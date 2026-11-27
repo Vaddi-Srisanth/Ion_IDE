@@ -151,9 +151,23 @@ await withScratch('practice-local-submit', async scratch => {
     assert.deepEqual(await progress.locator('dl > div').evaluateAll(items =>
       Object.fromEntries(items.map(item => [item.querySelector('dt').textContent, item.querySelector('dd').textContent]))),
     { Opened: '1', Submitted: '1', Accepted: '1' })
+    const suggestion = progress.getByRole('region', { name: 'Suggested next practice' })
+    const suggestedTitle = await suggestion.getByRole('heading', { level: 5 }).textContent()
+    assert.ok(suggestedTitle && suggestedTitle !== 'Minutes to Clock')
+    await suggestion.getByRole('button', { name: 'View challenge ' + suggestedTitle }).click()
+    await page.getByTestId('practice-challenge-preview').getByRole('heading', { name: suggestedTitle, exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Back to progress', exact: true }).click()
+    await suggestion.getByRole('button').waitFor()
+    await page.getByTestId('practice-browse-tab').click()
+    await page.getByRole('button', { name: 'Walk through binary search', exact: true }).click()
+    const walkthrough = page.getByRole('region', { name: 'Binary search', exact: true })
+    await walkthrough.getByRole('button', { name: 'Next step', exact: true }).click()
+    await walkthrough.getByRole('button', { name: 'Next step', exact: true }).click()
+    await walkthrough.getByText('Target found', { exact: true }).waitFor()
     assert.deepEqual(reopened.requests, [])
     assert.deepEqual(reopened.errors, [])
     console.log('PASS both verdicts, the previous sample run, source, notes and manual status survive offline relaunch')
+    console.log('PASS locally suggested practice preview and binary search lesson work offline')
   } finally {
     await close(reopened)
   }

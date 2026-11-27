@@ -118,6 +118,10 @@ export interface PracticeLibrary {
   unavailable: number
 }
 
+export interface PracticeSuggestion extends PracticeChallengeSummary {
+  reason: 'submitted' | 'opened' | 'related' | 'new'
+}
+
 export interface PracticeProgress {
   catalogSize: number
   opened: number
@@ -125,6 +129,7 @@ export interface PracticeProgress {
   accepted: number
   unavailable: number
   challenges: { id: string; title: string; state: 'opened' | 'submitted' | 'accepted'; importedOnly: boolean }[]
+  suggestion?: PracticeSuggestion
 }
 
 export interface PracticeBridge {

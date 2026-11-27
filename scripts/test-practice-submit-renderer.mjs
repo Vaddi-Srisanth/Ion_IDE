@@ -17,6 +17,9 @@ const fixture = `
   window.finishSearch = []
   window.progressReads = []
   window.progressStops = 0
+  window.challengeReads = []
+  window.challengeStarts = []
+  window.openedEntries = []
   const bridge = {
     progress:() => new Promise((resolve, reject) => window.progressReads.push({resolve,reject})),
     cancelProgress:async () => {window.progressStops++},
@@ -26,6 +29,14 @@ const fixture = `
     }),
     list:async () => ({problems:[original,custom],unavailable:0}),
     get:async id => id==='supported' ? original : custom,
+    getChallenge:async id => {
+      window.challengeReads.push(id)
+      return {id,title:'Minutes to Clock',topic:'Basics',difficulty:'Easy',statement:'Convert the minutes.',samples:[]}
+    },
+    start:async (id,language) => {
+      window.challengeStarts.push([id,language])
+      return {problem:original,attempt:original.attempts[0],entry:{path:'first.py'}}
+    },
     openAttempt:async (id,attempt) => ({path:attempt+'.py'}),
     submit:(id,attempt) => new Promise((resolve,reject) => {
       window.calls.push(['submit',id,attempt])
@@ -38,7 +49,7 @@ const fixture = `
   const root = createRoot(document.querySelector('#root'))
   root.render(<PracticePane bridge={bridge} initialProblem="supported"
     onPrepareRun={path=>new Promise(resolve=>{window.calls.push(['save',path]);window.save=resolve})}
-    onOpenEntry={()=>{}} onClose={()=>root.unmount()}/>)
+    onOpenEntry={entry=>window.openedEntries.push(entry.path)} onClose={()=>root.unmount()}/>)
 `
 const bundle = await build({ stdin: { contents: fixture, loader: 'tsx', resolveDir: resolve('.') },
   bundle: true, jsx: 'automatic', write: false, outdir: 'out', format: 'iife', logLevel: 'silent' })
@@ -146,6 +157,7 @@ try {
   await imported.getByText('Accepted').waitFor()
   await progress.getByText(/Counts may be incomplete/).waitFor()
   assert.equal(await progress.getByRole('alert').count(), 0)
+  assert.equal(await progress.getByRole('region', { name: 'Suggested next practice' }).count(), 0)
   await progress.getByRole('button', { name: 'Refresh' }).click()
   await page.waitForFunction(() => window.progressReads.length === 3)
   await page.evaluate(() => window.progressReads[2].reject(Error('Profile is unavailable')))
@@ -154,16 +166,42 @@ try {
   await page.waitForFunction(() => window.progressReads.length === 4)
   await page.evaluate(() => window.progressReads[3].resolve({
     catalogSize:8, opened:0, submitted:0, accepted:0, unavailable:0, challenges:[],
+    suggestion:{id:'minutes-to-clock',title:'Minutes to Clock',topic:'Basics',difficulty:'Easy',reason:'new'},
   }))
   await progress.getByText('Open a catalog challenge to start tracking progress.').waitFor()
   assert.equal(await page.evaluate(() => window.progressStops), 1)
-  await progress.getByRole('button', { name: 'Refresh' }).click()
+  const suggestion = progress.getByRole('region', { name: 'Suggested next practice' })
+  const viewChallenge = suggestion.getByRole('button', { name: 'View challenge Minutes to Clock' })
+  await suggestion.getByText('Try a challenge with no saved attempt in your progress.').waitFor()
+  assert.deepEqual(await page.evaluate(() => window.challengeReads), [])
+  await viewChallenge.press('Enter')
+  const preview = page.getByRole('region', { name: 'Suggested practice challenge' })
+  await preview.getByText('Convert the minutes.').waitFor()
+  const back = preview.getByRole('button', { name: 'Back to progress' })
+  assert.equal(await back.evaluate(node => node === document.activeElement), true)
+  assert.equal(await preview.getByRole('button', { name: 'Start challenge' }).isDisabled(), true)
+  assert.deepEqual(await page.evaluate(() => window.challengeStarts), [])
+  await back.press('Enter')
+  await viewChallenge.waitFor()
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'View challenge Minutes to Clock')
+  assert.equal(await page.evaluate(() => window.progressReads.length), 4)
+  await viewChallenge.click()
+  await preview.getByText('Convert the minutes.').waitFor()
+  await preview.getByRole('combobox', { name: 'Language' }).selectOption('python')
+  await preview.getByRole('button', { name: 'Start challenge' }).click()
+  await page.getByRole('status').filter({ hasText: 'Attempt opened in the editor.' }).waitFor()
+  assert.deepEqual(await page.evaluate(() => window.challengeReads), ['minutes-to-clock','minutes-to-clock'])
+  assert.deepEqual(await page.evaluate(() => window.challengeStarts), [['minutes-to-clock','python']])
+  assert.deepEqual(await page.evaluate(() => window.openedEntries), ['first.py'])
+  assert.equal(await page.evaluate(() => window.searches.length), 4)
+  await progressTab.click()
   await page.waitForFunction(() => window.progressReads.length === 5)
   await page.getByRole('button', { name: 'Hide Practice' }).click()
   await page.waitForFunction(() => window.progressStops === 2)
   await page.evaluate(() => window.progressReads[4].resolve({}))
   assert.equal(await progress.count(), 0)
   console.log('PASS progress loads only on request, distinguishes imported history and ignores replies after navigation or teardown')
+  console.log('PASS the suggested challenge opens on request, restores keyboard focus when returning and requires a language and explicit start')
   assert.deepEqual(errors, [])
   console.log('PASS catalog search waits for Enter, accepts text alone, preserves filters and ignores superseded responses')
   console.log('PASS Practice Submit honors saved-source preflight, Stop, problem capability, and the selected attempt’s ten newest verdicts')

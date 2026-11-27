@@ -39,6 +39,26 @@ const starters: Record<RunLanguage, string> = {
 
 type RunSamples = (path: string, inputs: readonly string[], sourceRevision: string, expectedHash?: string) => Promise<readonly RunResult[]>
 
+function withPracticeSuggestion(progress: PracticeProgress): PracticeProgress {
+  if (progress.unavailable) return progress
+  const history = new Map(progress.challenges.map(item => [item.id, item]))
+  const ordered = catalogDifficulties.flatMap(difficulty => practiceChallenges.filter(item => item.difficulty === difficulty))
+  const revisit = (state: 'submitted' | 'opened') => ordered.find(({ id }) => {
+    const item = history.get(id)
+    return item?.state === state && !item.importedOnly
+  })
+  const submitted = revisit('submitted')
+  const opened = submitted ? undefined : revisit('opened')
+  const knownTopics = new Set(ordered.filter(({ id }) => history.has(id) && !history.get(id)?.importedOnly).map(({ topic }) => topic))
+  const unseen = ordered.filter(({ id }) => !history.has(id))
+  const related = unseen.find(({ difficulty, topic }) => difficulty !== 'Hard' && knownTopics.has(topic))
+  const challenge = submitted ?? opened ?? related ?? unseen[0]
+  if (!challenge) return progress
+  const { id, title, topic, difficulty } = challenge
+  return { ...progress, suggestion: { id, title, topic, difficulty,
+    reason: submitted ? 'submitted' : opened ? 'opened' : related ? 'related' : 'new' } }
+}
+
 interface StoredReport {
   restored?: boolean
   version: 1
@@ -428,7 +448,7 @@ export class PracticeStore {
     const result: PracticeProgress = { catalogSize: practiceChallenges.length, opened: 0, submitted: 0, accepted: 0, unavailable: 0, challenges: [] }
     const root = await this.existingDirectory()
     signal.throwIfAborted()
-    if (!root) return result
+    if (!root) return withPracticeSuggestion(result)
     const evidence = new Map<string, { submitted: boolean; accepted: boolean; judgedHere: boolean }>()
     const ids = await this.problemIds(root, signal)
     if (ids.length > maxProblems) throw new Error('Too many practice problems to summarize.')
@@ -471,7 +491,7 @@ export class PracticeStore {
       result.challenges.push({ id, title, state: row.accepted ? 'accepted' : row.submitted ? 'submitted' : 'opened',
         importedOnly: row.submitted && !row.judgedHere })
     }
-    return result
+    return withPracticeSuggestion(result)
   }
 
   async get(value: unknown): Promise<PracticeProblem> {
