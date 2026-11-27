@@ -279,11 +279,13 @@ export async function stubDialogs(app, choices) {
       const switchIndex = buttons.indexOf('Switch Branch')
       const fetchIndex = buttons.indexOf('Fetch Branch')
       const discardIndex = buttons.indexOf('Discard Unstaged Changes')
+      const restoreIndex = buttons.indexOf('Restore to HEAD')
       const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
         : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
         : debugIndex >= 0 && data.allowDebug ? debugIndex : taskIndex >= 0 && data.allowTask ? taskIndex
         : frameworkTestIndex >= 0 && data.allowFrameworkTests ? frameworkTestIndex
         : switchIndex >= 0 && data.allowBranchSwitch ? switchIndex : discardIndex >= 0 && data.allowDiscard ? discardIndex
+          : restoreIndex >= 0 && data.allowRestore ? restoreIndex
           : fetchIndex >= 0 && data.allowFetch ? fetchIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)

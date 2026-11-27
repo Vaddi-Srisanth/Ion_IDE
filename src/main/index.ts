@@ -2086,6 +2086,20 @@ function registerIpc(): void {
         && sourceControlRoot(target, path) === trustedGitRoot
     })
   }))
+  handle('source-control-restore-staged', (target, root, request) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    return service.restoreStaged(path, request, async review => {
+      const answer = await dialog.showMessageBox(target, {
+        type: 'warning', buttons: ['Cancel', 'Restore to HEAD'], cancelId: 0, defaultId: 0,
+        message: 'Restore ' + review.path + ' to its version in HEAD?',
+        detail: 'This replaces the saved file and removes its staged changes.'
+          + (review.unstaged ? ' It also removes unstaged changes to this file.' : '')
+          + ' This cannot be undone from Ion.',
+      })
+      return answer.response === 1 && sourceControl === session && target === window
+        && sourceControlRoot(target, path) === trustedGitRoot
+    })
+  }))
   handle('source-control-commit', (target, root, request) => useSourceControl(target, root, (service, path) => service.commit(path, request)))
   handle('source-control-close', (_target, root) => {
     if (sourceControl?.root === root) return closeSourceControl()

@@ -233,6 +233,7 @@ export function App() {
       diff: (request) => bridge.sourceControl.diff(sourceControlRoot, request),
       change: (request) => bridge.sourceControl.change(sourceControlRoot, request),
       discardWorking: (request) => bridge.sourceControl.discardWorking(sourceControlRoot, request),
+      restoreStaged: (request) => bridge.sourceControl.restoreStaged(sourceControlRoot, request),
       commit: (request) => bridge.sourceControl.commit(sourceControlRoot, request),
       close: () => bridge.sourceControl.close(sourceControlRoot),
     };

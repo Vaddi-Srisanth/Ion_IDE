@@ -148,7 +148,7 @@ test('discard cancels if the file changes after confirmation and refuses untrack
     await writeFile(disk, 'reviewed change\n'); await status(service, root)
     await assert.rejects(service.discardWorking(root, { path }, async () => {
       await writeFile(disk, 'concurrent edit\n'); return true
-    }), /changed after confirmation/)
+    }), /changed after confirmation|state changed/)
     assert.equal(await readFile(disk, 'utf8'), 'concurrent edit\n')
     await writeFile(join(root, 'untracked.txt'), 'keep me\n'); await status(service, root)
     await assert.rejects(service.discardWorking(root, { path: 'untracked.txt' }, async () => {
@@ -165,6 +165,76 @@ test('discard cancels if the file changes after confirmation and refuses untrack
     }), /regular tracked files/)
     assert.equal(await readFile(outside, 'utf8'), 'outside data\n')
     await rm(outside)
+  })
+})
+
+test('Restore to HEAD cancels safely and restores only the reviewed staged regular file', async () => {
+  await fixture(async ({ root, service, git }) => {
+    const path = 'restore me.txt', disk = join(root, path), other = join(root, 'keep staged.txt')
+    await writeFile(disk, 'head bytes\n'); await writeFile(other, 'other head\n')
+    await git('add', '--', path, 'keep staged.txt'); await git('commit', '-qm', 'Base')
+    await writeFile(disk, 'staged bytes\n'); await git('add', '--', path)
+    await writeFile(disk, 'unstaged bytes\n')
+    await writeFile(other, 'preserve staged\n'); await git('add', '--', 'keep staged.txt')
+    await writeFile(join(root, 'untracked.txt'), 'preserve untracked\n')
+    const before = await status(service, root)
+    assert.equal(before.entries.find(entry => entry.path === path)?.canRestoreToHead, true)
+    let review: unknown
+    assert.equal(await service.restoreStaged(root, { path }, async value => { review = value; return false }), false)
+    assert.deepEqual(review, { path, status: 'M', unstaged: true })
+    assert.equal(await readFile(disk, 'utf8'), 'unstaged bytes\n')
+    assert.equal(await git('show', ':' + path), 'staged bytes\n')
+    await status(service, root)
+    assert.equal(await service.restoreStaged(root, { path }, async () => true), true)
+    assert.equal(await readFile(disk, 'utf8'), 'head bytes\n')
+    assert.equal(await git('show', ':' + path), 'head bytes\n')
+    assert.equal(await git('show', 'HEAD:' + path), 'head bytes\n')
+    assert.equal(await readFile(other, 'utf8'), 'preserve staged\n')
+    assert.equal(await git('show', ':keep staged.txt'), 'preserve staged\n')
+    assert.equal(await readFile(join(root, 'untracked.txt'), 'utf8'), 'preserve untracked\n')
+    const after = await status(service, root)
+    assert.deepEqual(after.entries.map(({ path, index, worktree }) => [path, index, worktree]), [
+      ['keep staged.txt', 'M', ''], ['untracked.txt', '', '?'],
+    ])
+  })
+})
+
+test('Restore to HEAD refuses stale, untracked and non-HEAD entries before losing staged data', async () => {
+  await fixture(async ({ root, service, git }) => {
+    const path = 'tracked.txt', disk = join(root, path)
+    await writeFile(disk, 'head\n'); await git('add', '--', path); await git('commit', '-qm', 'Base')
+    await writeFile(disk, 'staged\n'); await git('add', '--', path); await status(service, root)
+    await assert.rejects(service.restoreStaged(root, { path }, async () => {
+      await writeFile(disk, 'concurrent edit\n'); return true
+    }), /changed after confirmation|state changed/)
+    assert.equal(await readFile(disk, 'utf8'), 'concurrent edit\n')
+    assert.equal(await git('show', ':' + path), 'staged\n')
+    await writeFile(join(root, 'new.txt'), 'new staged\n'); await git('add', '--', 'new.txt')
+    const current = await status(service, root)
+    assert.equal(current.entries.find(entry => entry.path === 'new.txt')?.canRestoreToHead, false)
+    await assert.rejects(service.restoreStaged(root, { path: 'new.txt' }, async () => {
+      assert.fail('staged additions have no version in HEAD and must not reach confirmation')
+    }), /exists in HEAD/)
+    assert.equal(await readFile(join(root, 'new.txt'), 'utf8'), 'new staged\n')
+    assert.equal(await git('show', ':new.txt'), 'new staged\n')
+  })
+})
+
+test('Restore to HEAD refuses newly configured executable filters before running them', async () => {
+  await fixture(async ({ root, parent, service, git }) => {
+    const path = 'tracked.txt', disk = join(root, path), marker = join(parent, 'filter-ran')
+    const filter = join(parent, 'smudge.cjs')
+    await writeFile(disk, 'head\n'); await git('add', '--', path); await git('commit', '-qm', 'Base')
+    await writeFile(disk, 'staged\n'); await git('add', '--', path); await status(service, root)
+    await writeFile(filter, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');process.stdin.pipe(process.stdout)`)
+    await assert.rejects(service.restoreStaged(root, { path }, async () => {
+      await git('config', 'filter.fixture.smudge', `${process.execPath} ${filter}`)
+      await writeFile(join(root, '.gitattributes'), '*.txt filter=fixture\n')
+      return true
+    }), /Git filter/)
+    assert.equal(existsSync(marker), false)
+    assert.equal(await readFile(disk, 'utf8'), 'staged\n')
+    assert.equal(await git('show', ':' + path), 'staged\n')
   })
 })
 

@@ -38,7 +38,7 @@ function freezeConfiguration(text: string, originalCommon: string, view: View, h
   let lfsStorage = ''
   for (const { scope, key, section, name, subsection, value } of configurationEntries(text)) {
     if (view === 'committed-history' && !['core.repositoryformatversion', 'extensions.objectformat', 'extensions.refstorage'].includes(key.toLowerCase())) continue
-    if ((scope === 'local' || scope === 'worktree') && /^(?:filter\..*\.(?:clean|process)|lfs\.extension\..*\.(?:clean|smudge)|lfs\.customtransfer\..*\.(?:path|args)|lfs\.standalonetransferagent)$/i.test(key)) {
+    if ((scope === 'local' || scope === 'worktree') && /^(?:filter\..*\.(?:clean|smudge|process)|lfs\.extension\..*\.(?:clean|smudge)|lfs\.customtransfer\..*\.(?:path|args)|lfs\.standalonetransferagent)$/i.test(key)) {
       throw new Error('This repository configures a local Git filter. Use your terminal if you trust it.')
     }
     if (rejectMergeDrivers && section.toLowerCase() === 'merge' && name.toLowerCase() === 'driver') {

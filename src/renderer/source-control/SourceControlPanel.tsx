@@ -126,6 +126,12 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
       if (mounted.current) setNotice('Unstaged changes discarded. Staged content was preserved.')
     }
   })
+  const restoreStaged = (entry: SourceControlEntry) => void act(async () => {
+    if (await bridge.restoreStaged({ path: entry.path }) && mounted.current) {
+      await loadStatus()
+      if (mounted.current) setNotice('Restored the saved file and staged content to HEAD.')
+    }
+  })
 
   return <aside className="source-control-pane" aria-label="Source Control" data-testid="source-control">
     <div className="pane-title">
@@ -192,7 +198,7 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
           {conflict && <p>Resolve conflicts before committing.</p>}
           {repository.truncated && <p role="status">Some changes exceed the status limit. Review and commit in your terminal.</p>}
         </form>
-        {staged.length > 0 && <Changes title="Staged" side="staged" entries={staged} {...{ busy, selection, isDirty, review, change, discard }}/>}
+        {staged.length > 0 && <Changes title="Staged" side="staged" entries={staged} {...{ busy, selection, isDirty, review, change, discard, restoreStaged }}/>}
         {working.length > 0 && <Changes title="Changes" side="working" entries={working} {...{ busy, selection, isDirty, review, change, discard }}/>}
         {staged.length === 0 && working.length === 0 && <p className="source-control-empty">Working tree is clean.</p>}
       </>}
@@ -259,7 +265,7 @@ function LineHistoryAction({ path, repository, bridge, busy, perform, dirty, cha
   </div>
 }
 
-function Changes({ title, side, entries, busy, selection, isDirty, review, change, discard }: {
+function Changes({ title, side, entries, busy, selection, isDirty, review, change, discard, restoreStaged }: {
   title: string
   side: GitDiffSide
   entries: SourceControlEntry[]
@@ -269,6 +275,7 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
   review(entry: SourceControlEntry, side: GitDiffSide): void
   change(entry: SourceControlEntry, side: GitDiffSide): void
   discard?(entry: SourceControlEntry): void
+  restoreStaged?(entry: SourceControlEntry): void
 }) {
   const [visible, setVisible] = useState(pageSize)
   return <section aria-label={title} className="source-control-group" data-testid={'git-' + side}>
@@ -280,6 +287,7 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
         const name = entry.path.split('/').at(-1)
         const folder = entry.path.slice(0, entry.path.lastIndexOf('/') + 1)
         const dirty = side === 'working' && isDirty(entry.absolutePath)
+        const editorDirty = isDirty(entry.absolutePath)
         const action = side === 'staged' ? 'Unstage' : 'Stage'
         const selected = selection === side + ':' + entry.path
         return <li key={entry.path} className="source-control-change" data-selected={selected || undefined}>
@@ -302,6 +310,10 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
             type="button" disabled={busy || dirty} data-testid="git-discard-working" data-git-path={entry.path}
             title={dirty ? 'Save your edits before discarding' : 'Discard unstaged changes to ' + entry.path}
             aria-label={'Discard unstaged changes to ' + entry.path} onClick={() => discard(entry)}>Discard</button>}
+          {side === 'staged' && entry.canRestoreToHead && restoreStaged && <button className="button source-control-discard"
+            type="button" disabled={busy || editorDirty} data-testid="git-restore-staged" data-git-path={entry.path}
+            title={editorDirty ? 'Save your edits before restoring' : 'Restore staged changes to HEAD for ' + entry.path}
+            aria-label={'Restore staged changes to HEAD for ' + entry.path} onClick={() => restoreStaged(entry)}>Restore</button>}
         </li>
       })}
     </ul>

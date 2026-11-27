@@ -180,9 +180,11 @@ function plumbingCommand(args: string[], input = ''): boolean {
     case 'update-index': return args.join(' ') === 'update-index -z --index-info'
       || args.length >= 4 && args[1] === '--force-remove' && args[2] === '--'
     case 'write-tree': return args.length === 1
-    case 'restore': return args.length >= 4
-      && (args[1] === '--staged' && args[2] === '--source=HEAD' && args[3] === '--'
-        || args[1] === '--worktree' && args[2] === '--')
+    case 'restore': return args.length >= 5 && args[1] === '--staged' && args[2] === '--source=HEAD'
+        && args[3] === '--' && args.slice(4).every(safeGitPath)
+      || args.length >= 6 && args[1] === '--source=HEAD' && args[2] === '--staged'
+        && args[3] === '--worktree' && args[4] === '--' && args.slice(5).every(safeGitPath)
+      || args.length >= 4 && args[1] === '--worktree' && args[2] === '--' && args.slice(3).every(safeGitPath)
     case 'commit-tree': {
       const parents = args.slice(2, -3)
       return objectId.test(args[1]) && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
@@ -201,6 +203,22 @@ function plumbingCommand(args: string[], input = ''): boolean {
 }
 
 export async function git(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {}) {
+  if (args[0] === 'restore' && args[1] === '--source=HEAD' && args[2] === '--staged'
+    && args[3] === '--worktree') {
+    if (!plumbingCommand(args, options.input)) throw new Error('This Git restore operation is outside Ion Source Control.')
+    const updatesIndex = true
+    return withProjectedRepository(repository, signal, async (projected, environment, verifyMetadata) => {
+      const run = async (indexFile?: string) => {
+        const result = await invokeGit(projected, signal, args,
+          { ...options, ...(indexFile && { indexFile }) }, environment)
+        await verifyMetadata()
+        return result
+      }
+      return updatesIndex
+        ? withIndexTransaction(repository.directory, signal, run)
+        : run(options.indexFile)
+    }, 'workspace')
+  }
   if (args[0] === 'merge') {
     if (args.length !== 8 || args[1] !== '--no-commit' || args[2] !== '--no-ff' || args[3] !== '--no-edit'
       || args[4] !== '--no-progress' || args[5] !== '--no-stat' || args[6] !== '--strategy=ort'
@@ -242,7 +260,7 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
       signal, args, options, { ...environment, GIT_ATTR_NOSYSTEM: '1' }), 'committed-history')
   }
   if (!plumbingCommand(args, options.input)) throw new Error('This Git operation is outside Ion Source Control.')
-  if (!options.indexFile && ['read-tree', 'update-index', 'restore', 'write-tree'].includes(args[0])) {
+  if (!options.indexFile && ['read-tree', 'update-index', 'write-tree'].includes(args[0])) {
     return withIndexTransaction(repository.directory, signal, indexFile =>
       invokeGit(repository, signal, args, { ...options, indexFile }))
   }
@@ -256,7 +274,8 @@ async function withProjectedRepository<T>(repository: Repository, signal: AbortS
   const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
   if (!captured.complete) throw new Error('Git returned incomplete configuration.')
   return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>
-    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view, allowedGitMetadata, rejectMergeDrivers, replaceGitMetadata)
+    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view, allowedGitMetadata, rejectMergeDrivers,
+    replaceGitMetadata)
 }
 
 export function browseRepository(repository: Repository, signal: AbortSignal) {

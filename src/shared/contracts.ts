@@ -226,6 +226,7 @@ export interface IonBridge {
     diff(root: string, request: Parameters<SourceControlBridge['diff']>[0]): ReturnType<SourceControlBridge['diff']>
     change(root: string, request: Parameters<SourceControlBridge['change']>[0]): ReturnType<SourceControlBridge['change']>
     discardWorking(root: string, request: Parameters<SourceControlBridge['discardWorking']>[0]): ReturnType<SourceControlBridge['discardWorking']>
+    restoreStaged(root: string, request: Parameters<SourceControlBridge['restoreStaged']>[0]): ReturnType<SourceControlBridge['restoreStaged']>
     commit(root: string, request: Parameters<SourceControlBridge['commit']>[0]): ReturnType<SourceControlBridge['commit']>
     close(root: string): ReturnType<SourceControlBridge['close']>
   }

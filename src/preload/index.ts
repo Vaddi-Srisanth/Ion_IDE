@@ -239,6 +239,7 @@ const bridge: IonBridge = {
     diff: (root, request) => ipcRenderer.invoke('ion:source-control-diff', root, request),
     change: (root, request) => ipcRenderer.invoke('ion:source-control-change', root, request),
     discardWorking: (root, request) => ipcRenderer.invoke('ion:source-control-discard-working', root, request),
+    restoreStaged: (root, request) => ipcRenderer.invoke('ion:source-control-restore-staged', root, request),
     commit: (root, request) => ipcRenderer.invoke('ion:source-control-commit', root, request),
     close: (root) => ipcRenderer.invoke('ion:source-control-close', root),
   },

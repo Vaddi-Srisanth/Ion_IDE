@@ -102,8 +102,10 @@ export class SourceControlService {
       const status = await statusOf(repository, controller.signal)
       controller.signal.throwIfAborted()
       this.snapshot = { repository, status }
-      const entries = [...status.entries.values()].map(({ path, absolutePath, previousPath, index, worktree, unmerged }):
-        SourceControlEntry => ({ path, absolutePath, previousPath, index, worktree, unmerged }))
+      const entries = [...status.entries.values()].map(({ path, absolutePath, previousPath, index, worktree, unmerged,
+        headMode, headObject }): SourceControlEntry => ({ path, absolutePath, previousPath, index, worktree, unmerged,
+        canRestoreToHead: !status.unborn && Boolean(index) && !unmerged && !previousPath
+          && (headMode === '100644' || headMode === '100755') && Boolean(headObject && !/^0+$/.test(headObject)) }))
       return { kind: 'repository', root, branch: status.branch, detached: status.detached, unborn: status.unborn,
         truncated: status.truncated, entries }
     } finally {
@@ -657,6 +659,39 @@ export class SourceControlService {
         throw new Error('The reviewed file changed after confirmation. Refresh and review again.')
       }
       await git(repository, signal, ['restore', '--worktree', '--', path])
+    })
+    return true
+  }
+
+  async restoreStaged(root: string, value: unknown,
+    confirm: (review: { path: string; status: string; unstaged: boolean }) => Promise<boolean>): Promise<boolean> {
+    const path = requestPath(requestObject(value).path)
+    const { repository, status } = this.requireSnapshot(root)
+    const entry = status.entries.get(path)
+    if (!entry || !entry.index || entry.unmerged || status.truncated || status.unborn || entry.previousPath
+      || !entry.headObject || /^0+$/.test(entry.headObject) || !['100644', '100755'].includes(entry.headMode ?? '')) {
+      throw new Error('Only a reviewed staged regular file that exists in HEAD can be restored.')
+    }
+    const initial = await this.workingFingerprint(repository, path)
+    if (!await confirm({ path, status: entry.index, unstaged: Boolean(entry.worktree) })) return false
+    await this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const current = await statusOf(repository, signal)
+      const now = current.entries.get(path)
+      if (current.truncated || current.unborn || current.head !== status.head || current.branch !== status.branch
+        || !now || now.index !== entry.index || now.worktree !== entry.worktree || now.unmerged || now.previousPath
+        || now.headMode !== entry.headMode || now.headObject !== entry.headObject
+        || now.indexMode !== entry.indexMode || now.indexObject !== entry.indexObject) {
+        throw new Error('The reviewed staged file or Git state changed. Refresh and review again.')
+      }
+      if (await this.workingFingerprint(repository, path) !== initial) {
+        throw new Error('The reviewed file changed after confirmation. Refresh and review again.')
+      }
+      await git(repository, signal, ['restore', '--source=HEAD', '--staged', '--worktree', '--', path])
+      const after = await statusOf(repository, signal)
+      if (after.head !== status.head || after.branch !== status.branch || after.truncated || after.entries.has(path)) {
+        throw new Error('Git did not confirm the file was restored cleanly. Refresh and inspect the file and index.')
+      }
     })
     return true
   }

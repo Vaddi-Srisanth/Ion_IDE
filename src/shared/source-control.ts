@@ -8,6 +8,7 @@ export interface SourceControlEntry {
   index: GitStatusCode
   worktree: GitStatusCode
   unmerged: boolean
+  canRestoreToHead?: boolean
 }
 
 export type SourceControlStatus =
@@ -31,6 +32,7 @@ export interface SourceControlChangeRequest {
 }
 
 export interface SourceControlDiscardRequest { path: string }
+export interface SourceControlRestoreRequest { path: string }
 
 export interface SourceControlConflict {
   path: string
@@ -192,6 +194,7 @@ export interface SourceControlBridge {
   diff(request: SourceControlDiffRequest): Promise<SourceControlDiff>
   change(request: SourceControlChangeRequest): Promise<void>
   discardWorking(request: SourceControlDiscardRequest): Promise<boolean>
+  restoreStaged(request: SourceControlRestoreRequest): Promise<boolean>
   commit(request: { message: string }): Promise<void>
   close(): Promise<void>
 }
