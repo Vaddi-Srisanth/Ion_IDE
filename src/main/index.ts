@@ -1813,7 +1813,7 @@ function registerIpc(): void {
     if (session === sourceControl && session.gitHubPages === pages && pages && pages.size < 100) pages.add(result.url)
     return result
   }))
-  handle('source-control-github-clone', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
+  handle('source-control-github-clone', (target, root, repository, access) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
     if (session.cloneReview) throw new Error('A clone is already being reviewed or downloaded.')
     const review = Symbol()
@@ -1821,18 +1821,24 @@ function registerIpc(): void {
     try {
       const { checkRepository } = await import('./source-control/github-repository')
       const slug = checkRepository(repository)
+      if (access !== 'public' && access !== 'authenticated') throw new Error('Choose a public or authenticated GitHub clone.')
+      const pages = session.gitHubPages
+      const repositoryUrl = 'https://github.com/' + slug
+      const isReviewed = () => access === 'public' || session.gitHubPages === pages && Boolean(pages?.has(repositoryUrl))
       const stillOpen = () => target === window && sourceControl === session && session.cloneReview === review
         && sourceControlRoot(target, path) === trustedGitRoot
-      if (!stillOpen()) throw new Error('The clone review closed.')
+      if (!stillOpen() || !isReviewed()) throw new Error('Load this GitHub repository before cloning it with your signed-in account.')
       const selection = await dialog.showOpenDialog(target, {
-        title: 'Clone ' + slug + ' into a new folder', message: 'Choose a parent folder for a public clone of github.com/' + slug + '.',
+        title: 'Clone ' + slug + ' into a new folder', message: access === 'authenticated'
+          ? 'Choose a parent folder for an authenticated clone of github.com/' + slug + ' using the signed-in GitHub CLI.'
+          : 'Choose a parent folder for an anonymous public clone of github.com/' + slug + '.',
         buttonLabel: 'Clone Here', properties: ['openDirectory', 'createDirectory'],
       })
       if (selection.canceled || !selection.filePaths[0]) return null
       const parent = await realpath(selection.filePaths[0])
       if (isWithin(await realpath(app.getPath('userData')), parent)) throw new Error('Choose a folder outside the Ion profile.')
-      if (!stillOpen()) throw new Error('The clone review closed. Choose the repository again.')
-      return await service.cloneGitHub(path, slug, parent, [...files.rootPaths], safeMutations)
+      if (!stillOpen() || !isReviewed()) throw new Error('The clone review closed. Choose the repository again.')
+      return await service.cloneGitHub(path, slug, access, parent, [...files.rootPaths], safeMutations)
     } finally {
       if (session.cloneReview === review) session.cloneReview = undefined
     }

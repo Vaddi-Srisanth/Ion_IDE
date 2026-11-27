@@ -114,6 +114,8 @@ await withScratch('git-desktop', async (scratch) => {
     })
     try {
       await assert.rejects(page.evaluate(root => window.ion.sourceControl.cloneGitHub(root, '../outside'), project.directory), /owner\/name/)
+      await assert.rejects(page.evaluate(root => window.ion.sourceControl.cloneGitHub(root, 'team/private', 'authenticated'), project.directory),
+        /Load this GitHub repository before cloning it with your signed-in account/)
       assert.equal(await app.evaluate(() => globalThis.ionClonePickerFixture.count), 0)
       const hosted = panel.getByRole('region', { name: 'GitHub', exact: true })
       await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()

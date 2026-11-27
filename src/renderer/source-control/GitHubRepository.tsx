@@ -52,7 +52,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       if (generation.current === current) setOperation(undefined)
     }
   }
-  async function clone() {
+  async function clone(access: 'public' | 'authenticated') {
     const selected = repository.trim()
     if (!selected || busy) return
     const slug = overview?.repository.toLowerCase() === selected.toLowerCase() ? overview.repository : selected
@@ -62,7 +62,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     setCloned('')
     setError('')
     try {
-      const path = await bridge.cloneGitHub(slug)
+      const path = await bridge.cloneGitHub(slug, access)
       if (path && generation.current === current) setCloned(path)
     } catch (reason) {
       if (generation.current === current) setError(reason instanceof Error ? reason.message : 'The clone failed.')
@@ -123,7 +123,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
             setCreateDraft(undefined); setCreateReview(undefined); setCreated(undefined); setError(''); setCloned('')
           }}/></label>
         <button className="button" type="submit" disabled={!repository.trim() || busy}>{operation === 'load' ? 'Loading…' : 'Load from GitHub'}</button>
-        <button className="button" type="button" disabled={!repository.trim() || busy} onClick={() => void clone()}>
+        <button className="button" type="button" disabled={!repository.trim() || busy} onClick={() => void clone('public')}>
           {operation === 'clone' ? 'Cloning…' : 'Clone public repository…'}
         </button>
       </form>
@@ -137,6 +137,10 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       {overview && <div className="git-hosted-results">
         <button type="button" onClick={() => void openPage('https://github.com/' + overview.repository)}>{overview.repository}</button>
         <small>Signed in as {overview.login}</small>
+        <button className="button" type="button" disabled={busy} onClick={() => void clone('authenticated')}>
+          {operation === 'clone' ? 'Cloning…' : 'Clone with GitHub account…'}
+        </button>
+        <small>Uses your signed-in GitHub CLI access. Repository files stay in the folder you choose.</small>
         <button type="button" onClick={() => void openPage('https://github.com/' + overview.repository + '/compare?expand=1')}>
           Prepare pull request on GitHub…
         </button>

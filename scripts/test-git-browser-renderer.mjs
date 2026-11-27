@@ -66,7 +66,7 @@ const fixture = `
           head:request.head,base:request.base,draft:request.draft})
       },
       openGitHubPage: async url => { window.githubCalls.push(['open',root,url]) },
-      cloneGitHub: async repository => { window.githubCalls.push(['clone',root,repository]); return null },
+      cloneGitHub: async (repository, access) => { window.githubCalls.push(['clone',root,repository,access]); return null },
       closeGitHub: async () => { window.githubCalls.push(['close',root]) },
     }
   }
@@ -201,12 +201,15 @@ try {
   await hosted.getByLabel('GitHub repository').fill('team/demo')
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [])
   await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
-  const anonymous = ['clone', 'second', 'team/demo']
+  const anonymous = ['clone', 'second', 'team/demo', 'public']
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous])
+  assert.equal(await hosted.getByRole('button', { name: 'Clone with GitHub account…' }).count(), 0)
   await hosted.getByRole('button', { name: 'Load from GitHub' }).click()
   const pull = hosted.getByRole('button', { name: '#9 Read the changes' })
   await pull.waitFor()
-  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo']])
+  await hosted.getByRole('button', { name: 'Clone with GitHub account…' }).click()
+  const authenticated = ['clone', 'second', 'Team/Demo', 'authenticated']
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo'], authenticated])
   await pull.click()
   await hosted.getByText('Loading pull request…').waitFor()
   await page.evaluate(() => window.finishPullRequest.at(-1)())
@@ -230,12 +233,12 @@ try {
   await hosted.getByRole('button', { name: 'Review pull request…' }).click()
   const createReview = hosted.getByRole('group', { name: 'Review pull request' })
   await createReview.getByText('octo:feature/endpoint → main · Draft').waitFor()
-  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo'],
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo'], authenticated,
     ['pull', 'second', {repository:'Team/Demo', number:9}], ['open', 'second', 'https://github.com/Team/Demo/pull/9'],
     ['open', 'second', 'https://github.com/Team/Demo/issues/7']])
   await createReview.getByRole('button', { name: 'Create pull request' }).click()
   await hosted.getByText('Created #10: Add reviewed endpoint · Draft').waitFor()
-  const reviewed = [anonymous, ['load', 'second', 'team/demo'], ['pull', 'second', {repository:'Team/Demo', number:9}],
+  const reviewed = [anonymous, ['load', 'second', 'team/demo'], authenticated, ['pull', 'second', {repository:'Team/Demo', number:9}],
     ['open', 'second', 'https://github.com/Team/Demo/pull/9'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
   reviewed.push(['create-pull', 'second', {repository:'Team/Demo', title, head:'octo:feature/endpoint', base:'main',
     body:'Adds a small reviewed API endpoint.', draft:true}])
@@ -243,7 +246,7 @@ try {
   reviewed.push(['open', 'second', 'https://github.com/Team/Demo/pull/10'])
   assert.deepEqual(await page.evaluate(() => window.githubCalls), reviewed)
   await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
-  assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo']])
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo', 'public']])
   assert.equal(await hosted.getByText(/Cloned to/).count(), 0)
   assert.equal(await page.getByTestId('git-branch').innerText(), 'main')
   await pull.click()

@@ -14,7 +14,7 @@ const outputLimit = 64 * 1024
 const requestMs = 12_000
 const bodyLimit = 8192
 
-async function trustedGh(root: string, roots: readonly string[], signal: AbortSignal) {
+export async function resolveGitHubCli(root: string, roots: readonly string[], signal: AbortSignal) {
   const paths = await commandPaths(root)
   if (process.platform === 'win32' && process.env.ProgramFiles && isAbsolute(process.env.ProgramFiles)) {
     paths.unshift(join(process.env.ProgramFiles, 'GitHub CLI'))
@@ -71,7 +71,7 @@ function items(value: unknown, repository: string, segment: 'pull' | 'issues') {
 
 interface Dependencies {
   run?: typeof execute
-  findGh?: typeof trustedGh
+  findGh?: typeof resolveGitHubCli
 }
 
 type ApiRequest = (endpoint: string, filter: string, options?: { textBody?: boolean; method?: 'GET' | 'POST'; input?: string }) => Promise<unknown>
@@ -81,7 +81,7 @@ async function withGitHubClient<T>(root: string, workspaceRoots: readonly string
   dependencies: Dependencies, read: (get: ApiRequest) => Promise<T>): Promise<T> {
   signal.throwIfAborted()
   if (!isAbsolute(root) || !workspaceRoots.includes(root)) throw new Error('Choose an open workspace root.')
-  const tool = await (dependencies.findGh ?? trustedGh)(root, workspaceRoots, signal)
+  const tool = await (dependencies.findGh ?? resolveGitHubCli)(root, workspaceRoots, signal)
   const temp = await realpath(tmpdir())
   if (workspaceRoots.some(other => isWithin(other, temp))) throw new Error('GitHub requires a temporary directory outside the open workspaces.')
   const scratch = await mkdtemp(join(temp, 'ion-gh-read-'))

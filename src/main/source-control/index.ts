@@ -204,14 +204,15 @@ export class SourceControlService {
     this.clone?.controller.abort()
   }
 
-  cloneGitHub(root: string, selected: unknown, parent: string, workspaceRoots: readonly string[], mutations: FileMutations): Promise<string> {
+  cloneGitHub(root: string, selected: unknown, access: 'public' | 'authenticated', parent: string,
+    workspaceRoots: readonly string[], mutations: FileMutations): Promise<string> {
     const { repository } = this.requireSnapshot(root)
     if (this.clone) throw new Error('A GitHub clone is already running.')
     const controller = new AbortController()
     const done = this.verifyRepository(repository, controller.signal).then(async () => {
-      const { clonePublicGitHub } = await import('./clone')
+      const { cloneGitHub } = await import('./clone')
       controller.signal.throwIfAborted()
-      return clonePublicGitHub(selected, parent, root, workspaceRoots, controller.signal, { mutations })
+      return cloneGitHub(selected, access, parent, root, workspaceRoots, controller.signal, { mutations })
     }).finally(() => { this.clone = undefined })
     this.clone = { controller, done }
     return done

@@ -145,7 +145,7 @@ export interface SourceControlBridge {
   github(repository: string): Promise<SourceControlGitHub>
   githubPullRequest(request: SourceControlGitHubPullRequestRequest): Promise<SourceControlGitHubPullRequest>
   createGitHubPullRequest(request: SourceControlGitHubCreatePullRequestRequest): Promise<SourceControlGitHubCreatedPullRequest | null>
-  cloneGitHub(repository: string): Promise<string | null>
+  cloneGitHub(repository: string, access: 'public' | 'authenticated'): Promise<string | null>
   closeGitHub(): Promise<void>
   openGitHubPage(url: string): Promise<void>
   status(): Promise<SourceControlStatus>

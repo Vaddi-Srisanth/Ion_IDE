@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { access, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { access, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import test from 'node:test'
-import { clonePublicGitHub } from '../src/main/source-control/clone'
+import { cloneAuthenticatedGitHub, cloneGitHub, clonePublicGitHub } from '../src/main/source-control/clone'
 import type { execute } from '../src/main/runner'
 import { fileMutations, type FileMutations } from '../src/main/file-mutations'
 
@@ -19,7 +19,11 @@ async function fixture() {
     clonePublicGitHub(name, parent, root, [root], signal, { findGit: async () => ({ executable: git, paths: [] }),
       run: async (tool, args, options) => args[0] === '--exec-path' ? success(helper) : run(tool, args, options),
       ...(move ? { mutations: { move } } : {}) })
-  return { dir, root, parent, helper, git, call, clean: () => rm(dir, { recursive: true, force: true }) }
+  const callAuthenticated = (run: Run, name: unknown = 'team/private', signal = new AbortController().signal) =>
+    cloneAuthenticatedGitHub(name, parent, root, [root], signal, { findGit: async () => ({ executable: git, paths: [] }),
+      findGh: async () => git,
+      run: async (tool, args, options) => args[0] === '--exec-path' ? success(helper) : run(tool, args, options) })
+  return { dir, root, parent, helper, git, call, callAuthenticated, clean: () => rm(dir, { recursive: true, force: true }) }
 }
 
 async function stage(args: string[]) {
@@ -97,6 +101,132 @@ test('public clone refuses redirected picker parents and preserves competing des
   }), /already exists/)
   const [preserved] = await readdir(f.parent)
   assert.equal(await readFile(join(f.parent, preserved, 'competing'), 'utf8'), 'important')
+})
+
+test('authenticated clone uses the signed-in GitHub CLI in an isolated environment and atomically publishes a credential-free remote', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const keys = ['GH_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GIT_CONFIG_COUNT', 'GIT_DIR', 'GIT_SSH_COMMAND', 'GIT_ASKPASS',
+    'HTTP_PROXY', 'HTTPS_PROXY', 'GIT_SSL_NO_VERIFY', 'GIT_TRACE_CURL']
+  const saved = keys.map(key => process.env[key])
+  keys.forEach(key => { process.env[key] = 'untrusted-inherited-setting' })
+  t.after(() => keys.forEach((key, index) => { if (saved[index] === undefined) delete process.env[key]; else process.env[key] = saved[index] }))
+  let scratch = '', checkoutPath = '', cloneArgs: string[] = []
+  const destination = await f.callAuthenticated(async (gh, args, options) => {
+    assert.equal(gh, f.git)
+    assert.equal(options.input, '')
+    cloneArgs = args
+    scratch = dirname(options.cwd)
+    assert.equal(options.environment.GH_HOST, 'github.com')
+    assert.equal(options.environment.GH_PROMPT_DISABLED, '1')
+    assert.equal(options.environment.GIT_CONFIG_NOSYSTEM, '1')
+    assert.equal(options.environment.GIT_TERMINAL_PROMPT, '0')
+    assert.equal(options.environment.GIT_ALLOW_PROTOCOL, 'https')
+    assert.equal(options.environment.GIT_EXEC_PATH, f.helper)
+    assert.ok(options.environment.GH_CONFIG_DIR?.startsWith(scratch))
+    assert.ok(options.environment.GIT_CONFIG_GLOBAL?.startsWith(scratch))
+    assert.equal(await readFile(options.environment.GIT_CONFIG_GLOBAL!, 'utf8'), '')
+    for (const key of keys) assert.equal(options.environment[key], undefined)
+    for (const secret of ['untrusted-inherited-setting', 'token', 'password']) assert.equal(args.join(' ').includes(secret), false)
+    for (const option of ['--no-upstream', 'https://github.com/team/private.git', '--depth=1', '--single-branch',
+      '--no-tags', '--no-local', '--no-recurse-submodules', 'protocol.allow=never', 'protocol.https.allow=always',
+      'http.followRedirects=false', 'http.sslVerify=true', 'submodule.recurse=false']) assert.ok(args.some(arg => arg.includes(option)), option)
+    const checkout = args[4]!
+    checkoutPath = checkout
+    assert.ok(dirname(checkout).startsWith(join(scratch, 'Ion Clone ')))
+    assert.equal(basename(checkout), 'private')
+    assert.ok(options.timeoutMs <= 120_000 && options.budget.remaining <= 65536)
+    await mkdir(join(checkout, '.git'), { recursive: true })
+    await writeFile(join(checkout, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    await writeFile(join(checkout, '.git', 'config'), '[remote "origin"]\n\turl = https://github.com/team/private.git\n')
+    return success()
+  })
+  assert.equal(destination, join(f.parent, 'private'))
+  assert.deepEqual(cloneArgs.slice(0, 5), ['repo', 'clone', '--no-upstream', 'https://github.com/team/private.git',
+    checkoutPath])
+  assert.equal(await readFile(join(destination, '.git', 'config'), 'utf8'), '[remote "origin"]\n\turl = https://github.com/team/private.git\n')
+  await assert.rejects(access(scratch), { code: 'ENOENT' })
+})
+
+test('authenticated clone rejects embedded credentials and never returns CLI diagnostics', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const pending = f.callAuthenticated(async (_gh, args) => {
+    const checkout = args[4]!
+    await mkdir(join(checkout, '.git'), { recursive: true })
+    await writeFile(join(checkout, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    await writeFile(join(checkout, '.git', 'config'), '[remote "origin"]\n\turl = https://x-access-token:do-not-leak@github.com/team/private.git\n')
+    return success()
+  })
+  await assert.rejects(pending, /remote did not match/)
+  assert.deepEqual(await readdir(f.parent), [])
+
+  await assert.rejects(f.callAuthenticated(async (_gh, args) => {
+    const checkout = args[4]!
+    await mkdir(join(checkout, '.git'), { recursive: true })
+    await writeFile(join(checkout, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    await writeFile(join(checkout, '.git', 'config'), '[remote "origin"]\n\turl = https://github.com/team/private.git\n'
+      + '[credential "https://github.com"]\n\thelper = !echo do-not-persist\n')
+    return success()
+  }), /remote did not match/)
+  assert.deepEqual(await readdir(f.parent), [])
+
+  await assert.rejects(f.callAuthenticated(async () => ({ ...success(), exitCode: 128,
+    stderr: 'fatal: https://x-access-token:do-not-leak@github.com/team/private.git denied' })), (error: unknown) => {
+      assert.ok(error instanceof Error)
+      assert.match(error.message, /Authenticated clone failed/)
+      assert.equal(error.message.includes('do-not-leak'), false)
+      return true
+    })
+  assert.deepEqual(await readdir(f.parent), [])
+
+  const workspaceGh = join(f.root, 'gh')
+  await writeFile(workspaceGh, '', { mode: 0o700 })
+  await assert.rejects(cloneAuthenticatedGitHub('team/private', f.parent, f.root, [f.root], new AbortController().signal, {
+    findGit: async () => ({ executable: f.git, paths: [] }), findGh: async () => workspaceGh,
+    run: async () => { throw new Error('The workspace GitHub CLI must not execute.') },
+  }), /outside every open workspace/)
+  await assert.rejects(cloneGitHub('team/private', 'unexpected' as never, f.parent, f.root, [f.root], new AbortController().signal),
+    /public or authenticated/)
+  assert.deepEqual(await readdir(f.parent), [])
+})
+
+test('authenticated clone cancellation waits for the GitHub CLI to drain before removing staging', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const controller = new AbortController()
+  let started!: () => void, finish!: () => void, scratch = ''
+  const pending = new Promise<void>(resolve => { started = resolve }), drained = new Promise<void>(resolve => { finish = resolve })
+  const request = f.callAuthenticated(async (_gh, args, options) => {
+    const checkout = args[4]!
+    await mkdir(join(checkout, '.git'), { recursive: true })
+    await writeFile(join(checkout, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    await writeFile(join(checkout, '.git', 'config'), '[remote "origin"]\n\turl = https://github.com/team/private.git\n')
+    scratch = dirname(options.cwd)
+    started()
+    await drained
+    assert.equal(options.signal.aborted, true)
+    return { ...success(), state: 'cancelled' }
+  }, 'team/private', controller.signal)
+  await pending
+  controller.abort()
+  await access(scratch)
+  finish()
+  await assert.rejects(request, { name: 'AbortError' })
+  await assert.rejects(access(scratch), { code: 'ENOENT' })
+  assert.deepEqual(await readdir(f.parent), [])
+})
+
+test('clone aborts an oversized incoming pack before publishing the repository', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const pending = f.callAuthenticated(async (_gh, args, options) => {
+    const checkout = args[4]!
+    const packDirectory = join(checkout, '.git', 'objects', 'pack')
+    await mkdir(packDirectory, { recursive: true })
+    const pack = await open(join(packDirectory, 'pack-large.pack'), 'w')
+    try { await pack.truncate(256 * 1024 * 1024 + 1) } finally { await pack.close() }
+    if (!options.signal.aborted) await new Promise<void>(resolve => options.signal.addEventListener('abort', () => resolve(), { once: true }))
+    return { ...success(), state: 'cancelled' }
+  })
+  await assert.rejects(pending, /256 MiB limit; the clone was canceled before publication/)
+  assert.deepEqual(await readdir(f.parent), [])
 })
 
 test('native clone publication rejects a parent replaced after its last JavaScript check', async t => {
