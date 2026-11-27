@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current development: `codex/ion-phase-6-copilot` — stacked checkpoints through Phase 9, with ongoing Phase 3 source-control and Phase 8 coaching increments<br>
-Latest local Phase 3 checkpoint: `f3bae86` — authenticated GitHub branch fetch uses the official credential only after review (**macOS targeted checks PASS; private remote and Windows journey open; not pushed**)<br>
+Latest local Phase 3 checkpoint: `8541b83` — authenticated GitHub clone retrieves its official CLI credential and keeps it out of renderer, argv and repository config (**macOS targeted checks PASS; private remote and Windows journey open; not pushed**)<br>
 Latest local Phase 8 checkpoint: `9b9192b` — lazy offline binary-tree traversal lesson (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
 Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
@@ -43,7 +43,7 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 
 The Phase 3 GitHub account path now retrieves credentials through the officially installed `gh auth token` while it can access the user's normal CLI/keyring configuration, then supplies the token only to the isolated main-process `gh api` child. Offline GitHub API tests verify the token boundary and tool revalidation; the production build and Git browser journey pass on macOS ARM64. The opt-in live-keyring smoke also passed **13/13**, reading the account, pull request and issue overview for Ion. Account sign-in/sign-out UI, native Windows verification and authenticated Git remote transfer remain open; no remote write, release, feed, installed app or public branch was touched. Details are recorded in [Phase 3 source control](ION_PHASE_3_SOURCE_CONTROL.md).
 
-The following checkpoint adds opt-in authenticated GitHub branch fetch after native approval. It transfers only a reviewed fast-forward into the cached remote ref and preserves the index and working files. A local bare-repository fixture verifies the credential stays out of argv and user data remains unchanged. Private remote and Windows journeys remain open; pull/push and account controls are still not complete.
+The `f3bae86` checkpoint adds opt-in authenticated GitHub branch fetch after native approval. It transfers only a reviewed fast-forward into the cached remote ref and preserves the index and working files. A local bare-repository fixture verifies the credential stays out of argv and user data remains unchanged. Follow-up checkpoint `8541b83` corrects the same empty-isolated-config issue in authenticated clone by retrieving a credential with official `gh auth token` and passing it only to the clone subprocess environment. Private remote and Windows journeys remain open; pull/push and account controls are still not complete.
 
 ## Phase 0 completion
 
