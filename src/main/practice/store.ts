@@ -11,6 +11,7 @@ import {
 import type { RunLanguage } from '../../shared/run-console'
 import { maxFileBytes, readStableBytes, revision } from '../files'
 import { practiceChallenges } from './catalog-data'
+import { practiceChallengeHints } from './catalog-hints'
 import { isId, isTopicId } from '../learning/pack-format'
 import { submissionFileLimit, submissionHistoryLimit, validatePracticeSubmissions, type StoredSubmissions } from './submissions'
 export { validatePracticeSubmissions } from './submissions'
@@ -198,6 +199,16 @@ function normalizedOutput(value: string): string {
   return value.replaceAll('\r\n', '\n').replace(/\n$/, '')
 }
 
+function firstDifferentOutputLine(expected: string, actual: string): number {
+  const expectedLines = normalizedOutput(expected).split('\n')
+  const actualLines = normalizedOutput(actual).split('\n')
+  const count = Math.max(expectedLines.length, actualLines.length)
+  for (let index = 0; index < count; index++) {
+    if (expectedLines[index] !== actualLines[index]) return index + 1
+  }
+  return 1
+}
+
 function compareSample(sample: PracticeSample, run: RunResult): PracticeSampleResult {
   const fields = { id: sample.id, label: sample.label, expected: preview(sample.expectedOutput) }
   const stdout = preview(run.programStdout ?? run.programOutput)
@@ -213,7 +224,8 @@ function compareSample(sample: PracticeSample, run: RunResult): PracticeSampleRe
     return { ...fields, status: 'unavailable', message: 'The runner did not return separate standard output.', stdout, stderr }
   }
   const matches = normalizedOutput(run.programStdout) === normalizedOutput(sample.expectedOutput)
-  return { ...fields, status: matches ? 'passed' : 'failed', message: matches ? 'Standard output matches.' : 'Standard output differs from the expected text.', stdout, stderr }
+  return { ...fields, status: matches ? 'passed' : 'failed', message: matches ? 'Standard output matches.'
+    : 'Standard output first differs from the expected text on line ' + firstDifferentOutputLine(sample.expectedOutput, run.programStdout) + '.', stdout, stderr }
 }
 
 function skipped(sample: PracticeSample, message: string): PracticeSampleResult {
@@ -542,7 +554,7 @@ export class PracticeStore {
     const id = catalogIdentifier(value)
     const challenge = practiceChallenges.find((item) => item.id === id)
     if (!challenge) throw new Error('This practice challenge is unavailable.')
-    return challenge
+    return { ...challenge, hints: practiceChallengeHints[challenge.id] }
   }
 
   async start(value: unknown, selectedLanguage: unknown): Promise<{ problem: PracticeProblem; attempt: PracticeAttempt }> {

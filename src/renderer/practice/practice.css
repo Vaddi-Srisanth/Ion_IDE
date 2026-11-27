@@ -125,6 +125,8 @@
 .practice-notice { margin: 0 0 8px; color: var(--mint); font-size: 11px; }
 .practice-section { display: grid; gap: 8px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--border); }
 .practice-section h3, .practice-form-section h3 { color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.practice-hints ol { display: grid; gap: 6px; margin: 0; padding-left: 22px; color: var(--ink); font-size: 12px; line-height: 1.45; }
+.practice-hints li { padding-left: 2px; }
 .practice-section h4 { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
 .practice-statement, .practice-source { line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .practice-source { color: var(--muted); font: 11px var(--mono); user-select: text; }

@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { PracticeStore } from '../src/main/practice'
+import { practiceChallenges } from '../src/main/practice/catalog-data'
+import { practiceChallengeHints } from '../src/main/practice/catalog-hints'
 import { CRunner, detectCompiler } from '../src/main/runner'
 import type { RunResult } from '../src/shared/contracts'
 import type { PracticeDraft, PracticeSample } from '../src/shared/practice'
@@ -35,6 +37,17 @@ function success(stdout: string, stderr = ''): RunResult {
     programStdout: stdout, programStderr: stderr, exitCode: 0, durationMs: 2, message: 'Finished.',
   }
 }
+
+test('every original offline catalog challenge has two distinct progressive hints', () => {
+  assert.deepEqual(Object.keys(practiceChallengeHints).sort(), practiceChallenges.map(({ id }) => id).sort())
+  for (const challenge of practiceChallenges) {
+    const hints = practiceChallengeHints[challenge.id]
+    assert.equal(hints.length, 2, challenge.id)
+    assert.ok(hints.every(hint => hint.trim().length > 20), challenge.id)
+    assert.notEqual(hints[0], hints[1], challenge.id)
+    assert.deepEqual(new PracticeStore('/unused').getChallenge(challenge.id).hints, hints)
+  }
+})
 
 test('practice problems, notes, and independent source attempts survive reopening', () => scratch(async (directory, store) => {
   const problem = await store.save(draft())
@@ -120,6 +133,7 @@ test('sample results distinguish exact stdout, stderr, compilation errors, and s
   const report = tested.attempts[0].lastRun
   assert.equal(report?.current, true)
   assert.deepEqual(report?.results.map(({ status }) => status), ['passed', 'failed'])
+  assert.match(report?.results[1].message ?? '', /first differs .* line 1/)
   assert.equal(report?.results[0].stderr, 'non-output log\n')
   assert.equal(tested.completion, 'In progress')
 

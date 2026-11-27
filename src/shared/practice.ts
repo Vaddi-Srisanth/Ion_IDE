@@ -35,6 +35,7 @@ export interface PracticeChallengeSummary {
 export interface PracticeChallenge extends PracticeChallengeSummary {
   statement: string
   samples: readonly Omit<PracticeSample, 'id'>[]
+  hints?: readonly string[]
 }
 
 export interface PracticeSample {

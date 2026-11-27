@@ -61,6 +61,19 @@ function PracticeSamples({ samples }: { samples: readonly (Omit<PracticeSample, 
   </section>
 }
 
+function ProgressiveHints({ hints }: { hints?: readonly string[] }) {
+  const [revealed, setRevealed] = useState(0)
+  if (!hints?.length) return null
+  return <section className="practice-section practice-hints" aria-label="Progressive hints">
+    <h3>Need a nudge?</h3>
+    <p className="practice-muted">Reveal one hint at a time when you want help.</p>
+    {revealed > 0 && <ol>{hints.slice(0, revealed).map((hint, index) => <li key={index}>{hint}</li>)}</ol>}
+    {revealed < hints.length && <button className="button" type="button" onClick={() => setRevealed(value => value + 1)}>
+      Reveal hint {revealed + 1}
+    </button>}
+  </section>
+}
+
 function ChallengePreview({ bridge, id, language, busy, backLabel, onBack, onStart }: {
   bridge: PracticeBridge
   id: string
@@ -92,6 +105,7 @@ function ChallengePreview({ bridge, id, language, busy, backLabel, onBack, onSta
         <p className="practice-muted">{challenge.topic} · {challenge.difficulty}</p>
       </div>
       <p className="practice-statement" data-testid="practice-problem-statement">{challenge.statement}</p>
+      <ProgressiveHints hints={challenge.hints}/>
       <PracticeSamples samples={challenge.samples} />
       {!language && <p className="practice-muted">Choose a language above to open a solution file.</p>}
       <button className="button primary" data-testid="practice-start" disabled={busy || !language}
