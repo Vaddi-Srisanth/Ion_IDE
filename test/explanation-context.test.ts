@@ -86,7 +86,7 @@ test('Ask Ion context can include only a question and one optional editor excerp
   assert.equal(selected.input.sources.length, 1)
   assert.equal(selected.input.sources[0].origin, 'editor-buffer')
   assert.equal(selected.input.sources[0].text, code.text)
-  for (const extra of [{ action: 'hint' }, { lesson: { packId: 'python', lessonId: 'values' } },
+  for (const extra of [{ question: ' \n ' }, { action: 'hint' }, { lesson: { packId: 'python', lessonId: 'values' } },
     { diagnostic: 'error' }, { project: { root: f.root, refs: [] } }]) {
     await assert.rejects(prepareContext({ ...request, ...extra }, signal(), f.options), safe)
   }

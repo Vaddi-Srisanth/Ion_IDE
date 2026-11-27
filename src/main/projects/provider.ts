@@ -265,7 +265,7 @@ function explanationInput(value: unknown): ExplanationInput {
   const input = exact(value, ['purpose', 'action', 'question', 'sources'])
   if (!explanationPurposes.some(purpose => purpose === input.purpose)
     || !explanationActions.some(action => action === input.action)) throw new Error('Unknown explanation purpose or action.')
-  const question = explanationText(input.question, 2048, true)
+  const question = explanationText(input.question, 2048, input.purpose !== 'ask')
   const ids = new Set<string>()
   let total = 0
   const sources = explanationList(input.sources, 8).map((item): ReviewedSource => {

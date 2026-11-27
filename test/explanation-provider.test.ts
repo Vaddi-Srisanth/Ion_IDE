@@ -62,6 +62,7 @@ test('explanation review builds immutable exact payload bytes without network ca
 test('explanation context is bounded by UTF-8 bytes and validated identities and ranges', () => {
   for (const invalid of [
     { ...input(), question: 'é'.repeat(1025) },
+    { ...input(), purpose: 'ask', action: 'ask-question', question: ' ' },
     { ...input(), question: '\ud800' },
     { ...input(), action: 'generate-code' },
     { ...input(), purpose: 'execute' },

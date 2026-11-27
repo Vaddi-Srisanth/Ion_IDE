@@ -76,7 +76,7 @@ function parse(value: unknown): ExplanationContextRequest {
     if (data.action !== 'ask-question' || data.lesson !== undefined || data.diagnostic !== undefined || data.project !== undefined) invalid()
   } else if (data.purpose !== 'tutor' && data.purpose !== 'project-lens'
     || !(data.purpose === 'tutor' ? tutorActions : projectActions).includes(data.action as string)) invalid()
-  const result = { purpose: data.purpose, action: data.action, question: text(data.question, 2048, true) } as ExplanationContextRequest
+  const result = { purpose: data.purpose, action: data.action, question: text(data.question, 2048, data.purpose !== 'ask') } as ExplanationContextRequest
   if (data.stream !== undefined) {
     if (typeof data.stream !== 'boolean') invalid()
     result.stream = data.stream as boolean
