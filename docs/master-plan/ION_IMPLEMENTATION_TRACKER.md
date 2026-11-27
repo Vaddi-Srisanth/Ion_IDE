@@ -2,7 +2,7 @@
 
 Current development: `codex/ion-phase-6-copilot` — stacked checkpoints through Phase 9, with ongoing Phase 3 source-control and Phase 8 coaching increments<br>
 Latest local Phase 3 checkpoint: `83d7968` — same-tree branch switch, anonymous public fetch, pull-request details and reviewed in-app PR creation (**macOS ARM64 targeted checks PASS; not pushed**)<br>
-Latest local Phase 8 checkpoint: `ed59b1d` — offline binary-search complexity cue and selected-code Tutor analysis (**macOS targeted checks PASS; not pushed**)<br>
+Latest local Phase 8 checkpoint: `1dbb632` — lazy offline BFS walkthrough with queue/discovery trace and complexity bounds (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
 Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
 Phase 2.6 Test Explorer: **native acceptance PASS** on `codex/ion-core-excellence-phase-2-tests` at `fee7580cf3a107f54126dff7daa1d0e683a3198d`<br>

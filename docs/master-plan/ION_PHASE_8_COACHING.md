@@ -14,6 +14,12 @@ The headless Chromium check verified the lazy chunk, both search outcomes, trans
 
 It also gives an offline analysis for `n` already sorted values: O(log n) comparisons because each step halves the candidate range, and O(1) auxiliary space for this iterative implementation, excluding storage for the input. It labels these as analytical bounds, not measured timings.
 
+## Breadth-first search walkthrough
+
+Practice → Browse also includes a lazy-loaded, offline BFS walkthrough over a small directed adjacency-list graph. Learners can choose a start node and step backward or forward through the first-in, first-out queue, discovered nodes, processed nodes and traversal-tree edges. The example marks nodes as discovered when enqueued, showing why F is not enqueued twice when both C and E lead to it. It covers a reachable subgraph and isolated start cases without running learner code or making network requests.
+
+The walkthrough explains O(V + E) time and O(V) auxiliary space under the adjacency-list assumption; these are analytical bounds, not measured timings. A focused offline headless-browser check verified queue order, duplicate discovery, the alternate start, completion/reset, bounded controls, no extra bridge calls, lazy chunk loading, narrow viewport fit and keyboard focus return. The binary-search walkthrough regression check, type checking and production build also passed on macOS. Native Windows verification remains open.
+
 ## Local topic focus signal — 27 November 2026
 
 Local checkpoint: `d471127` on `codex/ion-phase-6-copilot` (not pushed).
