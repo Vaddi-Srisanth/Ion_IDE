@@ -150,6 +150,7 @@ function plumbingCommand(args: string[]): boolean {
       && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
       && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
     case 'symbolic-ref': return args.join(' ') === 'symbolic-ref --quiet --no-recurse HEAD'
+    case 'worktree': return args.length === 4 && args[1] === 'list' && args[2] === '--porcelain' && args[3] === '-z'
     case 'update-ref': return args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
       && objectId.test(args[5]) && objectId.test(args[6])
       && (args[4].startsWith('refs/heads/') || args[4].startsWith('refs/tags/')
@@ -225,6 +226,10 @@ async function invokeGit(repository: Repository, signal: AbortSignal, args: stri
       ...(options.indexFile && { GIT_INDEX_FILE: options.indexFile }) },
   })
   signal.throwIfAborted()
+  // Registry diagnostics may contain paths or indicate an omitted registration, even on a successful exit.
+  if (args[0] === 'worktree' && (result.stderr || result.state !== 'exited' || result.exitCode !== 0)) {
+    throw new Error('Git could not verify the registered worktrees.')
+  }
   if (result.state === 'output-limit') {
     if (options.allowTruncation) return { text: result.stdout ?? '', complete: false }
     if (args[0] === 'cat-file') throw new UnavailableDiff('This file exceeds the text preview limit.')
