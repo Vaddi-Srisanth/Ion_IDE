@@ -6,6 +6,7 @@ import test from 'node:test'
 import { cloneAuthenticatedGitHub, cloneGitHub, clonePublicGitHub } from '../src/main/source-control/clone'
 import type { execute } from '../src/main/runner'
 import { fileMutations, type FileMutations } from '../src/main/file-mutations'
+import { resolveGitHubCli } from '../src/main/source-control/github'
 
 type Run = typeof execute
 const success = (stdout = ''): Awaited<ReturnType<Run>> => ({ state: 'exited', exitCode: 0, stdout, output: '', outputComplete: true })
@@ -286,6 +287,21 @@ test('public clone awaits cancellation, cleans verified staging and retains unve
   assert.ok((await lstat(scratch)).isDirectory())
   await rm(scratch, { recursive: true })
 })
+
+test('live authenticated clone of the public Ion repository with the official GitHub keyring',
+  { skip: process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 150_000 }, async t => {
+    const f = await fixture(); t.after(f.clean)
+    const signal = new AbortController().signal
+    const gh = await resolveGitHubCli(f.root, [f.root], signal)
+    const destination = await cloneAuthenticatedGitHub('Vaddi-Srisanth/Ion_IDE', f.parent, f.root, [f.root], signal, {
+      findGh: async () => gh,
+    })
+    assert.equal(destination, join(f.parent, 'Ion_IDE'))
+    const config = await readFile(join(destination, '.git', 'config'), 'utf8')
+    assert.match(config, /url = https:\/\/github\.com\/Vaddi-Srisanth\/Ion_IDE\.git/)
+    assert.doesNotMatch(config, /(?:extraheader|credential\s*=|token\s*=|password\s*=|x-access-token:)/i)
+    assert.ok((await readdir(destination)).includes('package.json'))
+  })
 
 test('anonymous public GitHub shallow clone of octocat/Hello-World', { skip: process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 140_000 }, async t => {
   const f = await fixture(); t.after(f.clean)
