@@ -76,7 +76,7 @@ Status vocabulary is deliberately strict:
 | Merge/rebase/conflict editor | Missing | No three-way merge UI or safe operation state machine. |
 | GitHub sign-in/repos/issues/PRs | Missing | Requires official OAuth/device flow and token storage review. |
 | GitHub Copilot sign-in/chat/agent | External | An official Copilot SDK now exists for custom applications, but Ion has no implementation or authenticated acceptance. Authentication, subscription/licensing, bundled runtime cost, permissions, and shutdown behavior require a proof of concept. [Official SDK](https://github.com/github/copilot-sdk) · [GitHub usage overview](https://docs.github.com/en/copilot/get-started/where-to-use-github-copilot) |
-| Copilot inline completion | Unsupported | Requires a documented, licensed official integration and explicit acceptance; otherwise it remains unsupported. |
+| Copilot inline completion | Official protocol available. Ion integration pending. | GitHub documents third-party inline completions and device sign-in. Signed-out protocol testing and authenticated editor acceptance are separate. [Language Server SDK](https://github.com/github/copilot-language-server-release#inline-completions). |
 | Update check/download | Incomplete | GitHub release comparison/checksum flow exists; signing/notarization, exact-candidate upgrade/rollback, and cross-platform acceptance remain release gates. |
 | macOS installer | External | Builds exist; trusted public distribution requires Apple Developer ID/notarization credentials. |
 | Windows installer | Incomplete | Build and native CI exist; exact-current-candidate upgrade/rollback acceptance remains required. |
