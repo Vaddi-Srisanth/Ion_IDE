@@ -38,6 +38,8 @@ async function fixture() {
   }
   const call = (run: Run, name: unknown = fixtureRepository, signal = new AbortController().signal) =>
     githubOverview(root, [root], name, signal, { run: isolatedRun(run), findGh: async () => binary })
+  const rawCall = (run: Run) => githubOverview(root, [root], fixtureRepository, new AbortController().signal,
+    { run, findGh: async () => binary })
   const detail = (run: Run, request: unknown = pullRequest, signal = new AbortController().signal) =>
     githubPullRequest(root, [root], request, signal, { run: isolatedRun(run), findGh: async () => binary })
   const detailIssue = (run: Run, request: unknown = issueRequest, signal = new AbortController().signal) =>
@@ -45,7 +47,7 @@ async function fixture() {
   const create = (run: Run, request: unknown = { repository: fixtureRepository, title: 'Add feature', head: 'octo-user:feature/one',
     base: 'main', body: 'Reviewed description', draft: true }, signal = new AbortController().signal) =>
     createGitHubPullRequest(root, [root], request, signal, { run: isolatedRun(run), findGh: async () => binary })
-  return { directory, root, binary, call, detail, detailIssue, create, clean: () => rm(directory, { recursive: true, force: true }) }
+  return { directory, root, binary, call, rawCall, detail, detailIssue, create, clean: () => rm(directory, { recursive: true, force: true }) }
 }
 
 test('GitHub reads only the selected repository via fixed GitHub.com GETs in one private directory', async t => {
@@ -115,6 +117,16 @@ test('GitHub reports fixed sign-in, network, rate-limit and completeness errors 
     await assert.rejects(f.call(async () => result), /limit/)
   }
   await assert.rejects(f.call(async () => ({ ...ok({}), state: 'timeout' })), /timed out/)
+})
+
+test('GitHub rejects invalid official keyring credentials before any API request', async t => {
+  const f = await fixture(); t.after(f.clean)
+  let apiRequests = 0
+  await assert.rejects(f.rawCall(async (_binary, args) => args[0] === 'auth'
+    ? { ...ok({}), stdout: 'secret-invalid-credential diagnostic' }
+    : (apiRequests++, ok({ login: 'octo-user' }))), error =>
+    error instanceof Error && /Sign in/.test(error.message) && !error.message.includes('secret-invalid'))
+  assert.equal(apiRequests, 0)
 })
 
 test('GitHub validates repository and type of every result and rejects truncated searches', async t => {

@@ -1,6 +1,6 @@
 # Phase 3 — Git and GitHub
 
-Development branch `codex/ion-phase-3-source-control`. The public 0.9.9 installer contains the accepted Phase 2.5 application.
+Development branch `codex/ion-phase-6-copilot`. The public 0.9.9 installer contains the accepted Phase 2.5 application.
 
 ## First checkpoint
 
@@ -98,4 +98,4 @@ Targeted macOS verification passed six real-Git comparison and stash tests. The 
 
 Reviewing the authenticated GitHub path found that its isolated `GH_CONFIG_DIR` contained no user account configuration. Although the official `gh api` calls were isolated from user aliases, endpoints, and other CLI configuration, they could not reliably access the user's existing system-keyring sign-in. Ion now asks the installed GitHub CLI for a short-lived `gh auth token --hostname github.com` using its normal user configuration, validates the bounded result, then passes the credential only to the isolated main-process `gh api` subprocess. The renderer receives only the already-redacted account or repository result. The isolated request still fixes the host, API method and endpoint; user CLI aliases and config do not affect it. Authentication failure returns a fixed sign-in instruction without echoing CLI output.
 
-Targeted verification on macOS ARM64 passed all **11 offline GitHub API tests** (one live-keyring test skipped), type checking, production build and the headless Git browser journey. Tests verify that token retrieval sees the normal CLI configuration but not inherited token/debug/proxy variables, that API calls use only the temporary configuration plus the main-process token, and that the token is not returned in renderer data. Tool identity is revalidated before credential retrieval. No live API write or real credential was used. Native Windows authentication remains unverified.
+Targeted verification on macOS ARM64 passed all **12 offline GitHub API tests** (one live-keyring test skipped), type checking, production build and the headless Git browser journey. Tests verify that token retrieval sees the normal CLI configuration but not inherited token/debug/proxy variables, invalid credentials stop before an API request, API calls use only the temporary configuration plus the main-process token, and the token is not returned in renderer data. Tool identity is revalidated before credential retrieval. No live API write or real credential was used. Native Windows authentication remains unverified.
