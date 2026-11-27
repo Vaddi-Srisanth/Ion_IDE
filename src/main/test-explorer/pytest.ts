@@ -7,6 +7,7 @@ import { isWithin, revision } from '../files'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { type execute } from '../runner'
 import { relativeTestPath, testId, testLimits, text, validateSelector } from './model'
+import { inspectTestInput } from './source-input'
 import { pytestHelper } from './pytest-helper'
 
 export interface TestPlan {
@@ -62,7 +63,8 @@ export async function sourceRevisions(scope: WorkspaceFiles, root: string, signa
       const inspected = await scope.inspect(entry.path, 'file')
       bytes += Number(inspected.stats.size)
       if (bytes > testLimits.sourceBytes) throw new Error('Test source/configuration files exceed the 16 MiB inspection limit.')
-      result[relativeTestPath(relative(root, entry.path).split(sep).join('/'))] = revision(inspected.stats)
+      const input = await inspectTestInput(inspected.path, Number(inspected.stats.size), revision(inspected.stats), signal)
+      result[relativeTestPath(relative(root, entry.path).split(sep).join('/'))] = input.token
     }
   }
   await walk(root, 0)

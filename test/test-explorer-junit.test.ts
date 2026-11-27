@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
-import { access, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
-import { revision, WorkspaceFiles } from '../src/main/files'
+import { WorkspaceFiles } from '../src/main/files'
 import { TestExplorerService } from '../src/main/test-explorer/service'
+import { inspectTestInput } from '../src/main/test-explorer/source-input'
 import { prepareJunit } from '../src/main/test-explorer/junit'
 
 test('JUnit rejects unsafe or fabricated selections before consulting installed tools', async () => {
@@ -30,9 +31,13 @@ test('JUnit checks installed jar bytes and stages only the reviewed saved Java r
   const plan = await prepareJunit(root, [root], scratch, 'discover', [])
   const file = join(root, 'Example.java')
   await writeFile(file, 'class Example {}')
-  const original = revision(await stat(file, { bigint: true }))
+  const original = (await inspectTestInput(file, 1024)).token
   await writeFile(file, 'class Changed {}')
-  await assert.rejects(plan.stageSources!({ 'Example.java': original }), /changed/)
+  // Force the metadata portion to match current stat values. Only the
+  // different reviewed content digest can reject this same-length edit.
+  const current = (await inspectTestInput(file, 1024)).token
+  const oldBytesSameStat = current.slice(0, current.lastIndexOf(':') + 1) + original.split(':').at(-1)
+  await assert.rejects(plan.stageSources!({ 'Example.java': oldBytesSameStat }), /changed/)
   await assert.rejects(access(join(scratch, 'sources', 'Example.java')), { code: 'ENOENT' })
 })
 

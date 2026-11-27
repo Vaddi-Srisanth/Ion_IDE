@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import type { TestAdapter, TestCaseResult, TestOperationResult, TestRun, TestSnapshot } from '../../shared/test-explorer'
 import type { WorkspaceFiles } from '../files'
 import { isWithin } from '../files'
 import { execute } from '../runner'
+import { removeServiceScratch } from '../language-tools/service-scratch'
 import { maxTestRecordBytes, relativeTestPath, selectedTestIds, testAdapter, testLimits, type StoredTests } from './model'
 import { preparePytest, readFrameworkReport, safeTool, sourceRevisions, testTree, type TestExecute, type TestPlan } from './pytest'
 import { TestRepository } from './repository'
@@ -55,7 +56,7 @@ export class TestExplorerService {
     await this.active?.done
     await this.repository?.drain()
     for (const path of this.pendingScratch) {
-      await rm(path, { recursive: true, force: true })
+      await removeServiceScratch(path)
       this.pendingScratch.delete(path)
     }
     // execute() returned without proving output/owned-child completion. No later
@@ -169,10 +170,11 @@ export class TestExplorerService {
         message: signal.aborted && stage !== 'cleanup' ? 'Test operation stopped.' : String(error instanceof Error ? error.message : error).slice(0, 2048) }
     }
     if (scratch) {
-      try { await rm(scratch, { recursive: true, force: true }) }
-      catch {
+      try { await removeServiceScratch(scratch) }
+      catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code
         this.pendingScratch.add(scratch)
-        result = { ...result, status: 'failed', stage: 'cleanup', message: 'The private test operation directory could not be removed. Test cleanup remains unverified.' }
+        result = { ...result, status: 'failed', stage: 'cleanup', message: 'The private test operation directory could not be removed' + (typeof code === 'string' && /^[A-Z_]{2,28}$/.test(code) ? ' (' + code + ')' : '') + '. Test cleanup remains unverified.' }
       }
     }
     return result

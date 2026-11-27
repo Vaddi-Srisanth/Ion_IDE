@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto'
-import { constants } from 'node:fs'
-import { mkdir, open, realpath, writeFile } from 'node:fs/promises'
+import { mkdir, realpath, writeFile } from 'node:fs/promises'
 import { delimiter, dirname, isAbsolute, join } from 'node:path'
-import { isWithin, revision } from '../files'
+import { isWithin } from '../files'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
+import { inspectTestInput } from './source-input'
 import { junitHelper } from './junit-helper'
 import { relativeTestPath, testLimits, validateSelector } from './model'
 import { safeTool, type TestPlan } from './pytest'
@@ -25,29 +24,6 @@ async function installedJdk(root: string, roots: readonly string[], paths: strin
   throw new Error('Install a JDK 17 or newer outside all workspaces and set JAVA_HOME to its home directory.')
 }
 
-// Read only the bounded, opened regular file. A source revision also binds the
-// bytes to the service's workspace inspection before its native review.
-async function reviewedBytes(path: string, limit: number, expected?: string) {
-  const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0))
-  try {
-    const info = await handle.stat({ bigint: true })
-    if (!info.isFile() || info.size > BigInt(limit) || (expected && revision(info) !== expected) || await realpath(path) !== path) {
-      throw new Error('JUnit input changed or exceeded its inspection limit. Review again.')
-    }
-    const bytes = Buffer.alloc(Number(info.size) + 1)
-    let offset = 0
-    while (offset < bytes.length) {
-      const { bytesRead } = await handle.read(bytes, offset, bytes.length - offset, offset)
-      if (!bytesRead) break
-      offset += bytesRead
-    }
-    if (offset !== Number(info.size) || revision(await handle.stat({ bigint: true })) !== revision(info) || await realpath(path) !== path) {
-      throw new Error('JUnit input changed while reading. Review again.')
-    }
-    return bytes.subarray(0, offset)
-  } finally { await handle.close() }
-}
-
 // Pin exactly the bytes used by source-file launch. The installed jar can move or
 // change after review without substituting a different launcher for this operation.
 async function stageJar(scratch: string, roots: readonly string[]) {
@@ -55,10 +31,10 @@ async function stageJar(scratch: string, roots: readonly string[]) {
   if (!chosen || !isAbsolute(chosen) || roots.some(root => isWithin(root, chosen))) throw new Error(installJar)
   const canonical = await realpath(chosen).catch(() => null)
   if (!canonical || roots.some(root => isWithin(root, canonical))) throw new Error(installJar)
-  const data = await reviewedBytes(canonical, 8 * 1024 * 1024)
-  if (createHash('sha256').update(data).digest('hex') !== standaloneSha256) throw new Error('Unrecognized JUnit Platform jar. ' + installJar)
+  const input = await inspectTestInput(canonical, 8 * 1024 * 1024, undefined, undefined, true)
+  if (input.digest !== standaloneSha256) throw new Error('Unrecognized JUnit Platform jar. ' + installJar)
   const staged = join(scratch, 'junit-platform-console-standalone-1.13.4.jar')
-  await writeFile(staged, data, { flag: 'wx', mode: 0o600 })
+  await writeFile(staged, input.bytes!, { flag: 'wx', mode: 0o600 })
   return { installed: canonical, staged }
 }
 
@@ -71,7 +47,9 @@ async function stageJavaSources(root: string, target: string, sources: Readonly<
   let bytes = 0
   for (const relative of paths) {
     const parts = relativeTestPath(relative).split('/')
-    const data = await reviewedBytes(join(root, ...parts), testLimits.sourceBytes - bytes, sources[relative])
+    const input = await inspectTestInput(join(root, ...parts), testLimits.sourceBytes - bytes, undefined, undefined, true)
+    if (input.token !== sources[relative]) throw new Error('JUnit source changed since review.')
+    const data = input.bytes!
     bytes += data.length
     const copy = join(target, ...parts)
     await mkdir(dirname(copy), { recursive: true })
