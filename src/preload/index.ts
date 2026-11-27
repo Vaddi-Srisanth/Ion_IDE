@@ -82,7 +82,7 @@ const bridge: IonBridge = {
     openReference: (root, reference) => ipcRenderer.invoke('ion:project-lens-open', root, reference),
   },
   explanations: {
-    provider: () => ipcRenderer.invoke('ion:explanations-provider'),
+    provider: purpose => ipcRenderer.invoke('ion:explanations-provider', purpose),
     configure: value => ipcRenderer.invoke('ion:explanations-configure', value),
     review: request => ipcRenderer.invoke('ion:explanations-review', request),
     send: token => ipcRenderer.invoke('ion:explanations-send', token),

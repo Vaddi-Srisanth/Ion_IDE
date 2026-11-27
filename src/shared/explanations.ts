@@ -2,9 +2,9 @@ import type { ProviderSettings, ProviderUpdate } from './projects'
 import type { Entry } from './contracts'
 import type { ProjectLensReference } from './project-lens'
 
-export const explanationPurposes = ['tutor', 'project-lens'] as const
+export const explanationPurposes = ['tutor', 'project-lens', 'ask'] as const
 export const explanationActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz',
-  'understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase'] as const
+  'understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase', 'ask-question'] as const
 export type ExplanationPurpose = typeof explanationPurposes[number]
 export type ExplanationAction = typeof explanationActions[number]
 
@@ -89,7 +89,7 @@ export interface ExplanationOpenResult {
 
 export interface ExplanationBridge {
   /** Local provider metadata only; explicitly opens the optional AI-pane lease. */
-  provider(): Promise<ProviderSettings>
+  provider(purpose?: ExplanationPurpose): Promise<ProviderSettings>
   configure(value: ProviderUpdate): Promise<ProviderSettings>
   review(request: ExplanationRequest): Promise<ExplanationReview>
   send(token: string): Promise<ExplanationReply | null>

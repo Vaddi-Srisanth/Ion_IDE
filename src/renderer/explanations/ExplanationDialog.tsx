@@ -39,6 +39,8 @@ export function selectedExplanationRequest(request: ExplanationRequest, selectio
 
 export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitation, subscribeInvalidation,
   refreshContext, onRecommendations }: ExplanationDialogProps) {
+  const purpose = initialRequest.purpose
+  const ask = purpose === 'ask'
   const [provider, setProvider] = useState<ProviderSettings | null>(null)
   const [action, setAction] = useState(initialRequest.action)
   const [question, setQuestion] = useState(initialRequest.question)
@@ -73,14 +75,14 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
   useEffect(() => {
     mounted.current = true
     const epoch = ++generation.current
-    void bridge.provider().then(value => {
+    void bridge.provider(purpose).then(value => {
       if (mounted.current && generation.current === epoch) setProvider(value)
     }, () => { if (mounted.current && generation.current === epoch) setFeedback('Provider settings are unavailable. Offline features remain available.') })
     const unsubscribe = subscribeInvalidation?.(() => {
       if (mounted.current) cancel('Context changed. The previous review and answer were cleared. Review the current context again.')
     })
     return () => { mounted.current = false; generation.current++; pending.current = false; unsubscribe?.(); void bridge.cancel().catch(() => {}) }
-  }, [bridge, subscribeInvalidation])
+  }, [bridge, purpose, subscribeInvalidation])
   function changed() {
     if (pending.current || current.current.review || current.current.reply) cancel('Request changed. Review again before sending.')
     else setFeedback('')
@@ -104,7 +106,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
     pending.current = true; setBusy(true); setReview(null); setReply(null); setReplyReview(null); setFeedback('Preparing a local review…')
     const alive = () => mounted.current && generation.current === epoch
     try {
-      const settings = await bridge.provider()
+      const settings = await bridge.provider(purpose)
       if (!alive()) return
       setProvider(settings)
       if (!settings.hasKey || !settings.model) { setFeedback('Configure a provider and API key before sending an optional online request.'); return }
@@ -139,22 +141,23 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
     } catch { if (mounted.current && generation.current === epoch) setFeedback('This citation is no longer available. Review the current context again.') }
     finally { if (mounted.current && generation.current === epoch) { pending.current = false; setBusy(false) } }
   }
-  const actions = initialRequest.purpose === 'tutor' ? tutorActions : projectActions
+  const actions = purpose === 'tutor' ? tutorActions : projectActions
   const questionBytes = new TextEncoder().encode(question).byteLength
   function check(field: 'lesson' | 'code' | 'diagnostic' | 'structure', value: boolean) {
     changed(); setSelection(previous => ({ ...previous, [field]: value, ...(field === 'structure' && !value ? { refs: [] } : {}) }))
   }
-  return <Modal title={initialRequest.purpose === 'tutor' ? 'Optional online tutor' : 'Explain this project online'} className="explanation-dialog" onClose={onClose}>
+  return <Modal title={ask ? 'Ask Ion' : purpose === 'tutor' ? 'Optional online tutor' : 'Explain this project online'} className="explanation-dialog" onClose={onClose}>
     <div className="explanation-body" data-testid="explanation-dialog">
       <p className="explanation-note">Choose what to share. Ion prepares an exact local review before any online request. AI responses are unverified and cannot change or run your code.</p>
-      <label>Action<select value={action} disabled={busy} onChange={event => { changed(); setAction(event.target.value as ExplanationAction) }}>
-        {actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      {!ask && <label>Action<select value={action} disabled={busy} onChange={event => { changed(); setAction(event.target.value as ExplanationAction) }}>
+        {actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}
       <label>Your question<textarea rows={3} maxLength={2048} value={question} disabled={busy} aria-describedby="explanation-question-limit"
         onChange={event => { changed(); setQuestion(event.target.value) }}/></label>
       <p id="explanation-question-limit" className="explanation-note">{questionBytes}/2,048 UTF-8 bytes{questionBytes > 2048 ? ' · Shorten your question before reviewing.' : ''}</p>
       <fieldset disabled={busy} className="explanation-inclusions"><legend>Include only what you select</legend>
         {initialRequest.lesson && <label><input type="checkbox" checked={selection.lesson} onChange={event => check('lesson', event.target.checked)}/>Installed lesson: {initialRequest.lesson.lessonId}</label>}
-        {initialRequest.code && <label><input type="checkbox" checked={selection.code} onChange={event => check('code', event.target.checked)}/>Current unsaved code: {initialRequest.code.label} (off by default)</label>}
+        {initialRequest.code && <label><input type="checkbox" checked={selection.code} onChange={event => check('code', event.target.checked)}/>
+          {ask ? 'Editor excerpt: ' : 'Current unsaved code: '}{initialRequest.code.label}{ask ? ' (first 8 KiB)' : ' (off by default)'}</label>}
         {initialRequest.diagnostic && <label><input type="checkbox" checked={selection.diagnostic} onChange={event => check('diagnostic', event.target.checked)}/>Compiler diagnostic</label>}
         {initialRequest.project && <>
           <label><input type="checkbox" checked={selection.structure} onChange={event => check('structure', event.target.checked)}/>Bounded offline project structure</label>

@@ -76,6 +76,24 @@ test('question-only and explicit lesson/buffer context preserve authoritative an
     { packId: 'python', lessonId: 'values' })
 })
 
+test('Ask Ion context can include only a question and one optional editor excerpt', async t => {
+  const f = await fixture(t)
+  const request: ExplanationRequest = { purpose: 'ask', action: 'ask-question', question: 'What is a pure function?' }
+  const question = await prepareContext(request, signal(), f.options)
+  assert.deepEqual(question.input, { ...request, sources: [] })
+  const code = { path: f.path, label: 'main.py', text: 'print("selected editor excerpt")', version: 9 }
+  const selected = await prepareContext({ ...request, code }, signal(), f.options)
+  assert.equal(selected.input.sources.length, 1)
+  assert.equal(selected.input.sources[0].origin, 'editor-buffer')
+  assert.equal(selected.input.sources[0].text, code.text)
+  for (const extra of [{ action: 'hint' }, { lesson: { packId: 'python', lessonId: 'values' } },
+    { diagnostic: 'error' }, { project: { root: f.root, refs: [] } }]) {
+    await assert.rejects(prepareContext({ ...request, ...extra }, signal(), f.options), safe)
+  }
+  assert.equal(f.state.lessonCalls, 0)
+  assert.equal(f.state.lensCalls, 0)
+})
+
 test('project sources require exact snapshot membership; citations open existing evidence without grants', async t => {
   const f = await fixture(t)
   const context = await prepareContext(f.project(), signal(), f.options)

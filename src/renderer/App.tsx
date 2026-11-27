@@ -1636,6 +1636,7 @@ export function App() {
         case 'run-task': if (root) setDialog({ kind: 'tasks' }); break;
         case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
         case 'test-explorer': if (availableCommand(value)) setDialog({ kind: 'test-explorer' }); break;
+        case 'ask-ion': if (availableCommand(value)) void openExplanation({ purpose: 'ask', action: 'ask-question', question: '' }); break;
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
@@ -1793,6 +1794,7 @@ export function App() {
     if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal', 'toggle-debug'].includes(id)) return true;
     if (screen !== 'editor') return false;
     switch (id) {
+      case 'ask-ion': return mode === 'free' && settings.resourceProfile === 'full';
       case 'insert-starter': return Boolean(starterTarget);
       case 'format-document': return Boolean(canFormatDocument()) && !formatting;
       case 'go-to-definition':

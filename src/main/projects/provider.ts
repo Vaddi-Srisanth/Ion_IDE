@@ -290,6 +290,10 @@ function explanationInput(value: unknown): ExplanationInput {
     }
     return { id: source.id, label, origin: source.origin as ReviewedSource['origin'], revision, startLine, endLine, text }
   })
+  if (input.purpose === 'ask' ? input.action !== 'ask-question' || sources.length > 1
+    || sources.some(source => source.origin !== 'editor-buffer') : input.action === 'ask-question') {
+    throw new Error('Ask Ion accepts one optional editor excerpt.')
+  }
   return { purpose: input.purpose as ExplanationInput['purpose'], action: input.action as ExplanationInput['action'], question, sources }
 }
 

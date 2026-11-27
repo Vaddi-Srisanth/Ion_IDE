@@ -39,7 +39,7 @@ import { ThemeStore } from './themes'
 import type { ViewerService } from './viewers'
 import type { ProjectLensSession } from './project-lens/session'
 import type { ExplanationSession } from './explanations/session'
-import type { ExplanationReview } from '../shared/explanations'
+import type { ExplanationPurpose, ExplanationReview } from '../shared/explanations'
 import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import type { DebugService } from './debug/service'
@@ -416,7 +416,8 @@ interface ExplanationPaneLease {
   target: BrowserWindow
   scope: WorkspaceFiles
   root: string | null
-  panel: 'learn' | 'projects'
+  panel: 'learn' | 'projects' | null
+  purpose: ExplanationPurpose
   generation: number
   selection: number
 }
@@ -445,13 +446,16 @@ function requireExplanationPane(target: BrowserWindow): ExplanationPaneLease {
   }
   return lease
 }
-async function activateExplanationPane(target: BrowserWindow) {
-  if (target !== window || resourceProfile !== 'full' || (panel !== 'learn' && panel !== 'projects')) {
-    throw new Error('Online explanations are optional in Learn or Projects, in Full mode.')
+async function activateExplanationPane(target: BrowserWindow, requested?: unknown) {
+  const purpose = panel === 'learn' ? 'tutor' : panel === 'projects' ? 'project-lens'
+    : panel === null && requested === 'ask' ? 'ask' : null
+  if (target !== window || resourceProfile !== 'full' || !purpose || (requested !== undefined && requested !== purpose)) {
+    throw new Error('Open the matching optional online explanation in Full mode.')
   }
-  if (!explanationPane || !currentExplanationPane(explanationPane)) {
+  if (!explanationPane || explanationPane.purpose !== purpose || !currentExplanationPane(explanationPane)) {
     cancelExplanations()
-    explanationPane = { target, scope: files, root: files.rootPath, panel, generation: panelGeneration, selection: learningSelectionGeneration }
+    explanationPane = { target, scope: files, root: files.rootPath, panel: purpose === 'tutor' ? 'learn'
+      : purpose === 'project-lens' ? 'projects' : null, purpose, generation: panelGeneration, selection: learningSelectionGeneration }
   }
   const lease = explanationPane
   const vault = await providerVault()
@@ -481,7 +485,7 @@ async function explanations(target: BrowserWindow): Promise<ExplanationSession> 
         context: async (request, signal) => {
           const lease = requireExplanationPane(target)
           if (!request || typeof request !== 'object' || !('purpose' in request)
-            || request.purpose !== (lease.panel === 'learn' ? 'tutor' : 'project-lens')) throw new Error('Choose the current explanation context.')
+            || request.purpose !== lease.purpose) throw new Error('Choose the current explanation context.')
           return prepareContext(request, signal, {
             scope: () => files, isCurrent: () => currentExplanationPane(lease),
             lesson: async (pack, topic) => {

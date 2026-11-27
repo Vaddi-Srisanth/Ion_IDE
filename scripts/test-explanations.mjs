@@ -446,6 +446,47 @@ require(${JSON.stringify(target.args[0])});\n`)
       assert.equal(await page.getByTestId('editor').getAttribute('data-explanation-instance'), 'preserve-this-editor')
       report.checks.installedLessonUnsavedBufferUndoAndInvalidation = 'passed'
 
+      phase = 'ask-ion-question-and-optional-editor-excerpt'
+      await assert.rejects(page.evaluate(() => window.ion.explanations.provider('ask')))
+      await page.getByRole('button', { name: 'Code', exact: true }).click()
+      const openAsk = async () => {
+        await page.getByTestId('command-palette').click()
+        await page.getByTestId('command-palette-input').fill('Ask Ion')
+        await page.getByRole('option', { name: 'Ask Ion…', exact: true }).click()
+        await dialog().waitFor()
+        await page.getByRole('dialog', { name: 'Ask Ion', exact: true }).waitFor()
+      }
+      const beforeAsk = await stats()
+      await openAsk()
+      const excerpt = dialog().getByRole('checkbox', { name: /^Editor excerpt:/ })
+      assert.equal(await excerpt.isChecked(), false)
+      assert.equal(await dialog().getByTestId('explanation-review').isDisabled(), true)
+      const askOnly = await review()
+      assert.equal(askOnly.purpose, 'ask')
+      assert.equal(askOnly.action, 'ask-question')
+      assert.deepEqual(askOnly.sources, [])
+      assert.equal((await stats()).calls, beforeAsk.calls)
+      await send()
+      const askBody = await app.evaluate(() => globalThis.ionExplanationFixture.lastBody)
+      assert.deepEqual(JSON.parse(JSON.parse(askBody).messages[1].content).sources, [])
+      assert.ok(!askBody.includes(credential) && !askBody.includes('pending user edit'))
+      await closeDialog()
+      await openAsk()
+      await excerpt.check()
+      const askWithCode = await review()
+      assert.deepEqual(askWithCode.sources.map(item => item.origin), ['editor-buffer'])
+      assert.equal(askWithCode.sources[0].text, userBuffer)
+      await send()
+      const excerptBody = await app.evaluate(() => globalThis.ionExplanationFixture.lastBody)
+      assert.deepEqual(JSON.parse(JSON.parse(excerptBody).messages[1].content).sources, askWithCode.sources)
+      assert.ok(!excerptBody.includes(credential) && !excerptBody.includes(root))
+      assert.equal((await stats()).calls, beforeAsk.calls + 2)
+      assert.equal((await stats()).approvals, beforeAsk.approvals + 2)
+      assert.equal(await readFile(source, 'utf8'), original)
+      assert.equal(await editor('read'), userBuffer)
+      await closeDialog()
+      report.checks.askIonExplicitScopeAndReadOnlyAnswer = 'passed'
+
       phase = 'actual-project-snapshot-and-selected-prefix'
       await page.getByTestId('navigate-projects').click()
       const initialProject = { version: 1, title: 'Existing verified local plan', description: 'Keep all existing local work.',

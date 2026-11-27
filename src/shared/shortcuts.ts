@@ -83,6 +83,7 @@ const commands = {
   'focus-debug-console': { label: 'Focus Debug Console' },
   'run-tests': { label: 'Run Tests' },
   'test-explorer': { label: 'Test Explorer…' },
+  'ask-ion': { label: 'Ask Ion…' },
   stop: { label: 'Stop', key: 'Shift+F5' },
   'preview-web': { label: 'Preview Web Project', key: 'Mod+Alt+P' },
   settings: { label: 'Preferences…', key: 'Mod+,' },

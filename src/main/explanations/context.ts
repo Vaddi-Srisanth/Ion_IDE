@@ -72,7 +72,9 @@ function referenceKey(value: ProjectLensReference) {
 }
 function parse(value: unknown): ExplanationContextRequest {
   const data = object(value, ['purpose', 'action', 'question'], ['lesson', 'code', 'diagnostic', 'project', 'stream'])
-  if (data.purpose !== 'tutor' && data.purpose !== 'project-lens'
+  if (data.purpose === 'ask') {
+    if (data.action !== 'ask-question' || data.lesson !== undefined || data.diagnostic !== undefined || data.project !== undefined) invalid()
+  } else if (data.purpose !== 'tutor' && data.purpose !== 'project-lens'
     || !(data.purpose === 'tutor' ? tutorActions : projectActions).includes(data.action as string)) invalid()
   const result = { purpose: data.purpose, action: data.action, question: text(data.question, 2048, true) } as ExplanationContextRequest
   if (data.stream !== undefined) {
