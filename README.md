@@ -1,6 +1,6 @@
 # Ion IDE
 
-> **Available now.** Ion IDE **0.9.9 for macOS Apple Silicon** includes the accepted editor, workspace, backup/restore, language-services, C/C++ debugger and Build/Tasks work through Phase 2.5. **Windows x64 remains on 0.9.6.** The general Test Explorer is paused on a separate development branch. [Engineering checkpoint](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
+> **Available now.** Ion IDE **0.9.9 for macOS Apple Silicon and Windows x64** includes the accepted editor, workspace, backup/restore, language-services, C/C++ debugger and Build/Tasks work through Phase 2.5. The general Test Explorer is in development on a separate branch. [Engineering checkpoint](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
 
 **An offline-first desktop IDE for learning by coding.**
 
@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-mac-arm64.dmg"><img alt="Download Ion 0.9.9 for macOS (Apple Silicon)" src="https://img.shields.io/badge/macOS_(Apple_Silicon)-v0.9.9-176B69"></a>
-  <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.6/Ion-IDE-0.9.6-windows-x64-setup.exe"><img alt="Download Ion 0.9.6 for Windows (x64 Preview)" src="https://img.shields.io/badge/Windows_(x64_Preview)-v0.9.6-305684"></a>
+  <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-windows-x64-setup.exe"><img alt="Download Ion 0.9.9 for Windows (x64 Preview)" src="https://img.shields.io/badge/Windows_(x64_Preview)-v0.9.9-305684"></a>
 </p>
 
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes and progress are stored locally. Optional AI sends only the context you explicitly review and approve. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
@@ -31,7 +31,7 @@ These extend the existing offline editor, Run Console, terminal, learning, pract
 
 ## Download and install
 
-Download the installer and matching `SHA256SUMS` from the release for your platform. The public versions are [macOS Apple Silicon 0.9.9](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.9) and [Windows x64 0.9.6](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.6). Ion checks the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest) for a compatible installer. Native CI retains its build artifacts for 14 days and requires GitHub sign-in to access them.
+Download the installer and matching `SHA256SUMS` from the release for your platform. [Version 0.9.9](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.9) includes both installers. On Windows, save your work, quit Ion and run Setup to upgrade your existing per-user installation. Ion checks the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest) for a compatible installer. Native CI retains its build artifacts for 14 days and requires GitHub sign-in to access them.
 
 **Updating a Mac from 0.9.6.** Choose **Preferences → Updates → Check for Updates**, then click **Update available** to download the DMG. Save your work and quit Ion. Drag Ion IDE from the DMG into the Applications folder that holds your existing copy and choose **Replace**. Check both `/Applications` and `~/Applications` if you are unsure which folder you used. From 0.9.7 onward, **Install and Restart** protects unsaved work during an in-place update. [Update and recovery details](docs/UPDATES.md)
 
