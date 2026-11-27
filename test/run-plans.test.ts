@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -115,7 +115,13 @@ class Actual {
   }, root)
   const plan = await prepareRun({ path, root, scratch: build, signal })
   assert.equal(plan.cwd, root)
-  assert.equal(plan.compile?.args.at(-1), path)
+  if (process.platform === 'win32') {
+    assert.deepEqual(plan.compile?.args, ['@ion-javac-arguments.txt'])
+    assert.equal(plan.compile?.cwd, build)
+    const argumentFile = await readFile(join(build, 'ion-javac-arguments.txt'), 'utf8')
+    assert.ok(argumentFile.includes(javaCompilerArgumentFile([path])))
+    assert.ok(argumentFile.includes(javaCompilerArgumentFile(['-proc:none'])))
+  } else assert.equal(plan.compile?.args.at(-1), path)
   assert.ok(plan.compile?.args.includes('-proc:none'))
   await invoke(plan.compile!, root)
   const program = await plan.resolveRun!()

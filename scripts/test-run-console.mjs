@@ -223,6 +223,7 @@ int main(void) {
 
   const session = await launch(target, join(scratch, 'profile'))
   let stderr = ''
+  let primaryError
   session.app.process().stderr?.on('data', (chunk) => { stderr = (stderr + chunk).slice(-8192) })
   try {
     const { app, page } = session
@@ -397,6 +398,7 @@ int main(void) {
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
   } catch (error) {
+    primaryError = error
     const child = session.app.process()
     if (stderr || session.errors.length || child.exitCode !== null || child.signalCode !== null) {
       console.error('Run Console diagnostic', { stderr, errors: session.errors, exitCode: child.exitCode, signal: child.signalCode })
@@ -407,6 +409,10 @@ int main(void) {
       .evaluate(() => globalThis.ionRunTestEvents).catch(() => null)))
     throw error
   } finally {
-    await close(session)
+    try { await close(session) }
+    catch (cleanupError) {
+      if (primaryError) throw new AggregateError([primaryError, cleanupError], 'Run Console journey and cleanup both failed.')
+      throw cleanupError
+    }
   }
 })
