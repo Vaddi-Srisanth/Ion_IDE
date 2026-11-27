@@ -58,7 +58,7 @@ const report = {
     profile: 'Fresh disposable profile per build attempt; Minimal resource mode; identical 80-line C source',
     startup: 'Cold process launch, clean shutdown, then same-profile warm launch. Startup ends when the production Settings control is observable.',
     firstFile: 'Open-file action to visible source text in Monaco.',
-    typing: 'DOM input event to the second animation-frame callback for 20 individual characters. This is a renderer presentation proxy, not physical key-to-photon latency.',
+    typing: 'Monaco model-change event to the second animation-frame callback for 20 individual characters. This is a renderer presentation proxy, not physical key-to-photon latency.',
     idle: 'Six process-family samples over ten seconds after one file is open; no task picker or task is opened.',
     memory: 'macOS reports summed phys_footprint and RSS. Windows reports summed private bytes and working sets. RSS/working-set sums may count shared pages repeatedly.',
     cpu: 'Percent of one core from stable native process identities.',
@@ -142,11 +142,17 @@ async function typingSamples(session, editorApiAsset) {
   const values = []
   for (let index = 0; index < 20; index++) {
     await page.evaluate(() => {
-      globalThis.__ionNextInput = new Promise(resolve => {
-        document.addEventListener('input', () => {
-          const inputAt = performance.now()
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - inputAt)))
-        }, { capture: true, once: true })
+      globalThis.__ionNextInput = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          subscription.dispose()
+          reject(new Error('The editor model did not observe inserted text within five seconds'))
+        }, 5_000)
+        const subscription = globalThis.__ionTasksTyping.model.onDidChangeContent(() => {
+          subscription.dispose()
+          clearTimeout(timeout)
+          const changedAt = performance.now()
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - changedAt)))
+        })
       })
     })
     await page.keyboard.insertText('x')
@@ -160,6 +166,7 @@ async function typingSamples(session, editorApiAsset) {
 try {
   for (let pair = 0; pair < 4; pair++) {
     for (const label of pair % 2 ? ['candidate', 'baseline'] : ['baseline', 'candidate']) {
+      console.log(`Starting matched attempt ${pair + 1}/4 ${label}`)
       const attempt = { pair, label, status: 'running' }
       report.attempts.push(attempt)
       await save()
@@ -205,6 +212,7 @@ try {
       attempt.cleanup = 'owned family empty'
       attempt.status = 'passed'
       await save()
+      console.log(`Completed matched attempt ${pair + 1}/4 ${label}`)
     }
   }
 
