@@ -26,6 +26,10 @@ Official version 1.575.0 initialized, advertised incremental document sync and i
 
 Authenticated completion and a native Windows probe remain open.
 
+## Current native signed-out recheck — 28 November 2026
+
+The updated official probe passed on macOS ARM64 and Windows x64 in [run 46067982510](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/46067982510). Both SHA-512-pinned package downloads were verified and extracted, the server initialized with no user signed in, reported `NotSignedIn`, advertised incremental sync and inline completions, and shut down cleanly. Windows also blocked outbound access from the executable during the run. No source document or completion request was sent. The first Windows attempt failed before launch because MSYS converted the leading slash of the base64 checksum into a path; setting `MSYS_NO_PATHCONV` for this verification step fixed the harness and the rerun passed. Real sign-in, authenticated completion and Windows entitlement behavior remain open.
+
 ## Protocol and lazy runtime implementation checkpoint — 28 November 2026
 
 The local source now has a narrowly scoped Copilot Language Server client and a lazy, explicit-call runtime installer. The client permits only the official device-flow completion command and completion-acceptance identity command; it bounds active-document synchronization and completion payloads, suppresses stale responses, and closes the prior document when switching files. The service gives the child a private profile and a reduced environment without ambient shell, GitHub CLI, proxy, or cloud credentials, and rejects servers that omit incremental sync or inline completions.
