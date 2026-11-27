@@ -45,6 +45,7 @@ jobs:
           PACKAGE_HASH: ${{ matrix.sha512 }}
         run: |
           set -euo pipefail
+          if [[ "$RUNNER_OS" == "Windows" ]]; then export MSYS_NO_PATHCONV=1; fi
           node -e "require('node:assert/strict').equal(process.platform+'-'+process.arch,process.env.SELECTED_PLATFORM)"
           directory="$(node -p 'require("node:fs").mkdtempSync(require("node:path").join(process.env.RUNNER_TEMP,"ion-copilot-probe-"))')"
           cd "$directory"
