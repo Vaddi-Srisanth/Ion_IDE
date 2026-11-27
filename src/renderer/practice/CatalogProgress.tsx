@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PracticeBridge, PracticeProgress, PracticeSuggestion } from '../../shared/practice'
+import type { PracticeBridge, PracticeProgress, PracticeSuggestion, PracticeTopic } from '../../shared/practice'
 import { errorMessage } from '../documents'
 
 const states = { opened: 'Opened', submitted: 'Submitted', accepted: 'Accepted' }
@@ -9,11 +9,15 @@ const reasons: Record<PracticeSuggestion['reason'], string> = {
   related: 'Try a new challenge in a topic with recorded local activity.',
   new: 'Try a challenge with no saved attempt in your progress.',
 }
+const lessonForTopic: Partial<Record<PracticeTopic, string>> = {
+  Search: 'binary search', Sorting: 'merge sort', Graphs: 'breadth-first search',
+}
 
-export function CatalogProgress({ bridge, hidden, onViewChallenge }: {
+export function CatalogProgress({ bridge, hidden, onViewChallenge, onLearnLesson }: {
   bridge: PracticeBridge
   hidden: boolean
   onViewChallenge(id: string): void
+  onLearnLesson?(topic: PracticeTopic): void
 }) {
   const [result, setResult] = useState<{ data: PracticeProgress } | { error: string }>()
   const [refresh, setRefresh] = useState(0)
@@ -74,12 +78,18 @@ export function CatalogProgress({ bridge, hidden, onViewChallenge }: {
             <h5>{progress.topicFocus.topic}</h5>
             <p className="practice-muted">{progress.topicFocus.unresolvedChallenges} different challenges have local wrong-answer results without a later accepted result.</p>
             <p className="practice-muted">Use saved local results as a practice signal; this is not a skill score.</p>
+            {onLearnLesson && lessonForTopic[progress.topicFocus.topic] && <p className="practice-muted">
+              A related offline lesson is available: {lessonForTopic[progress.topicFocus.topic]}.
+            </p>}
           </div>
           <button ref={topicButton} className="button" type="button"
             aria-label={'View challenge ' + progress.topicFocus.challenge.title}
             onClick={() => { restoreTarget.current = 'topic'; onViewChallenge(progress.topicFocus!.challenge.id) }}>
             View challenge
           </button>
+          {onLearnLesson && lessonForTopic[progress.topicFocus.topic] && <button className="button" type="button"
+            aria-label={'Review ' + lessonForTopic[progress.topicFocus.topic] + ' lesson'}
+            onClick={() => onLearnLesson(progress.topicFocus!.topic)}>Review lesson</button>}
         </div>
       </section>}
       {suggestion && <section className="practice-suggestion" aria-label="Suggested next practice">

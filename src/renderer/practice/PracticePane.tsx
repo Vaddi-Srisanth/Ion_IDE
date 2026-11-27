@@ -99,15 +99,16 @@ function ChallengePreview({ bridge, id, language, busy, backLabel, onBack, onSta
   </section>
 }
 
-function ProgressPractice({ bridge, busy, onStart }: {
+function ProgressPractice({ bridge, busy, onStart, onLearnLesson }: {
   bridge: PracticeBridge
   busy: boolean
   onStart(id: string, language: RunLanguage): void
+  onLearnLesson(topic: PracticeTopic): void
 }) {
   const [previewId, setPreviewId] = useState('')
   const [language, setLanguage] = useState<RunLanguage | ''>('')
   return <>
-    <CatalogProgress bridge={bridge} hidden={Boolean(previewId)} onViewChallenge={setPreviewId} />
+    <CatalogProgress bridge={bridge} hidden={Boolean(previewId)} onViewChallenge={setPreviewId} onLearnLesson={onLearnLesson} />
     {previewId && <section className="practice-discovery" aria-label="Suggested practice challenge">
       <label className="practice-label">Language
         <select value={language} onChange={(event) => setLanguage(event.target.value as RunLanguage | '')}>
@@ -651,6 +652,13 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
           </Suspense>
         </div>}
         {view === 'progress' && <ProgressPractice bridge={bridge} busy={Boolean(pending)}
+          onLearnLesson={topic => {
+            const kind = topic === 'Search' ? 'binary-search' : topic === 'Sorting' ? 'merge-sort' : 'breadth-first-search'
+            walkthroughKind.current = kind
+            setView(kind)
+            setError('')
+            setNotice('')
+          }}
           onStart={(id, language) => void start(id, language)} />}
         {view === 'saved' && <>
           <div className="practice-library">

@@ -8,7 +8,7 @@ const fixture = `
   import { createRoot } from 'react-dom/client'
   import { PracticePane } from './src/renderer/practice/PracticePane'
   window.calls=[]
-  const bridge=new Proxy({}, {get(_,name){return async()=>{window.calls.push(name);if(name==='list')return{problems:[],unavailable:0};throw Error('Unexpected bridge call '+name)}}})
+  const bridge=new Proxy({}, {get(_,name){return async()=>{window.calls.push(name);if(name==='list')return{problems:[],unavailable:0};if(name==='progress')return{catalogSize:27,opened:2,submitted:2,accepted:0,unavailable:0,challenges:[],topicFocus:{topic:'Sorting',unresolvedChallenges:2,challenge:{id:'sort-practice',title:'Sorting challenge',topic:'Sorting',difficulty:'Medium'}}};throw Error('Unexpected bridge call '+name)}}})
   const root=createRoot(document.querySelector('#root'))
   root.render(<PracticePane bridge={bridge} onPrepareRun={async()=>false} onOpenEntry={()=>{}} onClose={()=>root.unmount()}/>)
 `
@@ -52,6 +52,12 @@ try {
   await reset.click();assert.match(await status.innerText(),/Split \[8, 3, 5, 1\]/)
   await page.getByRole('button',{name:'Back to Browse'}).press('Enter')
   await page.waitForFunction(()=>document.activeElement?.textContent?.includes('Walk through merge sort'))
-  assert.deepEqual(await page.evaluate(()=>window.calls),['list']);assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[])
+  await page.getByTestId('practice-progress-tab').click()
+  const review=page.getByRole('button',{name:'Review merge sort lesson'})
+  await review.click();await lesson.getByRole('heading',{name:'Merge sort',exact:true}).waitFor()
+  await page.getByRole('button',{name:'Back to Browse'}).press('Enter')
+  await page.waitForFunction(()=>document.activeElement?.textContent?.includes('Walk through merge sort'))
+  assert.deepEqual(await page.evaluate(()=>[...new Set(window.calls)].sort()),['list','progress'])
+  assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[])
   console.log('PASS offline merge-sort recursion and merge order, bounds, lazy loading, narrow layout and keyboard return')
 } finally { await browser.close() }
