@@ -18,21 +18,33 @@ const pullDetails = { ...pull, merged: false, draft: true, author: 'dependabot[b
 const issueRequest = { repository: fixtureRepository, number: 4 }
 const issueDetails = { number: 4, title: 'Reviewed issue', url: 'https://github.com/' + fixtureRepository + '/issues/4',
   state: 'open', author: 'octo-user', body: 'Issue description', bodyTruncated: false, isPullRequest: false }
+const fixtureToken = 'gho_fixtureCredentialNotForRenderer123456'
 
 async function fixture() {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'ion-gh-test-')))
   const root = join(directory, 'working tree')
   await mkdir(root)
   const binary = await realpath(process.execPath)
+  const isolatedRun = (run: Run): Run => async (command, args, options) => {
+    if (args[0] === 'auth') {
+      assert.equal(command, binary)
+      assert.deepEqual(args, ['auth', 'token', '--hostname', 'github.com'])
+      assert.equal(options.environment.GH_CONFIG_DIR, undefined)
+      assert.equal(options.environment.GH_TOKEN, undefined)
+      assert.equal(options.environment.GH_HOST, 'github.com')
+      return { ...ok({}), stdout: fixtureToken }
+    }
+    return run(command, args, options)
+  }
   const call = (run: Run, name: unknown = fixtureRepository, signal = new AbortController().signal) =>
-    githubOverview(root, [root], name, signal, { run, findGh: async () => binary })
+    githubOverview(root, [root], name, signal, { run: isolatedRun(run), findGh: async () => binary })
   const detail = (run: Run, request: unknown = pullRequest, signal = new AbortController().signal) =>
-    githubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
+    githubPullRequest(root, [root], request, signal, { run: isolatedRun(run), findGh: async () => binary })
   const detailIssue = (run: Run, request: unknown = issueRequest, signal = new AbortController().signal) =>
-    githubIssue(root, [root], request, signal, { run, findGh: async () => binary })
+    githubIssue(root, [root], request, signal, { run: isolatedRun(run), findGh: async () => binary })
   const create = (run: Run, request: unknown = { repository: fixtureRepository, title: 'Add feature', head: 'octo-user:feature/one',
     base: 'main', body: 'Reviewed description', draft: true }, signal = new AbortController().signal) =>
-    createGitHubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
+    createGitHubPullRequest(root, [root], request, signal, { run: isolatedRun(run), findGh: async () => binary })
   return { directory, root, binary, call, detail, detailIssue, create, clean: () => rm(directory, { recursive: true, force: true }) }
 }
 
@@ -55,7 +67,7 @@ test('GitHub reads only the selected repository via fixed GitHub.com GETs in one
     scratch ||= options.cwd
     assert.equal(options.cwd, scratch)
     assert.notEqual(options.cwd, f.root)
-    for (const key of keys) assert.equal(options.environment[key], key === 'GH_CONFIG_DIR' ? scratch : undefined)
+    for (const key of keys) assert.equal(options.environment[key], key === 'GH_CONFIG_DIR' ? scratch : key === 'GH_TOKEN' ? fixtureToken : undefined)
     const env = options.environment
     assert.equal(env.GH_TELEMETRY, '0')
     assert.equal(env.GH_PROMPT_DISABLED, '1')
@@ -156,7 +168,7 @@ test('PR details use one fixed isolated GET and redact common credentials before
     scratch = options.cwd
     assert.notEqual(scratch, f.root)
     assert.equal(options.environment.GH_CONFIG_DIR, scratch)
-    assert.equal(options.environment.GH_TOKEN, undefined)
+    assert.equal(options.environment.GH_TOKEN, fixtureToken)
     assert.equal(options.environment.GITHUB_TOKEN, undefined)
     return ok({ ...pullDetails, title: 'Review ' + privateToken, bodyTruncated: true,
       body: ['A note with <script>alert(1)</script>', privateToken, 'Authorization: Basic abc123SECRET',
@@ -210,7 +222,7 @@ test('issue details use one isolated fixed GET and redact hosted text before ret
     scratch = options.cwd
     assert.notEqual(scratch, f.root)
     assert.equal(options.environment.GH_CONFIG_DIR, scratch)
-    assert.equal(options.environment.GH_TOKEN, undefined)
+    assert.equal(options.environment.GH_TOKEN, fixtureToken)
     assert.equal(options.environment.GITHUB_TOKEN, undefined)
     return ok({ ...issueDetails, title: 'Issue ' + privateToken, bodyTruncated: true,
       body: ['A note with <script>alert(1)</script>', privateToken, 'Authorization: Bearer abc123SECRET',
@@ -262,7 +274,7 @@ test('pull request creation uses one isolated authenticated POST with reviewed f
     assert.notEqual(scratch, f.root)
     assert.deepEqual(JSON.parse(options.input), { title: 'Add feature', head: 'octo-user:feature/one', base: 'main',
       body: 'Reviewed description', draft: true })
-    for (const key of keys) assert.equal(options.environment[key], key === 'GH_CONFIG_DIR' ? scratch : undefined)
+    for (const key of keys) assert.equal(options.environment[key], key === 'GH_CONFIG_DIR' ? scratch : key === 'GH_TOKEN' ? fixtureToken : undefined)
     assert.equal(options.environment.GH_PROMPT_DISABLED, '1')
     assert.equal(options.environment.GH_HOST, 'github.com')
     return ok({ number: 19, title: 'Add feature', url: 'https://github.com/' + fixtureRepository + '/pull/19',

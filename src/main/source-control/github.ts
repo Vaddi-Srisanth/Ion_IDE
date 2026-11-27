@@ -92,7 +92,25 @@ async function withGitHubClient<T>(root: string, workspaceRoots: readonly string
       const canonical = await realpath(path).catch(() => null)
       if (canonical && workspaceRoots.every(other => !isWithin(other, path) && !isWithin(other, canonical))) systemPaths.push(canonical)
     }
-    const environment = { ...envFor(systemPaths, scratch), GH_HOST: 'github.com', GH_REPO: 'github.com/' + repository,
+    if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root)
+      || workspaceRoots.some(other => isWithin(other, tool))) throw new Error('The installed GitHub CLI changed. Review the repository again.')
+    // Ask the user's installed gh to retrieve its official credential while it
+    // can still see the normal config/keyring. Keep the token in this main-
+    // process closure and pass it only to the isolated API subprocess below.
+    const authEnvironment = { ...envFor(systemPaths, scratch), GH_HOST: 'github.com', GH_PROMPT_DISABLED: '1',
+      GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1' }
+    const auth = await (dependencies.run ?? execute)(tool,
+      ['auth', 'token', '--hostname', 'github.com'],
+      { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: 4096 }, environment: authEnvironment,
+        splitOutput: true, collectOutput: false })
+    signal.throwIfAborted()
+    const token = auth.state === 'exited' && auth.exitCode === 0 && auth.outputComplete !== false
+      && typeof auth.stdout === 'string' && Buffer.byteLength(auth.stdout) <= 4096
+      ? auth.stdout.trim() : ''
+    if (!/^[A-Za-z0-9_=-]{20,4096}$/.test(token)) {
+      throw new Error('Sign in to github.com with gh auth login using your OS credential store.')
+    }
+    const environment = { ...envFor(systemPaths, scratch), GH_TOKEN: token, GH_HOST: 'github.com', GH_REPO: 'github.com/' + repository,
       GH_CONFIG_DIR: scratch, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1',
       GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1', GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: join(scratch, 'empty-gitconfig'), GIT_TERMINAL_PROMPT: '0', GIT_CEILING_DIRECTORIES: temp }
