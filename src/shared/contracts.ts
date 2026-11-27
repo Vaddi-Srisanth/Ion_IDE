@@ -200,6 +200,7 @@ export interface IonBridge {
     createTag(root: string, request: Parameters<SourceControlBridge['createTag']>[0]): Promise<void>
     createBranch(root: string, request: Parameters<SourceControlBridge['createBranch']>[0]): Promise<void>
     switchBranch(root: string, request: Parameters<SourceControlBridge['switchBranch']>[0]): ReturnType<SourceControlBridge['switchBranch']>
+    mergeBranch(root: string, request: Parameters<SourceControlBridge['mergeBranch']>[0]): ReturnType<SourceControlBridge['mergeBranch']>
     fetchGitHub(root: string, request: Parameters<SourceControlBridge['fetchGitHub']>[0]): ReturnType<SourceControlBridge['fetchGitHub']>
     saveStashSnapshot(root: string): ReturnType<SourceControlBridge['saveStashSnapshot']>
     popStash(root: string, request: Parameters<SourceControlBridge['popStash']>[0]): ReturnType<SourceControlBridge['popStash']>

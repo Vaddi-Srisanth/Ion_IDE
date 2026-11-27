@@ -15,7 +15,7 @@ const empty: Record<View, string> = {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
-export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash, canPopStash, dirtyPaths }: {
+export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash, canPopStash, canMergeBranch, dirtyPaths }: {
   bridge: SourceControlBridge
   busy: boolean
   perform(task: () => Promise<void>): Promise<void>
@@ -23,6 +23,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
   refreshStatus(): Promise<void>
   canSnapshotStash: boolean
   canPopStash: boolean
+  canMergeBranch: boolean
   dirtyPaths: string[]
 }) {
   const [state, setState] = useState<State>()
@@ -105,7 +106,11 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
         await read()
         setFeedback({ message: 'Saved a local stash snapshot. Your index and working files remain in place.' })
       } catch (reason) {
-        if (request.current === id) setFeedback({ message: errorMessage(reason), error: true })
+        if (request.current !== id) return
+        await refreshStatus().catch(() => {})
+        if (request.current !== id) return
+        setFeedback({ message: errorMessage(reason), error: true })
+        await read()
       }
     })
   }
@@ -124,7 +129,35 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
         if (result.conflicts) setFeedback({ message: 'Stash application conflicted. Git kept the stash; resolve the conflicts before continuing.', error: true })
         else setFeedback({ message: 'Applied the stash and removed it from the stash list.' })
       } catch (reason) {
-        if (request.current === id) setFeedback({ message: errorMessage(reason), error: true })
+        if (request.current !== id) return
+        await refreshStatus().catch(() => {})
+        if (request.current !== id) return
+        setFeedback({ message: errorMessage(reason), error: true })
+        await read()
+      }
+    })
+  }
+
+  function mergeBranch(selection: { current: string; target: string; from: string; to: string }) {
+    void perform(async () => {
+      const id = ++request.current
+      setFeedback(undefined)
+      try {
+        const result = await bridge.mergeBranch({ ...selection, dirtyPaths })
+        if (request.current !== id) return
+        if (!result) { await read(); return }
+        await refreshStatus()
+        if (request.current !== id) return
+        await read()
+        if (result.conflicts) setFeedback({ message: 'Merge has conflicts. Resolve each conflict, stage the resolutions, then commit the merge.', error: true })
+        else if (result.applied) setFeedback({ message: 'Merge applied. Review the staged changes and commit when ready.' })
+        else setFeedback({ message: 'The selected branch is already up to date.' })
+      } catch (reason) {
+        if (request.current !== id) return
+        await refreshStatus().catch(() => {})
+        if (request.current !== id) return
+        setFeedback({ message: errorMessage(reason), error: true })
+        await read()
       }
     })
   }
@@ -155,7 +188,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchGitHub, canSnapshotStash, canPopStash, saveStashSnapshot, popStash }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, mergeBranch, fetchGitHub, canSnapshotStash, canPopStash, canMergeBranch, saveStashSnapshot, popStash }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -180,14 +213,16 @@ type ComparisonProps = {
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
   switchBranch(selection: SourceControlSwitchRequest): void
   fetchGitHub(selection: SourceControlFetchRequest): void
+  mergeBranch(selection: { current: string; target: string; from: string; to: string }): void
   canSnapshotStash: boolean
   canPopStash: boolean
+  canMergeBranch: boolean
   saveStashSnapshot(): void
   popStash(oid: string): void
 }
 
-function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchGitHub,
-  canSnapshotStash, canPopStash, saveStashSnapshot, popStash }: ComparisonProps) {
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, mergeBranch, fetchGitHub,
+  canSnapshotStash, canPopStash, canMergeBranch, saveStashSnapshot, popStash }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
@@ -230,6 +265,15 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
               Review switch…
             </button></div>
           : <p className="source-control-empty">Ion can switch here when both branches have identical file trees.</p>)}
+      {view === 'branches' && currentBranch && currentBranch !== preview.label
+        && (preview.result.relation === 'ahead' || preview.result.relation === 'diverged') && (
+        <div className="git-browser-create">
+          <p>Merge applies the selected branch to your current branch without creating a commit. Review the staged result before committing.</p>
+          <button type="button" className="button" disabled={!canMergeBranch || busy}
+            onClick={() => mergeBranch({ current: currentBranch, target: preview.label, from: preview.result.from, to: preview.result.to })}>
+            Review merge…
+          </button>
+        </div>)}
       {remote?.repository && <div className="git-browser-create">
         <p>Fetch one branch from {remote.repository} and update the local cache.</p>
         <button type="button" className="button" disabled={busy} onClick={() => fetchGitHub({

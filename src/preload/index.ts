@@ -203,6 +203,7 @@ const bridge: IonBridge = {
     createTag: (root, request) => ipcRenderer.invoke('ion:source-control-create-tag', root, request),
     createBranch: (root, request) => ipcRenderer.invoke('ion:source-control-create-branch', root, request),
     switchBranch: (root, request) => ipcRenderer.invoke('ion:source-control-switch-branch', root, request),
+    mergeBranch: (root, request) => ipcRenderer.invoke('ion:source-control-merge-branch', root, request),
     fetchGitHub: (root, request) => ipcRenderer.invoke('ion:source-control-fetch-github', root, request),
     saveStashSnapshot: (root) => ipcRenderer.invoke('ion:source-control-stash-snapshot', root),
     popStash: (root, request) => ipcRenderer.invoke('ion:source-control-stash-pop', root, request),

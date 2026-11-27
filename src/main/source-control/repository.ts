@@ -177,9 +177,12 @@ function plumbingCommand(args: string[], input = ''): boolean {
     case 'restore': return args.length >= 4
       && (args[1] === '--staged' && args[2] === '--source=HEAD' && args[3] === '--'
         || args[1] === '--worktree' && args[2] === '--')
-    case 'commit-tree': return (args.length === 5 || args.length === 7) && objectId.test(args[1])
-      && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
-      && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
+    case 'commit-tree': {
+      const parents = args.slice(2, -3)
+      return objectId.test(args[1]) && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
+        && parents.length <= 4 && parents.length % 2 === 0
+        && parents.every((value, index) => index % 2 ? objectId.test(value) : value === '-p')
+    }
     case 'symbolic-ref': return args.join(' ') === 'symbolic-ref --quiet --no-recurse HEAD'
     case 'worktree': return args.length === 4 && args[1] === 'list' && args[2] === '--porcelain' && args[3] === '-z'
     case 'update-ref': return fetchedRef || args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
@@ -192,6 +195,16 @@ function plumbingCommand(args: string[], input = ''): boolean {
 }
 
 export async function git(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {}) {
+  if (args[0] === 'merge') {
+    if (args.length !== 8 || args[1] !== '--no-commit' || args[2] !== '--no-ff' || args[3] !== '--no-edit'
+      || args[4] !== '--no-progress' || args[5] !== '--no-stat' || args[6] !== '--strategy=ort'
+      || !objectId.test(args[7])) throw new Error('This Git merge operation is outside Ion Source Control.')
+    return withProjectedRepository(repository, signal, async (projected, environment, verifyMetadata) => {
+      const result = await invokeGit(projected, signal, args, { ...options, allowNotFound: true }, environment)
+      await verifyMetadata()
+      return result
+    }, 'workspace', ['ORIG_HEAD', 'MERGE_HEAD', 'MERGE_MSG', 'MERGE_MODE', 'AUTO_MERGE'], true, ['ORIG_HEAD', 'AUTO_MERGE'])
+  }
   if (args[0] === 'status' || args[0] === 'add' || args[0] === 'stash') {
     if (args[0] === 'add' && (args.length < 4 || args[1] !== '-A' || args[2] !== '--')
       || args[0] === 'status' && args.join(' ') !== 'status --porcelain=v2 -z --branch --untracked-files=all --ignore-submodules=dirty --find-renames=50%') {
@@ -232,11 +245,12 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
 
 async function withProjectedRepository<T>(repository: Repository, signal: AbortSignal,
   run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>,
-  view: 'workspace' | 'committed-history' | 'stash' = 'workspace', allowedGitMetadata: readonly string[] = []) {
+  view: 'workspace' | 'committed-history' | 'stash' = 'workspace', allowedGitMetadata: readonly string[] = [], rejectMergeDrivers = false,
+  replaceGitMetadata: readonly string[] = []) {
   const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
   if (!captured.complete) throw new Error('Git returned incomplete configuration.')
   return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>
-    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view, allowedGitMetadata)
+    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view, allowedGitMetadata, rejectMergeDrivers, replaceGitMetadata)
 }
 
 export function browseRepository(repository: Repository, signal: AbortSignal) {

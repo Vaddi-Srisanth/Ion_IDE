@@ -16,6 +16,8 @@ const fixture = `
   window.conflictCalls = []
   window.githubCalls = []
   window.switchCalls = []
+  window.mergeCalls = []
+  window.cleanSource = false
   window.fetchCalls = []
   window.finishPullRequest = []
   window.finishIssue = []
@@ -29,7 +31,7 @@ const fixture = `
     const directory = '/repositories/' + root
     return {
       status: async () => ({ kind:'repository', root:directory, branch:state.branch,
-        entries:[{path:'merge.txt',absolutePath:directory+'/merge.txt',worktree:'U',index:'U',unmerged:true},
+        entries:window.cleanSource ? [] : [{path:'merge.txt',absolutePath:directory+'/merge.txt',worktree:'U',index:'U',unmerged:true},
           {path:'changed.ts',absolutePath:directory+'/changed.ts',worktree:'M',index:'',unmerged:false},
           {path:'new.ts',absolutePath:directory+'/new.ts',worktree:'?',index:'',unmerged:false}] }),
       blame: ({path}) => new Promise((resolve,reject) => {
@@ -40,12 +42,13 @@ const fixture = `
       browse: () => new Promise(resolve => {
         window.browseCalls.push(root)
         window.finish.push((subject, remotes=[{name:'origin', repository:'team/demo'}, {name:'mirror',repository:null}], stash={oid:'c'.repeat(40)}) =>
-          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[{name:'topic',oid:'b'.repeat(40)}],
+          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[{name:'topic',oid:'b'.repeat(40)}, {name:'mergeTarget',oid:'d'.repeat(40)}],
             cachedRemoteBranches:[{name:'origin/topic',oid:'e'.repeat(40)}], tags, remotes, stash, truncated:false }))
       }),
       previewComparison: request => new Promise(resolve => { window.previews.push([root,request]); window.finishPreview.push(resolve) }),
       createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
       switchBranch: async request => { window.switchCalls.push([root,request]); state.branch=request.target; return true },
+      mergeBranch: async request => { window.mergeCalls.push([root,request]); return {applied:true,conflicts:false} },
       fetchGitHub: async request => { window.fetchCalls.push([root,request]); return {oid:'f'.repeat(40),changed:true} },
       conflict: async ({path}) => {
         window.conflictCalls.push([root,path])
@@ -366,12 +369,23 @@ try {
   await finishPreview({...branchResult,relation:'same',changes:[]})
   const switchButton = region.getByRole('button', {name:'Review switch…'})
   const switchBrowseCount = await page.evaluate(() => window.finish.length)
+  await page.evaluate(() => { window.cleanSource = true })
   await switchButton.click()
   assert.deepEqual(await page.evaluate(() => window.switchCalls), [['first',{current:'main',target:'topic',from:head,to:tip}]])
   await page.waitForFunction(count => window.finish.length > count, switchBrowseCount)
   await page.evaluate(() => window.finish.at(-1)('switched repository'))
   await page.getByText('Switched to topic.').waitFor()
   assert.equal(await page.getByTestId('git-branch').innerText(), 'topic')
+  await view.selectOption('branches')
+  await page.getByRole('button', {name:'Compare mergeTarget with HEAD'}).click()
+  await finishPreview({...branchResult,to:'d'.repeat(40)})
+  const mergeButton = region.getByRole('button', {name:'Review merge…'})
+  const mergeBrowseCount = await page.evaluate(() => window.finish.length)
+  await mergeButton.click()
+  assert.deepEqual(await page.evaluate(() => window.mergeCalls), [['first',{current:'topic',target:'mergeTarget',from:head,to:'d'.repeat(40),dirtyPaths:[]}]])
+  await page.waitForFunction(count => window.finish.length > count, mergeBrowseCount)
+  await page.evaluate(() => window.finish.at(-1)('merged repository'))
+  await page.getByText('Merge applied. Review the staged changes and commit when ready.').waitFor()
   await view.selectOption('cachedRemoteBranches')
   await page.getByRole('button', {name:'Compare origin/topic with HEAD'}).click()
   await finishPreview({...branchResult,to:'e'.repeat(40),changes:[]})
@@ -395,7 +409,7 @@ try {
   await page.getByText('origin/topic advanced to ffffffffff.').waitFor()
   assert.deepEqual(network, [])
   assert.deepEqual(errors, [])
-  console.log('PASS repository browsing, reviewed switch and fetch requests, conflict and GitHub details, previews, tags and cancellation')
+  console.log('PASS repository browsing, reviewed switch and merge requests, fetch, conflict and GitHub details, previews, tags and cancellation')
 } finally {
   await browser.close()
 }

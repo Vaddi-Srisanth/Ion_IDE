@@ -5,7 +5,7 @@ import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, 
   SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubCreatedPullRequest,
   SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubIssue, SourceControlGitHubIssueRequest,
   SourceControlGitHubPullRequest, SourceControlGitHubPullRequestRequest,
-  SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
+  SourceControlMergeRequest, SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
 import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
@@ -281,6 +281,63 @@ export class SourceControlService {
       await switchBranchAtSameTree(repository, signal, review, this.runGit)
       this.reviewedRefs = undefined
       return true
+    })
+  }
+
+  mergeBranch(root: string, value: unknown,
+    approve: (review: SourceControlMergeRequest, signal: AbortSignal) => Promise<boolean>): Promise<{ applied: boolean; conflicts: boolean } | null> {
+    const { repository, status } = this.requireSnapshot(root)
+    const request = requestObject(value)
+    if (Array.isArray(value) || Object.keys(request).length !== 5
+      || !['current', 'target', 'from', 'to', 'dirtyPaths'].every(key => Object.hasOwn(request, key))) {
+      throw new Error('Choose a reviewed local branch to merge.')
+    }
+    const { current, target, from, to, dirtyPaths } = request
+    const refs = this.reviewedRefs
+    if (!refs || refs.root !== root || status.detached || status.unborn || status.truncated || status.entries.size
+      || typeof current !== 'string' || current !== status.branch || typeof from !== 'string' || from !== status.head
+      || !gitObjectId.test(from) || from !== refs.head || typeof target !== 'string' || target === current
+      || typeof to !== 'string' || !gitObjectId.test(to) || refs.branches.get(target) !== to
+      || !Array.isArray(dirtyPaths) || dirtyPaths.length > 512
+      || dirtyPaths.some(path => typeof path !== 'string' || !isAbsolute(path) || !inside(repository.root, path))) {
+      throw new Error('Refresh and choose a reviewed branch in a clean repository.')
+    }
+    if (dirtyPaths.length) throw new Error('Save or close modified editor files before merging a branch.')
+    const review = { current, target, from, to, dirtyPaths: [] }
+    return this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const before = await statusOf(repository, signal)
+      const browser = await browseRepository(repository, signal)
+      if (before.head !== from || before.branch !== current || before.truncated || before.entries.size
+        || browser.branches.find(branch => branch.name === target)?.oid !== to) {
+        throw new Error('The repository or selected branch changed. Refresh and review again.')
+      }
+      for (const name of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer', 'BISECT_START']) {
+        const found = await lstat(join(repository.directory, name)).then(() => true, (error: unknown) => {
+          if (absent(error)) return false
+          throw error
+        })
+        if (found) throw new Error('Finish the active Git operation in your terminal before merging from Ion.')
+      }
+      if (!await approve(review, signal)) return null
+      await this.verifyRepository(repository, signal)
+      const currentStatus = await statusOf(repository, signal)
+      const currentBrowser = await browseRepository(repository, signal)
+      if (currentStatus.head !== from || currentStatus.branch !== current || currentStatus.truncated || currentStatus.entries.size
+        || currentBrowser.branches.find(branch => branch.name === target)?.oid !== to) {
+        throw new Error('The repository or selected branch changed during review. Refresh and try again.')
+      }
+      await git(repository, signal, ['merge', '--no-commit', '--no-ff', '--no-edit', '--no-progress', '--no-stat', '--strategy=ort', to],
+        { allowNotFound: true })
+      const after = await statusOf(repository, signal)
+      const conflicts = [...after.entries.values()].some(entry => entry.unmerged)
+      const mergePending = await lstat(join(repository.directory, 'MERGE_HEAD')).then(() => true, (error: unknown) => {
+        if (absent(error)) return false
+        throw error
+      })
+      if (after.head !== from || after.branch !== current) throw new Error('Git changed the active branch unexpectedly. Inspect the repository before continuing.')
+      this.reviewedRefs = undefined
+      return { applied: mergePending, conflicts }
     })
   }
 

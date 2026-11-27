@@ -1,6 +1,7 @@
 import { constants } from 'node:fs'
-import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { readTextFile, type Repository } from './repository'
 
@@ -32,13 +33,16 @@ export function* configurationEntries(text: string) {
 
 type View = 'workspace' | 'committed-history' | 'stash'
 
-function freezeConfiguration(text: string, originalCommon: string, view: View): string {
+function freezeConfiguration(text: string, originalCommon: string, view: View, hooksPath: string, rejectMergeDrivers: boolean): string {
   const lines: string[] = []
   let lfsStorage = ''
   for (const { scope, key, section, name, subsection, value } of configurationEntries(text)) {
     if (view === 'committed-history' && !['core.repositoryformatversion', 'extensions.objectformat', 'extensions.refstorage'].includes(key.toLowerCase())) continue
     if ((scope === 'local' || scope === 'worktree') && /^(?:filter\..*\.(?:clean|process)|lfs\.extension\..*\.(?:clean|smudge)|lfs\.customtransfer\..*\.(?:path|args)|lfs\.standalonetransferagent)$/i.test(key)) {
       throw new Error('This repository configures a local Git filter. Use your terminal if you trust it.')
+    }
+    if (rejectMergeDrivers && section.toLowerCase() === 'merge' && name.toLowerCase() === 'driver') {
+      throw new Error('This repository configures an external merge driver. Use your terminal if you trust it.')
     }
     if (section.toLowerCase() === 'include' || section.toLowerCase() === 'includeif') continue
     // Network credentials are irrelevant to these offline operations. Avoid
@@ -55,7 +59,7 @@ function freezeConfiguration(text: string, originalCommon: string, view: View): 
   }
   // All includes were resolved against the original repository by the capture.
   // The projected Git process must never read a fresh worktree config.
-  lines.push('[extensions]', '\tworktreeConfig = false')
+  lines.push('[extensions]', '\tworktreeConfig = false', '[core]', '\thooksPath = ' + quote(hooksPath))
   if (view !== 'committed-history') lines.push('[lfs]', '\tstorage = ' + quote(isAbsolute(lfsStorage) ? lfsStorage : resolve(originalCommon, lfsStorage || 'lfs')))
   return lines.join('\n') + '\n'
 }
@@ -89,15 +93,18 @@ export function commonGitDirectory(repository: Repository): string {
 /** Status, staging and browsing use this view. Ref-changing plumbing uses the original refs. */
 export async function withFrozenConfiguration<T>(repository: Repository, text: string, signal: AbortSignal,
   run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>, view: View = 'workspace',
-  allowedGitMetadata: readonly string[] = []): Promise<T> {
+  allowedGitMetadata: readonly string[] = [], rejectMergeDrivers = false,
+  replaceGitMetadata: readonly string[] = []): Promise<T> {
   const originalCommon = commonGitDirectory(repository)
   const linked = originalCommon !== repository.directory
-  const config = freezeConfiguration(text, originalCommon, view)
   signal.throwIfAborted()
   const scratch = await mkdtemp(join(tmpdir(), 'ion-git-config-'))
   let retained = false
   try {
     const common = join(scratch, 'common')
+    const hooks = join(scratch, 'hooks')
+    await mkdir(hooks)
+    const config = freezeConfiguration(text, originalCommon, view, hooks, rejectMergeDrivers)
     const selected = linked ? join(common, 'worktrees', basename(repository.directory)) : common
     await mkdir(common)
     if (linked) await mkdir(selected, { recursive: true })
@@ -138,7 +145,20 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
       if (tables) await linkDirectory(join(repository.directory, 'reftable'), join(selected, 'reftable'), true)
     }
     const views = await Promise.all([...new Set([common, selected])].map(async directory =>
-      ({ directory, names: new Set(await readdir(directory)) })))
+      ({ directory, target: linked && directory === selected ? repository.directory : originalCommon,
+        names: new Set(await readdir(directory)) })))
+    const metadataBefore = new Map<string, Buffer | undefined>()
+    for (const view of views) for (const name of replaceGitMetadata) {
+      const path = join(view.target, name)
+      const info = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return undefined
+        throw error
+      })
+      if (info && (!info.isFile() || info.isSymbolicLink() || info.size > 1024)) {
+        throw new Error('Existing Git ' + name + ' metadata is not a safe regular file.')
+      }
+      if (!metadataBefore.has(path)) metadataBefore.set(path, info ? await readFile(path) : undefined)
+    }
     const verifyMetadata = async () => {
       for (const view of views) {
         for (const name of (await readdir(view.directory)).filter(name => !view.names.has(name))) {
@@ -153,16 +173,28 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
             retained = true
             throw new Error('Git created unexpected ' + name + ' metadata. Ion preserved it at ' + scratch)
           }
-          const target = join(originalCommon, name)
+          const target = join(view.target, name)
           const existing = await lstat(target).catch((error: NodeJS.ErrnoException) => {
             if (error.code === 'ENOENT') return undefined
             throw error
           })
           if (existing) {
             const [current, generated] = await Promise.all([readFile(target), readFile(source)])
-            if (!existing.isFile() || existing.isSymbolicLink() || !current.equals(generated)) {
+            if (!existing.isFile() || existing.isSymbolicLink()) {
               retained = true
               throw new Error('Git needs to update existing ' + name + ' metadata. Ion preserved the new metadata at ' + scratch)
+            }
+            if (!current.equals(generated)) {
+              const original = metadataBefore.get(target)
+              if (!replaceGitMetadata.includes(name) || !original || !current.equals(original)) {
+                retained = true
+                throw new Error('Git needs to update existing ' + name + ' metadata. Ion preserved the new metadata at ' + scratch)
+              }
+              const temporary = join(dirname(target), '.ion-git-metadata-' + randomUUID())
+              try {
+                await writeFile(temporary, generated, { flag: 'wx', mode: 0o600 })
+                await rename(temporary, target)
+              } finally { await rm(temporary, { force: true }) }
             }
           } else await copyFile(source, target, constants.COPYFILE_EXCL)
           view.names.add(name)
