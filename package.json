@@ -1,7 +1,7 @@
 {
   "name": "ion-ide",
   "productName": "Ion IDE",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "description": "An offline-first desktop IDE for writing and running your own code.",
   "private": true,
   "type": "module",

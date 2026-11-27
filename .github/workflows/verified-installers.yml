@@ -1,0 +1,88 @@
+name: Verify release installers
+on: workflow_dispatch
+permissions:
+  contents: read
+
+jobs:
+  macos-installer:
+    name: macOS Apple Silicon installer and upgrade
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: node -e "if(process.arch!=='arm64')process.exit(1)"
+      - run: npm run typecheck
+      - run: npm run package:dmg
+      - run: hdiutil verify release/Ion-IDE-*-mac-arm64.dmg
+      - run: node scripts/test-mac-updater.mjs
+      - run: node scripts/verify-mac-release.mjs
+      - run: node scripts/release-evidence.mjs record mac-arm64
+      - name: Retain verified macOS installer (no public release)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ion-macos-arm64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-mac-arm64.dmg
+            release/Ion-IDE-*-mac-arm64.dmg.json
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-installer:
+    name: Windows x64 installer and upgrade
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: node scripts/release-evidence.mjs checkout
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Locate NSIS
+        shell: pwsh
+        run: |
+          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+          if (!(Test-Path $nsis)) {
+            choco install nsis --version=3.13.0 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if (!(Test-Path $nsis)) { throw 'The NSIS compiler is unavailable.' }
+          "ION_MAKENSIS=$nsis" >> $env:GITHUB_ENV
+      - run: node -e "if(process.arch!=='x64')process.exit(1)"
+      - run: npm run typecheck
+      - run: npm run package:win
+      - name: Fetch and verify the prior public Windows installer for upgrade
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'Ion-IDE-0.9.6-windows-x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.6/Ion-IDE-0.9.6-windows-x64-setup.exe' -OutFile $setup
+          $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash
+          if ($hash -ne '8d29adc4b3d7d0b0bf2857e39d990ff7e0031eb6e5c40f1943e3716fe20b10af') {
+            throw 'The previous public installer failed SHA-256 verification.'
+          }
+          "ION_PREVIOUS_WINDOWS_INSTALLER=$setup" >> $env:GITHUB_ENV
+      - run: node scripts/test-windows-updater.mjs
+      - run: npm run test:release:win
+      - run: node scripts/release-evidence.mjs record windows-x64
+      - name: Retain verified Windows installer (no public release)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ion-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            release/Ion-IDE-*-windows-x64-setup.exe
+            release/Ion-IDE-*-windows-x64-setup.exe.json
+          if-no-files-found: error
+          retention-days: 14
