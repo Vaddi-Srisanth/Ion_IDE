@@ -12,6 +12,7 @@ import { resolveGit } from './repository'
 
 type Dependencies = { run?: typeof execute; findGit?: typeof resolveGit
   findGh?: (root: string, roots: readonly string[], signal: AbortSignal) => Promise<string>
+  getToken?: (root: string, roots: readonly string[], scratch: string, signal: AbortSignal) => Promise<{ tool: string; token: string }>
   mutations?: Pick<FileMutations, 'move'> }
 const cloneMs = 120_000, outputLimit = 64 * 1024, packLimit = 256n * 1024n * 1024n
 
@@ -148,6 +149,12 @@ export async function cloneGitHub(ownerRepo: unknown, access: 'public' | 'authen
     if (access === 'authenticated') {
       await mkdir(environment.GH_CONFIG_DIR!, { mode: 0o700 })
       await writeFile(environment.GIT_CONFIG_GLOBAL!, '', { mode: 0o600 })
+      const tokenProvider = deps.getToken ?? (async (workspace, roots, directory, authSignal) => {
+        const { githubToken } = await import('./github')
+        return githubToken(workspace, roots, directory, authSignal, { run: deps.run, findGh: async () => gh! })
+      })
+      const { token } = await tokenProvider(root, workspaceRoots, scratch, signal)
+      environment.GH_TOKEN = token
     }
     async function run(command: string, args: string[], timeoutMs: number, limit: number, operationSignal = signal) {
       operationSignal.throwIfAborted()

@@ -9,6 +9,7 @@ import { fileMutations, type FileMutations } from '../src/main/file-mutations'
 
 type Run = typeof execute
 const success = (stdout = ''): Awaited<ReturnType<Run>> => ({ state: 'exited', exitCode: 0, stdout, output: '', outputComplete: true })
+const fixtureToken = 'gho_cloneFixtureCredential0123456789'
 
 async function fixture() {
   const dir = await realpath(await mkdtemp(join(tmpdir(), 'ion-clone-tests-')))
@@ -22,6 +23,11 @@ async function fixture() {
   const callAuthenticated = (run: Run, name: unknown = 'team/private', signal = new AbortController().signal) =>
     cloneAuthenticatedGitHub(name, parent, root, [root], signal, { findGit: async () => ({ executable: git, paths: [] }),
       findGh: async () => git,
+      getToken: async (workspace, roots, scratch, authSignal) => {
+        assert.equal(workspace, root); assert.deepEqual(roots, [root]); assert.ok(scratch.startsWith(await realpath(tmpdir())))
+        assert.equal(authSignal, signal)
+        return { tool: git, token: fixtureToken }
+      },
       run: async (tool, args, options) => args[0] === '--exec-path' ? success(helper) : run(tool, args, options) })
   return { dir, root, parent, helper, git, call, callAuthenticated, clean: () => rm(dir, { recursive: true, force: true }) }
 }
@@ -122,10 +128,12 @@ test('authenticated clone uses the signed-in GitHub CLI in an isolated environme
     assert.equal(options.environment.GIT_TERMINAL_PROMPT, '0')
     assert.equal(options.environment.GIT_ALLOW_PROTOCOL, 'https')
     assert.equal(options.environment.GIT_EXEC_PATH, f.helper)
+    assert.equal(options.environment.GH_TOKEN, fixtureToken)
     assert.ok(options.environment.GH_CONFIG_DIR?.startsWith(scratch))
     assert.ok(options.environment.GIT_CONFIG_GLOBAL?.startsWith(scratch))
     assert.equal(await readFile(options.environment.GIT_CONFIG_GLOBAL!, 'utf8'), '')
-    for (const key of keys) assert.equal(options.environment[key], undefined)
+    for (const key of keys) assert.equal(options.environment[key], key === 'GH_TOKEN' ? fixtureToken : undefined)
+    assert.equal(args.includes(fixtureToken), false)
     for (const secret of ['untrusted-inherited-setting', 'token', 'password']) assert.equal(args.join(' ').includes(secret), false)
     for (const option of ['--no-upstream', 'https://github.com/team/private.git', '--depth=1', '--single-branch',
       '--no-tags', '--no-local', '--no-recurse-submodules', 'protocol.allow=never', 'protocol.https.allow=always',
