@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { installCopilotRuntime } from '../src/main/copilot/runtime'
+import { copilotExecutableName, installCopilotRuntime } from '../src/main/copilot/runtime'
 
 const payload = Buffer.from('invalid archive with a deliberately incorrect digest')
 
@@ -21,6 +21,11 @@ test('rejects unsupported platforms before fetching', async () => {
   await assert.rejects(installCopilotRuntime({ directory: '/unused/runtime', platform: 'linux', arch: 'x64',
     fetch: (async () => { fetched = true; return new Response(payload) }) as typeof fetch }), /supported only/)
   assert.equal(fetched, false)
+})
+
+test('selects the exact native executable filename for each supported platform', () => {
+  assert.equal(copilotExecutableName('darwin'), 'copilot-language-server')
+  assert.equal(copilotExecutableName('win32'), 'copilot-language-server.exe')
 })
 
 test('verifies the archive digest before extraction and leaves no installed runtime on failure', async () => harness(async root => {

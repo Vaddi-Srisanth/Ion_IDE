@@ -38,6 +38,19 @@ function buffered<T>(channel: string): (callback: (value: T) => void) => () => v
 }
 
 const bridge: IonBridge = {
+  copilot: {
+    activate: () => ipcRenderer.invoke('ion:copilot-activate'),
+    deactivate: () => ipcRenderer.invoke('ion:copilot-deactivate'),
+    status: () => ipcRenderer.invoke('ion:copilot-status'),
+    beginSignIn: () => ipcRenderer.invoke('ion:copilot-sign-in'),
+    signOut: () => ipcRenderer.invoke('ion:copilot-sign-out'),
+    closeDocument: () => ipcRenderer.invoke('ion:copilot-close-document'),
+    complete: (requestId, document, position, triggerKind) => ipcRenderer.invoke('ion:copilot-complete', requestId, document, position, triggerKind),
+    cancelCompletion: requestId => ipcRenderer.invoke('ion:copilot-cancel-completion', requestId),
+    shown: id => ipcRenderer.invoke('ion:copilot-shown', id),
+    partiallyAccepted: (id, acceptedLength) => ipcRenderer.invoke('ion:copilot-partial', id, acceptedLength),
+    accepted: id => ipcRenderer.invoke('ion:copilot-accepted', id),
+  },
   backup: {
     folders: () => ipcRenderer.invoke('ion:backup-folders'),
     chooseFolder: () => ipcRenderer.invoke('ion:backup-choose-folder'),

@@ -161,6 +161,7 @@ export interface RunResult {
 }
 
 export interface IonBridge {
+  copilot: import('./copilot').CopilotBridge
   backup: BackupBridge
   readonly firstLaunch: boolean
   languageTools: LanguageToolsBridge

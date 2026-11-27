@@ -1,32 +1,12 @@
 import { randomUUID } from 'node:crypto'
-
-export interface CopilotPosition { line: number; character: number }
+import type { CopilotDocument, CopilotInlineCompletion, CopilotPosition, CopilotStatus } from '../../shared/copilot'
+export type { CopilotDocument, CopilotInlineCompletion, CopilotPosition, CopilotStatus } from '../../shared/copilot'
 
 export interface CopilotTransport {
   request(method: string, params: unknown, timeoutMs?: number, signal?: AbortSignal): Promise<unknown>
   notify(method: string, params: unknown): Promise<void>
   onNotification(method: string, handler: (params: unknown) => void): { dispose(): void }
   stop(): Promise<void>
-}
-
-export interface CopilotDocument {
-  uri: string
-  languageId: string
-  version: number
-  text: string
-}
-
-export interface CopilotInlineCompletion {
-  id: string
-  text: string
-  range: { start: CopilotPosition; end: CopilotPosition }
-  version: number
-}
-
-export interface CopilotStatus {
-  kind: 'Normal' | 'Error' | 'Warning' | 'Inactive'
-  message: string
-  busy: boolean
 }
 
 const byteLimit = 256 * 1024

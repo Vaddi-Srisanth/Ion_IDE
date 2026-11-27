@@ -304,6 +304,7 @@ export function App() {
   const liveRun = useRef<{ id: string; cancelled: boolean; complete?: () => void } | null>(null);
   const consoleSize = useRef<[number, number] | null>(null);
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null);
+  const [copilotActive, setCopilotActive] = useState(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const nativeDialogOpen = useRef(false);
   const running = useRef(false);
@@ -323,6 +324,29 @@ export function App() {
     clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(null), error ? 8500 : 4200);
   }, []);
+  const enableCopilot = useCallback(async () => {
+    try {
+      const status = await bridge.copilot.activate();
+      setCopilotActive(true);
+      notify(status.message || 'GitHub Copilot enabled.');
+    } catch (reason) { if (!/was not enabled|cancelled/i.test(errorMessage(reason))) notify(errorMessage(reason), true); }
+  }, [bridge, notify]);
+  const signInCopilot = useCallback(async () => {
+    try {
+      const status = await bridge.copilot.beginSignIn();
+      notify(status.user ? `GitHub Copilot signed in as ${status.user}.` : `GitHub Copilot: ${status.status}.`);
+    } catch (reason) { if (!/cancelled/i.test(errorMessage(reason))) notify(errorMessage(reason), true); }
+  }, [bridge, notify]);
+  const signOutCopilot = useCallback(async () => {
+    try { const status = await bridge.copilot.signOut(); notify(status.user ? `Signed out of GitHub Copilot (${status.user}).` : 'Signed out of GitHub Copilot.'); }
+    catch (reason) { notify(errorMessage(reason), true); }
+  }, [bridge, notify]);
+  const disableCopilot = useCallback(async () => {
+    try { await bridge.copilot.deactivate(); setCopilotActive(false); notify('GitHub Copilot disabled.'); }
+    catch (reason) { notify(errorMessage(reason), true); }
+  }, [bridge, notify]);
+  const workspaceRootsKey = roots.map(({ path }) => path).join('\n');
+  useEffect(() => { setCopilotActive(false); }, [workspaceRootsKey]);
   const refreshRecents = useCallback(() => {
     void bridge.getPreferences().then(({ recents: entries }) => setRecents(entries)).catch(() => {});
   }, []);
@@ -1650,6 +1674,10 @@ export function App() {
         case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
         case 'test-explorer': if (availableCommand(value)) setDialog({ kind: 'test-explorer' }); break;
         case 'ask-ion': if (availableCommand(value)) void openExplanation({ purpose: 'ask', action: 'ask-question', question: '' }); break;
+        case 'enable-copilot': void enableCopilot(); break;
+        case 'sign-in-copilot': void signInCopilot(); break;
+        case 'sign-out-copilot': void signOutCopilot(); break;
+        case 'disable-copilot': void disableCopilot(); break;
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
@@ -1806,6 +1834,8 @@ export function App() {
     if (id === 'navigate-back') return screen === 'editor' && navigationState.back;
     if (id === 'navigate-forward') return screen === 'editor' && navigationState.forward;
     if (id === 'workspace-search') return Boolean(root);
+    if (id === 'enable-copilot') return Boolean(root) && !copilotActive && bridge.platform !== 'linux';
+    if (id === 'sign-in-copilot' || id === 'sign-out-copilot' || id === 'disable-copilot') return copilotActive;
     if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal', 'toggle-debug'].includes(id)) return true;
     if (screen !== 'editor') return false;
     switch (id) {
@@ -1964,6 +1994,7 @@ export function App() {
           onToggleExplorer={toggleExplorer}
           active={active} tabs={tabs} root={root} roots={roots} target={target}
           treeRevision={treeRevision} settings={settings} activeTheme={displayTheme} accentColor={appearance.accentColor}
+          copilotActive={copilotActive}
           runConsole={runConsole} canRun={canRun} canRerun={Boolean(lastRun)} cursorRef={cursorRef}
           bottomTab={bottomTab} terminalFocus={terminalFocus} terminalController={terminalController}
           debugEnabled={Boolean(debugModule)} debugBreakpoints={debugBreakpoints} debugStopped={debugStopped}

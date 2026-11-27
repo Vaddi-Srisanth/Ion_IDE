@@ -64,6 +64,7 @@ interface GroupPaneProps {
   group: EditorGroup;
   activeGroupId: string;
   documents: Documents;
+  copilotActive: boolean;
   groups: EditorGroups;
   tabs: Tab[];
   root: Entry | null;
@@ -88,7 +89,7 @@ interface GroupPaneProps {
   onNavigateSource(path: string, line: number, column: number): void;
 }
 
-function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, roots, hidden, settings, activeTheme, accentColor,
+function EditorGroupPane({ group, activeGroupId, documents, copilotActive, groups, tabs, root, roots, hidden, settings, activeTheme, accentColor,
   problemMarkers, debugEnabled, debugBreakpoints, debugStopped, onToggleBreakpoint,
   onCloseTab, onTabMenu, onSaveAs, onReload, onSettings, onActions, onCursor, onLanguageReport, onNavigateSource }: GroupPaneProps) {
   const active = tabs.find(({ id }) => id === group.activeId);
@@ -143,6 +144,7 @@ function EditorGroupPane({ group, activeGroupId, documents, groups, tabs, root, 
         <button className="button" onClick={() => onReload(active.id)}>Reload</button></div>}
       {source && !largeText && <EditorContent documents={documents} tab={source} settings={settings} activeTheme={activeTheme}
         accentColor={accentColor} sourceHidden={Boolean(hidden) || !focused} workspacePath={root?.path}
+        copilotActive={copilotActive && focused}
         debugEnabled={debugEnabled} breakpointLines={source.path ? debugBreakpoints?.get(sourceControlPathKey(source.path)) : undefined}
         debugStoppedLine={source.path && debugStopped && sourceControlPathKey(source.path) === sourceControlPathKey(debugStopped.path)
           ? debugStopped.line : undefined} onToggleBreakpoint={onToggleBreakpoint}
@@ -330,6 +332,7 @@ export interface DocumentSplitActions {
 
 export interface WorkbenchProps {
   documents: Documents;
+  copilotActive?: boolean;
   initialEditorGroups?: EditorGroupsSnapshot;
   onEditorGroupsChange?(snapshot: EditorGroupsSnapshot): void;
   hidden?: boolean;
@@ -416,7 +419,7 @@ export interface WorkbenchProps {
 
 export function Workbench(props: WorkbenchProps) {
   const {
-    documents, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, debugPanel, debugConsole, sourceControl, sourceControlEntries, sourceControlDiff,
+    documents, copilotActive = false, initialEditorGroups, onEditorGroupsChange, hidden, mode, auxiliary, debugPanel, debugConsole, sourceControl, sourceControlEntries, sourceControlDiff,
     onToggleAuxiliary, onWorkspace, onToggleExplorer, onToggleSourceControl, onToggleDebug,
     active, tabs, root, roots, target, treeRevision, settings, activeTheme, accentColor,
     runConsole, bottomTab, problemRows, problemFile, problemsStale, selectedProblem, problemMarkers,
@@ -720,7 +723,7 @@ export function Workbench(props: WorkbenchProps) {
         <div className="editor-column">
           <div className="editor-stack">
             {groupMode && <EditorGroupLayoutView layout={groupSnapshot.layout} snapshot={groupSnapshot} groups={editorGroups}
-              activeGroupId={groupSnapshot.activeGroupId} documents={documents} tabs={tabs} root={root} roots={roots} hidden={hidden}
+              activeGroupId={groupSnapshot.activeGroupId} documents={documents} copilotActive={copilotActive} tabs={tabs} root={root} roots={roots} hidden={hidden}
               settings={settings} activeTheme={activeTheme} accentColor={accentColor} problemMarkers={problemMarkers}
               debugEnabled={debugEnabled} debugBreakpoints={debugBreakpoints} debugStopped={debugStopped}
               onToggleBreakpoint={onToggleBreakpoint}
@@ -793,6 +796,7 @@ export function Workbench(props: WorkbenchProps) {
                 )}
                 {(codeTab || (editorStarted && keepEditorWarm)) && <EditorContent documents={documents} tab={largeText ? undefined : activeCode} settings={settings}
                   activeTheme={activeTheme} accentColor={accentColor} sourceHidden={sourceHidden || hidden} problemMarkers={problemMarkers}
+                  copilotActive={copilotActive}
                   debugEnabled={debugEnabled} breakpointLines={activeCode?.path ? debugBreakpoints?.get(sourceControlPathKey(activeCode.path)) : undefined}
                   debugStoppedLine={activeCode?.path && debugStopped && sourceControlPathKey(activeCode.path) === sourceControlPathKey(debugStopped.path)
                     ? debugStopped.line : undefined} onToggleBreakpoint={onToggleBreakpoint}

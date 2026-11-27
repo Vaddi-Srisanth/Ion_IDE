@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ProblemMarker } from './Problems';
-import { editor, languages, Selection } from 'monaco-editor/editor/editor.api.js';
+import { editor, languages, Selection, Uri } from 'monaco-editor/editor/editor.api.js';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import 'monaco-editor/editor/contrib/find/browser/findController.js';
 import 'monaco-editor/editor/contrib/folding/browser/folding.js';
@@ -82,6 +82,7 @@ interface Props {
   documents: Documents;
   tab: Tab | undefined;
   settings: Settings;
+  copilotActive?: boolean;
   activeTheme: ThemeData | null;
   accentColor?: string;
   sourceHidden?: boolean;
@@ -132,7 +133,7 @@ function modelPoolFor(documents: Documents, tabSize: number) {
 }
 
 export default function MonacoSurface({
-  documents, tab, settings, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
+  documents, tab, settings, copilotActive = false, activeTheme, accentColor, sourceHidden, workspacePath, problemMarkers,
   debugEnabled = false, breakpointLines, debugStoppedLine, onToggleBreakpoint,
   split = false, splitPercent = 50, onSplitPercent, onActions, onFocus, onCursor, onLanguageReport, onNavigateSource,
 }: Props) {
@@ -148,8 +149,12 @@ export default function MonacoSurface({
   const displayed = useRef<string | null>(null);
   const initialSettings = useRef(settings);
   const sourceHiddenRef = useRef(sourceHidden);
+  const copilotActiveRef = useRef(copilotActive);
+  const copilotTabRef = useRef(tab);
   const activeFormat = useRef<AbortController | null>(null);
   sourceHiddenRef.current = sourceHidden;
+  copilotActiveRef.current = copilotActive;
+  copilotTabRef.current = tab;
   useEffect(() => {
     if (sourceHidden) activeFormat.current?.abort('view');
   }, [sourceHidden]);
@@ -208,6 +213,42 @@ export default function MonacoSurface({
     });
 
     editorRef.current = instance;
+    instance.updateOptions({ inlineSuggest: { enabled: copilotActiveRef.current } });
+    type IonInlineCompletion = languages.InlineCompletion & { copilotId: string };
+    const copilotProvider: languages.InlineCompletionsProvider<languages.InlineCompletions<IonInlineCompletion>> = {
+      async provideInlineCompletions(model, position, context, token) {
+        const currentTab = copilotTabRef.current;
+        if (!copilotActiveRef.current || sourceHiddenRef.current || instance.getModel() !== model || !instance.hasTextFocus()
+          || !currentTab?.path || currentTab.viewer || currentTab.notebookMode || model.isDisposed()) return { items: [] };
+        const requestId = crypto.randomUUID();
+        const controller = new AbortController();
+        const cancellation = token.onCancellationRequested(() => {
+          controller.abort(); void window.ion.copilot.cancelCompletion(requestId).catch(() => {})
+        });
+        try {
+          const result = await window.ion.copilot.complete(requestId, { uri: Uri.file(currentTab.path).toString(), languageId: model.getLanguageId(),
+            version: model.getVersionId(), text: model.getValue() }, { line: position.lineNumber - 1, character: position.column - 1 },
+          context.triggerKind === languages.InlineCompletionTriggerKind.Explicit ? 2 : 1);
+          if (controller.signal.aborted || token.isCancellationRequested || instance.getModel() !== model
+            || model.isDisposed() || model.getVersionId() !== result[0]?.version) return { items: [] };
+          return { items: result.map(completion => ({
+            copilotId: completion.id,
+            insertText: completion.text,
+            range: { startLineNumber: completion.range.start.line + 1, startColumn: completion.range.start.character + 1,
+              endLineNumber: completion.range.end.line + 1, endColumn: completion.range.end.character + 1 },
+          })) };
+        } catch { return { items: [] } } finally { cancellation.dispose() }
+      },
+      handleItemDidShow(_completions, item) { void window.ion.copilot.shown(item.copilotId).catch(() => {}) },
+      handlePartialAccept(_completions, item, acceptedCharacters) {
+        void window.ion.copilot.partiallyAccepted(item.copilotId, acceptedCharacters).catch(() => {})
+      },
+      handleEndOfLifetime(_completions, item, reason) {
+        if (reason.kind === languages.InlineCompletionEndOfLifeReasonKind.Accepted) void window.ion.copilot.accepted(item.copilotId).catch(() => {})
+      },
+      disposeInlineCompletions() {},
+    };
+    const copilotRegistration = languages.registerInlineCompletionsProvider('*', copilotProvider);
     commandEditor.current = instance;
     const focusListener = instance.onDidFocusEditorWidget(() => { commandEditor.current = instance; focusRequest.current?.(); });
     const gutterListener = instance.onMouseDown((event) => {
@@ -422,6 +463,7 @@ export default function MonacoSurface({
     return () => {
       activeFormat.current?.abort('view');
       onActions(null);
+      copilotRegistration.dispose();
       opener.dispose();
       cursorListener.dispose();
       scrollListener.dispose();
@@ -438,6 +480,10 @@ export default function MonacoSurface({
   }, [debugEnabled, documents, modelPool, onActions, ownerKey]);
 
   useEffect(() => clearEditorTheme, []);
+  useEffect(() => { editorRef.current?.updateOptions({ inlineSuggest: { enabled: copilotActive } }) }, [copilotActive]);
+  useLayoutEffect(() => {
+    void window.ion.copilot.closeDocument().catch(() => {});
+  }, [copilotActive, sourceHidden, tab?.id, tab?.path]);
 
   const { fontSize, lineNumbers, wordWrap, tabSize } = settings;
   useEffect(() => {

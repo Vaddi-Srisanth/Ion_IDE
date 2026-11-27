@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { defaultSettings, type Entry, type MenuCommand, type OptionalPanel, type RunResult } from '../shared/contracts'
 import { isThemeId } from '../shared/themes'
 import { documentFormat } from '../shared/viewers'
@@ -167,6 +167,21 @@ let runTrust: Promise<import('./run-trust').RunTrustStore> | undefined
 const getRunTrust = () => runTrust ??= import('./run-trust').then(({ RunTrustStore }) =>
   new RunTrustStore(join(app.getPath('userData'), 'run-trust.json')))
 const earlyFiles: string[] = []
+let copilotSession: { target: BrowserWindow; controller: AbortController; roots: string[]; client: import('./copilot/client').CopilotLanguageClient; close(): Promise<void> } | undefined
+let copilotStartingController: AbortController | undefined
+let copilotStartingRoots: string[] = []
+const pendingCopilotRequests = new Map<string, AbortController>()
+
+async function stopCopilotSession(): Promise<void> {
+  copilotStartingController?.abort(new Error('Copilot session ended.'))
+  for (const controller of pendingCopilotRequests.values()) controller.abort(new Error('Copilot session ended.'))
+  pendingCopilotRequests.clear()
+  const session = copilotSession
+  copilotSession = undefined
+  if (!session) return
+  session.controller.abort(new Error('Copilot session ended.'))
+  await session.close().catch(() => undefined)
+}
 
 function nativeTool(name: string): string {
   const executable = process.platform === 'win32' ? name + '.exe' : name
@@ -872,7 +887,7 @@ function createWindow(): BrowserWindow {
     ignoreTerminalAccelerators = false
     // A failed process cleanup must not skip another owner's pending file or
     // recovery publication. Wait for every owner before choosing what follows.
-    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(), stopDebugTools(),
+    const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(), stopDebugTools(), stopCopilotSession(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
       practiceRun?.job?.catch(() => undefined), tasks?.then(service => service.close()), tests?.then(service => service.close()), formatting?.done,
       updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup, pendingRestore ? undefined : closingBackup?.then(s => s.cancel())])
@@ -1300,6 +1315,11 @@ function registerIpc(): void {
   }
 
   function workspaceChanged(previous: string | null, force = false) {
+    const roots = [...files.rootPaths]
+    if (copilotSession && (force || roots.length !== copilotSession.roots.length
+      || roots.some((path, index) => path !== copilotSession?.roots[index]))) void stopCopilotSession()
+    if (copilotStartingController && (force || roots.length !== copilotStartingRoots.length
+      || roots.some((path, index) => path !== copilotStartingRoots[index]))) copilotStartingController.abort(new Error('The workspace changed.'))
     if (!force && previous === files.rootPath) return
     cancelExplanations()
     languageEditReview?.service.clear()
@@ -1311,6 +1331,7 @@ function registerIpc(): void {
     void projectLensService?.then(service => service.close(), () => undefined)
     void taskService?.then(service => service.cancel(), () => undefined)
     void cancelTestExplorer()
+    void stopCopilotSession()
     trustedGitRoot = undefined
     void closeSourceControl()
     void projectHandlers?.stopSuite()
@@ -1345,6 +1366,93 @@ function registerIpc(): void {
   handle('recovery-read', (_target, id) => recovery.read(id))
   handle('recovery-write', (_target, draft) => recovery.write(draft))
   handle('recovery-remove', (_target, ids) => recovery.remove(ids))
+  handle('copilot-activate', async target => {
+    if (copilotSession?.target === target) return copilotSession.client.status()
+    if (!(process.platform === 'darwin' && process.arch === 'arm64') && !(process.platform === 'win32' && process.arch === 'x64')) {
+      throw new Error('GitHub Copilot requires macOS Apple Silicon or Windows x64.')
+    }
+    const scope = files
+    const roots = [...scope.rootPaths]
+    if (!roots.length) throw new Error('Open a workspace folder before enabling GitHub Copilot.')
+    const approval = await dialog.showMessageBox(target, {
+      type: 'warning', buttons: ['Cancel', 'Enable Copilot'], defaultId: 0, cancelId: 0,
+      message: 'Enable GitHub Copilot for this workspace?',
+      detail: `Ion will download GitHub’s official 1.575.0 language server (about 120 MB download, 160 MB installed) into its private profile. While enabled, the active editor file’s contents and cursor position can be sent to GitHub Copilot to provide suggestions. Ion sends only the active file, not workspace-wide context. This requires a GitHub Copilot account and uses GitHub’s service terms. You can disable it at any time.\n\nWorkspace: ${roots.join('\n')}`,
+    })
+    if (approval.response !== 1 || target !== window || scope !== files) throw new Error('GitHub Copilot was not enabled.')
+    if (copilotStartingController) throw new Error('GitHub Copilot is already starting.')
+    const controller = new AbortController()
+    copilotStartingController = controller
+    copilotStartingRoots = roots
+    const closed = () => controller.abort(new Error('The Ion window closed.'))
+    target.once('closed', closed)
+    try {
+    const { installCopilotRuntime } = await import('./copilot/runtime')
+    const { executable } = await installCopilotRuntime({ directory: join(app.getPath('userData'), 'copilot', 'runtime'), signal: controller.signal })
+    if (controller.signal.aborted || target !== window || scope !== files) throw new Error('The workspace changed before GitHub Copilot could start.')
+    const { startCopilotService } = await import('./copilot/service')
+    const service = await startCopilotService({ executable, profile: join(app.getPath('userData'), 'copilot-profile'),
+      root: roots[0] ?? null, workspaceRoots: roots, applicationVersion: app.getVersion() }, controller.signal)
+    if (target !== window || scope !== files) { controller.abort(); await service.close(); throw new Error('The workspace changed before GitHub Copilot could start.') }
+    copilotSession = { target, controller, roots, client: service.client, close: service.close }
+    return service.client.status()
+    } finally {
+      target.removeListener('closed', closed)
+      if (copilotStartingController === controller) copilotStartingController = undefined
+      if (copilotStartingController === undefined) copilotStartingRoots = []
+    }
+  })
+  handle('copilot-deactivate', async () => { await stopCopilotSession() })
+  handle('copilot-status', target => copilotSession?.target === target ? copilotSession.client.status()
+    : { kind: 'Inactive', message: 'GitHub Copilot is disabled.', busy: false })
+  handle('copilot-close-document', async target => {
+    if (copilotSession?.target === target) await copilotSession.client.closeDocument()
+  })
+  handle('copilot-sign-in', async target => {
+    const current = copilotSession
+    if (!current || current.target !== target) throw new Error('Enable GitHub Copilot first.')
+    const { userCode } = await current.client.beginSignIn(current.controller.signal)
+    await shell.openExternal('https://github.com/login/device')
+    const answer = await dialog.showMessageBox(target, {
+      type: 'info', buttons: ['Cancel', 'I’ve authorized Copilot'], defaultId: 0, cancelId: 0,
+      message: 'Sign in to GitHub Copilot', detail: `Enter this one-time code on GitHub: ${userCode}\n\nIon will finish sign-in only after you confirm here. The code is valid only for this device-flow request.`,
+    })
+    if (answer.response !== 1 || copilotSession !== current || target !== window) throw new Error('GitHub Copilot sign-in was cancelled.')
+    return current.client.finishSignIn(current.controller.signal)
+  })
+  handle('copilot-sign-out', async target => {
+    const current = copilotSession
+    if (!current || current.target !== target) throw new Error('Enable GitHub Copilot first.')
+    return current.client.signOut(current.controller.signal)
+  })
+  handle('copilot-complete', async (target, requestId, documentValue, at, triggerKind) => {
+    const current = copilotSession
+    if (!current || current.target !== target || typeof requestId !== 'string' || !/^[a-f0-9-]{36}$/.test(requestId)
+      || pendingCopilotRequests.size >= 8 || !documentValue || typeof documentValue !== 'object') throw new Error('Enable GitHub Copilot first.')
+    const requestController = new AbortController()
+    pendingCopilotRequests.set(requestId, requestController)
+    const document = documentValue as import('./copilot/client').CopilotDocument
+    try {
+      let path: string
+      try { path = fileURLToPath(new URL(document.uri)) } catch { throw new Error('Copilot accepts only an open local workspace file.') }
+      const inspected = await files.inspect(path, 'file')
+      if (!files.rootFor(inspected.path)) throw new Error('Copilot accepts only an active file in the open workspace.')
+      if (current !== copilotSession || target !== window) throw new Error('GitHub Copilot session ended.')
+      return await current.client.complete(document, at as import('./copilot/client').CopilotPosition, triggerKind as 1 | 2, requestController.signal)
+    } finally { pendingCopilotRequests.delete(requestId) }
+  })
+  handle('copilot-cancel-completion', async (target, requestId) => {
+    if (typeof requestId === 'string' && copilotSession?.target === target) pendingCopilotRequests.get(requestId)?.abort(new Error('Completion request cancelled.'))
+  })
+  handle('copilot-shown', async (target, id) => {
+    if (copilotSession?.target === target && typeof id === 'string') await copilotSession.client.shown(id)
+  })
+  handle('copilot-partial', async (target, id, count) => {
+    if (copilotSession?.target === target && typeof id === 'string') await copilotSession.client.partiallyAccepted(id, count as number)
+  })
+  handle('copilot-accepted', async (target, id) => {
+    if (copilotSession?.target === target && typeof id === 'string') await copilotSession.client.accepted(id)
+  })
   handle('get-preferences', async () => {
     const result = await preferences.get()
     applyProfile(result.settings.resourceProfile)
