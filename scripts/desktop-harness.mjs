@@ -278,11 +278,13 @@ export async function stubDialogs(app, choices) {
       const frameworkTestIndex = buttons.findIndex(label => label === 'Discover Tests' || label === 'Run Tests')
       const switchIndex = buttons.indexOf('Switch Branch')
       const fetchIndex = buttons.indexOf('Fetch Branch')
+      const discardIndex = buttons.indexOf('Discard Unstaged Changes')
       const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
         : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
         : debugIndex >= 0 && data.allowDebug ? debugIndex : taskIndex >= 0 && data.allowTask ? taskIndex
         : frameworkTestIndex >= 0 && data.allowFrameworkTests ? frameworkTestIndex
-        : switchIndex >= 0 && data.allowBranchSwitch ? switchIndex : fetchIndex >= 0 && data.allowFetch ? fetchIndex
+        : switchIndex >= 0 && data.allowBranchSwitch ? switchIndex : discardIndex >= 0 && data.allowDiscard ? discardIndex
+          : fetchIndex >= 0 && data.allowFetch ? fetchIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)
       return { response, checkboxChecked: false }

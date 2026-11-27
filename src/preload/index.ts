@@ -222,6 +222,7 @@ const bridge: IonBridge = {
     openGitHubPage: (root, url) => ipcRenderer.invoke('ion:source-control-github-open', root, url),
     diff: (root, request) => ipcRenderer.invoke('ion:source-control-diff', root, request),
     change: (root, request) => ipcRenderer.invoke('ion:source-control-change', root, request),
+    discardWorking: (root, request) => ipcRenderer.invoke('ion:source-control-discard-working', root, request),
     commit: (root, request) => ipcRenderer.invoke('ion:source-control-commit', root, request),
     close: (root) => ipcRenderer.invoke('ion:source-control-close', root),
   },

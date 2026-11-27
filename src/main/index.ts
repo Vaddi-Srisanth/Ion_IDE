@@ -1926,6 +1926,19 @@ function registerIpc(): void {
   }))
   handle('source-control-diff', (target, root, request) => useSourceControl(target, root, (service, path) => service.diff(path, request)))
   handle('source-control-change', (target, root, request) => useSourceControl(target, root, (service, path) => service.change(path, request)))
+  handle('source-control-discard-working', (target, root, request) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    return service.discardWorking(path, request, async review => {
+      const answer = await dialog.showMessageBox(target, {
+        type: 'warning', buttons: ['Cancel', 'Discard Unstaged Changes'], cancelId: 0, defaultId: 0,
+        message: 'Discard unstaged changes to ' + review.path + '?',
+        detail: (review.staged ? 'The staged version is preserved. ' : '')
+          + 'Ion will restore this tracked file to its current staged version. This cannot be undone from Ion.',
+      })
+      return answer.response === 1 && sourceControl === session && target === window
+        && sourceControlRoot(target, path) === trustedGitRoot
+    })
+  }))
   handle('source-control-commit', (target, root, request) => useSourceControl(target, root, (service, path) => service.commit(path, request)))
   handle('source-control-close', (_target, root) => {
     if (sourceControl?.root === root) return closeSourceControl()

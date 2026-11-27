@@ -30,6 +30,8 @@ export interface SourceControlChangeRequest {
   action: 'stage' | 'unstage'
 }
 
+export interface SourceControlDiscardRequest { path: string }
+
 export interface SourceControlConflict {
   path: string
   absolutePath: string
@@ -178,6 +180,7 @@ export interface SourceControlBridge {
   trust(): Promise<boolean>
   diff(request: SourceControlDiffRequest): Promise<SourceControlDiff>
   change(request: SourceControlChangeRequest): Promise<void>
+  discardWorking(request: SourceControlDiscardRequest): Promise<boolean>
   commit(request: { message: string }): Promise<void>
   close(): Promise<void>
 }

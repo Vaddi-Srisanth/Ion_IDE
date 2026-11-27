@@ -1,4 +1,5 @@
-import { lstat, realpath } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { lstat, readFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff,
   SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubCreatedPullRequest,
@@ -478,6 +479,34 @@ export class SourceControlService {
     })
   }
 
+  async discardWorking(root: string, value: unknown, confirm: (review: { path: string; status: string; staged: boolean }) => Promise<boolean>): Promise<boolean> {
+    const path = requestPath(requestObject(value).path)
+    const { repository, status } = this.requireSnapshot(root)
+    const entry = status.entries.get(path)
+    if (!entry || !entry.worktree || entry.worktree === '?' || entry.unmerged || status.truncated || status.unborn) {
+      throw new Error('Only a reviewed tracked, non-conflicted working change can be discarded.')
+    }
+    const initial = await this.workingFingerprint(repository, path)
+    const approved = await confirm({ path, status: entry.worktree, staged: Boolean(entry.index) })
+    if (!approved) return false
+    await this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const current = await statusOf(repository, signal)
+      const now = current.entries.get(path)
+      if (current.truncated || current.head !== status.head || current.branch !== status.branch
+        || !now || now.worktree !== entry.worktree || now.index !== entry.index || now.unmerged
+        || now.headMode !== entry.headMode || now.headObject !== entry.headObject
+        || now.indexMode !== entry.indexMode || now.indexObject !== entry.indexObject) {
+        throw new Error('The reviewed file or Git state changed. Refresh and review again.')
+      }
+      if (await this.workingFingerprint(repository, path) !== initial) {
+        throw new Error('The reviewed file changed after confirmation. Refresh and review again.')
+      }
+      await git(repository, signal, ['restore', '--worktree', '--', path])
+    })
+    return true
+  }
+
   commit(root: string, value: unknown): Promise<void> {
     const request = requestObject(value)
     const { message } = request
@@ -530,6 +559,21 @@ export class SourceControlService {
     const actual = await gitDirectory(repository.root)
     signal.throwIfAborted()
     if (!actual || relative(actual, repository.directory)) throw new Error('The repository moved. Refresh before continuing.')
+  }
+
+  private async workingFingerprint(repository: Repository, path: string): Promise<string> {
+    const absolute = join(repository.root, path)
+    await fileWithin(repository, absolute)
+    const info = await lstat(absolute).catch((error: unknown) => { if (absent(error)) return undefined; throw error })
+    if (!info) return 'missing'
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 32 * 1024 * 1024) {
+      throw new Error('Discard is limited to regular tracked files up to 32 MiB.')
+    }
+    const bytes = await readFile(absolute)
+    const after = await lstat(absolute).catch((error: unknown) => { if (absent(error)) return undefined; throw error })
+    if (!after?.isFile() || after.isSymbolicLink() || after.size !== info.size || after.mtimeMs !== info.mtimeMs
+      || after.ino !== info.ino || bytes.length !== info.size) throw new Error('The file changed while it was being reviewed.')
+    return createHash('sha256').update(bytes).digest('hex')
   }
 
   private mutate<T>(operation: (signal: AbortSignal) => Promise<T>, { preserveSnapshot = false } = {}): Promise<T> {

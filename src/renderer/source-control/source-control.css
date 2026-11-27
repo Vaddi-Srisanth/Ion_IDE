@@ -77,6 +77,7 @@
 .source-control-code[data-code="D"], .source-control-code[data-code="U"] { color: var(--danger); }
 .source-control-dirty { display: flex; align-items: center; color: var(--amber); }
 .source-control-change .icon-button { width: 25px; height: 24px; }
+.source-control-discard { min-height: 24px; padding: 2px 6px; font-size: 11px; white-space: nowrap; }
 .source-control-more { margin: 5px 10px 0; }
 
 .git-browser { border-bottom: 1px solid var(--subtle-border); min-width: 0; }

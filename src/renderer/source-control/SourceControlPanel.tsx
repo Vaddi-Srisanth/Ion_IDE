@@ -119,6 +119,12 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
     await bridge.change({ path: entry.path, action: side === 'staged' ? 'unstage' : 'stage' })
     if (mounted.current) await loadStatus()
   })
+  const discard = (entry: SourceControlEntry) => void act(async () => {
+    if (await bridge.discardWorking({ path: entry.path }) && mounted.current) {
+      await loadStatus()
+      if (mounted.current) setNotice('Unstaged changes discarded. Staged content was preserved.')
+    }
+  })
 
   return <aside className="source-control-pane" aria-label="Source Control" data-testid="source-control">
     <div className="pane-title">
@@ -178,8 +184,8 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
           {conflict && <p>Resolve conflicts before committing.</p>}
           {repository.truncated && <p role="status">Some changes exceed the status limit. Review and commit in your terminal.</p>}
         </form>
-        {staged.length > 0 && <Changes title="Staged" side="staged" entries={staged} {...{ busy, selection, isDirty, review, change }}/>}
-        {working.length > 0 && <Changes title="Changes" side="working" entries={working} {...{ busy, selection, isDirty, review, change }}/>}
+        {staged.length > 0 && <Changes title="Staged" side="staged" entries={staged} {...{ busy, selection, isDirty, review, change, discard }}/>}
+        {working.length > 0 && <Changes title="Changes" side="working" entries={working} {...{ busy, selection, isDirty, review, change, discard }}/>}
         {staged.length === 0 && working.length === 0 && <p className="source-control-empty">Working tree is clean.</p>}
       </>}
     </div>
@@ -245,7 +251,7 @@ function LineHistoryAction({ path, repository, bridge, busy, perform, dirty, cha
   </div>
 }
 
-function Changes({ title, side, entries, busy, selection, isDirty, review, change }: {
+function Changes({ title, side, entries, busy, selection, isDirty, review, change, discard }: {
   title: string
   side: GitDiffSide
   entries: SourceControlEntry[]
@@ -254,6 +260,7 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
   isDirty(path: string): boolean
   review(entry: SourceControlEntry, side: GitDiffSide): void
   change(entry: SourceControlEntry, side: GitDiffSide): void
+  discard?(entry: SourceControlEntry): void
 }) {
   const [visible, setVisible] = useState(pageSize)
   return <section aria-label={title} className="source-control-group" data-testid={'git-' + side}>
@@ -283,6 +290,10 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
             aria-label={`${action} ${entry.path}`} onClick={() => change(entry, side)}>
             {side === 'staged' ? <span aria-hidden="true">−</span> : <Icon name="plus" size={14}/>}
           </button>
+          {side === 'working' && entry.worktree !== '?' && !entry.unmerged && discard && <button className="button source-control-discard"
+            type="button" disabled={busy || dirty} data-testid="git-discard-working" data-git-path={entry.path}
+            title={dirty ? 'Save your edits before discarding' : 'Discard unstaged changes to ' + entry.path}
+            aria-label={'Discard unstaged changes to ' + entry.path} onClick={() => discard(entry)}>Discard</button>}
         </li>
       })}
     </ul>

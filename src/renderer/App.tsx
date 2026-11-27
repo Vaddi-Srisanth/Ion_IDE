@@ -229,6 +229,7 @@ export function App() {
       trust: () => bridge.sourceControl.trust(sourceControlRoot),
       diff: (request) => bridge.sourceControl.diff(sourceControlRoot, request),
       change: (request) => bridge.sourceControl.change(sourceControlRoot, request),
+      discardWorking: (request) => bridge.sourceControl.discardWorking(sourceControlRoot, request),
       commit: (request) => bridge.sourceControl.commit(sourceControlRoot, request),
       close: () => bridge.sourceControl.close(sourceControlRoot),
     };

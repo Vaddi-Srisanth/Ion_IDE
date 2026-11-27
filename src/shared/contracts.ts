@@ -221,6 +221,7 @@ export interface IonBridge {
     trust(root: string): Promise<boolean>
     diff(root: string, request: Parameters<SourceControlBridge['diff']>[0]): ReturnType<SourceControlBridge['diff']>
     change(root: string, request: Parameters<SourceControlBridge['change']>[0]): ReturnType<SourceControlBridge['change']>
+    discardWorking(root: string, request: Parameters<SourceControlBridge['discardWorking']>[0]): ReturnType<SourceControlBridge['discardWorking']>
     commit(root: string, request: Parameters<SourceControlBridge['commit']>[0]): ReturnType<SourceControlBridge['commit']>
     close(root: string): ReturnType<SourceControlBridge['close']>
   }

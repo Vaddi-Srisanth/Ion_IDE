@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type SpawnOptions } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
-import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -117,6 +117,54 @@ test('Source Control reports saved and staged content, stages literal paths and 
     assert.equal(await git('show', 'HEAD:' + path), workingText)
     assert.equal((await git('log', '-1', '--format=%s')).trim(), 'Update value')
     assert.deepEqual((await status(service, root)).entries.map(({ path }) => path), ['untouched.txt'])
+  })
+})
+
+test('discard restores only the reviewed tracked working file to the staged version', async () => {
+  await fixture(async ({ root, service, git }) => {
+    const path = 'reviewed.txt', disk = join(root, path)
+    await writeFile(disk, 'head version\n')
+    await git('add', '--', path); await git('commit', '-qm', 'Base')
+    await writeFile(disk, 'staged version\n'); await git('add', '--', path)
+    await writeFile(disk, 'unstaged version\n')
+    await status(service, root)
+    let review: unknown
+    assert.equal(await service.discardWorking(root, { path }, async value => { review = value; return false }), false)
+    assert.deepEqual(review, { path, status: 'M', staged: true })
+    assert.equal(await readFile(disk, 'utf8'), 'unstaged version\n')
+    await status(service, root)
+    assert.equal(await service.discardWorking(root, { path }, async () => true), true)
+    assert.equal(await readFile(disk, 'utf8'), 'staged version\n')
+    assert.equal(await git('show', ':' + path), 'staged version\n')
+    assert.equal(await git('show', 'HEAD:' + path), 'head version\n')
+    assert.deepEqual((await status(service, root)).entries.map(({ path, index, worktree }) => [path, index, worktree]), [[path, 'M', '']])
+  })
+})
+
+test('discard cancels if the file changes after confirmation and refuses untracked files', async () => {
+  await fixture(async ({ root, service, git }) => {
+    const path = 'reviewed.txt', disk = join(root, path)
+    await writeFile(disk, 'head\n'); await git('add', '--', path); await git('commit', '-qm', 'Base')
+    await writeFile(disk, 'reviewed change\n'); await status(service, root)
+    await assert.rejects(service.discardWorking(root, { path }, async () => {
+      await writeFile(disk, 'concurrent edit\n'); return true
+    }), /changed after confirmation/)
+    assert.equal(await readFile(disk, 'utf8'), 'concurrent edit\n')
+    await writeFile(join(root, 'untracked.txt'), 'keep me\n'); await status(service, root)
+    await assert.rejects(service.discardWorking(root, { path: 'untracked.txt' }, async () => {
+      assert.fail('untracked changes must not reach confirmation')
+    }), /tracked, non-conflicted/)
+    assert.equal(await readFile(join(root, 'untracked.txt'), 'utf8'), 'keep me\n')
+    const outside = join(root, '..', 'outside.txt')
+    await writeFile(outside, 'outside data\n')
+    await rm(disk)
+    await symlink(outside, disk)
+    await status(service, root)
+    await assert.rejects(service.discardWorking(root, { path }, async () => {
+      assert.fail('symlinked files must not reach confirmation')
+    }), /regular tracked files/)
+    assert.equal(await readFile(outside, 'utf8'), 'outside data\n')
+    await rm(outside)
   })
 })
 

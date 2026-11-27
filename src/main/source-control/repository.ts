@@ -174,7 +174,9 @@ function plumbingCommand(args: string[], input = ''): boolean {
     case 'update-index': return args.join(' ') === 'update-index -z --index-info'
       || args.length >= 4 && args[1] === '--force-remove' && args[2] === '--'
     case 'write-tree': return args.length === 1
-    case 'restore': return args.length >= 5 && args[1] === '--staged' && args[2] === '--source=HEAD' && args[3] === '--'
+    case 'restore': return args.length >= 4
+      && (args[1] === '--staged' && args[2] === '--source=HEAD' && args[3] === '--'
+        || args[1] === '--worktree' && args[2] === '--')
     case 'commit-tree': return (args.length === 5 || args.length === 7) && objectId.test(args[1])
       && args.slice(-3).join(' ') === '--no-gpg-sign -F -'
       && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
