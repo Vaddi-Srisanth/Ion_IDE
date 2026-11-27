@@ -1,5 +1,6 @@
 name: Phase 4 local practice judge
 on:
+  workflow_dispatch:
   push:
     branches: [codex/ion-phase-4-practice]
     paths:
