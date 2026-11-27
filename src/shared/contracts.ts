@@ -208,6 +208,7 @@ export interface IonBridge {
     browse(root: string): ReturnType<SourceControlBridge['browse']>
     github(root: string, repository: string): ReturnType<SourceControlBridge['github']>
     githubPullRequest(root: string, request: Parameters<SourceControlBridge['githubPullRequest']>[0]): ReturnType<SourceControlBridge['githubPullRequest']>
+    githubIssue(root: string, request: Parameters<SourceControlBridge['githubIssue']>[0]): ReturnType<SourceControlBridge['githubIssue']>
     createGitHubPullRequest(root: string, request: Parameters<SourceControlBridge['createGitHubPullRequest']>[0]): ReturnType<SourceControlBridge['createGitHubPullRequest']>
     cloneGitHub(root: string, repository: string, access: 'public' | 'authenticated'): Promise<string | null>
     closeGitHub(root: string): Promise<void>

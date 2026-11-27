@@ -217,6 +217,7 @@ export function App() {
       browse: () => bridge.sourceControl.browse(sourceControlRoot),
       github: (repository) => bridge.sourceControl.github(sourceControlRoot, repository),
       githubPullRequest: (request) => bridge.sourceControl.githubPullRequest(sourceControlRoot, request),
+      githubIssue: (request) => bridge.sourceControl.githubIssue(sourceControlRoot, request),
       createGitHubPullRequest: (request) => bridge.sourceControl.createGitHubPullRequest(sourceControlRoot, request),
       cloneGitHub: (repository, access) => bridge.sourceControl.cloneGitHub(sourceControlRoot, repository, access),
       closeGitHub: () => bridge.sourceControl.closeGitHub(sourceControlRoot),

@@ -2,7 +2,8 @@ import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff,
   SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubCreatedPullRequest,
-  SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubPullRequest, SourceControlGitHubPullRequestRequest,
+  SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubIssue, SourceControlGitHubIssueRequest,
+  SourceControlGitHubPullRequest, SourceControlGitHubPullRequestRequest,
   SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
@@ -165,6 +166,15 @@ export class SourceControlService {
       const { githubPullRequest } = await import('./github')
       signal.throwIfAborted()
       return githubPullRequest(root, workspaceRoots, request, signal)
+    })
+  }
+
+  githubIssue(root: string, request: SourceControlGitHubIssueRequest,
+    workspaceRoots: readonly string[]): Promise<SourceControlGitHubIssue> {
+    return this.readGitHub(root, async signal => {
+      const { githubIssue } = await import('./github')
+      signal.throwIfAborted()
+      return githubIssue(root, workspaceRoots, request, signal)
     })
   }
 

@@ -101,6 +101,11 @@ export interface SourceControlGitHubPullRequestRequest {
   number: number
 }
 
+export interface SourceControlGitHubIssueRequest {
+  repository: string
+  number: number
+}
+
 export interface SourceControlGitHubCreatePullRequestRequest {
   repository: string
   title: string
@@ -132,6 +137,16 @@ export interface SourceControlGitHubPullRequest {
   bodyTruncated: boolean
 }
 
+export interface SourceControlGitHubIssue {
+  number: number
+  title: string
+  url: string
+  state: 'open' | 'closed'
+  author: string | null
+  body: string
+  bodyTruncated: boolean
+}
+
 export interface SourceControlBridge {
   createTag(request: { name: string; from: string }): Promise<void>
   createBranch(request: { name: string; from: string }): Promise<void>
@@ -144,6 +159,7 @@ export interface SourceControlBridge {
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>
   githubPullRequest(request: SourceControlGitHubPullRequestRequest): Promise<SourceControlGitHubPullRequest>
+  githubIssue(request: SourceControlGitHubIssueRequest): Promise<SourceControlGitHubIssue>
   createGitHubPullRequest(request: SourceControlGitHubCreatePullRequestRequest): Promise<SourceControlGitHubCreatedPullRequest | null>
   cloneGitHub(repository: string, access: 'public' | 'authenticated'): Promise<string | null>
   closeGitHub(): Promise<void>

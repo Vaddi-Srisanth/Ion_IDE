@@ -3,7 +3,7 @@ import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createGitHubPullRequest, githubOverview, githubPullRequest } from '../src/main/source-control/github'
+import { createGitHubPullRequest, githubIssue, githubOverview, githubPullRequest } from '../src/main/source-control/github'
 import { checkCreatePullRequestRequest } from '../src/main/source-control/github-repository'
 import type { execute } from '../src/main/runner'
 
@@ -15,6 +15,9 @@ const pull = { number: 7, title: 'Review the files', url: 'https://github.com/' 
 const pullRequest = { repository: fixtureRepository, number: pull.number }
 const pullDetails = { ...pull, merged: false, draft: true, author: 'dependabot[bot]',
   base: 'main', head: 'octo-user:topic/changes', body: '', bodyTruncated: false }
+const issueRequest = { repository: fixtureRepository, number: 4 }
+const issueDetails = { number: 4, title: 'Reviewed issue', url: 'https://github.com/' + fixtureRepository + '/issues/4',
+  state: 'open', author: 'octo-user', body: 'Issue description', bodyTruncated: false, isPullRequest: false }
 
 async function fixture() {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'ion-gh-test-')))
@@ -25,10 +28,12 @@ async function fixture() {
     githubOverview(root, [root], name, signal, { run, findGh: async () => binary })
   const detail = (run: Run, request: unknown = pullRequest, signal = new AbortController().signal) =>
     githubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
+  const detailIssue = (run: Run, request: unknown = issueRequest, signal = new AbortController().signal) =>
+    githubIssue(root, [root], request, signal, { run, findGh: async () => binary })
   const create = (run: Run, request: unknown = { repository: fixtureRepository, title: 'Add feature', head: 'octo-user:feature/one',
     base: 'main', body: 'Reviewed description', draft: true }, signal = new AbortController().signal) =>
     createGitHubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
-  return { directory, root, binary, call, detail, create, clean: () => rm(directory, { recursive: true, force: true }) }
+  return { directory, root, binary, call, detail, detailIssue, create, clean: () => rm(directory, { recursive: true, force: true }) }
 }
 
 test('GitHub reads only the selected repository via fixed GitHub.com GETs in one private directory', async t => {
@@ -188,6 +193,53 @@ test('PR details reject unreviewable requests and mismatched or oversized respon
   await assert.rejects(f.detail(async () => ok({ ...pullDetails, base: '\u202e' })), /display text/)
   const closed = await f.detail(async () => ok({ ...pullDetails, state: 'closed', merged: true, author: null }))
   assert.equal(closed.state, 'merged')
+  assert.equal(closed.author, null)
+})
+
+test('issue details use one isolated fixed GET and redact hosted text before returning it', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const privateToken = 'ghp_' + 'B'.repeat(36)
+  let scratch = '', calls = 0
+  const detail = await f.detailIssue(async (binary, args, options) => {
+    calls++
+    assert.equal(binary, f.binary)
+    assert.deepEqual(args.slice(0, 6), ['api', '--hostname', 'github.com', '--method', 'GET', '--jq'])
+    assert.match(args[6], /\.body_text.*\[:8192\].*isPullRequest/)
+    assert.deepEqual(args.slice(7), ['--header', 'Accept: application/vnd.github.text+json',
+      'repos/' + fixtureRepository + '/issues/4'])
+    scratch = options.cwd
+    assert.notEqual(scratch, f.root)
+    assert.equal(options.environment.GH_CONFIG_DIR, scratch)
+    assert.equal(options.environment.GH_TOKEN, undefined)
+    assert.equal(options.environment.GITHUB_TOKEN, undefined)
+    return ok({ ...issueDetails, title: 'Issue ' + privateToken, bodyTruncated: true,
+      body: ['A note with <script>alert(1)</script>', privateToken, 'Authorization: Bearer abc123SECRET',
+        'password="test private password"', 'https://octo:private-password@github.com/test/a',
+        '-----BEGIN PRIVATE KEY-----', 'secret-pem-data', '-----END PRIVATE KEY-----', 'Final note.'].join('\r\n') })
+  })
+  assert.equal(calls, 1)
+  assert.deepEqual(detail, { number: 4, title: 'Issue [redacted token]',
+    url: 'https://github.com/' + fixtureRepository + '/issues/4', state: 'open', author: 'octo-user',
+    body: ['A note with <script>alert(1)</script>', '[redacted token]', 'Authorization: [redacted authorization]',
+      'password=[redacted]', '[redacted URL]', '[redacted private key]', 'Final note.'].join('\n'), bodyTruncated: true })
+  assert.doesNotMatch(JSON.stringify(detail), /ghp_|abc123SECRET|test private password|private-password@|secret-pem-data/)
+  await assert.rejects(access(scratch), { code: 'ENOENT' })
+})
+
+test('issue details require a listed issue identity and reject PRs or mismatched responses', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const forbidden = async () => { throw new Error('Unexpected CLI launch') }
+  for (const request of [null, { repository: fixtureRepository, number: -7 }, { repository: fixtureRepository, number: '4' },
+    { ...issueRequest, extra: true }, { ...issueRequest, repository: 'outside/repo?x=1' }]) {
+    await assert.rejects(f.detailIssue(forbidden, request), /loaded GitHub repository|owner\/name/)
+  }
+  for (const invalid of [{ number: 8 }, { url: 'https://github.com/other/repo/issues/4' },
+    { url: 'https://github.com/' + fixtureRepository + '/pull/4' }, { state: 'unknown' },
+    { author: 'host.example/attacker' }, { body: 'x'.repeat(16385) }, { bodyTruncated: 1 }, { isPullRequest: true }]) {
+    await assert.rejects(f.detailIssue(async () => ok({ ...issueDetails, ...invalid })), /invalid issue details/)
+  }
+  const closed = await f.detailIssue(async () => ok({ ...issueDetails, state: 'closed', author: null }))
+  assert.equal(closed.state, 'closed')
   assert.equal(closed.author, null)
 })
 

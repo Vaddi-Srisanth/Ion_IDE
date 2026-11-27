@@ -1,12 +1,12 @@
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
-import type { SourceControlGitHub, SourceControlGitHubCreatedPullRequest, SourceControlGitHubPullRequest } from '../../shared/source-control'
+import type { SourceControlGitHub, SourceControlGitHubCreatedPullRequest, SourceControlGitHubIssue, SourceControlGitHubPullRequest } from '../../shared/source-control'
 import { isWithin } from '../files'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { execute } from '../runner'
 import { windowsSystemDirectory } from '../windows-process'
-import { accountName, checkCreatePullRequestRequest, checkPullRequestRequest, checkRepository, pullRequestUrl } from './github-repository'
+import { accountName, checkCreatePullRequestRequest, checkIssueRequest, checkPullRequestRequest, checkRepository, issueUrl, pullRequestUrl } from './github-repository'
 export { checkRepository } from './github-repository'
 
 const pageSize = 20
@@ -183,6 +183,29 @@ export async function githubPullRequest(root: string, workspaceRoots: readonly s
     return { number: request.number, title: displayLine(title, 256), url: expectedUrl, state: merged ? 'merged' : state,
       draft, author, base: displayLine(base, 160), head: displayLine(head, 160), body: characters.slice(0, bodyLimit).join('').trim(),
       bodyTruncated: bodyTruncated || characters.length > bodyLimit }
+  })
+}
+
+export async function githubIssue(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<SourceControlGitHubIssue> {
+  const request = checkIssueRequest(input)
+  return withGitHubClient(root, workspaceRoots, request.repository, signal, dependencies, async get => {
+    const description = '(.body_text // "")'
+    const fields = '{number,title,url:.html_url,state,author:.user.login,body:' + description + '[:' + bodyLimit
+      + '],bodyTruncated:(' + description + ' | length > ' + bodyLimit + '),isPullRequest:(.pull_request != null)}'
+    const result = record(await get('repos/' + request.repository + '/issues/' + request.number, fields, { textBody: true }))
+    const { number, title, url, state, author, body, bodyTruncated, isPullRequest } = result
+    const expectedUrl = issueUrl(request)
+    if (number !== request.number || typeof url !== 'string' || url.toLowerCase() !== expectedUrl.toLowerCase()
+      || (state !== 'open' && state !== 'closed') || isPullRequest !== false
+      || (author !== null && (typeof author !== 'string' || !accountName.test(author.replace(/\[bot\]$/, ''))))
+      || typeof body !== 'string' || body.length > bodyLimit * 2 || typeof bodyTruncated !== 'boolean') {
+      throw new Error('GitHub returned invalid issue details.')
+    }
+    const cleanBody = redactHostedText(body)
+    const characters = Array.from(cleanBody)
+    return { number: request.number, title: displayLine(title, 256), url: expectedUrl, state, author,
+      body: characters.slice(0, bodyLimit).join('').trim(), bodyTruncated: bodyTruncated || characters.length > bodyLimit }
   })
 }
 

@@ -1794,6 +1794,18 @@ function registerIpc(): void {
     if (!isReviewed() || result.url !== url) throw new Error('The reviewed GitHub list changed.')
     return result
   }))
+  handle('source-control-github-issue', (target, root, value) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    const pages = session.gitHubPages
+    const { checkIssueRequest, issueUrl } = await import('./source-control/github-repository')
+    const request = checkIssueRequest(value)
+    const url = issueUrl(request)
+    const isReviewed = () => session === sourceControl && session.gitHubPages === pages && Boolean(pages?.has(url))
+    if (!isReviewed()) throw new Error('Load the issue list before opening its details.')
+    const result = await service.githubIssue(path, request, [...files.rootPaths])
+    if (!isReviewed() || result.url !== url) throw new Error('The reviewed GitHub list changed.')
+    return result
+  }))
   handle('source-control-github-create-pull-request', (target, root, value) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
     const pages = session.gitHubPages

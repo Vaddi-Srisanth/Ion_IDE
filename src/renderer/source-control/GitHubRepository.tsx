@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SourceControlBridge, SourceControlGitHub, SourceControlGitHubCreatePullRequestRequest,
-  SourceControlGitHubCreatedPullRequest, SourceControlGitHubPullRequest } from '../../shared/source-control'
+  SourceControlGitHubCreatedPullRequest, SourceControlGitHubIssue, SourceControlGitHubPullRequest } from '../../shared/source-control'
 import './github-repository.css'
 
 export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   const [open, setOpen] = useState(false)
   const [repository, setRepository] = useState('')
   const [overview, setOverview] = useState<SourceControlGitHub>()
-  const [operation, setOperation] = useState<'load' | 'clone' | 'pull-request' | 'create-pull-request'>()
+  const [operation, setOperation] = useState<'load' | 'clone' | 'pull-request' | 'issue' | 'create-pull-request'>()
   const [pullRequest, setPullRequest] = useState<SourceControlGitHubPullRequest>()
+  const [issue, setIssue] = useState<SourceControlGitHubIssue>()
   const [createOpen, setCreateOpen] = useState(false)
   const [createDraft, setCreateDraft] = useState<SourceControlGitHubCreatePullRequestRequest>()
   const [createReview, setCreateReview] = useState<SourceControlGitHubCreatePullRequestRequest>()
@@ -20,6 +21,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   const requested = useRef(false)
   const detailHeading = useRef<HTMLHeadingElement>(null)
   const pullRequestLink = useRef<HTMLButtonElement>(null)
+  const issueLink = useRef<HTMLButtonElement>(null)
 
   function closeRequest() {
     generation.current++
@@ -27,7 +29,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     requested.current = false
   }
   useEffect(() => () => { closeRequest() }, [bridge])
-  useEffect(() => { if (pullRequest) detailHeading.current?.focus() }, [pullRequest])
+  useEffect(() => { if (pullRequest || issue) detailHeading.current?.focus() }, [pullRequest, issue])
 
   async function load() {
     const selected = repository.trim()
@@ -37,6 +39,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     setOperation('load')
     setOverview(undefined)
     setPullRequest(undefined)
+    setIssue(undefined)
     setCreateOpen(false)
     setCreateDraft(undefined)
     setCreateReview(undefined)
@@ -78,12 +81,29 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     const current = ++generation.current
     setOperation('pull-request')
     setPullRequest(undefined)
+    setIssue(undefined)
     setError('')
     try {
       const detail = await bridge.githubPullRequest({ repository: overview.repository, number })
       if (generation.current === current) setPullRequest(detail)
     } catch (reason) {
       if (generation.current === current) setError(reason instanceof Error ? reason.message : 'The pull request could not be loaded.')
+    } finally {
+      if (generation.current === current) setOperation(undefined)
+    }
+  }
+  async function viewIssue(number: number) {
+    if (busy || !overview?.issues.some(item => item.number === number)) return
+    const current = ++generation.current
+    setOperation('issue')
+    setPullRequest(undefined)
+    setIssue(undefined)
+    setError('')
+    try {
+      const detail = await bridge.githubIssue({ repository: overview.repository, number })
+      if (generation.current === current) setIssue(detail)
+    } catch (reason) {
+      if (generation.current === current) setError(reason instanceof Error ? reason.message : 'The issue could not be loaded.')
     } finally {
       if (generation.current === current) setOperation(undefined)
     }
@@ -111,7 +131,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   }
   return <section className="git-hosted" aria-label="GitHub">
     <button type="button" className="button" aria-expanded={open} onClick={() => {
-      if (open) { closeRequest(); setOverview(undefined); setPullRequest(undefined); setCreateOpen(false); setCreateDraft(undefined);
+      if (open) { closeRequest(); setOverview(undefined); setPullRequest(undefined); setIssue(undefined); setCreateOpen(false); setCreateDraft(undefined);
         setCreateReview(undefined); setCreated(undefined); setOperation(undefined); setError(''); setCloned('') }
       setOpen(!open)
     }}>GitHub</button>
@@ -119,7 +139,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       <form onSubmit={event => { event.preventDefault(); void load() }}>
         <label>GitHub repository<input aria-label="GitHub repository" placeholder="owner/repository" autoComplete="off"
           spellCheck={false} value={repository} maxLength={140} disabled={busy} onChange={event => {
-            setRepository(event.target.value); setOverview(undefined); setPullRequest(undefined); setCreateOpen(false);
+            setRepository(event.target.value); setOverview(undefined); setPullRequest(undefined); setIssue(undefined); setCreateOpen(false);
             setCreateDraft(undefined); setCreateReview(undefined); setCreated(undefined); setError(''); setCloned('')
           }}/></label>
         <button className="button" type="submit" disabled={!repository.trim() || busy}>{operation === 'load' ? 'Loading…' : 'Load from GitHub'}</button>
@@ -129,6 +149,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       </form>
       {cloned && <p role="status">Cloned to {cloned}</p>}
       {operation === 'pull-request' && <p role="status">Loading pull request…</p>}
+      {operation === 'issue' && <p role="status">Loading issue…</p>}
       {error && <p role="alert">{error}</p>}
       {created && <section className="git-created-pull-request" role="status" aria-label="Created pull request">
         <p>Created #{created.number}: {created.title}{created.draft ? ' · Draft' : ''}</p>
@@ -198,9 +219,22 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
         </section>}
         <section aria-label="Open issues"><h3>Open issues</h3>
           {overview.issues.length ? <ul>{overview.issues.map(item => <li key={item.number}>
-            <button type="button" onClick={() => void openPage(item.url)}>#{item.number} {item.title}</button>
+            <button type="button" disabled={busy} aria-controls={issue?.number === item.number ? 'git-hosted-issue-detail' : undefined}
+              onClick={event => { issueLink.current = event.currentTarget; void viewIssue(item.number) }}>
+              #{item.number} {item.title}
+            </button>
           </li>)}</ul> : <p>None returned.</p>}
         </section>
+        {issue && <section id="git-hosted-issue-detail" className="git-hosted-pull-detail" aria-label="Issue details">
+          <h3 tabIndex={-1} ref={detailHeading}>#{issue.number} {issue.title}</h3>
+          <p>{issue.state === 'open' ? 'Open' : 'Closed'}{issue.author && ' by ' + issue.author}</p>
+          {issue.body ? <p className="git-hosted-pull-body">{issue.body}</p> : <p>No description provided.</p>}
+          {issue.bodyTruncated && <p>Description shortened. Open GitHub to read the rest.</p>}
+          <div className="git-hosted-pull-actions">
+            <button type="button" onClick={() => void openPage(issue.url)}>Open issue on GitHub</button>
+            <button type="button" onClick={() => { setIssue(undefined); issueLink.current?.focus() }}>Hide details</button>
+          </div>
+        </section>}
       </div>}
     </>}
   </section>

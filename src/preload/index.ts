@@ -211,6 +211,7 @@ const bridge: IonBridge = {
     browse: (root) => ipcRenderer.invoke('ion:source-control-browse', root),
     github: (root, repository) => ipcRenderer.invoke('ion:source-control-github', root, repository),
     githubPullRequest: (root, request) => ipcRenderer.invoke('ion:source-control-github-pull-request', root, request),
+    githubIssue: (root, request) => ipcRenderer.invoke('ion:source-control-github-issue', root, request),
     createGitHubPullRequest: (root, request) => ipcRenderer.invoke('ion:source-control-github-create-pull-request', root, request),
     cloneGitHub: (root, repository, access) => ipcRenderer.invoke('ion:source-control-github-clone', root, repository, access),
     closeGitHub: (root) => ipcRenderer.invoke('ion:source-control-github-close', root),
