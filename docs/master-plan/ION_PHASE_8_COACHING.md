@@ -20,6 +20,12 @@ Practice → Browse also includes a lazy-loaded, offline BFS walkthrough over a 
 
 The walkthrough explains O(V + E) time and O(V) auxiliary space under the adjacency-list assumption; these are analytical bounds, not measured timings. A focused offline headless-browser check verified queue order, duplicate discovery, the alternate start, completion/reset, bounded controls, no extra bridge calls, lazy chunk loading, narrow viewport fit and keyboard focus return. The binary-search walkthrough regression check, type checking and production build also passed on macOS. Native Windows verification remains open.
 
+## Depth-first search walkthrough
+
+Practice → Browse now also offers a lazy, offline DFS walkthrough over the same directed adjacency-list graph. It steps through a last-in, first-out stack, discovered and processed nodes, and traversal-tree edges. Neighbors are pushed in reverse listed order so the first listed neighbor is visited first; nodes are marked when pushed, and the C step shows why F is not added again after E discovers it. Learners can choose A, C or F as the start, step backward or forward, reset, and return focus to the entry button. It does not run learner code or make network requests.
+
+The lesson explains O(V + E) time and O(V) algorithm working space under the adjacency-list assumption, and clarifies that the interactive replay retains step snapshots. These are analytical bounds, not measured timings. Targeted macOS checks passed for stack order, discovery order, duplicate suppression, alternate and isolated starts, completion/reset, complexity wording, lazy loading, no extra bridge calls, 250 px viewport fit, keyboard focus return and no browser errors or external requests. The BFS regression journey, type checking and production build passed. Native Windows verification remains open.
+
 ## Local topic focus signal — 27 November 2026
 
 Local checkpoint: `d471127` on `codex/ion-phase-6-copilot` (not pushed).
