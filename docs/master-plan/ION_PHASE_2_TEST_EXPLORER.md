@@ -1,12 +1,12 @@
 # Ion Phase 2.6 — Test Explorer
 
-Status: **IN PROGRESS — resumed after Windows v0.9.9 publication**
+Status: **PASS for the Phase 2.6 adapter foundation**
 
 Branch: `codex/ion-core-excellence-phase-2-tests`
 
 Starting checkpoint: `23dff68` (Build/Tasks adapter-foundation native evidence).
 
-The last locally verified pytest foundation is `329789c7ff33f163764bfd30b6ce94d1d91a962b`. Subsequent generic framework-selection and Vitest adapter edits were stopped before their tests/typecheck; they are preserved as unfinished work on this branch. No final native Test Explorer acceptance has run. None of this milestone's implementation is included in the accepted Phase 2.5 main delivery. Work resumed from preservation commit `2c025c5cc34b89b0e79255e594b61dd2eff78dee`.
+The pytest foundation `329789c` and preservation checkpoint `2c025c5` predate the final acceptance. Both native hosts tested application and harness `fee7580cf3a107f54126dff7daa1d0e683a3198d`. Public v0.9.9 contains accepted work through Phase 2.5.
 
 ## Implementation sequence and acceptance
 
@@ -45,6 +45,16 @@ Adapters start only after an explicit request. Each discovery and execution has 
 - Production TypeScript checks and Vite/Electron build passed. The focused hosted workflow provisions its own tools and drives discovery, selection, failure navigation, cancellation, backup and relaunch in the disposable production desktop application.
 - Earlier pytest checkpoint `329789c` passed 474 tests in the historical full suite with 26 skips. This is separate from the current 21-test run.
 
+## Native evidence
+
+| Candidate | macOS ARM64 | Windows x64 | Finding |
+| --- | --- | --- | --- |
+| [aa4f52e](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45930760940) | 21 backend tests passed. Desktop quit failed. | 21 backend tests passed. Desktop quit failed. | The harness requested quit while Test Explorer was open. Its cleanup could mask an earlier failure. |
+| [1730db8](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45931146508) | Passed | Desktop passed. Two Java backend checks failed. | A same-length edit could share the inspected file metadata. The cancelled Java case also reported a scratch directory removal failure. The OS lock owner was not identified. |
+| [fee7580](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45931559561) | Passed | Passed | Both ran typecheck, production build, 21 adapter/backup tests with zero skips and the offline production desktop journey. |
+
+Source review now adds a bounded SHA-256 digest read from the inspected regular file. Java stages exactly the reviewed bytes. A deterministic test holds the metadata portion constant across different content. Test Explorer also uses the existing bounded Windows scratch-removal policy, still reports permanent cleanup failure and retains pending paths for drain. The desktop journey separately checks that Stop reaps an actual test and child process. On the final local candidate, 22 focused checks passed including the scratch cleanup policy test.
+
 ## Verdict
 
-Hosted macOS ARM64 and Windows x64 results are pending. No new public application build was published from this feature branch.
+**PASS for pytest, JUnit Jupiter and Vitest within the documented scope.** Desktop interaction was driven with pytest. JUnit and Vitest used the production service with real frameworks on both native hosts. Jest, arbitrary Maven/Gradle dependency resolution, third-party pytest autoload and long-duration qualification are outside this checkpoint.
