@@ -1,5 +1,6 @@
 name: Phase 3 Source Control
 on:
+  workflow_dispatch:
   push:
     branches: [codex/ion-phase-3-source-control]
     paths:
