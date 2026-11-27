@@ -41,7 +41,7 @@ test('real branch and stash previews honor tree direction, the stash base, and d
   git('checkout', '-qb', 'future'); git('commit', '--allow-empty', '-qm', 'Future'); const future = git('rev-parse', 'HEAD')
   git('checkout', '-q', 'main'); git('pack-refs', '--all', '--prune')
   await writeFile(source, 'staged source\n'); git('add', '--', 'source.txt'); await writeFile(source, 'dirty source\n')
-  const index = await readFile(join(root, '.git', 'index'))
+  const staged = git('diff', '--cached', '--binary', 'HEAD')
   const branch = (name: string, to: string) => ({ kind: 'branch' as const, name, from: head, to })
   assert.equal((await service.status(root)).kind, 'repository')
   await assert.rejects(service.previewComparison(root, branch('topic', topic)), /reviewed branch/)
@@ -59,11 +59,38 @@ test('real branch and stash previews honor tree direction, the stash base, and d
   for (const bad of [branch('HEAD~1', base), branch('refs/tags/other', topic), branch('topic', future), { ...request, name: 'stash@{0}' }]) {
     await assert.rejects(service.previewComparison(root, bad), /reviewed branch/)
   }
-  assert.deepEqual(await readFile(join(root, '.git', 'index')), index)
+  assert.equal(git('diff', '--cached', '--binary', 'HEAD'), staged)
   assert.equal(await readFile(source, 'utf8'), 'dirty source\n')
   assert.equal(git('rev-parse', 'HEAD'), head)
   git('update-ref', '-d', 'refs/stash')
   await assert.rejects(service.previewComparison(root, request), /references changed/)
+})
+
+test('reviewed stash snapshot keeps staged, working and untracked filesystem state intact', async t => {
+  const { root, service, git, base } = await fixture(t)
+  const source = join(root, 'source.txt')
+  await writeFile(source, 'older saved change\n'); git('stash', 'push', '-qm', 'Earlier snapshot')
+  const earlierStash = git('rev-parse', 'refs/stash')
+  await writeFile(source, 'staged change\n'); git('add', '--', 'source.txt')
+  await writeFile(source, 'working change\n')
+  await writeFile(join(root, 'untracked.txt'), 'untracked remains outside snapshot\n')
+  const staged = git('diff', '--cached', '--binary', 'HEAD')
+  assert.equal((await service.status(root)).kind, 'repository')
+  assert.equal(await service.saveStashSnapshot(root, async () => false), null)
+  assert.equal(git('stash', 'list').split('\n').length, 1)
+  const oid = await service.saveStashSnapshot(root, async review => {
+    assert.deepEqual(review, { branch: 'main', head: base, files: 1 })
+    return true
+  })
+  assert.match(oid ?? '', /^[0-9a-f]{40}$/)
+  assert.equal(git('rev-parse', 'refs/stash'), oid)
+  assert.equal(git('rev-parse', 'refs/stash@{1}'), earlierStash)
+  assert.equal(git('rev-parse', 'HEAD'), base)
+  assert.equal(await readFile(source, 'utf8'), 'working change\n')
+  assert.equal(await readFile(join(root, 'untracked.txt'), 'utf8'), 'untracked remains outside snapshot\n')
+  assert.equal(git('diff', '--cached', '--binary', 'HEAD'), staged)
+  const parents = git('rev-list', '--parents', '-n', '1', 'refs/stash').split(' ')
+  assert.equal(parents.length, 3, 'snapshot contains the working tree and index commits, not an untracked-files parent')
 })
 
 test('a ref removed during a preview of packed refs invalidates the result, including in a linked worktree', async t => {

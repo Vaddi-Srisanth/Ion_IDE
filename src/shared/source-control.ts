@@ -152,6 +152,7 @@ export interface SourceControlBridge {
   createBranch(request: { name: string; from: string }): Promise<void>
   switchBranch(request: SourceControlSwitchRequest): Promise<boolean>
   fetchPublic(request: SourceControlFetchRequest): Promise<SourceControlFetchResult | null>
+  saveStashSnapshot(): Promise<string | null>
   conflict(request: { path: string }): Promise<SourceControlConflict>
   cancelBlame(path: string): Promise<void>
   blame(request: { path: string }): Promise<SourceControlBlame>

@@ -294,6 +294,34 @@ export class SourceControlService {
     }, { preserveSnapshot: true })
   }
 
+  saveStashSnapshot(root: string, approve: (review: { branch: string; head: string; files: number }, signal: AbortSignal) => Promise<boolean>): Promise<string | null> {
+    const { repository, status } = this.requireSnapshot(root)
+    const signature = (value: ParsedStatus) => JSON.stringify([value.head, value.branch, value.truncated,
+      [...value.entries.values()].map(({ path, previousPath, index, worktree, unmerged, indexMode, indexObject }) =>
+        [path, previousPath, index, worktree, unmerged, indexMode, indexObject])])
+    const changed = [...status.entries.values()].filter(entry => entry.index || entry.worktree && entry.worktree !== '?')
+    if (status.unborn || status.detached || status.truncated || !changed.length
+      || [...status.entries.values()].some(entry => entry.unmerged)) {
+      throw new Error('Refresh and resolve conflicts before saving a tracked-change stash snapshot.')
+    }
+    const review = { branch: status.branch, head: status.head, files: changed.length }
+    return this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const before = await statusOf(repository, signal)
+      if (signature(before) !== signature(status)) throw new Error('Repository changes moved. Refresh and review them again.')
+      if (!await approve(review, signal)) return null
+      await this.verifyRepository(repository, signal)
+      const current = await statusOf(repository, signal)
+      if (signature(current) !== signature(status)) throw new Error('Repository changes moved during review. Refresh and try again.')
+      const result = await this.runGit(repository, signal, ['stash', 'create'], { limit: 128 })
+      const oid = result.text.trim()
+      if (!gitObjectId.test(oid) || oid.length !== status.head.length) throw new Error('Git did not create a valid stash snapshot.')
+      await this.runGit(repository, signal, ['stash', 'store', '-m', 'Ion local snapshot', oid], { limit: 256 })
+      this.reviewedRefs = undefined
+      return oid
+    })
+  }
+
   private createRef(root: string, value: unknown, kind: 'branch' | 'tag'): Promise<void> {
     const { repository, status } = this.requireSnapshot(root)
     if (status.unborn || !gitObjectId.test(status.head) || requestObject(value).from !== status.head) {

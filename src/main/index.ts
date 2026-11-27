@@ -1758,6 +1758,17 @@ function registerIpc(): void {
         })
         return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
       })))
+  handle('source-control-stash-snapshot', (target, root) =>
+    useSourceControl(target, root, (service, path) => service.saveStashSnapshot(path, async (review, signal) => {
+      const answer = await dialog.showMessageBox(target, {
+        signal, type: 'question', buttons: ['Cancel', 'Save Snapshot'], cancelId: 0, defaultId: 0,
+        message: 'Save tracked changes to the latest stash?',
+        detail: review.files + ' tracked file' + (review.files === 1 ? '' : 's') + ' on ' + review.branch
+          + ' will be copied into a local stash snapshot. The current index and working files stay in place. '
+          + 'Untracked files are not included. No remote is contacted.',
+      })
+      return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
+    })))
   handle('source-control-conflict', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.conflict(path, request)))
   handle('source-control-cancel-blame', async (target, root, path) => {

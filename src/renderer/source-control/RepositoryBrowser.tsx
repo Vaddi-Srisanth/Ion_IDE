@@ -15,12 +15,13 @@ const empty: Record<View, string> = {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
-export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus }: {
+export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash }: {
   bridge: SourceControlBridge
   busy: boolean
   perform(task: () => Promise<void>): Promise<void>
   currentBranch?: string
   refreshStatus(): Promise<void>
+  canSnapshotStash: boolean
 }) {
   const [state, setState] = useState<State>()
   const [view, setView] = useState<View>('commits')
@@ -90,6 +91,23 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
+  function saveStashSnapshot() {
+    void perform(async () => {
+      const id = ++request.current
+      setFeedback(undefined)
+      try {
+        const oid = await bridge.saveStashSnapshot()
+        if (!oid || request.current !== id) return
+        await refreshStatus()
+        if (request.current !== id) return
+        await read()
+        setFeedback({ message: 'Saved a local stash snapshot. Your index and working files remain in place.' })
+      } catch (reason) {
+        if (request.current === id) setFeedback({ message: errorMessage(reason), error: true })
+      }
+    })
+  }
+
   function toggle() {
     if (!state) { load(); return }
     request.current++
@@ -116,7 +134,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchPublic }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchPublic, canSnapshotStash, saveStashSnapshot }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -141,9 +159,12 @@ type ComparisonProps = {
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
   switchBranch(selection: SourceControlSwitchRequest): void
   fetchPublic(selection: SourceControlFetchRequest): void
+  canSnapshotStash: boolean
+  saveStashSnapshot(): void
 }
 
-function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchPublic }: ComparisonProps) {
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchPublic,
+  canSnapshotStash, saveStashSnapshot }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
@@ -196,12 +217,16 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
   </section>
 
   const stash = data.stash
-  if (view === 'stash') return stash ? <div className="git-browser-create">
-    <p>Latest stash <code title={stash.oid}>{stash.oid.slice(0, 10)}</code></p>
-    <button className="button" type="button" disabled={!head || busy} onClick={() => compare('stash', 'refs/stash', stash.oid)}>
-      Preview latest stash
+  if (view === 'stash') return <div className="git-browser-create">
+    {stash ? <><p>Latest stash <code title={stash.oid}>{stash.oid.slice(0, 10)}</code></p>
+      <button className="button" type="button" disabled={!head || busy} onClick={() => compare('stash', 'refs/stash', stash.oid)}>
+        Preview latest stash
+      </button></> : <p className="source-control-empty" role="status">{empty.stash}</p>}
+    <p className="source-control-empty">Save a snapshot of tracked staged and working changes. Files stay in place; untracked files are excluded.</p>
+    <button className="button" type="button" disabled={!canSnapshotStash || busy} onClick={saveStashSnapshot}>
+      Save tracked changes to stash…
     </button>
-  </div> : <p className="source-control-empty" role="status">{empty.stash}</p>
+  </div>
 
   const branches = data[view]
   return <>

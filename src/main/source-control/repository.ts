@@ -190,19 +190,23 @@ function plumbingCommand(args: string[], input = ''): boolean {
 }
 
 export async function git(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {}) {
-  if (args[0] === 'status' || args[0] === 'add') {
+  if (args[0] === 'status' || args[0] === 'add' || args[0] === 'stash') {
     if (args[0] === 'add' && (args.length < 4 || args[1] !== '-A' || args[2] !== '--')
       || args[0] === 'status' && args.join(' ') !== 'status --porcelain=v2 -z --branch --untracked-files=all --ignore-submodules=dirty --find-renames=50%') {
       throw new Error('This Git operation is outside Ion Source Control.')
     }
+    if (args[0] === 'stash' && !(args.length === 2 && args[1] === 'create'
+      || args.length === 5 && args[1] === 'store' && args[2] === '-m' && args[3] === 'Ion local snapshot'
+        && objectId.test(args[4]))) throw new Error('This Git stash operation is outside Ion Source Control.')
     return withProjectedRepository(repository, signal, (projected, environment, verifyMetadata) => {
+      if (args[0] === 'stash') return invokeGit(projected, signal, args, options, environment)
       if (args[0] === 'add') return withIndexTransaction(repository.directory, signal, async indexFile => {
         const result = await invokeGit(projected, signal, args, { ...options, indexFile }, environment)
         await verifyMetadata()
         return result
       })
       return invokeGit(projected, signal, args, options, environment)
-    })
+    }, args[0] === 'stash' ? 'stash' : 'workspace')
   }
   if (args[0] === 'blame') {
     const flags = ['--incremental', '--root', '--no-progress', '--no-ext-diff', '--no-textconv', '--ignore-revs-file', '']
@@ -222,7 +226,7 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
 
 async function withProjectedRepository<T>(repository: Repository, signal: AbortSignal,
   run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>,
-  view: 'workspace' | 'committed-history' = 'workspace') {
+  view: 'workspace' | 'committed-history' | 'stash' = 'workspace') {
   const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
   if (!captured.complete) throw new Error('Git returned incomplete configuration.')
   return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>

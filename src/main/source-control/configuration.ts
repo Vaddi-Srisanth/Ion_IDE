@@ -1,4 +1,4 @@
-import { lstat, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { readTextFile, type Repository } from './repository'
@@ -29,7 +29,7 @@ export function* configurationEntries(text: string) {
   }
 }
 
-type View = 'workspace' | 'committed-history'
+type View = 'workspace' | 'committed-history' | 'stash'
 
 function freezeConfiguration(text: string, originalCommon: string, view: View): string {
   const lines: string[] = []
@@ -55,7 +55,7 @@ function freezeConfiguration(text: string, originalCommon: string, view: View): 
   // All includes were resolved against the original repository by the capture.
   // The projected Git process must never read a fresh worktree config.
   lines.push('[extensions]', '\tworktreeConfig = false')
-  if (view === 'workspace') lines.push('[lfs]', '\tstorage = ' + quote(isAbsolute(lfsStorage) ? lfsStorage : resolve(originalCommon, lfsStorage || 'lfs')))
+  if (view !== 'committed-history') lines.push('[lfs]', '\tstorage = ' + quote(isAbsolute(lfsStorage) ? lfsStorage : resolve(originalCommon, lfsStorage || 'lfs')))
   return lines.join('\n') + '\n'
 }
 
@@ -102,8 +102,19 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
     await writeFile(join(common, 'config'), config, { flag: 'wx', mode: 0o600 })
     await linkDirectory(join(originalCommon, 'objects'), join(common, 'objects'), true)
     await linkDirectory(join(originalCommon, 'refs'), join(common, 'refs'), true)
-    if (view === 'workspace') await linkDirectory(join(originalCommon, 'info'), join(common, 'info'))
+    if (view !== 'committed-history') await linkDirectory(join(originalCommon, 'info'), join(common, 'info'))
     else await mkdir(join(common, 'info'))
+    if (view === 'stash') {
+      const logs = join(originalCommon, 'logs')
+      const existing = await lstat(logs).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return undefined
+        throw error
+      })
+      if (!existing) await mkdir(logs, { mode: 0o700 })
+      else if (!existing.isDirectory()) throw new Error('Git reflog storage is not a regular directory.')
+      if (resolve(logs) !== await realpath(logs)) throw new Error('Git reflog storage escapes the repository.')
+      await linkDirectory(logs, join(common, 'logs'), true)
+    }
     const reftable = await lstat(join(originalCommon, 'reftable')).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return undefined
       throw error
@@ -116,7 +127,7 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
       await copyMetadata(join(repository.directory, 'HEAD'), join(selected, 'HEAD'), 8192)
       await writeFile(join(selected, 'commondir'), '../..\n', { flag: 'wx', mode: 0o600 })
       await linkDirectory(join(repository.directory, 'refs'), join(selected, 'refs'))
-      if (view === 'workspace') await linkDirectory(join(repository.directory, 'info'), join(selected, 'info'))
+      if (view !== 'committed-history') await linkDirectory(join(repository.directory, 'info'), join(selected, 'info'))
       else await mkdir(join(selected, 'info'))
       const tables = await lstat(join(repository.directory, 'reftable')).catch((error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return undefined

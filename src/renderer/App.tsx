@@ -210,6 +210,7 @@ export function App() {
       createBranch: (request) => bridge.sourceControl.createBranch(sourceControlRoot, request),
       switchBranch: (request) => bridge.sourceControl.switchBranch(sourceControlRoot, request),
       fetchPublic: (request) => bridge.sourceControl.fetchPublic(sourceControlRoot, request),
+      saveStashSnapshot: () => bridge.sourceControl.saveStashSnapshot(sourceControlRoot),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
       cancelBlame: (path) => bridge.sourceControl.cancelBlame(sourceControlRoot, path),
       blame: (request) => bridge.sourceControl.blame(sourceControlRoot, request),

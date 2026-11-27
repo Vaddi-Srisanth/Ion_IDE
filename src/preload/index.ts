@@ -204,6 +204,7 @@ const bridge: IonBridge = {
     createBranch: (root, request) => ipcRenderer.invoke('ion:source-control-create-branch', root, request),
     switchBranch: (root, request) => ipcRenderer.invoke('ion:source-control-switch-branch', root, request),
     fetchPublic: (root, request) => ipcRenderer.invoke('ion:source-control-fetch-public', root, request),
+    saveStashSnapshot: (root) => ipcRenderer.invoke('ion:source-control-stash-snapshot', root),
     conflict: (root, request) => ipcRenderer.invoke('ion:source-control-conflict', root, request),
     cancelBlame: (root, path) => ipcRenderer.invoke('ion:source-control-cancel-blame', root, path),
     blame: (root, request) => ipcRenderer.invoke('ion:source-control-blame', root, request),
