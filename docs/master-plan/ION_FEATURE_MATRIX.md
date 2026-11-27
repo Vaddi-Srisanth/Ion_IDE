@@ -89,7 +89,7 @@ Status vocabulary is deliberately strict:
 | Offline learning Marketplace | Verified at catalog scope | 19 installable collections and 162 lessons; not complete end-to-end courses for every language. |
 | Learning Lens | Incomplete | Strongest for selected C diagnostics; other languages have reviewed explanations but not equivalent source-linked coverage. |
 | Local learning history | Verified | Encountered/resolved diagnostic events with conservative mastery semantics. |
-| Practice browser | Verified at local scope | Topic/difficulty filtering and 27 bundled challenges. |
+| Practice browser | Verified at local scope | Topic/difficulty filtering, 27 bundled challenges, and two learner-revealed offline hints per original challenge. Failed sample output names the first differing line. |
 | Multi-language local samples | Verified at adapter scope | C/C++/Java/Python/JavaScript adapters with installed runtimes. |
 | Offline practice judge | Verified at built-in catalog scope | Reviewed Local Submit, separate case data and saved verdicts for 27 built-in challenges. Competitive grading and stronger isolation remain open. [Evidence](ION_PHASE_4_PRACTICE.md) |
 | LeetCode account/submission integration | Unsupported | No official integration has been verified; premium login scraping is not acceptable. |
