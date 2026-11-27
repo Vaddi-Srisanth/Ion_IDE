@@ -7,7 +7,7 @@ import { execute } from '../runner'
 import { revision } from '../files'
 import { browseLocalRefs } from './browse'
 import type { SourceControlComparisonRequest } from '../../shared/source-control'
-import { withFrozenConfiguration } from './configuration'
+import { commonGitDirectory, withFrozenConfiguration } from './configuration'
 import { withIndexTransaction } from './index-transaction'
 import { safeGitPath } from './status'
 import { reviewedRemotes } from './remotes'
@@ -209,21 +209,22 @@ export function browseRepository(repository: Repository, signal: AbortSignal) {
   return withProjectedRepository(repository, signal, (projected, environment, _verify, configuration) => browseLocalRefs(async args => {
     signal.throwIfAborted()
     return invokeGit(projected, signal, args, { limit: 128 * 1024, allowTruncation: true }, environment)
-  }, reviewedRemotes(configuration)))
+  }, commonGitDirectory(repository), reviewedRemotes(configuration)))
 }
 
 export async function compareRepository(repository: Repository, signal: AbortSignal, request: SourceControlComparisonRequest) {
   const { compareTrees, verifyComparisonRefs } = await import('./comparison')
+  const common = commonGitDirectory(repository)
   const read = (projected: Repository, environment: NodeJS.ProcessEnv) => (args: string[]) => {
     signal.throwIfAborted()
     const paths = args[0] === 'diff-tree'
     return invokeGit(projected, signal, args, { limit: paths ? 128 * 1024 : 4096, allowTruncation: paths,
       allowNotFound: args[0] === 'merge-base' }, environment)
   }
-  const result = await withProjectedRepository(repository, signal, (projected, env) => compareTrees(request, read(projected, env)))
+  const result = await withProjectedRepository(repository, signal, (projected, env) => compareTrees(request, read(projected, env), common))
   // HEAD and packed-refs are copied into each frozen view. Reopen them after the diff so a concurrent
   // checkout, deletion, repack or stash update cannot be mistaken for the reviewed identities.
-  await withProjectedRepository(repository, signal, (projected, env) => verifyComparisonRefs(request, read(projected, env)))
+  await withProjectedRepository(repository, signal, (projected, env) => verifyComparisonRefs(request, read(projected, env), common))
   return result
 }
 

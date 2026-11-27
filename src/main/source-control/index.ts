@@ -67,7 +67,9 @@ export class SourceControlService {
   private write?: Promise<void>
   private writeController?: AbortController
   private snapshot?: Snapshot
-  private reviewedRefs?: { root: string; head?: string; branches: Map<string, string>; stash?: string }
+  private reviewedRefs?: {
+    root: string; head?: string; branches: Map<string, string>; cachedRemoteBranches: Map<string, string>; stash?: string
+  }
 
   constructor(private readonly runGit: typeof git = git) {}
 
@@ -107,7 +109,10 @@ export class SourceControlService {
       await this.verifyRepository(repository, controller.signal)
       const result = await browseRepository(repository, controller.signal)
       controller.signal.throwIfAborted()
-      this.reviewedRefs = { root, head: result.commits[0]?.oid, branches: new Map(result.branches.map(ref => [ref.name, ref.oid])), stash: result.stash?.oid }
+      this.reviewedRefs = {
+        root, head: result.commits[0]?.oid, branches: new Map(result.branches.map(ref => [ref.name, ref.oid])),
+        cachedRemoteBranches: new Map(result.cachedRemoteBranches.map(ref => [ref.name, ref.oid])), stash: result.stash?.oid,
+      }
       return result
     } finally {
       if (this.read === controller) this.read = undefined
@@ -119,10 +124,14 @@ export class SourceControlService {
     const { repository } = this.requireSnapshot(root)
     const { kind, name, from, to } = requestObject(value)
     const reviewed = this.reviewedRefs
-    if (!reviewed || reviewed.root !== root || (kind !== 'branch' && kind !== 'stash') || typeof name !== 'string'
-      || typeof from !== 'string' || !gitObjectId.test(from) || typeof to !== 'string' || !gitObjectId.test(to) || from !== reviewed.head
-      || (kind === 'stash' ? name !== 'refs/stash' || to !== reviewed.stash : reviewed.branches.get(name) !== to)) {
-      throw new Error('Refresh the repository browser and choose a reviewed branch or stash.')
+    const reviewedTo = typeof name !== 'string' ? undefined
+      : kind === 'branch' ? reviewed?.branches.get(name)
+      : kind === 'cached-remote-branch' ? reviewed?.cachedRemoteBranches.get(name)
+      : kind === 'stash' && name === 'refs/stash' ? reviewed?.stash : undefined
+    if (!reviewed || reviewed.root !== root || (kind !== 'branch' && kind !== 'cached-remote-branch' && kind !== 'stash')
+      || typeof name !== 'string' || typeof from !== 'string' || !gitObjectId.test(from)
+      || typeof to !== 'string' || !gitObjectId.test(to) || from !== reviewed.head || to !== reviewedTo) {
+      throw new Error('Refresh the repository browser and choose a reviewed branch, cached remote branch, or stash.')
     }
     const controller = this.beginRead()
     try {

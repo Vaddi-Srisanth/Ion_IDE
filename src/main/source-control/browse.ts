@@ -1,5 +1,6 @@
 import type { SourceControlBrowse } from '../../shared/source-control'
 import { gitObjectId } from './commit'
+import { browseCachedRemoteBranches } from './remote-branches'
 
 const commitLimit = 50
 const refLimit = 100
@@ -48,7 +49,7 @@ function refs(output: Output) {
 }
 
 /** All revisions, namespaces and format strings are fixed by the application. */
-export async function browseLocalRefs(run: (args: string[]) => Promise<Output>,
+export async function browseLocalRefs(run: (args: string[]) => Promise<Output>, common: string,
   remoteInfo: Pick<SourceControlBrowse, 'remotes' | 'truncated'>): Promise<SourceControlBrowse> {
   const history = commits(await run(['log', '--ignore-missing', '--no-follow', '--no-patch', '--no-ext-diff', '--no-textconv',
     '--no-show-signature', '--no-notes', '--no-decorate', '--no-use-mailmap', '--no-color', '--encoding=UTF-8', '-z',
@@ -56,11 +57,13 @@ export async function browseLocalRefs(run: (args: string[]) => Promise<Output>,
   const list = async (namespace: 'refs/heads/' | 'refs/tags/') => refs(await run(['for-each-ref', '--color=never', '--sort=refname',
     `--count=${refLimit + 1}`, '--format=%(objectname) %(refname:lstrip=2)', namespace]))
   const branches = await list('refs/heads/')
+  const cachedRemoteBranches = await browseCachedRemoteBranches(run, common)
   const tags = await list('refs/tags/')
   const tip = await run(['for-each-ref', '--count=1', '--format=%(refname)%00%(objectname)%00%(objecttype)', 'refs/stash'])
   if (!tip.complete) throw new Error('Git returned incomplete stash metadata.')
   const [name, oid, type] = tip.text.replace(/\r?\n$/, '').split('\0')
   const stash = name === 'refs/stash' && type === 'commit' && gitObjectId.test(oid) ? { oid } : null
-  return { commits: history.rows, branches: branches.rows, tags: tags.rows, stash, remotes: remoteInfo.remotes,
-    truncated: history.truncated || branches.truncated || tags.truncated || remoteInfo.truncated }
+  return { commits: history.rows, branches: branches.rows, cachedRemoteBranches: cachedRemoteBranches.rows,
+    tags: tags.rows, stash, remotes: remoteInfo.remotes,
+    truncated: history.truncated || branches.truncated || cachedRemoteBranches.truncated || tags.truncated || remoteInfo.truncated }
 }

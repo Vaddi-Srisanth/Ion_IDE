@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, type SpawnOptions } from 'node:child_process'
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
@@ -88,6 +88,69 @@ test('a ref removed during a preview of packed refs invalidates the result, incl
   assert.equal(changed, true)
 })
 
+test('cached remote comparison stays offline, preserves local work, and rejects unreviewed refs and a same-OID symbolic race', async t => {
+  const { root, service, git, base } = await fixture(t)
+  const source = join(root, 'source.txt')
+  git('checkout', '-qb', 'topic')
+  await writeFile(source, 'remote change\n')
+  git('add', '--', 'source.txt'); git('commit', '-qm', 'Cached remote revision')
+  const to = git('rev-parse', 'HEAD')
+  git('checkout', '-q', 'main')
+  git('branch', 'origin/topic', base)
+  git('remote', 'add', 'origin', 'https://example.invalid/offline.git')
+  git('update-ref', 'refs/remotes/origin/topic', to)
+  git('update-ref', 'refs/remotes/origin/alias-target', to)
+  git('update-ref', 'refs/remotes/origin/display-\u202edir', to)
+  git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/topic')
+  git('pack-refs', '--all', '--prune')
+  await writeFile(source, 'staged source\n'); git('add', '--', 'source.txt'); await writeFile(source, 'dirty source\n')
+  const index = await readFile(join(root, '.git', 'index'))
+  const request = { kind: 'cached-remote-branch', name: 'origin/topic', from: base, to }
+  await service.status(root)
+  await assert.rejects(service.previewComparison(root, request), /reviewed branch/)
+  const browse = await service.browse(root)
+  assert.deepEqual(browse.cachedRemoteBranches, [
+    { name: 'origin/alias-target', oid: to }, { name: 'origin/topic', oid: to },
+  ])
+  assert.equal(browse.truncated, true)
+  for (const bad of [
+    { name: 'origin/HEAD' }, { name: 'origin/display-\u202edir' }, { name: 'refs/remotes/origin/topic' },
+    { name: 'origin/*' }, { name: 'origin/../topic' }, { to: base }, { from: to }, { kind: 'branch' },
+  ]) await assert.rejects(service.previewComparison(root, { ...request, ...bad }), /reviewed branch/)
+
+  const processes = require('node:child_process') as typeof import('node:child_process')
+  const spawn = processes.spawn
+  let changeDuringPreview = false
+  let raced = false
+  let gitReads = 0
+  t.mock.method(processes, 'spawn', (command: string, args: string[], options: SpawnOptions) => {
+    if (options.cwd === root && args.some(argument => argument.startsWith('--git-dir='))) {
+      gitReads++
+      assert.equal(options.env?.GIT_ALLOW_PROTOCOL, '')
+      assert.equal(options.env?.GIT_NO_LAZY_FETCH, '1')
+      assert.ok(args.every(argument => !['fetch', 'pull', 'push', 'ls-remote'].includes(argument)))
+      if (changeDuringPreview && args.includes('diff-tree')) {
+        git('symbolic-ref', 'refs/remotes/origin/topic', 'refs/remotes/origin/alias-target')
+        raced = true
+      }
+    }
+    return spawn(command, args, options)
+  })
+  assert.deepEqual(await service.previewComparison(root, request), { from: base, to, relation: 'ahead',
+    changes: [{ status: 'M', path: 'source.txt' }], truncated: false, includesUntrackedParent: false })
+  assert.ok(gitReads > 0)
+  git('update-ref', 'refs/remotes/origin/topic', base, to)
+  await assert.rejects(service.previewComparison(root, request), /references changed/)
+  git('update-ref', 'refs/remotes/origin/topic', to, base)
+  changeDuringPreview = true
+  await assert.rejects(service.previewComparison(root, request), /references changed/)
+  assert.equal(raced, true)
+  assert.equal(git('rev-parse', 'refs/remotes/origin/topic'), to)
+  assert.deepEqual(await readFile(join(root, '.git', 'index')), index)
+  assert.equal(await readFile(source, 'utf8'), 'dirty source\n')
+  assert.equal(git('rev-parse', 'HEAD'), base)
+})
+
 test('comparison bounds file rows, omits unsafe names, and rejects a previously displayed HEAD after it moves', async t => {
   const { root, service, git, base } = await fixture(t)
   git('checkout', '-qb', 'path-review')
@@ -108,4 +171,37 @@ test('comparison bounds file rows, omits unsafe names, and rejects a previously 
   assert.equal(many.truncated, true); assert.equal(many.changes.length, 200)
   git('commit', '--allow-empty', '-qm', 'Advance HEAD')
   await assert.rejects(service.previewComparison(root, request), /references changed/)
+})
+
+test('cached remote refs reject metadata paths redirected outside the repository', async t => {
+  const { root, service, git, base } = await fixture(t)
+  const outside = await realpath(await mkdtemp(join(tmpdir(), 'ion-redirected-git-refs-')))
+  t.after(() => rm(outside, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
+  const remote = join(root, '.git', 'refs', 'remotes', 'origin')
+  git('update-ref', 'refs/remotes/origin/topic', base)
+  await service.status(root)
+  const current = [{ name: 'origin/topic', oid: base }]
+  assert.deepEqual((await service.browse(root)).cachedRemoteBranches, current)
+  const request = { kind: 'cached-remote-branch', name: 'origin/topic', from: base, to: base }
+  const directory = join(outside, 'origin')
+  await rename(remote, directory)
+  await symlink(directory, remote, process.platform === 'win32' ? 'junction' : 'dir')
+  // Git resolves the linked metadata to the same object. Ion still refuses the comparison.
+  assert.equal(git('rev-parse', 'refs/remotes/origin/topic'), base)
+  await assert.rejects(service.previewComparison(root, request), /references changed/)
+  const redirected = await service.browse(root)
+  assert.deepEqual(redirected.cachedRemoteBranches, [])
+  assert.equal(redirected.truncated, true)
+
+  if (process.platform !== 'win32') {
+    await rm(remote)
+    await rename(directory, remote)
+    assert.deepEqual((await service.browse(root)).cachedRemoteBranches, current)
+    const leaf = join(remote, 'topic'), linked = join(outside, 'topic')
+    await rename(leaf, linked)
+    await symlink(linked, leaf, 'file')
+    assert.equal(git('rev-parse', 'refs/remotes/origin/topic'), base)
+    await assert.rejects(service.previewComparison(root, request), /references changed/)
+    assert.deepEqual((await service.browse(root)).cachedRemoteBranches, [])
+  }
 })

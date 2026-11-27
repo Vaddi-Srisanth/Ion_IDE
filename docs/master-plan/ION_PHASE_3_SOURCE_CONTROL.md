@@ -37,3 +37,9 @@ New-branch creation checks linked, locked and unborn worktrees. An incomplete re
 ## Native line-history and public-clone checkpoint
 
 Candidate `b7d5eb75289b817c9036fad91ef181924733bb5b` passed 48 of 49 focused backend checks on each hosted platform. The remaining case requires a personal GitHub CLI keyring, which passed locally together with the other 48 cases. Both native jobs cloned a public fixture. Their disposable offline Electron journeys verified the signed-out destination picker and cancellation, attribution for a clean file, changed line coordinates, and editing and Undo after a diff. Closing a pending line-history view cancels its read. The headless renderer also verified stale replies, paging and file/root changes. [macOS ARM64 and Windows x64 verification](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45933464062).
+
+## Compare cached remote branches
+
+Source Control → Browse Repository → Cached remote branches compares HEAD with a previously recorded remote-tracking commit. It labels the result as offline and keeps the cached commit visible during review. The Git service checks both reviewed commit IDs and the exact ref again after reading, omits symbolic and redirected refs, and preserves staged and working files.
+
+On macOS ARM64, 38 focused Git tests passed, along with the headless renderer check and the offline production Electron journey. The focused fixtures cover packed refs, stale and symbolic selections, and preservation of staged and dirty bytes. The cached-branch increment still needs a native Windows run. Fetch, pull, push and changes to working-tree branches remain open.

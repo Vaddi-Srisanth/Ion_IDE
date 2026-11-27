@@ -35,7 +35,8 @@ const fixture = `
       browse: () => new Promise(resolve => {
         window.browseCalls.push(root)
         window.finish.push((subject, remotes=[{name:'origin', repository:'team/demo'}, {name:'mirror',repository:null}], stash={oid:'c'.repeat(40)}) =>
-          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[{name:'topic',oid:'b'.repeat(40)}], tags, remotes, stash, truncated:false }))
+          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[{name:'topic',oid:'b'.repeat(40)}],
+            cachedRemoteBranches:[{name:'origin/topic',oid:'e'.repeat(40)}], tags, remotes, stash, truncated:false }))
       }),
       previewComparison: request => new Promise(resolve => { window.previews.push([root,request]); window.finishPreview.push(resolve) }),
       createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
@@ -214,6 +215,18 @@ try {
   await page.evaluate(() => window.finish.at(-1)('refreshed'))
   await compare.waitFor()
   assert.equal(await region.count(), 0)
+  await view.selectOption('cachedRemoteBranches')
+  const cached = page.getByRole('list', { name: 'Cached remote branches' })
+  await cached.getByText('origin/topic', { exact: true }).waitFor()
+  await page.getByText(/Git refs stored on this computer and run offline/).waitFor()
+  assert.equal(await page.getByRole('button', { name: 'New branch…' }).count(), 0)
+  assert.equal(await page.evaluate(() => window.previews.length), 1)
+  await cached.getByRole('button', { name: 'Compare origin/topic with HEAD' }).click()
+  assert.deepEqual(await page.evaluate(() => window.previews.at(-1)), ['second',
+    { kind: 'cached-remote-branch', name: 'origin/topic', from: head, to: 'e'.repeat(40) }])
+  await finishPreview({ ...branchResult, to: 'e'.repeat(40) })
+  await region.getByText('This branch is ahead of HEAD.').waitFor()
+  await region.getByText(/Git refs stored on this computer and run offline/).waitFor()
   await view.selectOption('stash')
   await stashButton.click()
   assert.deepEqual(await page.evaluate(() => window.previews.at(-1)), ['second', {kind:'stash',name:'refs/stash',from:head,to:stash}])

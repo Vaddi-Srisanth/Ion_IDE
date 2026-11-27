@@ -79,11 +79,17 @@ async function copyMetadata(source: string, destination: string, limit: number):
   if (text !== undefined) await writeFile(destination, text, { flag: 'wx', mode: 0o600 })
 }
 
+export function commonGitDirectory(repository: Repository): string {
+  return relative(join(repository.root, '.git'), repository.directory)
+    ? dirname(dirname(repository.directory))
+    : repository.directory
+}
+
 /** Status, staging and browsing use this view. Ref-changing plumbing uses the original refs. */
 export async function withFrozenConfiguration<T>(repository: Repository, text: string, signal: AbortSignal,
   run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>, view: View = 'workspace'): Promise<T> {
-  const linked = relative(join(repository.root, '.git'), repository.directory) !== ''
-  const originalCommon = linked ? dirname(dirname(repository.directory)) : repository.directory
+  const originalCommon = commonGitDirectory(repository)
+  const linked = originalCommon !== repository.directory
   const config = freezeConfiguration(text, originalCommon, view)
   signal.throwIfAborted()
   const scratch = await mkdtemp(join(tmpdir(), 'ion-git-config-'))

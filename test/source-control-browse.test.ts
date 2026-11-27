@@ -32,7 +32,9 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
   const { root, service, git } = await fixture(t)
   await assert.rejects(service.browse(root), /Refresh/)
   assert.equal((await service.status(root)).kind, 'repository')
-  assert.deepEqual(await service.browse(root), { commits: [], branches: [], tags: [], remotes: [], stash: null, truncated: false })
+  assert.deepEqual(await service.browse(root), {
+    commits: [], branches: [], cachedRemoteBranches: [], tags: [], remotes: [], stash: null, truncated: false,
+  })
   const saved = join(root, 'saved.txt')
   await writeFile(saved, 'original\n')
   git(['add', '--', 'saved.txt'])
@@ -41,6 +43,9 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
   git(['branch', 'feature/é', first])
   git(['tag', 'feature/é', first])
   git(['update-ref', 'refs/remotes/origin/remote-only', first])
+  git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/remote-only'])
+  git(['symbolic-ref', 'refs/remotes/origin/alias', 'refs/remotes/origin/remote-only'])
+  git(['update-ref', 'refs/remotes/origin/blob', git(['rev-parse', 'HEAD:saved.txt'])])
   git(['commit', '-q', '--allow-empty', '-m', 'Second subject'])
   const second = git(['rev-parse', 'HEAD'])
   git(['tag', '-a', 'release', '-m', 'Annotated tag object'])
@@ -59,6 +64,7 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
     commits: [{ oid: second, subject: 'Second subject', author: 'Ion Fixture', time: 1577836800 },
       { oid: first, subject: 'First subject', author: 'Ion Fixture', time: 1577836800 }],
     branches: [{ name: 'feature/é', oid: first }, { name: 'main', oid: second }],
+    cachedRemoteBranches: [{ name: 'origin/remote-only', oid: first }],
     tags: [{ name: 'feature/é', oid: first }, { name: 'release', oid: tagObject }], remotes: [], stash: null, truncated: false,
   })
   assert.deepEqual(await readFile(join(root, '.git', 'index')), index)
@@ -67,6 +73,7 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
   const detached = await service.browse(root)
   assert.deepEqual(detached.commits, result.commits.slice(1))
   assert.deepEqual(detached.branches, result.branches)
+  assert.deepEqual(detached.cachedRemoteBranches, result.cachedRemoteBranches)
   assert.deepEqual(detached.tags, result.tags)
   const linked = join(root, 'linked worktree')
   git(['worktree', 'add', '-q', '--detach', linked, second])
@@ -87,7 +94,7 @@ test('Git browser enforces independent record limits and length limits for displ
   const oid = git(['rev-parse', 'HEAD'])
   const refs = Array.from({ length: 102 }, (_, index) => {
     const name = String(index).padStart(3, '0')
-    return `create refs/heads/branch-${name} ${oid}\ncreate refs/tags/tag-${name} ${oid}\n`
+    return `create refs/heads/branch-${name} ${oid}\ncreate refs/tags/tag-${name} ${oid}\ncreate refs/remotes/origin/topic-${name} ${oid}\n`
   })
   git(['update-ref', '--stdin'], refs.join(''))
   assert.equal((await service.status(root)).kind, 'repository')
@@ -96,6 +103,8 @@ test('Git browser enforces independent record limits and length limits for displ
   assert.equal(result.commits[0].subject, 'x'.repeat(512))
   assert.equal(result.commits[49].subject, 'Commit 2')
   assert.equal(result.branches.length, 100)
+  assert.equal(result.cachedRemoteBranches.length, 100)
+  assert.deepEqual(result.cachedRemoteBranches.at(-1), { name: 'origin/topic-099', oid })
   assert.equal(result.tags.length, 100)
   assert.equal(result.truncated, true)
 })

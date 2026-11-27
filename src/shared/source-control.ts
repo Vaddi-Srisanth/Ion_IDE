@@ -46,7 +46,7 @@ export interface SourceControlBlame {
 }
 
 export interface SourceControlComparisonRequest {
-  kind: 'branch' | 'stash'
+  kind: 'branch' | 'cached-remote-branch' | 'stash'
   name: string
   from: string
   to: string
@@ -64,6 +64,7 @@ export interface SourceControlBrowse {
   stash: { oid: string } | null
   commits: { oid: string; subject: string; author: string; time: number }[]
   branches: { name: string; oid: string }[]
+  cachedRemoteBranches: { name: string; oid: string }[]
   tags: { name: string; oid: string }[]
   remotes: { name: string; repository: string | null }[]
   truncated: boolean

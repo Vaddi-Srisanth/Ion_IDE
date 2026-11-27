@@ -1,5 +1,6 @@
 import type { SourceControlComparison, SourceControlComparisonRequest } from '../../shared/source-control'
 import { gitObjectId } from './commit'
+import { verifyCachedRemoteBranch } from './remote-branches'
 import { safeGitPath } from './status'
 
 export type ComparisonGit = (args: string[]) => Promise<{ text: string; complete: boolean }>
@@ -10,10 +11,12 @@ async function metadata(run: ComparisonGit, args: string[]): Promise<string> {
   return output.text.replace(/\r?\n$/, '')
 }
 
-export async function verifyComparisonRefs(request: SourceControlComparisonRequest, run: ComparisonGit) {
-  const target = request.kind === 'stash' ? 'refs/stash' : 'refs/heads/' + request.name
-  const values = (await metadata(run, ['show-ref', '--verify', '--hash', '--', 'HEAD', target])).split(/\r?\n/)
-  if (values.length !== 2 || values[0] !== request.from || values[1] !== request.to) {
+export async function verifyComparisonRefs(request: SourceControlComparisonRequest, run: ComparisonGit, common: string) {
+  const cached = request.kind === 'cached-remote-branch'
+  const targets = cached ? ['HEAD'] : ['HEAD', request.kind === 'stash' ? 'refs/stash' : 'refs/heads/' + request.name]
+  const values = (await metadata(run, ['show-ref', '--verify', '--hash', '--', ...targets])).split(/\r?\n/)
+  if (values.length !== targets.length || values[0] !== request.from
+    || (cached ? !await verifyCachedRemoteBranch(run, common, request.name, request.to) : values[1] !== request.to)) {
     throw new Error('The selected Git references changed. Refresh the repository browser.')
   }
 }
@@ -34,8 +37,8 @@ function changedPaths(output: { text: string; complete: boolean }) {
   return { changes, truncated }
 }
 
-export async function compareTrees(request: SourceControlComparisonRequest, run: ComparisonGit): Promise<SourceControlComparison> {
-  await verifyComparisonRefs(request, run)
+export async function compareTrees(request: SourceControlComparisonRequest, run: ComparisonGit, common: string): Promise<SourceControlComparison> {
+  await verifyComparisonRefs(request, run, common)
   let { from } = request
   const { to } = request
   let relation: SourceControlComparison['relation'] = 'same'

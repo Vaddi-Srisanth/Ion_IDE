@@ -3,9 +3,15 @@ import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison,
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 
-type View = 'commits' | 'branches' | 'tags' | 'remotes' | 'stash'
-const views: Record<View, string> = { commits: 'Commit history', branches: 'Local branches', tags: 'Tags', remotes: 'Remotes', stash: 'Latest stash' }
-const empty: Record<View, string> = { commits: 'No commits yet.', branches: 'No local branches.', tags: 'No tags.', remotes: 'No remotes.', stash: 'No stash saved.' }
+type View = 'commits' | 'branches' | 'cachedRemoteBranches' | 'tags' | 'remotes' | 'stash'
+const views: Record<View, string> = {
+  commits: 'Commit history', branches: 'Local branches', cachedRemoteBranches: 'Cached remote branches',
+  tags: 'Tags', remotes: 'Remotes', stash: 'Latest stash',
+}
+const empty: Record<View, string> = {
+  commits: 'No commits yet.', branches: 'No local branches.', cachedRemoteBranches: 'No cached remote branches.',
+  tags: 'No tags.', remotes: 'No remotes.', stash: 'No stash saved.',
+}
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
 export default function RepositoryBrowser({ bridge, busy, perform, currentBranch }: {
@@ -83,7 +89,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state && feedback && <p className="source-control-notice" role={feedback.error ? 'alert' : 'status'}>{feedback.message}</p>}
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
-        {view === 'branches' || view === 'stash'
+        {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
           ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
@@ -104,7 +110,7 @@ type Preview = { label: string } & (
   { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; result: SourceControlComparison }
 )
 type ComparisonProps = {
-  view: 'branches' | 'stash'; bridge: SourceControlBridge; data: SourceControlBrowse; busy: boolean; currentBranch?: string
+  view: 'branches' | 'cachedRemoteBranches' | 'stash'; bridge: SourceControlBridge; data: SourceControlBrowse; busy: boolean; currentBranch?: string
   perform(task: () => Promise<void>): Promise<void>
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
 }
@@ -114,6 +120,8 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
   const head = data.commits[0]?.oid
+  const cached = view === 'cachedRemoteBranches'
+  const offlineNote = cached && <p className="source-control-empty">Comparisons use the Git refs stored on this computer and run offline.</p>
   function compare(kind: SourceControlComparisonRequest['kind'], name: string, to: string) {
     if (!head) return
     void perform(async () => {
@@ -136,6 +144,7 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
       </button>
     </div>
     <h3><bdi className="git-browser-name">{preview.label}</bdi></h3>
+    {offlineNote}
     {preview.kind === 'loading' && <p className="source-control-empty" role="status">Comparing revisions…</p>}
     {preview.kind === 'error' && <p className="source-control-notice" role="alert">{preview.message}</p>}
     {preview.kind === 'ready' && <ComparisonResult result={preview.result}/>}
@@ -149,17 +158,19 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
     </button>
   </div> : <p className="source-control-empty" role="status">{empty.stash}</p>
 
+  const branches = data[view]
   return <>
-    <RefForm kind="branch" busy={busy} from={head} create={createRef}/>
-    {data.branches.length ? <ul className="git-browser-list" aria-label={views.branches} tabIndex={0}>
-      {data.branches.map(branch => <li key={branch.name} className="git-browser-ref">
+    {offlineNote}
+    {!cached && <RefForm kind="branch" busy={busy} from={head} create={createRef}/>}
+    {branches.length ? <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
+      {branches.map(branch => <li key={branch.name} className="git-browser-ref">
         <span className="git-browser-name" dir="auto">{branch.name}</span>
-        {branch.name === currentBranch && <small>Current</small>}
+        {!cached && branch.name === currentBranch && <small>Current</small>}
         <code title={branch.oid}>{branch.oid.slice(0, 10)}</code>
         <button type="button" className="button" aria-label={'Compare ' + branch.name + ' with HEAD'} disabled={!head || busy}
-          onClick={() => compare('branch', branch.name, branch.oid)}>Compare</button>
+          onClick={() => compare(cached ? 'cached-remote-branch' : 'branch', branch.name, branch.oid)}>Compare</button>
       </li>)}
-    </ul> : <p className="source-control-empty" role="status">{empty.branches}</p>}
+    </ul> : <p className="source-control-empty" role="status">{empty[view]}</p>}
   </>
 }
 
