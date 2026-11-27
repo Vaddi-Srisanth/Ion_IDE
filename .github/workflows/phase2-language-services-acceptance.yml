@@ -7,6 +7,11 @@ on:
         type: choice
         options: [all, windows]
         default: all
+      gate:
+        description: Acceptance gate (do not repeat an already verified measurement)
+        type: choice
+        options: [functional, matched]
+        default: functional
 permissions:
   contents: read
 concurrency:
@@ -14,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   tasks:
-    name: Native ${{ matrix.os }} build tasks matched baseline
+    name: Native ${{ matrix.os }} build tasks ${{ inputs.gate }}
     strategy:
       fail-fast: false
       matrix:
@@ -48,14 +53,18 @@ jobs:
             npm --version
           } > performance-results/phase2-tasks/identity.log 2>&1
       - name: Prepare exact baseline checkout
+        if: inputs.gate == 'matched'
         run: |
           git worktree add --detach ../ion-tasks-baseline "$ION_TASKS_BASELINE_SHA"
           git -C ../ion-tasks-baseline diff --exit-code
           git -C ../ion-tasks-baseline rev-parse HEAD
-      - name: Install candidate and baseline dependencies
+      - name: Install candidate dependencies
         run: |
           npm ci
           node node_modules/electron/install.js
+      - name: Install baseline dependencies
+        if: inputs.gate == 'matched'
+        run: |
           npm --prefix ../ion-tasks-baseline ci
           node ../ion-tasks-baseline/node_modules/electron/install.js
       - name: Record exact task tool versions
@@ -66,7 +75,7 @@ jobs:
             node -p 'process.execPath'
             npm root -g
           } > performance-results/phase2-tasks/tools.log 2>&1
-      - name: Build exact production candidate and baseline
+      - name: Build exact production candidate
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
           npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
@@ -80,8 +89,21 @@ jobs:
           assert.match(tasks, /ion-task-/);
           assert.doesNotMatch(main, /ion-task-/);
           NODE
-          npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
+      - name: Build baseline
+        if: inputs.gate == 'matched'
+        run: npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
+      - name: Full unit and security suite
+        if: inputs.gate == 'functional'
+        id: unit_tasks
+        continue-on-error: true
+        run: npm test 2>&1 | tee performance-results/phase2-tasks/unit.log
+      - name: Production Electron task journey and resource cleanup
+        if: inputs.gate == 'functional'
+        id: desktop_tasks
+        continue-on-error: true
+        run: node scripts/test-tasks-desktop.mjs 2>&1 | tee performance-results/phase2-tasks/desktop-tasks.log
       - name: Matched unused-task startup, editor and resource comparison
+        if: inputs.gate == 'matched'
         id: matched_tasks
         continue-on-error: true
         run: node scripts/benchmark-tasks-unused-native.mjs ../ion-tasks-baseline/dist dist 2>&1 | tee performance-results/phase2-tasks/matched-unused.log
@@ -89,7 +111,9 @@ jobs:
         if: always()
         env:
           MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
-        run: printf 'matched_result=%s\n' "$MATCHED_RESULT" > performance-results/phase2-tasks/acceptance-result.log
+          UNIT_RESULT: ${{ steps.unit_tasks.outcome }}
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+        run: printf 'matched_result=%s\nunit_result=%s\ndesktop_result=%s\n' "$MATCHED_RESULT" "$UNIT_RESULT" "$DESKTOP_RESULT" > performance-results/phase2-tasks/acceptance-result.log
       - name: Prove immutable source and collect bounded evidence
         if: always()
         run: |
@@ -117,7 +141,16 @@ jobs:
         if: always()
         env:
           MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
-        run: test "$MATCHED_RESULT" = success
+          UNIT_RESULT: ${{ steps.unit_tasks.outcome }}
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+          SELECTED_GATE: ${{ inputs.gate }}
+        run: |
+          if [ "$SELECTED_GATE" = matched ]; then
+            test "$MATCHED_RESULT" = success
+          else
+            test "$UNIT_RESULT" = success
+            test "$DESKTOP_RESULT" = success
+          fi
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
