@@ -2,6 +2,12 @@
 
 Development branch `codex/ion-phase-6-copilot`. The public 0.9.9 installer contains the accepted Phase 2.5 application.
 
+## Current branch verification — 28 November 2026
+
+On application commit `002d3e3`, all focused Source Control suites passed **79/82 tests**, with three opt-in live GitHub/keyring cases skipped. Type checking, the production build, and the disposable production Electron Source Control journey passed on macOS ARM64. `npm run test:git-refresh` also passed after its fixture supplied the GitHub auth-event subscription required by the current panel; a renderer-error assertion now guards this boundary. This is targeted macOS evidence, not native Windows or live-account acceptance. No live push, private transfer, release, update-feed change, or installed-app replacement occurred.
+
+The broader `npm run test:regression` workflow was attempted. Its first pass exposed the stale refresh-fixture contract and stopped there. After that fixture correction, a full-suite retry stalled while running `language-tools-lsp.test.cjs`; that file passes **6/6** alone and **23/23** when paired with the backend suite. The broad runner result remains incomplete with cause unproven; no test timeout or acceptance condition was changed.
+
 ## First checkpoint
 
 | Action in Source Control | Behavior |

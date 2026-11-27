@@ -17,7 +17,7 @@ try {
     await writeFile(entry, `import React,{useState} from 'react';import{createRoot}from'react-dom/client';
       import Panel from ${JSON.stringify(join(result.source, 'src/renderer/source-control/SourceControlPanel.tsx').replaceAll('\\', '/'))};
       let count=0,release;const status=()=>Promise.resolve({kind:'repository',branch:'main',entries:[{path:count++?'new.txt':'old.txt',absolutePath:'/fixture/old.txt',index:'',worktree:'M'}]});
-      const bridge={status,diff:()=>new Promise(resolve=>{release=()=>resolve({})})};
+      const bridge={status,diff:()=>new Promise(resolve=>{release=()=>resolve({})}),onGitHubAuthEvent:()=>()=>{}};
       function App(){const[revision,setRevision]=useState(0);return <><button id="save" onClick={()=>setRevision(r=>r+1)}>Save source</button>
       <button id="release" onClick={()=>release()}>Complete operation</button><Panel bridge={bridge} revision={revision} onClose={()=>{}} onEntries={()=>{}} onDiff={()=>{}} isDirty={()=>false}/></>};
       createRoot(document.querySelector('#root')).render(<App/>);`)
@@ -31,12 +31,18 @@ try {
       args: ['--user-data-dir=' + profile, join(scratch, 'main.cjs')], env: environment })
     try {
       const page = await app.firstWindow()
+      const pageErrors = []
+      page.on('pageerror', error => pageErrors.push(String(error)))
+      page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()) })
       const isolated = await app.evaluate(({ app, BrowserWindow }) => ({ path: app.getPath('userData'),
         hidden: BrowserWindow.getAllWindows().every(window => !window.isVisible() && !window.isFocused()) }))
       assert.equal(await realpath(isolated.path), await realpath(profile))
       assert.equal(isolated.hidden, true, 'The component control must remain hidden and unfocused.')
       result.profileIsolated = true
-      await page.getByTestId('git-open-diff').filter({ hasText: 'old.txt' }).click()
+      const oldDiff = page.getByTestId('git-open-diff').filter({ hasText: 'old.txt' })
+      await oldDiff.waitFor({ timeout: 5000 })
+      await oldDiff.click()
+      assert.deepEqual(pageErrors, [], 'Source Control rendered without bridge or renderer errors.')
       await page.locator('#save').click()
       await page.waitForTimeout(550) // Past the real debounce while diff is pending.
       await page.locator('#release').click()

@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-11-27T19:59:03.395Z",
+  "platform": "darwin",
+  "source": "src/main/notebooks/kernel-service.ts",
+  "sourceSha256": "cddd01878b5034245345e33e1141adc2ef44f9720a47a11034b2b65f1a069312",
+  "injection": "TEST ONLY: spawn targets a fixed harmless Node broker and supervisor acknowledgement is injected. Actual child shutdown and service lifecycle remain real.",
+  "nativeWindowsJobVerification": false,
+  "cases": [
+    {
+      "name": "raw retired promise propagates cleanup failure",
+      "rejected": true,
+      "message": "The notebook process stopped, but descendant cleanup could not be verified.",
+      "explicitStopRejected": true,
+      "actualChildExited": true
+    },
+    {
+      "name": "automatic retirement retains failure after map removal",
+      "rejected": true,
+      "message": "One or more notebook processes could not be verified as fully stopped.",
+      "newOperationsBlocked": true,
+      "pendingOperationsBlocked": true,
+      "actualChildExited": true
+    },
+    {
+      "name": "disposal drains both real children despite one cleanup failure",
+      "rejected": true,
+      "message": "One or more notebook processes could not be verified as fully stopped.",
+      "actualChildrenExited": 2
+    }
+  ],
+  "forcedTeardownCount": 0,
+  "result": "passed-raw-sticky-nested-disposal-regressions",
+  "complete": true,
+  "durationMs": 432.46866700000004,
+  "unhandledRejections": []
+}

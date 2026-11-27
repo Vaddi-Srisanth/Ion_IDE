@@ -1,6 +1,7 @@
 # Ion implementation tracker
 
 Current development: `codex/ion-phase-6-copilot` — Phase 3 core workflow checkpointed locally; continue roadmap work through Phase 10<br>
+Latest Phase 3 targeted verification: current lineage — **79/82 Source Control tests passed; three opt-in live GitHub/keyring cases skipped; macOS typecheck, production build, production Electron journey and Git refresh journey passed. Full regression retry stalled in the LSP suite; exact suite passes in isolation (6/6) and with backend tests (23/23), so broad-runner cause remains unresolved.** No test timeout was changed.<br>
 Latest local Phase 3 checkpoint: `e00dcf9` — reviewed push pins one commit, uses an exact remote OID lease, verifies remote state and compare-and-swap updates the cached ref (**2/2 backend tests, renderer, typecheck and production build pass; no live push; Windows/native dialog qualification deferred to Phase 10**)<br>
 Latest local Phase 4 checkpoint: `ad71777` — offline solved/unsolved practice filters using retained local verdicts (**9/9 focused tests, typecheck and build PASS; production Electron assertions passed but final inspector shutdown timed out; not pushed**)<br>
 Latest local Phase 8 checkpoint: `9b9192b` — lazy offline binary-tree traversal lesson (**macOS targeted checks PASS; not pushed**)<br>
@@ -39,6 +40,10 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 | 8 — Education and DSA coaching | Local checkpoint `9b9192b`; targeted macOS checks pass | Saved local evidence drives next-challenge and topic-focus suggestions; Search, Sorting and Graphs focus opens a matching offline lesson. Lazy lessons cover binary search, BFS, DFS, array-based Dijkstra, top-down merge sort, and four binary-tree traversal orders. Optional Tutor analysis requires selected code and a reviewed online request. General trace infrastructure and broader adaptive learning remain open. [Coaching report](ION_PHASE_8_COACHING.md) |
 | 9 — Extension platform | Declarative pack checkpoint | Learning pack updates show and bind to the reviewed differences. Executable extension isolation remains open. [Learning pack report](ION_PHASE_9_LEARNING_PACKS.md) |
 | 10 — Production hardening | Pending | Full performance, stability, accessibility, security, data safety and exact native qualification. |
+
+### Phase 10 initial audit — 28 November 2026
+
+`npm audit --audit-level=moderate` reported **0 vulnerabilities**. The comprehensive regression workflow is not accepted as passing: a stale Git refresh fixture was corrected and now passes its production journey, while a subsequent full run stalled at the LSP test file. The same LSP file passed its six focused cases and the backend-plus-LSP pair passed 23/23. The notebook nested-disposal check also passed; its [raw receipt](../../remediation/notebook-cleanup-ownership-after.json) records three child-cleanup failures without leaks or unhandled rejections. Preserve the broad-runner stall as unresolved; continue focused gates without increasing deadlines or claiming full-suite completion.
 
 ### Continued development — 27 November 2026
 
