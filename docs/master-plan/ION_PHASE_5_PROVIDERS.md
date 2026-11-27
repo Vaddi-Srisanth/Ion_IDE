@@ -9,3 +9,7 @@ The parser accepts fragmented UTF-8 server-sent events for one assistant choice,
 The production build includes the parser in the on-demand explanation session. It adds no dependency, polling loop, independent process, or ordinary-editor network request. This checkpoint makes no comparative RAM, speed or model-quality claim. [Chat Completions reference](https://developers.openai.com/api/reference/resources/chat)
 
 The focused fixtures use synthetic responses, explicit approval and disposable profiles. They exercise the existing single-response behavior, byte-for-byte opt-in requests, cancellation mid-stream, stale source revisions, split UTF-8 and credentials across deltas, malformed responses and citation bounds. Live provider compatibility and additional provider protocols require separate evidence.
+
+## Stop checkpoint
+
+Candidate `12c223b9c0d24017719bf826a1db480aef1c394e` passed 58 focused tests locally and on hosted macOS ARM64. The macOS disposable production Electron journey passed. Windows reached the desktop journey after the build and focused tests; cancellation was requested when development was paused. Windows desktop acceptance remains open. Provider fixtures stayed offline throughout. [Native run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45934837451)
