@@ -259,15 +259,16 @@ export class SourceControlService {
     })
   }
 
-  fetchPublic(root: string, value: unknown, workspaceRoots: readonly string[], mutations: FileMutations,
+  fetchGitHub(root: string, value: unknown, workspaceRoots: readonly string[], mutations: FileMutations,
     approve: (review: SourceControlFetchRequest, signal: AbortSignal) => Promise<boolean>): Promise<SourceControlFetchResult | null> {
     const { repository } = this.requireSnapshot(root)
     const request = requestObject(value)
-    if (Array.isArray(value) || Object.keys(request).length !== 4
-      || !['repository', 'remote', 'branch', 'previous'].every(key => Object.hasOwn(request, key))) {
+    if (Array.isArray(value) || Object.keys(request).length !== 5
+      || !['repository', 'remote', 'branch', 'previous', 'access'].every(key => Object.hasOwn(request, key))) {
       throw new Error('Choose a reviewed cached branch on a GitHub remote.')
     }
-    const { repository: slug, remote, branch, previous } = request
+    const { repository: slug, remote, branch, previous, access } = request
+    if (access !== 'public' && access !== 'authenticated') throw new Error('Choose public or signed-in GitHub access.')
     const refs = this.reviewedRefs
     if (!refs || refs.root !== root || typeof slug !== 'string' || typeof remote !== 'string'
       || refs.remotes.get(remote) !== slug || typeof branch !== 'string' || typeof previous !== 'string'
@@ -278,7 +279,7 @@ export class SourceControlService {
     if ([...refs.remotes.keys()].some(name => name.length > remote.length && (remote + '/' + branch).startsWith(name + '/'))) {
       throw new Error('This cached Git branch has an ambiguous remote name.')
     }
-    const review = { repository: slug, remote, branch, previous }
+    const review: SourceControlFetchRequest = { repository: slug, remote, branch, previous, access }
     return this.mutate(async signal => {
       const validate = async () => {
         await this.verifyRepository(repository, signal)
@@ -287,8 +288,8 @@ export class SourceControlService {
         }
       }
       if (!await approve(review, signal)) return null
-      const { fetchPublicGitHub } = await import('./remote-fetch')
-      const result = await fetchPublicGitHub(repository, workspaceRoots, review, signal, validate, mutations, this.remoteFetchDependencies)
+      const { fetchGitHubBranch } = await import('./remote-fetch')
+      const result = await fetchGitHubBranch(repository, workspaceRoots, review, signal, validate, mutations, this.remoteFetchDependencies)
       this.reviewedRefs = undefined
       return result
     }, { preserveSnapshot: true })

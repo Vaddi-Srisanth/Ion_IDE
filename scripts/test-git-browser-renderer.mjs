@@ -46,7 +46,7 @@ const fixture = `
       previewComparison: request => new Promise(resolve => { window.previews.push([root,request]); window.finishPreview.push(resolve) }),
       createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
       switchBranch: async request => { window.switchCalls.push([root,request]); state.branch=request.target; return true },
-      fetchPublic: async request => { window.fetchCalls.push([root,request]); return {oid:'f'.repeat(40),changed:true} },
+      fetchGitHub: async request => { window.fetchCalls.push([root,request]); return {oid:'f'.repeat(40),changed:true} },
       conflict: async ({path}) => {
         window.conflictCalls.push([root,path])
         return { path, absolutePath:root+'/'+path, base:'before', ours:'left', theirs:'right' }
@@ -359,11 +359,11 @@ try {
   await view.selectOption('cachedRemoteBranches')
   await page.getByRole('button', {name:'Compare origin/topic with HEAD'}).click()
   await finishPreview({...branchResult,to:'e'.repeat(40),changes:[]})
-  const fetchButton = region.getByRole('button', {name:'Review fetch…'})
+  const fetchButton = region.getByRole('button', {name:'Review public fetch…'})
   const fetchBrowseCount = await page.evaluate(() => window.finish.length)
   await fetchButton.click()
   assert.deepEqual(await page.evaluate(() => window.fetchCalls), [['first',{
-    repository:'team/demo',remote:'origin',branch:'topic',previous:'e'.repeat(40)}]])
+    repository:'team/demo',remote:'origin',branch:'topic',previous:'e'.repeat(40),access:'public'}]])
   await page.waitForFunction(count => window.finish.length > count, fetchBrowseCount)
   await page.evaluate(() => window.finish.at(-1)('fetched repository'))
   await page.getByText('origin/topic advanced to ffffffffff.').waitFor()

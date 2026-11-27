@@ -1746,13 +1746,16 @@ function registerIpc(): void {
       })
       return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
     })))
-  handle('source-control-fetch-public', (target, root, request) =>
-    useSourceControl(target, root, (service, path) => service.fetchPublic(path, request, [...files.rootPaths],
+  handle('source-control-fetch-github', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.fetchGitHub(path, request, [...files.rootPaths],
       safeMutations, async (review, signal) => {
         const answer = await dialog.showMessageBox(target, {
           signal, type: 'question', buttons: ['Cancel', 'Fetch Branch'], cancelId: 0, defaultId: 0,
           message: 'Fetch ' + review.branch + ' from ' + review.repository + '?',
-          detail: 'Contact github.com over anonymous HTTPS and update the local cached ref ' + review.remote + '/' + review.branch
+          detail: (review.access === 'authenticated'
+            ? 'Contact github.com over HTTPS using the signed-in GitHub CLI account. The credential is used only for this fetch subprocess. '
+            : 'Contact github.com over anonymous HTTPS. ')
+            + 'Update the local cached ref ' + review.remote + '/' + review.branch
             + ' from ' + review.previous.slice(0, 12)
             + ' if it can advance. Your active branch, working files and staged changes are preserved.',
         })

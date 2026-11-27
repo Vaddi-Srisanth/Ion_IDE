@@ -17,7 +17,9 @@ const fetchMs = 120_000
 const outputLimit = 64 * 1024
 const packLimit = 256n * 1024n * 1024n
 
-export type RemoteFetchDependencies = { run?: typeof execute; findGit?: typeof resolveGit }
+export type RemoteFetchDependencies = { run?: typeof execute; findGit?: typeof resolveGit;
+  findGh?: (root: string, roots: readonly string[], signal: AbortSignal) => Promise<string>
+  getToken?: (root: string, roots: readonly string[], scratch: string, signal: AbortSignal) => Promise<{ tool: string; token: string }> }
 
 async function checkedDirectory(path: string, prior?: BigIntStats): Promise<BigIntStats> {
   if (!isAbsolute(path) || await realpath(path) !== path) throw new Error('The Git staging folder changed or uses a symbolic link.')
@@ -60,13 +62,14 @@ async function updateRef(repository: Repository, signal: AbortSignal, remote: st
   await git(repository, signal, ['update-ref', '--no-deref', '-m', 'fetch: updated in Ion', ref, oid, previous])
 }
 
-/** Download one public GitHub branch into private staging, then publish only its verified pack and fast-forward ref. */
-export async function fetchPublicGitHub(repository: Repository, workspaceRoots: readonly string[], selection: SourceControlFetchRequest,
+/** Download one reviewed GitHub branch into private staging, then publish only its verified pack and fast-forward ref. */
+export async function fetchGitHubBranch(repository: Repository, workspaceRoots: readonly string[], selection: SourceControlFetchRequest,
   signal: AbortSignal, validate: () => Promise<void>, mutations: Pick<FileMutations, 'move'> = fileMutations(),
   deps: RemoteFetchDependencies = {}): Promise<SourceControlFetchResult> {
   const slug = checkRepository(selection?.repository)
   const { remote, branch, previous } = selection
-  if (typeof remote !== 'string' || !remoteName(remote) || typeof branch !== 'string' || !branchName(branch)
+  if ((selection.access !== 'public' && selection.access !== 'authenticated')
+    || typeof remote !== 'string' || !remoteName(remote) || typeof branch !== 'string' || !branchName(branch)
     || typeof previous !== 'string' || !gitObjectId.test(previous)) throw new Error('Choose a reviewed cached GitHub branch.')
   const canonicalSlug = checkRepository(slug)
   const common = commonGitDirectory(repository)
@@ -82,7 +85,7 @@ export async function fetchPublicGitHub(repository: Repository, workspaceRoots: 
   signal.throwIfAborted()
 
   const temp = await realpath(tmpdir())
-  if (workspaceRoots.some(root => isWithin(root, temp))) throw new Error('Public fetch requires private temporary storage outside all workspaces.')
+  if (workspaceRoots.some(root => isWithin(root, temp))) throw new Error('GitHub fetch requires private temporary storage outside all workspaces.')
   if ((await lstat(temp, { bigint: true })).dev !== packParent.dev) {
     throw new Error('Public fetch requires temporary storage on the same volume as the Git object folder.')
   }
@@ -94,10 +97,20 @@ export async function fetchPublicGitHub(repository: Repository, workspaceRoots: 
     const neutral = join(scratch, 'environment'), template = join(scratch, 'empty-template'), stagingRepo = join(scratch, 'fetch.git')
     await mkdir(neutral, { mode: 0o700 }); await mkdir(template, { mode: 0o700 })
     const tool = await (deps.findGit ?? resolveGit)(neutral, signal)
-    if (!tool) throw new Error('Install Git to fetch a public GitHub branch.')
+    if (!tool) throw new Error('Install Git to fetch a GitHub branch.')
     const binary = await externalGitTool(tool.executable, workspaceRoots)
     const environment: NodeJS.ProcessEnv = await anonymousGitEnvironment(binary, workspaceRoots, neutral, scratch, template)
     const run = deps.run ?? execute
+    if (selection.access === 'authenticated') {
+      const tokenProvider = deps.getToken ?? (async (root, roots, directory, authSignal) => {
+        const { githubToken } = await import('./github')
+        return githubToken(root, roots, directory, authSignal, { run, findGh: deps.findGh })
+      })
+      const { token } = await tokenProvider(repository.root, workspaceRoots, scratch, signal)
+      const authorization = Buffer.from('x-access-token:' + token, 'utf8').toString('base64')
+      Object.assign(environment, { GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: 'http.extraHeader', GIT_CONFIG_VALUE_0: '',
+        GIT_CONFIG_KEY_1: 'http.extraHeader', GIT_CONFIG_VALUE_1: 'Authorization: basic ' + authorization })
+    }
     async function invoke(args: string[], timeoutMs = 8000, limit = outputLimit, input = '', operationSignal = signal) {
       operationSignal.throwIfAborted()
       if (await externalGitTool(binary, workspaceRoots) !== binary) throw new Error('The installed Git changed.')
@@ -110,7 +123,7 @@ export async function fetchPublicGitHub(repository: Repository, workspaceRoots: 
         throw new Error('Git output or process cleanup could not be verified.')
       }
       operationSignal.throwIfAborted()
-      if (result.state === 'timeout') throw new Error('The public fetch timed out.')
+      if (result.state === 'timeout') throw new Error('The GitHub fetch timed out.')
       return result
     }
     async function success(args: string[], timeoutMs = 8000, limit = outputLimit, input = '', operationSignal = signal) {
@@ -136,10 +149,11 @@ export async function fetchPublicGitHub(repository: Repository, workspaceRoots: 
       '-c', 'fetch.unpackLimit=0', '-c', 'transfer.unpackLimit=0', '-c', 'fetch.writeCommitGraph=false',
       '--git-dir=' + stagingRepo, 'fetch', '--quiet', '--atomic', '--no-tags', '--no-recurse-submodules',
       '--no-auto-gc', '--depth=256', '--', url, refspec]
-    // A test may replace only the process runner. Production env permits HTTPS and no credentials.
+    // A test may replace only the process runner. Transport stays HTTPS-only;
+    // authenticated mode adds one scoped Git config header after approval.
     if (environment.GIT_ALLOW_PROTOCOL !== 'https' || environment.GIT_TERMINAL_PROMPT !== '0'
       || environment.GIT_CONFIG_NOSYSTEM !== '1' || environment.GIT_CONFIG_GLOBAL !== (process.platform === 'win32' ? 'NUL' : '/dev/null')) {
-      throw new Error('Anonymous GitHub transport isolation could not be verified.')
+      throw new Error('GitHub transport isolation could not be verified.')
     }
     const receive = new AbortController()
     const cancelReceive = () => receive.abort()

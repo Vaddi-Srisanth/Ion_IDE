@@ -79,11 +79,11 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
-  function fetchPublic(selection: SourceControlFetchRequest) {
+  function fetchGitHub(selection: SourceControlFetchRequest) {
     void perform(async () => {
       const id = request.current
       setFeedback(undefined)
-      const result = await bridge.fetchPublic(selection)
+      const result = await bridge.fetchGitHub(selection)
       if (!result || request.current !== id) return
       setFeedback({ message: selection.remote + '/' + selection.branch
         + (result.changed ? ' advanced to ' + result.oid.slice(0, 10) + '.' : ' is already up to date.') })
@@ -134,7 +134,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchPublic, canSnapshotStash, saveStashSnapshot }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchGitHub, canSnapshotStash, saveStashSnapshot }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -158,12 +158,12 @@ type ComparisonProps = {
   perform(task: () => Promise<void>): Promise<void>
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
   switchBranch(selection: SourceControlSwitchRequest): void
-  fetchPublic(selection: SourceControlFetchRequest): void
+  fetchGitHub(selection: SourceControlFetchRequest): void
   canSnapshotStash: boolean
   saveStashSnapshot(): void
 }
 
-function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchPublic,
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchGitHub,
   canSnapshotStash, saveStashSnapshot }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
@@ -208,10 +208,15 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
             </button></div>
           : <p className="source-control-empty">Ion can switch here when both branches have identical file trees.</p>)}
       {remote?.repository && <div className="git-browser-create">
-        <p>Fetch one public branch from {remote.repository} and update the local cache.</p>
-        <button type="button" className="button" disabled={busy} onClick={() => fetchPublic({
+        <p>Fetch one branch from {remote.repository} and update the local cache.</p>
+        <button type="button" className="button" disabled={busy} onClick={() => fetchGitHub({
           repository: remote.repository!, remote: remote.name, branch: preview.label.slice(remote.name.length + 1), previous: preview.result.to,
-        })}>Review fetch…</button>
+          access: 'public',
+        })}>Review public fetch…</button>
+        <button type="button" className="button" disabled={busy} onClick={() => fetchGitHub({
+          repository: remote.repository!, remote: remote.name, branch: preview.label.slice(remote.name.length + 1), previous: preview.result.to,
+          access: 'authenticated',
+        })}>Review fetch with GitHub account…</button>
       </div>}
     </>}
   </section>

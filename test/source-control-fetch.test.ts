@@ -7,11 +7,12 @@ import test, { type TestContext } from 'node:test'
 import { fileMutations } from '../src/main/file-mutations'
 import { execute } from '../src/main/runner'
 import { SourceControlService } from '../src/main/source-control'
+import type { RemoteFetchDependencies } from '../src/main/source-control/remote-fetch'
 import { resolveGit } from '../src/main/source-control/repository'
 
 const repositorySlug = 'ion-fixture/source-control-test'
 
-async function fixture(t: TestContext, service?: SourceControlService) {
+async function fixture(t: TestContext, service?: SourceControlService, auth: RemoteFetchDependencies = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'ion-fetch-git-')))
   const remote = join(root, 'public.git')
   const publisher = join(root, 'publisher')
@@ -52,6 +53,14 @@ async function fixture(t: TestContext, service?: SourceControlService) {
       for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'GIT_ASKPASS', 'GIT_SSH_COMMAND', 'HTTP_PROXY', 'HTTPS_PROXY']) {
         assert.equal(options.environment[name], undefined)
       }
+      if (options.environment.GIT_CONFIG_COUNT === '2') {
+        assert.equal(options.environment.GIT_CONFIG_KEY_0, 'http.extraHeader')
+        assert.equal(options.environment.GIT_CONFIG_VALUE_0, '')
+        assert.equal(options.environment.GIT_CONFIG_KEY_1, 'http.extraHeader')
+        assert.equal(Buffer.from(options.environment.GIT_CONFIG_VALUE_1!.replace('Authorization: basic ', ''), 'base64').toString(),
+          'x-access-token:fixture-github-token-0123456789')
+        assert.equal(args.some(value => value.includes('fixture-github-token')), false)
+      } else assert.equal(options.environment.GIT_CONFIG_COUNT, undefined)
       assert.ok(args.includes('--depth=256'))
       assert.ok(args.includes('fetch.fsckObjects=true'))
       assert.ok(args.includes('transfer.fsckObjects=true'))
@@ -73,7 +82,7 @@ async function fixture(t: TestContext, service?: SourceControlService) {
     }
     return execute(binary, args, options)
   }
-  const actualService = service ?? new SourceControlService(undefined, { run: fakeNetwork })
+  const actualService = service ?? new SourceControlService(undefined, { run: fakeNetwork, ...auth })
   t.after(async () => { actualService.close(); await actualService.drain(); await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) })
   return { root, serviceRoot, remote, publisher, base, git, service: actualService,
     fetchCount: () => fetches, afterFetch: (operation: () => void) => { afterFetch = operation },
@@ -98,11 +107,11 @@ test('public GitHub fetch publishes a verified fast-forward pack and leaves the 
   assert.equal((await f.service.status(f.serviceRoot)).kind, 'repository')
   const browse = await f.service.browse(f.serviceRoot)
   assert.deepEqual(browse.cachedRemoteBranches, [{ name: 'origin/main', oid: f.base }])
-  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base }
-  assert.equal(await f.service.fetchPublic(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => false), null)
+  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base, access: 'public' as const }
+  assert.equal(await f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => false), null)
   assert.equal(f.fetchCount(), 0)
   assert.equal(f.git(f.serviceRoot, 'rev-parse', 'refs/remotes/origin/main'), f.base)
-  const result = await f.service.fetchPublic(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async review => {
+  const result = await f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async review => {
     assert.deepEqual(review, { ...selection })
     return true
   })
@@ -115,12 +124,39 @@ test('public GitHub fetch publishes a verified fast-forward pack and leaves the 
   assert.equal((await f.service.status(f.serviceRoot)).kind, 'repository')
 })
 
+test('authenticated GitHub fetch keeps the official credential in child environment and leaves worktree data alone', async t => {
+  let approved = false, credentialRequested = false
+  const f = await fixture(t, undefined, { getToken: async (_root, _roots, _scratch, signal) => {
+    assert.equal(approved, true, 'Credential retrieval waits for explicit approval.')
+    assert.equal(signal.aborted, false)
+    credentialRequested = true
+    return { tool: process.execPath, token: 'fixture-github-token-0123456789' }
+  } })
+  const next = await publish(f, 'private remote update\n')
+  const source = join(f.serviceRoot, 'source.txt')
+  await writeFile(source, 'local working copy\n')
+  const index = await readFile(join(f.serviceRoot, '.git', 'index'))
+  await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
+  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base, access: 'authenticated' as const }
+  const result = await f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async review => {
+    assert.deepEqual(review, selection)
+    approved = true
+    return true
+  })
+  assert.equal(credentialRequested, true)
+  assert.deepEqual(result, { oid: next, changed: true })
+  assert.equal(f.git(f.serviceRoot, 'rev-parse', 'refs/remotes/origin/main'), next)
+  assert.deepEqual(await readFile(join(f.serviceRoot, '.git', 'index')), index)
+  assert.equal(await readFile(source, 'utf8'), 'local working copy\n')
+  assert.equal((await f.service.status(f.serviceRoot)).kind, 'repository')
+})
+
 test('public GitHub fetch refuses force-pushes, changed refs and unreviewed remotes without publishing', async t => {
   const f = await fixture(t)
   const next = await publish(f, 'remote first update\n')
   await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
-  const initial = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base }
-  assert.deepEqual(await f.service.fetchPublic(f.serviceRoot, initial, [f.serviceRoot], fileMutations(), async () => true),
+  const initial = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base, access: 'public' as const }
+  assert.deepEqual(await f.service.fetchGitHub(f.serviceRoot, initial, [f.serviceRoot], fileMutations(), async () => true),
     { oid: next, changed: true })
   await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
   const selection = { ...initial, previous: next }
@@ -129,12 +165,12 @@ test('public GitHub fetch refuses force-pushes, changed refs and unreviewed remo
   await writeFile(join(f.publisher, 'source.txt'), 'force-pushed replacement\n')
   f.git(f.publisher, 'add', '--', 'source.txt'); f.git(f.publisher, 'commit', '-qm', 'Replacement')
   f.git(f.publisher, 'push', '--force', 'origin', 'main')
-  await assert.rejects(f.service.fetchPublic(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /not a fast-forward/)
+  await assert.rejects(f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /not a fast-forward/)
   assert.equal(f.git(f.serviceRoot, 'rev-parse', 'refs/remotes/origin/main'), before)
 
   await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
   const bad = { ...selection, repository: 'outside/repository' }
-  assert.throws(() => f.service.fetchPublic(f.serviceRoot, bad, [f.serviceRoot], fileMutations(), async () => true), /Refresh the repository browser/)
+  assert.throws(() => f.service.fetchGitHub(f.serviceRoot, bad, [f.serviceRoot], fileMutations(), async () => true), /Refresh the repository browser/)
   assert.equal(f.fetchCount(), 2)
   assert.equal(next, before)
 })
@@ -144,8 +180,8 @@ test('public fetch rechecks the reviewed cached ref after network I/O and publis
   await publish(f, 'remote update\n')
   await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
   f.afterFetch(() => f.git(f.serviceRoot, 'update-ref', '-d', 'refs/remotes/origin/main'))
-  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base }
-  await assert.rejects(f.service.fetchPublic(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /cached branch or remote changed/)
+  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base, access: 'public' as const }
+  await assert.rejects(f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /cached branch or remote changed/)
   assert.equal(f.fetchCount(), 1)
   assert.equal(f.git(f.serviceRoot, 'for-each-ref', '--format=%(refname)', 'refs/remotes/origin'), '')
   assert.deepEqual(await (await import('node:fs/promises')).readdir(join(f.serviceRoot, '.git', 'objects', 'pack')), [])
@@ -156,8 +192,8 @@ test('public fetch cancels an oversized incoming pack before it reaches the repo
   await publish(f, 'remote update\n')
   await f.service.status(f.serviceRoot); await f.service.browse(f.serviceRoot)
   f.makeOversizedFetch()
-  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base }
-  await assert.rejects(f.service.fetchPublic(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /exceeded Ion’s 256 MiB limit/)
+  const selection = { repository: repositorySlug, remote: 'origin', branch: 'main', previous: f.base, access: 'public' as const }
+  await assert.rejects(f.service.fetchGitHub(f.serviceRoot, selection, [f.serviceRoot], fileMutations(), async () => true), /exceeded Ion’s 256 MiB limit/)
   assert.equal(f.fetchCount(), 1)
   assert.equal(f.git(f.serviceRoot, 'rev-parse', 'refs/remotes/origin/main'), f.base)
   assert.deepEqual(await (await import('node:fs/promises')).readdir(join(f.serviceRoot, '.git', 'objects', 'pack')), [])

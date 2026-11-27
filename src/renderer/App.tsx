@@ -209,7 +209,7 @@ export function App() {
       createTag: (request) => bridge.sourceControl.createTag(sourceControlRoot, request),
       createBranch: (request) => bridge.sourceControl.createBranch(sourceControlRoot, request),
       switchBranch: (request) => bridge.sourceControl.switchBranch(sourceControlRoot, request),
-      fetchPublic: (request) => bridge.sourceControl.fetchPublic(sourceControlRoot, request),
+      fetchGitHub: (request) => bridge.sourceControl.fetchGitHub(sourceControlRoot, request),
       saveStashSnapshot: () => bridge.sourceControl.saveStashSnapshot(sourceControlRoot),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
       cancelBlame: (path) => bridge.sourceControl.cancelBlame(sourceControlRoot, path),

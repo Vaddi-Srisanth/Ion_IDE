@@ -74,6 +74,34 @@ interface Dependencies {
   findGh?: typeof resolveGitHubCli
 }
 
+/** Retrieve a GitHub.com token through the user's official CLI/keyring. Keep it main-process-only. */
+export async function githubToken(root: string, workspaceRoots: readonly string[], scratch: string, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<{ tool: string; token: string }> {
+  const tool = await (dependencies.findGh ?? resolveGitHubCli)(root, workspaceRoots, signal)
+  if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root)
+    || workspaceRoots.some(other => isWithin(other, tool))) throw new Error('The installed GitHub CLI changed. Review the repository again.')
+  const helperPaths = process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin']
+  const systemPaths: string[] = []
+  for (const path of helperPaths) {
+    const canonical = await realpath(path).catch(() => null)
+    if (canonical && workspaceRoots.every(other => !isWithin(other, path) && !isWithin(other, canonical))) systemPaths.push(canonical)
+  }
+  const authEnvironment = { ...envFor(systemPaths, scratch), GH_HOST: 'github.com', GH_PROMPT_DISABLED: '1',
+    GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1' }
+  const auth = await (dependencies.run ?? execute)(tool,
+    ['auth', 'token', '--hostname', 'github.com'],
+    { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: 4096 }, environment: authEnvironment,
+      splitOutput: true, collectOutput: false })
+  signal.throwIfAborted()
+  const token = auth.state === 'exited' && auth.exitCode === 0 && auth.outputComplete !== false
+    && typeof auth.stdout === 'string' && Buffer.byteLength(auth.stdout) <= 4096
+    ? auth.stdout.trim() : ''
+  if (!/^[A-Za-z0-9_=-]{20,4096}$/.test(token)) {
+    throw new Error('Sign in to github.com with gh auth login using your OS credential store.')
+  }
+  return { tool, token }
+}
+
 type ApiRequest = (endpoint: string, filter: string, options?: { textBody?: boolean; method?: 'GET' | 'POST'; input?: string }) => Promise<unknown>
 
 /** GH_CONFIG_DIR isolates endpoints, sockets, aliases and pagers. gh obtains credentials through its configured OS credential flow. */
@@ -81,35 +109,18 @@ async function withGitHubClient<T>(root: string, workspaceRoots: readonly string
   dependencies: Dependencies, read: (get: ApiRequest) => Promise<T>): Promise<T> {
   signal.throwIfAborted()
   if (!isAbsolute(root) || !workspaceRoots.includes(root)) throw new Error('Choose an open workspace root.')
-  const tool = await (dependencies.findGh ?? resolveGitHubCli)(root, workspaceRoots, signal)
   const temp = await realpath(tmpdir())
   if (workspaceRoots.some(other => isWithin(other, temp))) throw new Error('GitHub requires a temporary directory outside the open workspaces.')
   const scratch = await mkdtemp(join(temp, 'ion-gh-read-'))
   try {
-    const helperPaths = process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin']
-    const systemPaths: string[] = []
-    for (const path of helperPaths) {
-      const canonical = await realpath(path).catch(() => null)
-      if (canonical && workspaceRoots.every(other => !isWithin(other, path) && !isWithin(other, canonical))) systemPaths.push(canonical)
-    }
-    if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root)
-      || workspaceRoots.some(other => isWithin(other, tool))) throw new Error('The installed GitHub CLI changed. Review the repository again.')
     // Ask the user's installed gh to retrieve its official credential while it
     // can still see the normal config/keyring. Keep the token in this main-
     // process closure and pass it only to the isolated API subprocess below.
-    const authEnvironment = { ...envFor(systemPaths, scratch), GH_HOST: 'github.com', GH_PROMPT_DISABLED: '1',
-      GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1' }
-    const auth = await (dependencies.run ?? execute)(tool,
-      ['auth', 'token', '--hostname', 'github.com'],
-      { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: 4096 }, environment: authEnvironment,
-        splitOutput: true, collectOutput: false })
-    signal.throwIfAborted()
-    const token = auth.state === 'exited' && auth.exitCode === 0 && auth.outputComplete !== false
-      && typeof auth.stdout === 'string' && Buffer.byteLength(auth.stdout) <= 4096
-      ? auth.stdout.trim() : ''
-    if (!/^[A-Za-z0-9_=-]{20,4096}$/.test(token)) {
-      throw new Error('Sign in to github.com with gh auth login using your OS credential store.')
-    }
+    const { tool, token } = await githubToken(root, workspaceRoots, scratch, signal, dependencies)
+    const helperPaths = process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin']
+    const systemPaths = (await Promise.all(helperPaths.map(async path => ({ path, canonical: await realpath(path).catch(() => null) }))))
+      .filter(({ path, canonical }) => canonical && workspaceRoots.every(other => !isWithin(other, path) && !isWithin(other, canonical)))
+      .map(({ canonical }) => canonical!)
     const environment = { ...envFor(systemPaths, scratch), GH_TOKEN: token, GH_HOST: 'github.com', GH_REPO: 'github.com/' + repository,
       GH_CONFIG_DIR: scratch, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1',
       GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1', GIT_CONFIG_NOSYSTEM: '1',

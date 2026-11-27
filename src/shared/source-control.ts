@@ -89,6 +89,7 @@ export interface SourceControlFetchRequest {
   remote: string
   branch: string
   previous: string
+  access: 'public' | 'authenticated'
 }
 
 export interface SourceControlFetchResult {
@@ -151,7 +152,7 @@ export interface SourceControlBridge {
   createTag(request: { name: string; from: string }): Promise<void>
   createBranch(request: { name: string; from: string }): Promise<void>
   switchBranch(request: SourceControlSwitchRequest): Promise<boolean>
-  fetchPublic(request: SourceControlFetchRequest): Promise<SourceControlFetchResult | null>
+  fetchGitHub(request: SourceControlFetchRequest): Promise<SourceControlFetchResult | null>
   saveStashSnapshot(): Promise<string | null>
   conflict(request: { path: string }): Promise<SourceControlConflict>
   cancelBlame(path: string): Promise<void>

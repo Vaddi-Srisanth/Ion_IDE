@@ -200,7 +200,7 @@ export interface IonBridge {
     createTag(root: string, request: Parameters<SourceControlBridge['createTag']>[0]): Promise<void>
     createBranch(root: string, request: Parameters<SourceControlBridge['createBranch']>[0]): Promise<void>
     switchBranch(root: string, request: Parameters<SourceControlBridge['switchBranch']>[0]): ReturnType<SourceControlBridge['switchBranch']>
-    fetchPublic(root: string, request: Parameters<SourceControlBridge['fetchPublic']>[0]): ReturnType<SourceControlBridge['fetchPublic']>
+    fetchGitHub(root: string, request: Parameters<SourceControlBridge['fetchGitHub']>[0]): ReturnType<SourceControlBridge['fetchGitHub']>
     saveStashSnapshot(root: string): ReturnType<SourceControlBridge['saveStashSnapshot']>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>
     cancelBlame(root: string, path: string): Promise<void>

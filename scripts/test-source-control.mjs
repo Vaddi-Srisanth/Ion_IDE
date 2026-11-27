@@ -231,9 +231,9 @@ await withScratch('git-desktop', async (scratch) => {
     const cachedAfterSwitch = browse.getByRole('list', { name: 'Cached remote branches' })
     await cachedAfterSwitch.getByRole('button', { name: 'Compare origin/main with HEAD' }).click()
     const fetchPreview = browse.getByRole('region', { name: 'Comparison preview' })
-    const fetchButton = fetchPreview.getByRole('button', { name: 'Review fetch…' })
+    const fetchButton = fetchPreview.getByRole('button', { name: 'Review public fetch…' })
     await page.waitForFunction(() => {
-      const button = [...document.querySelectorAll('button')].find(node => node.textContent?.trim() === 'Review fetch…')
+      const button = [...document.querySelectorAll('button')].find(node => node.textContent?.trim() === 'Review public fetch…')
       return Boolean(button && !button.disabled)
     })
     const reviewedDialogCount = await app.evaluate(() => globalThis.ionMessageBoxReviews.length)
