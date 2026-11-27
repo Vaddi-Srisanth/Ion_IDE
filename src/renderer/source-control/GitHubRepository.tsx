@@ -39,13 +39,16 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     }
   }
   async function clone() {
-    if (!overview || busy) return
-    const current = generation.current
+    const selected = repository.trim()
+    if (!selected || busy) return
+    const slug = overview?.repository.toLowerCase() === selected.toLowerCase() ? overview.repository : selected
+    requested.current = true
+    const current = ++generation.current
     setOperation('clone')
     setCloned('')
     setError('')
     try {
-      const path = await bridge.cloneGitHub(overview.repository)
+      const path = await bridge.cloneGitHub(slug)
       if (path && generation.current === current) setCloned(path)
     } catch (reason) {
       if (generation.current === current) setError(reason instanceof Error ? reason.message : 'The clone failed.')
@@ -64,9 +67,15 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     {open && <>
       <form onSubmit={event => { event.preventDefault(); void load() }}>
         <label>GitHub repository<input aria-label="GitHub repository" placeholder="owner/repository" autoComplete="off"
-          spellCheck={false} value={repository} maxLength={140} onChange={event => setRepository(event.target.value)}/></label>
+          spellCheck={false} value={repository} maxLength={140} disabled={busy} onChange={event => {
+            setRepository(event.target.value); setOverview(undefined); setError(''); setCloned('')
+          }}/></label>
         <button className="button" type="submit" disabled={!repository.trim() || busy}>{operation === 'load' ? 'Loading…' : 'Load from GitHub'}</button>
+        <button className="button" type="button" disabled={!repository.trim() || busy} onClick={() => void clone()}>
+          {operation === 'clone' ? 'Cloning…' : 'Clone public repository…'}
+        </button>
       </form>
+      {cloned && <p role="status">Cloned to {cloned}</p>}
       {error && <p role="alert">{error}</p>}
       {overview && <div className="git-hosted-results">
         <button type="button" onClick={() => void openPage('https://github.com/' + overview.repository)}>{overview.repository}</button>
@@ -74,9 +83,6 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
         <button type="button" onClick={() => void openPage('https://github.com/' + overview.repository + '/compare?expand=1')}>
           Prepare pull request on GitHub…
         </button>
-        <button type="button" disabled={busy} onClick={() => void clone()}>{operation === 'clone' ? 'Cloning…' : 'Clone public repository…'}</button>
-        <small>Downloads the latest revision into a new folder.</small>
-        {cloned && <p role="status">Cloned to {cloned}</p>}
         {([['Open pull requests', overview.pullRequests], ['Open issues', overview.issues]] as const).map(([label, items]) =>
           <section aria-label={label} key={label}><h3>{label}</h3>
             {items.length ? <ul>{items.map(item => <li key={item.number}>

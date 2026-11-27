@@ -200,6 +200,8 @@ export interface IonBridge {
     createTag(root: string, request: Parameters<SourceControlBridge['createTag']>[0]): Promise<void>
     createBranch(root: string, request: Parameters<SourceControlBridge['createBranch']>[0]): Promise<void>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>
+    cancelBlame(root: string, path: string): Promise<void>
+    blame(root: string, request: { path: string }): ReturnType<SourceControlBridge['blame']>
     previewComparison(root: string, request: Parameters<SourceControlBridge['previewComparison']>[0]): ReturnType<SourceControlBridge['previewComparison']>
     browse(root: string): ReturnType<SourceControlBridge['browse']>
     github(root: string, repository: string): ReturnType<SourceControlBridge['github']>

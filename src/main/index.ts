@@ -333,7 +333,7 @@ async function activeProjects(target: BrowserWindow) {
   return handlers
 }
 
-let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>>; gitHubPages?: Set<string> } | undefined
+let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>>; gitHubPages?: Set<string>; cloneReview?: symbol } | undefined
 let sourceControlCleanup = Promise.resolve()
 let trustedGitRoot: string | undefined
 
@@ -1725,6 +1725,13 @@ function registerIpc(): void {
     useSourceControl(target, root, (service, path) => service.createBranch(path, request)))
   handle('source-control-conflict', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.conflict(path, request)))
+  handle('source-control-cancel-blame', async (target, root, path) => {
+    const session = sourceControl
+    if (!session || session.root !== root || target !== window) return
+    const service = await session.service
+    if (sourceControl === session) service.cancelBlame(path)
+  })
+  handle('source-control-blame', (target, root, request) => useSourceControl(target, root, (service, path) => service.blame(path, request)))
   handle('source-control-compare', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.previewComparison(path, request)))
   handle('source-control-browse', (target, root) => useSourceControl(target, root, (service, path) => service.browse(path)))
@@ -1742,26 +1749,33 @@ function registerIpc(): void {
   }))
   handle('source-control-github-clone', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
-    const pages = session.gitHubPages
-    if (typeof repository !== 'string' || !pages?.has('https://github.com/' + repository)) {
-      throw new Error('Load this GitHub repository before cloning.')
+    if (session.cloneReview) throw new Error('A clone is already being reviewed or downloaded.')
+    const review = Symbol()
+    session.cloneReview = review
+    try {
+      const { checkRepository } = await import('./source-control/github-repository')
+      const slug = checkRepository(repository)
+      const stillOpen = () => target === window && sourceControl === session && session.cloneReview === review
+        && sourceControlRoot(target, path) === trustedGitRoot
+      if (!stillOpen()) throw new Error('The clone review closed.')
+      const selection = await dialog.showOpenDialog(target, {
+        title: 'Clone ' + slug + ' into a new folder', message: 'Choose a parent folder for a public clone of github.com/' + slug + '.',
+        buttonLabel: 'Clone Here', properties: ['openDirectory', 'createDirectory'],
+      })
+      if (selection.canceled || !selection.filePaths[0]) return null
+      const parent = await realpath(selection.filePaths[0])
+      if (isWithin(await realpath(app.getPath('userData')), parent)) throw new Error('Choose a folder outside the Ion profile.')
+      if (!stillOpen()) throw new Error('The clone review closed. Choose the repository again.')
+      return await service.cloneGitHub(path, slug, parent, [...files.rootPaths], safeMutations)
+    } finally {
+      if (session.cloneReview === review) session.cloneReview = undefined
     }
-    const selection = await dialog.showOpenDialog(target, {
-      title: 'Clone ' + repository + ' into a new folder', buttonLabel: 'Clone Here',
-      properties: ['openDirectory', 'createDirectory'],
-    })
-    if (selection.canceled || !selection.filePaths[0]) return null
-    const parent = await realpath(selection.filePaths[0])
-    if (isWithin(await realpath(app.getPath('userData')), parent)) throw new Error('Choose a folder outside the Ion profile.')
-    if (target !== window || sourceControl !== session || session.gitHubPages !== pages || sourceControlRoot(target, path) !== trustedGitRoot) {
-      throw new Error('The repository review changed. Load the repository again.')
-    }
-    return service.cloneGitHub(path, repository, parent, [...files.rootPaths], safeMutations)
   }))
   handle('source-control-github-close', async (target, root) => {
     const active = sourceControl
     if (!active || target !== window || active.root !== root) return
     active.gitHubPages = undefined
+    active.cloneReview = undefined
     const service = await active.service
     if (sourceControl === active) service.closeGitHub()
   })

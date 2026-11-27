@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { execute } from '../runner'
+import { revision } from '../files'
 import { browseLocalRefs } from './browse'
 import type { SourceControlComparisonRequest } from '../../shared/source-control'
 import { withFrozenConfiguration } from './configuration'
@@ -23,7 +24,7 @@ export function absent(error: unknown): boolean {
 
 export class UnavailableDiff extends Error {}
 
-export async function readTextFile(path: string, maxBytes: number): Promise<string> {
+export async function readTextFile(path: string, maxBytes: number, expectedRevision?: string): Promise<string> {
   const before = await lstat(path)
   if (!before.isFile()) throw new UnavailableDiff('This path is not a regular file.')
   const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0))
@@ -31,6 +32,9 @@ export async function readTextFile(path: string, maxBytes: number): Promise<stri
     const opened = await handle.stat()
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) {
       throw new UnavailableDiff('The file changed before it could be opened.')
+    }
+    if (expectedRevision && (revision(await handle.stat({ bigint: true })) !== expectedRevision || await realpath(path) !== path)) {
+      throw new UnavailableDiff('The selected file changed before inspection.')
     }
     if (opened.size > maxBytes) throw new UnavailableDiff('This file exceeds the text preview limit.')
     const data = Buffer.allocUnsafe(opened.size + 1)
@@ -140,7 +144,9 @@ const objectId = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
 function plumbingCommand(args: string[]): boolean {
   switch (args[0]) {
     case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
-    case 'ls-files': return args.length === 5 && args[1] === '--unmerged' && args[2] === '-z' && args[3] === '--' && safeGitPath(args[4])
+    case 'rev-parse': return args.join(' ') === 'rev-parse --verify HEAD'
+    case 'ls-tree': return args.length === 5 && args[1] === '-z' && objectId.test(args[2]) && args[3] === '--' && safeGitPath(args[4])
+    case 'ls-files': return args.length === 5 && (args[1] === '--unmerged' || args[1] === '--stage') && args[2] === '-z' && args[3] === '--' && safeGitPath(args[4])
     case 'read-tree': return args.length === 2 && (args[1] === '--empty' || objectId.test(args[1]))
     case 'update-index': return args.join(' ') === 'update-index -z --index-info'
       || args.length >= 4 && args[1] === '--force-remove' && args[2] === '--'
@@ -174,6 +180,14 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
       return invokeGit(projected, signal, args, options, environment)
     })
   }
+  if (args[0] === 'blame') {
+    const flags = ['--incremental', '--root', '--no-progress', '--no-ext-diff', '--no-textconv', '--ignore-revs-file', '']
+    if (args.length !== 11 || flags.some((flag, i) => args[i + 1] !== flag)
+      || !objectId.test(args[8]) || args[9] !== '--' || !safeGitPath(args[10])) throw new Error('Invalid committed blame request.')
+    // Blame of a commit needs only the object database. Keep the live tree's .mailmap and attributes out of this read.
+    return withProjectedRepository(repository, signal, (projected, environment) => invokeGit({ ...projected, root: projected.directory },
+      signal, args, options, { ...environment, GIT_ATTR_NOSYSTEM: '1' }), 'committed-history')
+  }
   if (!plumbingCommand(args)) throw new Error('This Git operation is outside Ion Source Control.')
   if (!options.indexFile && ['read-tree', 'update-index', 'restore', 'write-tree'].includes(args[0])) {
     return withIndexTransaction(repository.directory, signal, indexFile =>
@@ -183,11 +197,12 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
 }
 
 async function withProjectedRepository<T>(repository: Repository, signal: AbortSignal,
-  run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>) {
+  run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>,
+  view: 'workspace' | 'committed-history' = 'workspace') {
   const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
   if (!captured.complete) throw new Error('Git returned incomplete configuration.')
   return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>
-    run({ ...repository, directory }, environment, verifyMetadata, captured.text))
+    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view)
 }
 
 export function browseRepository(repository: Repository, signal: AbortSignal) {
@@ -215,7 +230,8 @@ export async function compareRepository(repository: Repository, signal: AbortSig
 async function invokeGit(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {},
   environment: NodeJS.ProcessEnv = {}) {
   const result = await execute(repository.executable, [
-    ...gitOptions, ...(options.indexFile ? ['-c', 'core.splitIndex=false'] : []),
+    ...gitOptions, ...(args[0] === 'blame' ? ['-c', 'mailmap.file=' + (process.platform === 'win32' ? 'NUL' : '/dev/null'),
+      '-c', 'mailmap.blob=', '-c', 'core.attributesFile=' + (process.platform === 'win32' ? 'NUL' : '/dev/null')] : []), ...(options.indexFile ? ['-c', 'core.splitIndex=false'] : []),
     '--git-dir=' + repository.directory, '--work-tree=' + repository.root, ...args,
   ], {
     cwd: repository.root, input: options.input ?? '', signal, timeoutMs: options.timeout ?? 8000,
@@ -241,7 +257,7 @@ async function invokeGit(repository: Repository, signal: AbortSignal, args: stri
   if (result.state === 'timeout') throw new Error('Git took too long. Try again or use a terminal for this repository.')
   if (args[0] === 'show-ref') throw new Error('The selected Git references changed or could not be verified. Refresh the repository browser.')
   // Git diagnostics from repository inspection can quote unredacted configuration values.
-  if (['config', 'status', 'log', 'for-each-ref', 'merge-base', 'rev-list', 'rev-parse', 'diff-tree'].includes(args[0])) throw new Error('Git could not read the repository information.')
+  if (['config', 'status', 'log', 'for-each-ref', 'merge-base', 'rev-list', 'rev-parse', 'diff-tree', 'blame', 'ls-tree', 'ls-files', 'cat-file'].includes(args[0])) throw new Error('Git could not read the repository information.')
   const detail = result.stderr?.trim().slice(0, 360)
   throw new Error(detail || result.detail || 'Git could not complete the operation.')
 }

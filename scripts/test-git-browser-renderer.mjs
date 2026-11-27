@@ -8,6 +8,10 @@ const fixture = `
   import { useState } from 'react'
   import { createRoot } from 'react-dom/client'
   import Panel from './src/renderer/source-control/SourceControlPanel'
+  window.ion = {platform:'darwin'}
+  window.blameCalls = []
+  window.cancelBlames = []
+  window.finishBlame = []
   window.browseCalls = []
   window.conflictCalls = []
   window.githubCalls = []
@@ -17,9 +21,17 @@ const fixture = `
   window.tagCalls = []
   function bridge(root) {
     const tags = []
+    const directory = '/repositories/' + root
     return {
-      status: async () => ({ kind:'repository', root, branch:'main',
-        entries:[{path:'merge.txt',absolutePath:root+'/merge.txt',worktree:'U',index:'U',unmerged:true}] }),
+      status: async () => ({ kind:'repository', root:directory, branch:'main',
+        entries:[{path:'merge.txt',absolutePath:directory+'/merge.txt',worktree:'U',index:'U',unmerged:true},
+          {path:'changed.ts',absolutePath:directory+'/changed.ts',worktree:'M',index:'',unmerged:false},
+          {path:'new.ts',absolutePath:directory+'/new.ts',worktree:'?',index:'',unmerged:false}] }),
+      blame: ({path}) => new Promise((resolve,reject) => {
+        window.blameCalls.push([root,path])
+        window.finishBlame.push({resolve,reject})
+      }),
+      cancelBlame: async path => { window.cancelBlames.push([root,path]) },
       browse: () => new Promise(resolve => {
         window.browseCalls.push(root)
         window.finish.push((subject, remotes=[{name:'origin', repository:'team/demo'}, {name:'mirror',repository:null}], stash={oid:'c'.repeat(40)}) =>
@@ -44,11 +56,15 @@ const fixture = `
   const first = bridge('first'), second = bridge('second')
   function App() {
     const [root, setRoot] = useState('first'), [open, setOpen] = useState(true)
+    const [file, setFile] = useState('/repositories/first/src/clean.ts'), [dirty, setDirty] = useState(false)
+    window.setHistoryFile = setFile
+    window.setHistoryDirty = setDirty
+    window.setFixtureRoot = setRoot
     return <>
       <button onClick={() => setRoot(current => current==='first'?'second':'first')}>Switch workspace</button>
       <button onClick={() => setOpen(true)}>Open panel</button>
-      {open && <Panel key={root} bridge={root==='first'?first:second} onClose={()=>setOpen(false)}
-        onDiff={()=>{throw Error('Conflict requested a two-way diff')}} onEntries={()=>{}} isDirty={()=>false}/>}
+      {open && <Panel key={root} bridge={root==='first'?first:second} activePath={file} onClose={()=>setOpen(false)}
+        onDiff={()=>{throw Error('Conflict requested a two-way diff')}} onEntries={()=>{}} isDirty={path=>dirty && path===file}/>}
     </>
   }
   createRoot(document.querySelector('#root')).render(<App/>)
@@ -70,6 +86,59 @@ try {
   }
   const toggle = page.getByTestId('git-browse')
   await toggle.waitFor()
+  const lineHistory = page.getByRole('button', {name:'Line history',exact:true})
+  const history = page.getByRole('dialog', {name:'Line history'})
+  assert.deepEqual(await page.evaluate(() => window.blameCalls), [])
+  await lineHistory.click()
+  assert.deepEqual(await page.evaluate(() => window.blameCalls), [['first','src/clean.ts']])
+  const report = {path:'src/clean.ts', head:'e'.repeat(40), truncated:true,
+    ranges:Array.from({length:45}, (_, i) => ({start:1+i*2,count:2,oid:'a'.repeat(40),author:'Ada',time:1710000000,subject:'Revision '+i}))}
+  await page.evaluate(result => window.finishBlame[0].resolve(result), report)
+  await history.getByText('Lines 1–2', {exact:true}).waitFor()
+  assert.equal(await history.getByRole('listitem').count(), 40)
+  await history.getByRole('button', {name:'Show more ranges'}).click()
+  await history.getByText('Lines 89–90', {exact:true}).waitFor()
+  await history.getByText('Some committed history is outside the preview limits.').waitFor()
+  assert.equal(await history.locator('time').first().getAttribute('datetime'), '2024-03-09T16:00:00.000Z')
+  await history.getByRole('button', {name:'Done'}).click()
+  assert.deepEqual(await page.evaluate(() => window.cancelBlames), [])
+  await page.evaluate(() => window.setHistoryFile('/repositories/first/changed.ts'))
+  await lineHistory.click()
+  await history.getByText(/Local changes can shift the lines/).waitFor()
+  await page.evaluate(() => window.setHistoryDirty(true))
+  await history.getByText(/Unsaved edits can place these lines elsewhere/).waitFor()
+  await page.keyboard.press('Escape')
+  await history.waitFor({state:'detached'})
+  assert.deepEqual(await page.evaluate(() => window.cancelBlames), [['first','changed.ts']])
+  await lineHistory.click()
+  await page.evaluate(result => {
+    window.finishBlame[2].resolve({...result, path:'changed.ts', ranges:[{...result.ranges[0],subject:'Reopened result'}]})
+    window.finishBlame[1].resolve(result)
+  }, report)
+  await history.getByText('Reopened result').waitFor()
+  assert.equal(await history.getByRole('alert').count(), 0)
+  await history.getByRole('button', {name:'Done'}).click()
+  await lineHistory.click()
+  await page.evaluate(() => window.setHistoryFile('/repositories/first/new.ts'))
+  await history.waitFor({state:'detached'})
+  assert.equal(await lineHistory.count(), 0, 'Known untracked file')
+  await page.evaluate(result => window.finishBlame[3].resolve(result), report)
+  await page.evaluate(() => window.setHistoryFile('/repositories/first-neighbor/src/clean.ts'))
+  assert.equal(await lineHistory.count(), 0, 'Sibling repository with the same prefix')
+  await page.evaluate(() => window.setHistoryFile('/repositories/first/src/clean.ts'))
+  await lineHistory.click()
+  await page.evaluate(() => window.finishBlame[4].reject(new Error('The file changed during blame.')))
+  await history.getByRole('alert').getByText('The file changed during blame.').waitFor()
+  await history.getByRole('button', {name:'Done'}).click()
+  await lineHistory.click()
+  await page.evaluate(() => window.setFixtureRoot('second'))
+  await history.waitFor({state:'detached'})
+  await page.evaluate(result => window.finishBlame[5].resolve(result), report)
+  await page.evaluate(() => { window.setFixtureRoot('first'); window.setHistoryDirty(false) })
+  await lineHistory.waitFor()
+  assert.equal(await history.count(), 0)
+  assert.deepEqual(await page.evaluate(() => window.cancelBlames), [['first','changed.ts'],['first','changed.ts'],['first','src/clean.ts']])
+  console.log('PASS on-demand committed line history, changed coordinates, paging, cancellation and stale responses')
   assert.deepEqual(await page.evaluate(() => window.browseCalls), [])
   assert.deepEqual(await page.evaluate(() => window.conflictCalls), [])
   await toggle.focus()
@@ -114,9 +183,12 @@ try {
   await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
   await hosted.getByLabel('GitHub repository').fill('team/demo')
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [])
+  await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
+  const anonymous = ['clone', 'second', 'team/demo']
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous])
   await hosted.getByRole('button', { name: 'Load from GitHub' }).click()
   await hosted.getByRole('button', { name: '#7 Reviewed issue' }).click()
-  const reviewed = [['load', 'second', 'team/demo'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
+  const reviewed = [anonymous, ['load', 'second', 'team/demo'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
   assert.deepEqual(await page.evaluate(() => window.githubCalls), reviewed)
   await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo']])

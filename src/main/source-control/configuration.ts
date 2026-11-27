@@ -29,10 +29,13 @@ export function* configurationEntries(text: string) {
   }
 }
 
-function freezeConfiguration(text: string, originalCommon: string): string {
+type View = 'workspace' | 'committed-history'
+
+function freezeConfiguration(text: string, originalCommon: string, view: View): string {
   const lines: string[] = []
   let lfsStorage = ''
   for (const { scope, key, section, name, subsection, value } of configurationEntries(text)) {
+    if (view === 'committed-history' && !['core.repositoryformatversion', 'extensions.objectformat', 'extensions.refstorage'].includes(key.toLowerCase())) continue
     if ((scope === 'local' || scope === 'worktree') && /^(?:filter\..*\.(?:clean|process)|lfs\.extension\..*\.(?:clean|smudge)|lfs\.customtransfer\..*\.(?:path|args)|lfs\.standalonetransferagent)$/i.test(key)) {
       throw new Error('This repository configures a local Git filter. Use your terminal if you trust it.')
     }
@@ -52,7 +55,7 @@ function freezeConfiguration(text: string, originalCommon: string): string {
   // All includes were resolved against the original repository by the capture.
   // The projected Git process must never read a fresh worktree config.
   lines.push('[extensions]', '\tworktreeConfig = false')
-  lines.push('[lfs]', '\tstorage = ' + quote(isAbsolute(lfsStorage) ? lfsStorage : resolve(originalCommon, lfsStorage || 'lfs')))
+  if (view === 'workspace') lines.push('[lfs]', '\tstorage = ' + quote(isAbsolute(lfsStorage) ? lfsStorage : resolve(originalCommon, lfsStorage || 'lfs')))
   return lines.join('\n') + '\n'
 }
 
@@ -78,10 +81,10 @@ async function copyMetadata(source: string, destination: string, limit: number):
 
 /** Status, staging and browsing use this view. Ref-changing plumbing uses the original refs. */
 export async function withFrozenConfiguration<T>(repository: Repository, text: string, signal: AbortSignal,
-  run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>): Promise<T> {
+  run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>, view: View = 'workspace'): Promise<T> {
   const linked = relative(join(repository.root, '.git'), repository.directory) !== ''
   const originalCommon = linked ? dirname(dirname(repository.directory)) : repository.directory
-  const config = freezeConfiguration(text, originalCommon)
+  const config = freezeConfiguration(text, originalCommon, view)
   signal.throwIfAborted()
   const scratch = await mkdtemp(join(tmpdir(), 'ion-git-config-'))
   let retained = false
@@ -93,7 +96,8 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
     await writeFile(join(common, 'config'), config, { flag: 'wx', mode: 0o600 })
     await linkDirectory(join(originalCommon, 'objects'), join(common, 'objects'), true)
     await linkDirectory(join(originalCommon, 'refs'), join(common, 'refs'), true)
-    await linkDirectory(join(originalCommon, 'info'), join(common, 'info'))
+    if (view === 'workspace') await linkDirectory(join(originalCommon, 'info'), join(common, 'info'))
+    else await mkdir(join(common, 'info'))
     const reftable = await lstat(join(originalCommon, 'reftable')).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return undefined
       throw error
@@ -106,7 +110,8 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
       await copyMetadata(join(repository.directory, 'HEAD'), join(selected, 'HEAD'), 8192)
       await writeFile(join(selected, 'commondir'), '../..\n', { flag: 'wx', mode: 0o600 })
       await linkDirectory(join(repository.directory, 'refs'), join(selected, 'refs'))
-      await linkDirectory(join(repository.directory, 'info'), join(selected, 'info'))
+      if (view === 'workspace') await linkDirectory(join(repository.directory, 'info'), join(selected, 'info'))
+      else await mkdir(join(selected, 'info'))
       const tables = await lstat(join(repository.directory, 'reftable')).catch((error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return undefined
         throw error

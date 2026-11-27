@@ -1,6 +1,6 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import type { SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
+import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
 import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
@@ -61,6 +61,7 @@ interface Snapshot {
 
 export class SourceControlService {
   private read?: AbortController
+  private activeBlame?: { path: string; controller: AbortController }
   private githubRead?: AbortController
   private clone?: { controller: AbortController; done: Promise<string> }
   private write?: Promise<void>
@@ -184,6 +185,31 @@ export class SourceControlService {
       signal.throwIfAborted()
       await createLocalRef(repository, signal, value, status.head, kind)
     }, { preserveSnapshot: true }) // Creating another ref leaves the reviewed HEAD, index and worktree intact.
+  }
+
+  async blame(root: string, value: unknown): Promise<SourceControlBlame> {
+    const request = requestObject(value)
+    if (Array.isArray(request) || Object.keys(request).length !== 1 || !Object.hasOwn(request, 'path')) throw new Error('Invalid blame request.')
+    const path = requestPath(request.path)
+    if (this.write) throw new Error('Wait for the Git operation to finish.')
+    const { repository, status } = this.requireSnapshot(root)
+    const controller = this.beginRead()
+    this.activeBlame = { path, controller }
+    try {
+      await this.verifyRepository(repository, controller.signal)
+      const { readBlame } = await import('./blame')
+      return await readBlame(repository, path, status.head, controller.signal, this.runGit)
+    } finally {
+      if (this.activeBlame?.controller === controller) this.activeBlame = undefined
+      if (this.read === controller) this.read = undefined
+    }
+  }
+
+  cancelBlame(path: unknown): boolean {
+    const active = this.activeBlame
+    if (!active || active.path !== path || active.controller.signal.aborted) return false
+    active.controller.abort()
+    return true
   }
 
   async conflict(root: string, value: unknown): Promise<SourceControlConflict> {

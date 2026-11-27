@@ -38,6 +38,13 @@ export interface SourceControlConflict {
   theirs: string | null
 }
 
+export interface SourceControlBlame {
+  path: string
+  head: string
+  ranges: { start: number; count: number; oid: string; author: string; time: number; subject: string }[]
+  truncated: boolean
+}
+
 export interface SourceControlComparisonRequest {
   kind: 'branch' | 'stash'
   name: string
@@ -73,6 +80,8 @@ export interface SourceControlBridge {
   createTag(request: { name: string; from: string }): Promise<void>
   createBranch(request: { name: string; from: string }): Promise<void>
   conflict(request: { path: string }): Promise<SourceControlConflict>
+  cancelBlame(path: string): Promise<void>
+  blame(request: { path: string }): Promise<SourceControlBlame>
   previewComparison(request: SourceControlComparisonRequest): Promise<SourceControlComparison>
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>

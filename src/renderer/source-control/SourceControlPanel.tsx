@@ -3,12 +3,15 @@ import type { GitDiffSide, GitStatusCode, SourceControlBridge, SourceControlDiff
   SourceControlStatus } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import { sourceControlPathKey } from '../paths'
 import { GitHubRepository } from './GitHubRepository'
+import type { LineHistoryState } from './LineHistory'
 import RepositoryBrowser from './RepositoryBrowser'
 import './source-control.css'
 
 interface Props {
   bridge: SourceControlBridge
+  activePath?: string
   onClose(): void
   onEntries(entries: SourceControlEntry[]): void
   onDiff(diff: SourceControlDiff): void
@@ -22,8 +25,19 @@ const statusLabels: Record<GitStatusCode, string> = {
 }
 const pageSize = 80
 const ConflictReview = lazy(() => import('./ConflictReview'))
+const LineHistory = lazy(() => import('./LineHistory'))
 
-export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff, isDirty, revision }: Props) {
+function relativeSourcePath(root: string, path: string | undefined) {
+  if (!path) return
+  const prefix = sourceControlPathKey(root).replace(/\/+$/, '') + '/'
+  if (!sourceControlPathKey(path).startsWith(prefix)) return
+  const normalized = window.ion.platform === 'win32' ? path.replaceAll('\\', '/') : path
+  const relative = normalized.split('/').slice(prefix.split('/').length - 1)
+  if (relative.some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')) return
+  return relative.join('/')
+}
+
+export default function SourceControlPanel({ bridge, activePath, onClose, onEntries, onDiff, isDirty, revision }: Props) {
   const [status, setStatus] = useState<SourceControlStatus>()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -87,6 +101,10 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
   }, [revision, bridge, status?.kind])
 
   const repository = status?.kind === 'repository' ? status : undefined
+  const activeRelative = repository && relativeSourcePath(repository.root, activePath)
+  const activeEntry = activeRelative && activePath ? repository?.entries.find(entry => sourceControlPathKey(entry.absolutePath) === sourceControlPathKey(activePath)) : undefined
+  const historyPath = activeEntry && (activeEntry.unmerged || ['A', 'D', 'R', 'C', '?'].includes(activeEntry.index) || ['D', 'R', 'C', '?'].includes(activeEntry.worktree))
+    ? undefined : activeEntry?.path ?? activeRelative
   const staged = repository?.entries.filter(({ index, unmerged }) => index && !unmerged) ?? []
   const working = repository?.entries.filter(({ worktree, unmerged }) => worktree || unmerged) ?? []
   const conflict = repository?.entries.some(({ unmerged }) => unmerged)
@@ -135,6 +153,8 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
         </div>
         <RepositoryBrowser key={'browse:' + repository.root} bridge={bridge} busy={busy} perform={act}
           currentBranch={repository.detached ? undefined : repository.branch}/>
+        {historyPath && activePath && !repository.unborn && <LineHistoryAction key={historyPath} path={historyPath}
+          repository={repository} bridge={bridge} busy={busy} perform={act} dirty={isDirty(activePath)} changed={Boolean(activeEntry)}/>}
         <GitHubRepository key={repository.root} bridge={bridge}/>
         <form className="source-control-commit" onSubmit={(event) => {
           event.preventDefault()
@@ -165,6 +185,62 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
       <ConflictReview key={conflictPath} path={conflictPath} bridge={bridge} onClose={() => setConflictPath(undefined)}/>
     </Suspense>}
   </aside>
+}
+
+function LineHistoryAction({ path, repository, bridge, busy, perform, dirty, changed }: {
+  path: string; repository: SourceControlStatus; bridge: SourceControlBridge; busy: boolean; dirty: boolean; changed: boolean
+  perform(task: () => Promise<void>): Promise<void>
+}) {
+  const [review, setReview] = useState<LineHistoryState>()
+  const finishPending = useRef<(() => void) | undefined>(undefined)
+
+  function cancelPending() {
+    const finish = finishPending.current
+    if (!finish) return
+    finishPending.current = undefined
+    // Release the panel after Git acknowledges cancellation. A late read reply
+    // belongs to the dismissed modal and cannot finish a newer request.
+    void bridge.cancelBlame(path).then(finish, finish)
+  }
+
+  useEffect(() => {
+    setReview(undefined)
+    return cancelPending
+  }, [repository, bridge, path])
+
+  async function read(finish: () => void) {
+    try {
+      const data = await bridge.blame({ path })
+      if (finishPending.current !== finish) return
+      if (sourceControlPathKey(data.path) !== sourceControlPathKey(path)) throw new Error('Git returned line history for a different file.')
+      setReview({ kind: 'ready', data })
+    } catch (reason) {
+      if (finishPending.current === finish) setReview({ kind: 'error', message: errorMessage(reason) })
+    } finally {
+      if (finishPending.current === finish) {
+        finishPending.current = undefined
+        finish()
+      }
+    }
+  }
+
+  function open() {
+    void perform(() => new Promise<void>(finish => {
+      finishPending.current = finish
+      setReview({ kind: 'loading' })
+      void read(finish)
+    }))
+  }
+
+  return <div className="git-line-action">
+    <button type="button" className="button" disabled={busy} aria-haspopup="dialog"
+      title={'Line history at HEAD for ' + path} onClick={open}><Icon name="clock" size={13}/>Line history</button>
+    <span title={path} dir="auto">{path}</span>
+    {review && <Suspense fallback={<p className="source-control-empty" role="status">Opening line history…</p>}>
+      <LineHistory path={path} review={review} dirty={dirty} changed={changed}
+        onClose={() => { cancelPending(); setReview(undefined) }}/>
+    </Suspense>}
+  </div>
 }
 
 function Changes({ title, side, entries, busy, selection, isDirty, review, change }: {

@@ -22,7 +22,7 @@ await withScratch('git-desktop', async (scratch) => {
     await page.context().setOffline(true)
     await stubDialogs(app, { folder: project.directory })
     await openFolder(page, project)
-    await openFromExplorer(page, project.changed, 'changed line')
+    await openFromExplorer(page, project.waiting, 'int main')
     assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(({ name }) => /SourceControl/.test(name))), false)
     await assert.rejects(page.evaluate((root) => window.ion.sourceControl.status(root), other.directory), /Open the repository folder/)
     await page.getByTestId('toggle-source-control').click()
@@ -33,6 +33,15 @@ await withScratch('git-desktop', async (scratch) => {
     assert.equal(await panel.getByTestId('git-branch').count(), 0)
     await stubDialogs(app, { folder: project.directory, allowGit: true })
     await trust.click()
+    const historyButton = panel.getByRole('button', { name: 'Line history', exact: true })
+    const history = page.getByRole('dialog', { name: 'Line history' })
+    await historyButton.click()
+    await history.getByText(basename(project.waiting), { exact: true }).waitFor()
+    const committed = history.getByRole('list', { name: 'Committed line ranges' })
+    await committed.getByText('Fixture baseline', { exact: true }).waitFor()
+    await committed.getByText('Ion Desktop Fixture', { exact: true }).waitFor()
+    await history.getByRole('button', { name: 'Done' }).click()
+    await openFromExplorer(page, project.changed, 'changed line')
     const working = panel.getByTestId('git-working')
     const staged = panel.getByTestId('git-staged')
     const change = (group, path) => group.getByTestId('git-open-diff').and(group.locator(`[data-git-path=${JSON.stringify(path)}]`))
@@ -77,11 +86,54 @@ await withScratch('git-desktop', async (scratch) => {
     assert.equal((await git(project.directory, 'rev-parse', 'refs/tags/reviewed-v1')).trim(), reviewedHead)
     await toggleBrowse.click()
 
+    // Public clone can be reviewed while signed out. Cancel before any network transfer.
+    await app.evaluate(({ dialog }) => {
+      const original = dialog.showOpenDialog
+      const fixture = globalThis.ionClonePickerFixture = { count: 0, title: '', finish: null,
+        restore: () => { dialog.showOpenDialog = original; delete globalThis.ionClonePickerFixture } }
+      fixture.opened = new Promise(resolve => { fixture.observed = resolve })
+      dialog.showOpenDialog = (_window, options) => {
+        fixture.count++
+        fixture.title = options.title
+        fixture.observed()
+        return new Promise(resolve => { fixture.finish = resolve })
+      }
+    })
+    try {
+      await assert.rejects(page.evaluate(root => window.ion.sourceControl.cloneGitHub(root, '../outside'), project.directory), /owner\/name/)
+      assert.equal(await app.evaluate(() => globalThis.ionClonePickerFixture.count), 0)
+      const hosted = panel.getByRole('region', { name: 'GitHub', exact: true })
+      await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
+      await hosted.getByLabel('GitHub repository').fill('octocat/Hello-World')
+      await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
+      const picker = await app.evaluate(async () => {
+        const state = globalThis.ionClonePickerFixture
+        let timer
+        try {
+          await Promise.race([state.opened, new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error('The clone folder picker did not open.')), 8000)
+          })])
+          return { count: state.count, title: state.title }
+        } finally { clearTimeout(timer) }
+      })
+      assert.equal(picker.count, 1)
+      assert.match(picker.title, /octocat\/Hello-World/)
+      await app.evaluate(() => globalThis.ionClonePickerFixture.finish({ canceled: true, filePaths: [] }))
+      await hosted.getByRole('button', { name: 'Clone public repository…' }).waitFor()
+      assert.equal(await hosted.getByText(/Cloned to/).count(), 0)
+      await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
+    } finally { await app.evaluate(() => globalThis.ionClonePickerFixture.restore()) }
+
     const originalEditor = page.getByTestId('editor').locator('.monaco-editor')
     await originalEditor.evaluate(node => { node.dataset.originalEditor = 'true' })
     await originalEditor.locator('.view-line').first().click()
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
     await page.keyboard.insertText(' UNSAVED')
+    await editorShows(page, 'UNSAVED')
+    await historyButton.click()
+    await history.getByText(/Unsaved edits can place these lines elsewhere/).waitFor()
+    await committed.getByText('Lines 1–2', { exact: true }).waitFor()
+    await history.getByRole('button', { name: 'Done' }).click()
     await editorShows(page, 'UNSAVED')
     await change(working, file).click()
     const diff = page.getByTestId('git-diff')

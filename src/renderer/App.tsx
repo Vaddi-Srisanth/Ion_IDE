@@ -209,6 +209,8 @@ export function App() {
       createTag: (request) => bridge.sourceControl.createTag(sourceControlRoot, request),
       createBranch: (request) => bridge.sourceControl.createBranch(sourceControlRoot, request),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
+      cancelBlame: (path) => bridge.sourceControl.cancelBlame(sourceControlRoot, path),
+      blame: (request) => bridge.sourceControl.blame(sourceControlRoot, request),
       previewComparison: (request) => bridge.sourceControl.previewComparison(sourceControlRoot, request),
       browse: () => bridge.sourceControl.browse(sourceControlRoot),
       github: (repository) => bridge.sourceControl.github(sourceControlRoot, repository),
@@ -1692,6 +1694,7 @@ export function App() {
     </aside>;
     return <Suspense fallback={<p className="tree-message" role="status">Opening Source Control…</p>}>
       <SourceControlPanel key={sourceControlRoot} bridge={sourceControlBridge} onClose={closeSourceControl}
+        activePath={!sourceControlDiff && active && !active.viewer && !active.error && active.notebookMode !== 'notebook' ? active.path ?? undefined : undefined}
         onEntries={setSourceControlEntries} onDiff={setSourceControlDiff} isDirty={hasUnsavedSource} revision={treeRevision + sourceWrites}/>
     </Suspense>;
   }
