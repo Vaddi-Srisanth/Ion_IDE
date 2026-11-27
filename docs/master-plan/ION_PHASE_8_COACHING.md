@@ -32,6 +32,12 @@ Practice → Browse adds a fourth lazy, offline algorithm lesson for Dijkstra ov
 
 This uses an array-based minimum selection, not a priority queue: the stated analytical bounds are O(V² + E) time and O(V) auxiliary working space, excluding the graph input. Replay snapshots are identified as UI storage. Targeted macOS browser verification passed for each relaxation and final distance from A, updated distances from C, unreachable nodes from E, lazy loading, offline/no-extra-bridge behavior, 250 px viewport fit, complexity wording, keyboard focus return and zero browser errors. BFS and DFS regressions, type checking and the production build passed. Native Windows verification remains open.
 
+## Merge-sort walkthrough
+
+Practice → Browse now includes a lazy, offline top-down merge-sort lesson. It walks the fixed array `[8, 3, 5, 1]` through recursive splits, singleton base cases, left-before-right calls and sorted merges, ending at `[1, 3, 5, 8]`. It explains O(n log n) time across best, average and worst cases, O(n) merge buffers plus O(log n) recursion stack, and states that bounds are analytical rather than measured. It executes no learner code and sends no requests.
+
+The focused macOS offline browser journey verified all split and merge transitions, the final array, complexity text, lazy chunk loading, no bridge/network activity, narrow viewport fit and keyboard focus return. The BFS regression and type checking passed; the production build passed before this checkpoint. Native Windows verification remains open.
+
 ## Local topic focus signal — 27 November 2026
 
 Local checkpoint: `d471127` on `codex/ion-phase-6-copilot` (not pushed).

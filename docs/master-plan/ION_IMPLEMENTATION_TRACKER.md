@@ -2,7 +2,7 @@
 
 Current development: `codex/ion-phase-6-copilot` — stacked checkpoints through Phase 9, with ongoing Phase 3 source-control and Phase 8 coaching increments<br>
 Latest local Phase 3 checkpoint: `3972156` — on-demand reviewed GitHub issue details with bounded, redacted text (**macOS targeted checks PASS; live read and Windows journey open; not pushed**)<br>
-Latest local Phase 8 checkpoint: `2f0b32c` — lazy offline Dijkstra shortest-path walkthrough (**macOS targeted checks PASS; not pushed**)<br>
+Latest local Phase 8 checkpoint: `ab22cdc` — lazy offline merge-sort walkthrough (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
 Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
 Phase 2.6 Test Explorer: **native acceptance PASS** on `codex/ion-core-excellence-phase-2-tests` at `fee7580cf3a107f54126dff7daa1d0e683a3198d`<br>
@@ -35,7 +35,7 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 | 5 — Provider infrastructure | Native functional checks passed on both platforms. The Windows job was cancelled during post-job cleanup. | One-use approval, cancellation and complete-answer validation. [Provider report](ION_PHASE_5_PROVIDERS.md). |
 | 6 — GitHub Copilot | Signed-out feasibility verified on macOS ARM64 | The official language server initialized and drained in a network-denied disposable profile. Windows and authenticated editor verification remain open. [Copilot report](ION_PHASE_6_COPILOT_FEASIBILITY.md) |
 | 7 — Ion AI experiences | Ask Ion checkpoint | Explicit question or editor excerpt review in Code, with a read-only validated answer. Native macOS fixture passed. Edit and Agent remain open. [Ask Ion report](ION_PHASE_7_ASK_ION.md) |
-| 8 — Education and DSA coaching | Local checkpoint `2f0b32c`; targeted macOS checks pass | Saved local evidence drives next-challenge and topic-focus suggestions. Lazy offline lessons cover binary search, BFS, DFS and array-based Dijkstra; each states its assumptions and analytical time/space bounds. Optional Tutor analysis requires selected code and a reviewed online request. General trace infrastructure and adaptive learning remain open. [Coaching report](ION_PHASE_8_COACHING.md) |
+| 8 — Education and DSA coaching | Local checkpoint `ab22cdc`; targeted macOS checks pass | Saved local evidence drives next-challenge and topic-focus suggestions. Lazy offline lessons cover binary search, BFS, DFS, array-based Dijkstra and top-down merge sort; each states assumptions and analytical time/space bounds. Optional Tutor analysis requires selected code and a reviewed online request. General trace infrastructure and adaptive learning remain open. [Coaching report](ION_PHASE_8_COACHING.md) |
 | 9 — Extension platform | Declarative pack checkpoint | Learning pack updates show and bind to the reviewed differences. Executable extension isolation remains open. [Learning pack report](ION_PHASE_9_LEARNING_PACKS.md) |
 | 10 — Production hardening | Pending | Full performance, stability, accessibility, security, data safety and exact native qualification. |
 
