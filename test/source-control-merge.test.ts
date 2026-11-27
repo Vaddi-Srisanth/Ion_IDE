@@ -29,14 +29,15 @@ async function prepare(root: string, service: SourceControlService) {
   await service.browse(root)
 }
 
-test('reviewed branch merge is explicit, keeps HEAD until a merge commit, and refuses dirty editors', async t => {
+test('pull from a reviewed cached remote branch is explicit, keeps HEAD until commit, and refuses dirty editors', async t => {
   const { root, service, git, base, source } = await fixture(t)
   git('checkout', '-qb', 'topic')
   await writeFile(join(root, 'topic.txt'), 'topic\n'); git('add', '--', 'topic.txt'); git('commit', '-qm', 'Topic')
   const topic = git('rev-parse', 'HEAD')
+  git('update-ref', 'refs/remotes/origin/topic', topic)
   git('checkout', '-q', 'main')
   await prepare(root, service)
-  const request = { current: 'main', target: 'topic', from: base, to: topic, dirtyPaths: [] }
+  const request = { current: 'main', target: 'origin/topic', from: base, to: topic, targetKind: 'cached-remote' as const, dirtyPaths: [] }
   assert.throws(() => service.mergeBranch(root, { ...request, dirtyPaths: [source] }, async () => { throw new Error('must not prompt') }),
     /Save or close modified editor files before merging a branch/)
   assert.equal(await service.mergeBranch(root, request, async () => false), null)
@@ -45,7 +46,7 @@ test('reviewed branch merge is explicit, keeps HEAD until a merge commit, and re
   await prepare(root, service)
   await writeFile(join(root, '.git', 'ORIG_HEAD'), 'f'.repeat(40) + '\n')
   assert.deepEqual(await service.mergeBranch(root, request, async review => {
-    assert.deepEqual(review, { current: 'main', target: 'topic', from: base, to: topic, dirtyPaths: [] })
+    assert.deepEqual(review, { current: 'main', target: 'origin/topic', from: base, to: topic, targetKind: 'cached-remote', dirtyPaths: [] })
     return true
   }), { applied: true, conflicts: false })
   assert.equal(git('rev-parse', 'HEAD'), base)
@@ -68,7 +69,7 @@ test('reviewed merge conflicts remain visible and an external merge driver is re
   await writeFile(source, 'main edit\n'); git('add', '--', 'source.txt'); git('commit', '-qm', 'Main edit')
   const head = git('rev-parse', 'HEAD')
   await prepare(root, service)
-  const request = { current: 'main', target: 'topic', from: head, to: topic, dirtyPaths: [] }
+  const request = { current: 'main', target: 'topic', from: head, to: topic, targetKind: 'local' as const, dirtyPaths: [] }
   assert.deepEqual(await service.mergeBranch(root, request, async () => true), { applied: true, conflicts: true })
   assert.equal(git('rev-parse', 'HEAD'), head)
   assert.equal(git('rev-parse', 'MERGE_HEAD'), topic)
@@ -90,6 +91,6 @@ test('reviewed merge conflicts remain visible and an external merge driver is re
   other.git('config', 'merge.untrusted.driver', 'touch /tmp/ion-should-not-run')
   await other.service.status(other.root); await other.service.browse(other.root)
   await assert.rejects(other.service.mergeBranch(other.root,
-    { current: 'main', target: 'topic', from: other.base, to: target, dirtyPaths: [] }, async () => true), /external merge driver/)
+    { current: 'main', target: 'topic', from: other.base, to: target, targetKind: 'local', dirtyPaths: [] }, async () => true), /external merge driver/)
   assert.equal(other.git('rev-parse', 'HEAD'), other.base)
 })

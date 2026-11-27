@@ -1751,8 +1751,9 @@ function registerIpc(): void {
     useSourceControl(target, root, (service, path) => service.mergeBranch(path, request, async (review, signal) => {
       const answer = await dialog.showMessageBox(target, {
         signal, type: 'warning', buttons: ['Cancel', 'Merge Branch'], cancelId: 0, defaultId: 0,
-        message: 'Merge ' + review.target + ' into ' + review.current + '?',
-        detail: 'Ion will apply the reviewed commit ' + review.to.slice(0, 12) + ' without creating a commit. '
+        message: (review.targetKind === 'cached-remote' ? 'Pull ' : 'Merge ') + review.target + ' into ' + review.current + '?',
+        detail: 'Ion will apply the reviewed ' + (review.targetKind === 'cached-remote' ? 'cached remote ' : '')
+          + 'commit ' + review.to.slice(0, 12) + ' without creating a commit. '
           + 'Review and commit the staged result in Source Control. Conflicts remain in the working tree for resolution. '
           + 'No remote is contacted.',
       })

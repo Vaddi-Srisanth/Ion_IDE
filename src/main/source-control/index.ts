@@ -288,28 +288,30 @@ export class SourceControlService {
     approve: (review: SourceControlMergeRequest, signal: AbortSignal) => Promise<boolean>): Promise<{ applied: boolean; conflicts: boolean } | null> {
     const { repository, status } = this.requireSnapshot(root)
     const request = requestObject(value)
-    if (Array.isArray(value) || Object.keys(request).length !== 5
-      || !['current', 'target', 'from', 'to', 'dirtyPaths'].every(key => Object.hasOwn(request, key))) {
+    if (Array.isArray(value) || Object.keys(request).length !== 6
+      || !['current', 'target', 'from', 'to', 'targetKind', 'dirtyPaths'].every(key => Object.hasOwn(request, key))) {
       throw new Error('Choose a reviewed local branch to merge.')
     }
-    const { current, target, from, to, dirtyPaths } = request
+    const { current, target, from, to, targetKind, dirtyPaths } = request
     const refs = this.reviewedRefs
     if (!refs || refs.root !== root || status.detached || status.unborn || status.truncated || status.entries.size
       || typeof current !== 'string' || current !== status.branch || typeof from !== 'string' || from !== status.head
       || !gitObjectId.test(from) || from !== refs.head || typeof target !== 'string' || target === current
-      || typeof to !== 'string' || !gitObjectId.test(to) || refs.branches.get(target) !== to
+      || (targetKind !== 'local' && targetKind !== 'cached-remote')
+      || typeof to !== 'string' || !gitObjectId.test(to) || (targetKind === 'local'
+        ? refs.branches.get(target) !== to : refs.cachedRemoteBranches.get(target) !== to)
       || !Array.isArray(dirtyPaths) || dirtyPaths.length > 512
       || dirtyPaths.some(path => typeof path !== 'string' || !isAbsolute(path) || !inside(repository.root, path))) {
       throw new Error('Refresh and choose a reviewed branch in a clean repository.')
     }
     if (dirtyPaths.length) throw new Error('Save or close modified editor files before merging a branch.')
-    const review = { current, target, from, to, dirtyPaths: [] }
+    const review: SourceControlMergeRequest = { current, target, from, to, targetKind, dirtyPaths: [] }
     return this.mutate(async signal => {
       await this.verifyRepository(repository, signal)
       const before = await statusOf(repository, signal)
       const browser = await browseRepository(repository, signal)
       if (before.head !== from || before.branch !== current || before.truncated || before.entries.size
-        || browser.branches.find(branch => branch.name === target)?.oid !== to) {
+        || (targetKind === 'local' ? browser.branches : browser.cachedRemoteBranches).find(branch => branch.name === target)?.oid !== to) {
         throw new Error('The repository or selected branch changed. Refresh and review again.')
       }
       for (const name of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer', 'BISECT_START']) {
@@ -324,7 +326,7 @@ export class SourceControlService {
       const currentStatus = await statusOf(repository, signal)
       const currentBrowser = await browseRepository(repository, signal)
       if (currentStatus.head !== from || currentStatus.branch !== current || currentStatus.truncated || currentStatus.entries.size
-        || currentBrowser.branches.find(branch => branch.name === target)?.oid !== to) {
+        || (targetKind === 'local' ? currentBrowser.branches : currentBrowser.cachedRemoteBranches).find(branch => branch.name === target)?.oid !== to) {
         throw new Error('The repository or selected branch changed during review. Refresh and try again.')
       }
       await git(repository, signal, ['merge', '--no-commit', '--no-ff', '--no-edit', '--no-progress', '--no-stat', '--strategy=ort', to],

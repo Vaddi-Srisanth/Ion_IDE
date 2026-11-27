@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison, SourceControlComparisonRequest,
-  SourceControlFetchRequest, SourceControlSwitchRequest } from '../../shared/source-control'
+  SourceControlFetchRequest, SourceControlMergeRequest, SourceControlSwitchRequest } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 
@@ -138,7 +138,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
-  function mergeBranch(selection: { current: string; target: string; from: string; to: string }) {
+  function mergeBranch(selection: Omit<SourceControlMergeRequest, 'dirtyPaths'>) {
     void perform(async () => {
       const id = ++request.current
       setFeedback(undefined)
@@ -213,7 +213,7 @@ type ComparisonProps = {
   createRef(kind: 'branch' | 'tag', name: string, from: string): void
   switchBranch(selection: SourceControlSwitchRequest): void
   fetchGitHub(selection: SourceControlFetchRequest): void
-  mergeBranch(selection: { current: string; target: string; from: string; to: string }): void
+  mergeBranch(selection: Omit<SourceControlMergeRequest, 'dirtyPaths'>): void
   canSnapshotStash: boolean
   canPopStash: boolean
   canMergeBranch: boolean
@@ -265,13 +265,14 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
               Review switch…
             </button></div>
           : <p className="source-control-empty">Ion can switch here when both branches have identical file trees.</p>)}
-      {view === 'branches' && currentBranch && currentBranch !== preview.label
+      {(view === 'branches' || view === 'cachedRemoteBranches') && currentBranch && currentBranch !== preview.label
         && (preview.result.relation === 'ahead' || preview.result.relation === 'diverged') && (
         <div className="git-browser-create">
-          <p>Merge applies the selected branch to your current branch without creating a commit. Review the staged result before committing.</p>
+          <p>{cached ? 'Pull applies this already fetched remote commit to your current branch.' : 'Merge applies the selected branch to your current branch.'} Review the staged result before committing; conflicts remain available to resolve in Source Control.</p>
           <button type="button" className="button" disabled={!canMergeBranch || busy}
-            onClick={() => mergeBranch({ current: currentBranch, target: preview.label, from: preview.result.from, to: preview.result.to })}>
-            Review merge…
+            onClick={() => mergeBranch({ current: currentBranch, target: preview.label, from: preview.result.from, to: preview.result.to,
+              targetKind: cached ? 'cached-remote' : 'local' })}>
+            {cached ? 'Review pull…' : 'Review merge…'}
           </button>
         </div>)}
       {remote?.repository && <div className="git-browser-create">

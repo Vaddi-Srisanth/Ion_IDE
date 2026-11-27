@@ -106,7 +106,7 @@ export interface SourceControlFetchResult {
 
 export interface SourceControlStashPopResult { applied: boolean; conflicts: boolean }
 export interface SourceControlStashPopRequest { oid: string; dirtyPaths: string[] }
-export interface SourceControlMergeRequest extends SourceControlSwitchRequest { dirtyPaths: string[] }
+export interface SourceControlMergeRequest extends SourceControlSwitchRequest { targetKind: 'local' | 'cached-remote'; dirtyPaths: string[] }
 export interface SourceControlMergeResult { applied: boolean; conflicts: boolean }
 
 export interface SourceControlGitHubPullRequestRequest {
