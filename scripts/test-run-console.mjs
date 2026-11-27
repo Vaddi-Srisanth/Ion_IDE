@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, mkdir, openFolder, openFromExplorer,
   resourceSnapshot, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
+import { windowsProcessTree } from './windows/process-tree.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' },
@@ -18,6 +19,14 @@ const output = '[data-testid="output"]'
 const terminalRows = '[data-testid="run-console-terminal"] .xterm-rows > div'
 const terminal = (page) => page.getByTestId('run-console-input')
 const timeout = 20_000
+
+async function runningProcessKinds(session) {
+  if (process.platform === 'win32') {
+    const snapshot = await windowsProcessTree(session)
+    return snapshot.members.map(({ kind }) => kind)
+  }
+  return (await resourceSnapshot(session)).processes
+}
 
 function terminalText(page, marker) {
   return page.waitForFunction(({ selector, marker }) => {
@@ -227,7 +236,7 @@ int main(void) {
     })
     await stubDialogs(app, { folder: project.directory, allowRun: true })
     await openFolder(page, project)
-    assert.deepEqual((await resourceSnapshot(session)).processes.filter((kind) => kind === 'child'), [],
+    assert.deepEqual((await runningProcessKinds(session)).filter((kind) => kind === 'child'), [],
       'No native terminal helper runs before a program starts')
 
     const matrix = [
@@ -272,7 +281,7 @@ int main(void) {
       await openFromExplorer(page, path(failureFile), failureSource)
       await page.getByTestId('run').click()
       await finished(page, status, diagnostic)
-      assert.deepEqual((await resourceSnapshot(session)).processes.filter((kind) => kind === 'child'), [],
+      assert.deepEqual((await runningProcessKinds(session)).filter((kind) => kind === 'child'), [],
         `${language} left a compiler, program, or PTY helper running.`)
       console.log(`PASS ${language} output, Rerun twice, interactive input, Stop and reaping, errors, and a Unicode folder path with spaces`)
     }
@@ -299,7 +308,7 @@ int main(void) {
     await page.getByTestId('run-console-stop').click()
     await finished(page, 'cancelled', 'ION-NORMAL-SCREEN')
     assert.doesNotMatch(await page.getByTestId('run-console-terminal').innerText(), /ION-ALTERNATE-SCREEN/)
-    assert.deepEqual((await resourceSnapshot(session)).processes.filter((kind) => kind === 'child'), [],
+      assert.deepEqual((await runningProcessKinds(session)).filter((kind) => kind === 'child'), [],
       'No program, compiler or PTY helper remains after repeated runs and Stop')
     console.log('PASS Stop on an infinite loop, alternate-screen restore, and process cleanup')
 

@@ -1,0 +1,54 @@
+name: Phase 10 Windows Run Console repro
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ion-phase-6-copilot]
+    paths:
+      - '.github/workflows/phase10-run-console-windows.yml'
+      - 'scripts/test-run-console.mjs'
+      - 'scripts/windows/process-tree.mjs'
+      - 'scripts/process-family.mjs'
+      - 'src/main/run-console/**'
+      - 'test/run-plans.test.ts'
+permissions:
+  contents: read
+jobs:
+  run-console:
+    name: Production Run Console on Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5
+        with:
+          distribution: temurin
+          java-version: '25.0.1+8'
+      - name: Build the unpackaged candidate
+        env:
+          EXPECTED_PLATFORM: win32
+          EXPECTED_ARCH: x64
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node -e "const a=require('node:assert/strict');a.equal(process.platform,process.env.EXPECTED_PLATFORM);a.equal(process.arch,process.env.EXPECTED_ARCH)"
+          npm ci
+          node node_modules/electron/install.js
+          npm run typecheck
+          npm run build
+      - name: Verify run planning rules
+        run: node scripts/test.mjs run-plans
+      - name: Exercise the production Run Console journey
+        if: ${{ !cancelled() }}
+        env:
+          ION_SHOW_TEST_WINDOWS: '0'
+        run: node scripts/test-run-console.mjs --target dist
+      - name: Verify tracked files
+        run: git diff --exit-code HEAD
