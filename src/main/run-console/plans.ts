@@ -33,6 +33,13 @@ export interface RunPlan {
 
 export class MissingToolchainError extends Error {}
 
+export function javaCompilerArgumentFile(args: readonly string[]): string {
+  if (!args.length || args.some((argument) => argument.includes('\0') || argument.includes('\r') || argument.includes('\n'))) {
+    throw new Error('Java compiler arguments cannot be represented safely in an argument file.')
+  }
+  return args.map((argument) => '"' + argument.replaceAll('\\', '\\\\').replaceAll('"', '\\"') + '"').join('\n') + '\n'
+}
+
 const systemPath = ['/usr/bin', '/bin', '/usr/sbin', '/sbin']
 const installedPaths = ['/opt/homebrew/bin', '/usr/local/bin']
 const windows = process.platform === 'win32'
@@ -426,12 +433,18 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
   const classes = join(scratch, 'classes')
   await mkdir(classes, { mode: 0o700 })
   const libraries = await jarPaths([cwd, sources, dirname(path)])
+  const compilerArgs = ['-encoding', 'UTF-8', '-proc:none', '-d', classes, '-classpath', classpath([classes, ...libraries]),
+    '-sourcepath', classpath([sources]), path]
+  const compileArgs = windows ? ['@ion-javac-arguments.txt'] : compilerArgs
+  const compileCwd = windows ? scratch : cwd
+  if (windows) {
+    await writeFile(join(scratch, 'ion-javac-arguments.txt'), javaCompilerArgumentFile(compilerArgs),
+      { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+  }
   return {
     ...base, toolchain: tools.javac,
     compile: {
-      executable: tools.javac, environment: javaEnv,
-      args: ['-encoding', 'UTF-8', '-proc:none', '-d', classes, '-classpath', classpath([classes, ...libraries]),
-        '-sourcepath', classpath([sources]), path],
+      executable: tools.javac, environment: javaEnv, cwd: compileCwd, args: compileArgs,
     },
     run: java([classes, ...libraries], filenameClass),
     resolveRun: launch([classes], libraries),

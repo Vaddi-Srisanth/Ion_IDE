@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { promisify } from 'node:util'
-import { MissingToolchainError, prepareRun, type CommandPlan } from '../src/main/run-console/plans'
+import { javaCompilerArgumentFile, MissingToolchainError, prepareRun, type CommandPlan } from '../src/main/run-console/plans'
 import { InteractiveRunner } from '../src/main/run-console/engine'
 import { installedWindowsJavaBuild } from '../src/main/run-console/windows-java-build'
 import { runLanguage } from '../src/shared/run-console'
@@ -34,6 +34,12 @@ test('detects runnable extensions without routing browser documents to Node', ()
   assert.equal(runLanguage('example.python'), 'python')
   assert.equal(runLanguage('example.mjs'), 'javascript')
   assert.equal(runLanguage('index.html'), undefined)
+})
+
+test('Java compiler argument files preserve Unicode and escaped Windows paths', () => {
+  assert.equal(javaCompilerArgumentFile(['-sourcepath', 'C:\\study lab\\λ\\src', 'quoted"name.java']),
+    '"-sourcepath"\n"C:\\\\study lab\\\\λ\\\\src"\n"quoted\\"name.java"\n')
+  assert.throws(() => javaCompilerArgumentFile(['bad\nargument']), /cannot be represented safely/)
 })
 
 test('reports missing runtimes with actionable installation instructions', { skip: process.platform === 'win32' }, async (t) => {
