@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { execute } from '../runner'
 import { browseLocalRefs } from './browse'
+import type { SourceControlComparisonRequest } from '../../shared/source-control'
 import { withFrozenConfiguration } from './configuration'
 import { withIndexTransaction } from './index-transaction'
 import { safeGitPath } from './status'
@@ -150,7 +151,9 @@ function plumbingCommand(args: string[]): boolean {
       && (args.length === 5 || args[2] === '-p' && objectId.test(args[3]))
     case 'symbolic-ref': return args.join(' ') === 'symbolic-ref --quiet --no-recurse HEAD'
     case 'update-ref': return args.length === 7 && args[1] === '--no-deref' && args[2] === '-m'
-      && args[4].startsWith('refs/heads/') && objectId.test(args[5]) && objectId.test(args[6])
+      && objectId.test(args[5]) && objectId.test(args[6])
+      && (args[4].startsWith('refs/heads/') || args[4].startsWith('refs/tags/')
+        && args[3] === 'tag: created in Ion' && args[6] === '0'.repeat(args[5].length))
     default: return false
   }
 }
@@ -193,6 +196,21 @@ export function browseRepository(repository: Repository, signal: AbortSignal) {
   }, reviewedRemotes(configuration)))
 }
 
+export async function compareRepository(repository: Repository, signal: AbortSignal, request: SourceControlComparisonRequest) {
+  const { compareTrees, verifyComparisonRefs } = await import('./comparison')
+  const read = (projected: Repository, environment: NodeJS.ProcessEnv) => (args: string[]) => {
+    signal.throwIfAborted()
+    const paths = args[0] === 'diff-tree'
+    return invokeGit(projected, signal, args, { limit: paths ? 128 * 1024 : 4096, allowTruncation: paths,
+      allowNotFound: args[0] === 'merge-base' }, environment)
+  }
+  const result = await withProjectedRepository(repository, signal, (projected, env) => compareTrees(request, read(projected, env)))
+  // HEAD and packed-refs are copied into each frozen view. Reopen them after the diff so a concurrent
+  // checkout, deletion, repack or stash update cannot be mistaken for the reviewed identities.
+  await withProjectedRepository(repository, signal, (projected, env) => verifyComparisonRefs(request, read(projected, env)))
+  return result
+}
+
 async function invokeGit(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {},
   environment: NodeJS.ProcessEnv = {}) {
   const result = await execute(repository.executable, [
@@ -216,8 +234,9 @@ async function invokeGit(repository: Repository, signal: AbortSignal, args: stri
     return { text: result.stdout ?? '', complete: result.outputComplete !== false }
   }
   if (result.state === 'timeout') throw new Error('Git took too long. Try again or use a terminal for this repository.')
+  if (args[0] === 'show-ref') throw new Error('The selected Git references changed or could not be verified. Refresh the repository browser.')
   // Git diagnostics from repository inspection can quote unredacted configuration values.
-  if (['config', 'status', 'log', 'for-each-ref'].includes(args[0])) throw new Error('Git could not read the repository information.')
+  if (['config', 'status', 'log', 'for-each-ref', 'merge-base', 'rev-list', 'rev-parse', 'diff-tree'].includes(args[0])) throw new Error('Git could not read the repository information.')
   const detail = result.stderr?.trim().slice(0, 360)
   throw new Error(detail || result.detail || 'Git could not complete the operation.')
 }

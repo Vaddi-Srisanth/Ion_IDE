@@ -206,8 +206,10 @@ export function App() {
     if (!sourceControlRoot) return;
     return {
       status: () => bridge.sourceControl.status(sourceControlRoot),
+      createTag: (request) => bridge.sourceControl.createTag(sourceControlRoot, request),
       createBranch: (request) => bridge.sourceControl.createBranch(sourceControlRoot, request),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
+      previewComparison: (request) => bridge.sourceControl.previewComparison(sourceControlRoot, request),
       browse: () => bridge.sourceControl.browse(sourceControlRoot),
       github: (repository) => bridge.sourceControl.github(sourceControlRoot, repository),
       cloneGitHub: (repository) => bridge.sourceControl.cloneGitHub(sourceControlRoot, repository),

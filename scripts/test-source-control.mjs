@@ -66,6 +66,15 @@ await withScratch('git-desktop', async (scratch) => {
     assert.equal((await git(project.directory, 'rev-parse', 'refs/heads/feature/fixture')).trim(), reviewedHead)
     assert.equal((await git(project.directory, 'symbolic-ref', '--short', 'HEAD')).trim(), 'main')
     assert.equal(await browse.getByLabel('Branch name').count(), 0)
+    await browse.getByRole('button', { name: 'Compare feature/fixture with HEAD' }).click()
+    await browse.getByText('This branch points to the same commit as HEAD.', { exact: true }).waitFor()
+    await view.selectOption('tags')
+    await browse.getByRole('button', { name: 'Create lightweight tag…', exact: true }).click()
+    await browse.getByLabel('Tag name').fill('reviewed-v1')
+    await browse.getByRole('button', { name: 'Create lightweight tag', exact: true }).click()
+    await browse.getByRole('list', { name: 'Tags' }).getByText('reviewed-v1').waitFor()
+    assert.equal((await git(project.directory, 'cat-file', '-t', 'refs/tags/reviewed-v1')).trim(), 'commit')
+    assert.equal((await git(project.directory, 'rev-parse', 'refs/tags/reviewed-v1')).trim(), reviewedHead)
     await toggleBrowse.click()
 
     const originalEditor = page.getByTestId('editor').locator('.monaco-editor')
@@ -79,6 +88,12 @@ await withScratch('git-desktop', async (scratch) => {
     await diff.locator('.monaco-diff-editor').waitFor()
     await diff.getByText(/unsaved/i).waitFor()
     const sides = diff.locator('.monaco-diff-editor .view-lines')
+    // Monaco inserts its containers before the next render produces visible lines.
+    // Observe both saved versions at the existing desktop deadline.
+    await page.waitForFunction(() => {
+      const sides = document.querySelectorAll('[data-testid="git-diff"] .monaco-diff-editor .view-lines')
+      return sides.length === 2 && /second\sline/.test(sides[0].innerText) && /changed\sline/.test(sides[1].innerText)
+    }, undefined, { timeout: 8000 })
     assert.match(await sides.first().innerText(), /second\sline/)
     assert.match(await sides.last().innerText(), /changed\sline/)
     assert.doesNotMatch(await sides.last().innerText(), /UNSAVED/)

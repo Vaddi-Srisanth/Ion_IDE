@@ -1,11 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { SourceControlBridge, SourceControlBrowse } from '../../shared/source-control'
+import type { SourceControlBridge, SourceControlBrowse, SourceControlComparison, SourceControlComparisonRequest } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
 
-type View = 'commits' | 'branches' | 'tags' | 'remotes'
-const views: Record<View, string> = { commits: 'Commit history', branches: 'Local branches', tags: 'Tags', remotes: 'Remotes' }
-const empty: Record<View, string> = { commits: 'No commits yet.', branches: 'No local branches.', tags: 'No tags.', remotes: 'No remotes.' }
+type View = 'commits' | 'branches' | 'tags' | 'remotes' | 'stash'
+const views: Record<View, string> = { commits: 'Commit history', branches: 'Local branches', tags: 'Tags', remotes: 'Remotes', stash: 'Latest stash' }
+const empty: Record<View, string> = { commits: 'No commits yet.', branches: 'No local branches.', tags: 'No tags.', remotes: 'No remotes.', stash: 'No stash saved.' }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
 export default function RepositoryBrowser({ bridge, busy, perform, currentBranch }: {
@@ -42,14 +42,15 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     void perform(read)
   }
 
-  function createBranch(name: string, from: string) {
+  function createRef(kind: 'branch' | 'tag', name: string, from: string) {
     void perform(async () => {
       const id = request.current
       setFeedback(undefined)
       try {
-        await bridge.createBranch({ name, from })
+        if (kind === 'branch') await bridge.createBranch({ name, from })
+        else await bridge.createTag({ name, from })
         if (id !== request.current) return
-        setFeedback({ message: 'Created local branch ' + name + '.' })
+        setFeedback({ message: 'Created ' + (kind === 'branch' ? 'local branch ' : 'lightweight tag ') + name + '.' })
         await read()
       } catch (reason) {
         if (id === request.current) setFeedback({ message: errorMessage(reason), error: true })
@@ -81,13 +82,14 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'error' && <p className="source-control-notice" role="alert">{state.message}</p>}
       {state && feedback && <p className="source-control-notice" role={feedback.error ? 'alert' : 'status'}>{feedback.message}</p>}
       {state?.kind === 'ready' && <>
-        {view === 'branches' && <BranchForm key={state.revision} busy={busy} from={state.data.commits[0]?.oid} create={createBranch}/>}
-        {!state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
+        {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
+        {view === 'branches' || view === 'stash'
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef }} data={state.data}/>
+          : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
               {state.data[view].map(ref => <li key={ref.name} className="git-browser-ref">
                 <span className="git-browser-name" dir="auto">{ref.name}</span>
-                {view === 'branches' && ref.name === currentBranch && <small>Current</small>}
                 {'oid' in ref ? <code title={ref.oid}>{ref.oid.slice(0, 10)}</code>
                   : ref.repository && <span className="git-browser-remote-repo" dir="ltr">{ref.repository}</span>}
               </li>)}
@@ -98,25 +100,116 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
   </section>
 }
 
-function BranchForm({ busy, from, create }: { busy: boolean; from?: string; create(name: string, from: string): void }) {
+type Preview = { label: string } & (
+  { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; result: SourceControlComparison }
+)
+type ComparisonProps = {
+  view: 'branches' | 'stash'; bridge: SourceControlBridge; data: SourceControlBrowse; busy: boolean; currentBranch?: string
+  perform(task: () => Promise<void>): Promise<void>
+  createRef(kind: 'branch' | 'tag', name: string, from: string): void
+}
+
+function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef }: ComparisonProps) {
+  const [preview, setPreview] = useState<Preview>()
+  const request = useRef(0)
+  useEffect(() => () => { request.current++ }, [bridge])
+  const head = data.commits[0]?.oid
+  function compare(kind: SourceControlComparisonRequest['kind'], name: string, to: string) {
+    if (!head) return
+    void perform(async () => {
+      const id = ++request.current
+      const label = kind === 'stash' ? views.stash : name
+      setPreview({ kind: 'loading', label })
+      try {
+        const result = await bridge.previewComparison({ kind, name, from: head, to })
+        if (id === request.current) setPreview({ kind: 'ready', label, result })
+      } catch (reason) {
+        if (id === request.current) setPreview({ kind: 'error', label, message: errorMessage(reason) })
+      }
+    })
+  }
+
+  if (preview) return <section className="source-control-group" aria-label="Comparison preview">
+    <div className="git-browser-create">
+      <button type="button" className="button" onClick={() => { request.current++; setPreview(undefined) }}>
+        Close preview
+      </button>
+    </div>
+    <h3><bdi className="git-browser-name">{preview.label}</bdi></h3>
+    {preview.kind === 'loading' && <p className="source-control-empty" role="status">Comparing revisions…</p>}
+    {preview.kind === 'error' && <p className="source-control-notice" role="alert">{preview.message}</p>}
+    {preview.kind === 'ready' && <ComparisonResult result={preview.result}/>}
+  </section>
+
+  const stash = data.stash
+  if (view === 'stash') return stash ? <div className="git-browser-create">
+    <p>Latest stash <code title={stash.oid}>{stash.oid.slice(0, 10)}</code></p>
+    <button className="button" type="button" disabled={!head || busy} onClick={() => compare('stash', 'refs/stash', stash.oid)}>
+      Preview latest stash
+    </button>
+  </div> : <p className="source-control-empty" role="status">{empty.stash}</p>
+
+  return <>
+    <RefForm kind="branch" busy={busy} from={head} create={createRef}/>
+    {data.branches.length ? <ul className="git-browser-list" aria-label={views.branches} tabIndex={0}>
+      {data.branches.map(branch => <li key={branch.name} className="git-browser-ref">
+        <span className="git-browser-name" dir="auto">{branch.name}</span>
+        {branch.name === currentBranch && <small>Current</small>}
+        <code title={branch.oid}>{branch.oid.slice(0, 10)}</code>
+        <button type="button" className="button" aria-label={'Compare ' + branch.name + ' with HEAD'} disabled={!head || busy}
+          onClick={() => compare('branch', branch.name, branch.oid)}>Compare</button>
+      </li>)}
+    </ul> : <p className="source-control-empty" role="status">{empty.branches}</p>}
+  </>
+}
+
+const relations: Record<SourceControlComparison['relation'], string> = {
+  same: 'This branch points to the same commit as HEAD.', ahead: 'This branch is ahead of HEAD.',
+  behind: 'This branch is behind HEAD.', diverged: 'This branch and HEAD have diverged.',
+  stash: 'Tracked changes since the commit where this stash was created.',
+}
+const changes = { A: 'Added', M: 'Modified', D: 'Deleted', T: 'Type changed' } as const
+
+function ComparisonResult({ result }: { result: SourceControlComparison }) {
+  const visible = result.changes.slice(0, 200)
+  const limited = result.truncated || visible.length < result.changes.length
+  return <>
+    <p className="source-control-empty" role="status">{relations[result.relation]}</p>
+    <p className="source-control-empty">{result.relation === 'stash' ? 'Stash base' : 'HEAD'} <code title={result.from}>{result.from.slice(0, 10)}</code>
+      {' → '}<code title={result.to}>{result.to.slice(0, 10)}</code>
+    </p>
+    {visible.length ? <ul className="git-browser-list" aria-label="Changed files" tabIndex={0}>
+      {visible.map(change => <li key={change.path} className="git-browser-ref">
+        <span className="git-browser-name" dir="auto">{change.path}</span>
+        <small>{changes[change.status]}</small>
+      </li>)}
+    </ul> : <p className="source-control-empty">{limited ? 'No file paths available to display.' : 'No changed files.'}</p>}
+    {limited && <p className="source-control-empty">Some changed files are omitted from this preview.</p>}
+    {result.includesUntrackedParent && <p className="source-control-empty">This stash also contains untracked files outside this preview.</p>}
+  </>
+}
+
+function RefForm({ kind, busy, from, create }: {
+  kind: 'branch' | 'tag'; busy: boolean; from?: string; create: ComparisonProps['createRef']
+}) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   return <div className="git-browser-create">
     {!open ? <button className="button" type="button" disabled={busy || !from} onClick={() => setOpen(true)}>
-      <Icon name="plus" size={12}/>New branch…
+      <Icon name="plus" size={12}/>{kind === 'branch' ? 'New branch…' : 'Create lightweight tag…'}
     </button> : from && <form onSubmit={event => {
       event.preventDefault()
-      if (!busy && name.trim()) create(name, from)
+      if (!busy && name.trim()) create(kind, name, from)
     }}>
-      <label>Branch name<input autoFocus required value={name} onChange={event => setName(event.target.value)}
+      <label>{kind === 'branch' ? 'Branch name' : 'Tag name'}<input autoFocus required value={name} onChange={event => setName(event.target.value)}
         spellCheck={false} autoCapitalize="none" autoComplete="off" disabled={busy}/></label>
       <p>Create from HEAD <code title={from}>{from.slice(0, 10)}</code>. Your current checkout stays in place.</p>
       <div className="git-browser-form-actions">
-        <button className="button" type="submit" disabled={busy || !name.trim()}>Create branch</button>
+        <button className="button" type="submit" disabled={busy || !name.trim()}>{kind === 'branch' ? 'Create branch' : 'Create lightweight tag'}</button>
         <button className="button" type="button" disabled={busy} onClick={() => { setName(''); setOpen(false) }}>Cancel</button>
       </div>
     </form>}
-    {!from && <p>Create a commit first to start a new branch.</p>}
+    {!from && <p>{kind === 'branch' ? 'Create a commit first to start a new branch.' : 'Create a commit first to tag it.'}</p>}
   </div>
 }
 

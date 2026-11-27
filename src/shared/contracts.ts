@@ -197,8 +197,10 @@ export interface IonBridge {
   projectLens: import('./project-lens').ProjectLensBridge
   explanations: import('./explanations').ExplanationBridge
   sourceControl: {
+    createTag(root: string, request: Parameters<SourceControlBridge['createTag']>[0]): Promise<void>
     createBranch(root: string, request: Parameters<SourceControlBridge['createBranch']>[0]): Promise<void>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>
+    previewComparison(root: string, request: Parameters<SourceControlBridge['previewComparison']>[0]): ReturnType<SourceControlBridge['previewComparison']>
     browse(root: string): ReturnType<SourceControlBridge['browse']>
     github(root: string, repository: string): ReturnType<SourceControlBridge['github']>
     cloneGitHub(root: string, repository: string): Promise<string | null>

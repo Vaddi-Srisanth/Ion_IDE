@@ -1719,10 +1719,14 @@ function registerIpc(): void {
     trustedGitRoot = sourceControlRoot(target, path)
     return true
   })
+  handle('source-control-create-tag', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.createTag(path, request)))
   handle('source-control-create-branch', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.createBranch(path, request)))
   handle('source-control-conflict', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.conflict(path, request)))
+  handle('source-control-compare', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.previewComparison(path, request)))
   handle('source-control-browse', (target, root) => useSourceControl(target, root, (service, path) => service.browse(path)))
   handle('source-control-github', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!

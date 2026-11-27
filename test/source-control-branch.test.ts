@@ -4,7 +4,7 @@ import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createLocalBranch } from '../src/main/source-control/branches'
+import { createLocalRef } from '../src/main/source-control/branches'
 import { gitDirectory, resolveGit } from '../src/main/source-control/repository'
 
 test('create a reviewed local branch without switching, overwriting a ref, or changing staged and working files', async t => {
@@ -26,7 +26,14 @@ test('create a reviewed local branch without switching, overwriting a ref, or ch
   const directory = await gitDirectory(root)
   assert.ok(tools && directory)
   const repository = { root, directory, ...tools }
-  const create = (name: string, from = head) => createLocalBranch(repository, signal, { name, from }, head)
+  const tag = (name: string, from = head) => createLocalRef(repository, signal, { name, from }, head, 'tag')
+  await tag('submission-1')
+  assert.equal(command('cat-file', '-t', 'refs/tags/submission-1'), 'commit')
+  assert.equal(command('rev-parse', 'refs/tags/submission-1'), head)
+  await assert.rejects(tag('submission-1'))
+  await assert.rejects(tag('refs/heads/main'), /tag name/)
+  await assert.rejects(tag('stale', '1'.repeat(head.length)), /review the starting commit/)
+  const create = (name: string, from = head) => createLocalRef(repository, signal, { name, from }, head, 'branch')
   await create('course/assignment-1')
   assert.equal(command('rev-parse', 'refs/heads/course/assignment-1'), head)
   await assert.rejects(create('course/assignment-1'))

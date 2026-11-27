@@ -57,6 +57,10 @@ export async function browseLocalRefs(run: (args: string[]) => Promise<Output>,
     `--count=${refLimit + 1}`, '--format=%(objectname) %(refname:lstrip=2)', namespace]))
   const branches = await list('refs/heads/')
   const tags = await list('refs/tags/')
-  return { commits: history.rows, branches: branches.rows, tags: tags.rows, remotes: remoteInfo.remotes,
+  const tip = await run(['for-each-ref', '--count=1', '--format=%(refname)%00%(objectname)%00%(objecttype)', 'refs/stash'])
+  if (!tip.complete) throw new Error('Git returned incomplete stash metadata.')
+  const [name, oid, type] = tip.text.replace(/\r?\n$/, '').split('\0')
+  const stash = name === 'refs/stash' && type === 'commit' && gitObjectId.test(oid) ? { oid } : null
+  return { commits: history.rows, branches: branches.rows, tags: tags.rows, stash, remotes: remoteInfo.remotes,
     truncated: history.truncated || branches.truncated || tags.truncated || remoteInfo.truncated }
 }

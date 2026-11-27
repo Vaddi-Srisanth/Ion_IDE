@@ -1,9 +1,9 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import type { SourceControlBrowse, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
+import type { SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
-import { absent, browseRepository, git, gitDirectory, inside, readTextFile, resolveGit,
+import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
   type Repository, UnavailableDiff } from './repository'
 import { parseStatus, safeGitPath, type ParsedStatus, type StatusEntry } from './status'
 import { blob, checkLines, textLimit } from './text-preview'
@@ -66,6 +66,7 @@ export class SourceControlService {
   private write?: Promise<void>
   private writeController?: AbortController
   private snapshot?: Snapshot
+  private reviewedRefs?: { root: string; head?: string; branches: Map<string, string>; stash?: string }
 
   constructor(private readonly runGit: typeof git = git) {}
 
@@ -105,6 +106,28 @@ export class SourceControlService {
       await this.verifyRepository(repository, controller.signal)
       const result = await browseRepository(repository, controller.signal)
       controller.signal.throwIfAborted()
+      this.reviewedRefs = { root, head: result.commits[0]?.oid, branches: new Map(result.branches.map(ref => [ref.name, ref.oid])), stash: result.stash?.oid }
+      return result
+    } finally {
+      if (this.read === controller) this.read = undefined
+    }
+  }
+
+  async previewComparison(root: string, value: unknown): Promise<SourceControlComparison> {
+    if (this.write) throw new Error('Wait for the Git operation to finish.')
+    const { repository } = this.requireSnapshot(root)
+    const { kind, name, from, to } = requestObject(value)
+    const reviewed = this.reviewedRefs
+    if (!reviewed || reviewed.root !== root || (kind !== 'branch' && kind !== 'stash') || typeof name !== 'string'
+      || typeof from !== 'string' || !gitObjectId.test(from) || typeof to !== 'string' || !gitObjectId.test(to) || from !== reviewed.head
+      || (kind === 'stash' ? name !== 'refs/stash' || to !== reviewed.stash : reviewed.branches.get(name) !== to)) {
+      throw new Error('Refresh the repository browser and choose a reviewed branch or stash.')
+    }
+    const controller = this.beginRead()
+    try {
+      await this.verifyRepository(repository, controller.signal)
+      const result = await compareRepository(repository, controller.signal, { kind, name, from, to })
+      await this.verifyRepository(repository, controller.signal)
       return result
     } finally {
       if (this.read === controller) this.read = undefined
@@ -147,16 +170,19 @@ export class SourceControlService {
     return done
   }
 
-  createBranch(root: string, value: unknown): Promise<void> {
+  createBranch(root: string, value: unknown) { return this.createRef(root, value, 'branch') }
+  createTag(root: string, value: unknown) { return this.createRef(root, value, 'tag') }
+
+  private createRef(root: string, value: unknown, kind: 'branch' | 'tag'): Promise<void> {
     const { repository, status } = this.requireSnapshot(root)
     if (status.unborn || !gitObjectId.test(status.head) || requestObject(value).from !== status.head) {
-      throw new Error('Refresh and review the current commit before creating a branch.')
+      throw new Error('Refresh and review the current commit before creating a ' + kind + '.')
     }
     return this.mutate(async signal => {
       await this.verifyRepository(repository, signal)
-      const { createLocalBranch } = await import('./branches')
+      const { createLocalRef } = await import('./branches')
       signal.throwIfAborted()
-      await createLocalBranch(repository, signal, value, status.head)
+      await createLocalRef(repository, signal, value, status.head, kind)
     }, { preserveSnapshot: true }) // Creating another ref leaves the reviewed HEAD, index and worktree intact.
   }
 
@@ -281,6 +307,7 @@ export class SourceControlService {
     this.writeController?.abort()
     this.read = undefined
     this.snapshot = undefined
+    this.reviewedRefs = undefined
   }
 
   async drain(): Promise<void> {

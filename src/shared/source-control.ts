@@ -38,7 +38,23 @@ export interface SourceControlConflict {
   theirs: string | null
 }
 
+export interface SourceControlComparisonRequest {
+  kind: 'branch' | 'stash'
+  name: string
+  from: string
+  to: string
+}
+export interface SourceControlComparison {
+  from: string
+  to: string
+  relation: 'same' | 'ahead' | 'behind' | 'diverged' | 'stash'
+  changes: { path: string; status: 'A' | 'M' | 'D' | 'T' }[]
+  truncated: boolean
+  includesUntrackedParent: boolean
+}
+
 export interface SourceControlBrowse {
+  stash: { oid: string } | null
   commits: { oid: string; subject: string; author: string; time: number }[]
   branches: { name: string; oid: string }[]
   tags: { name: string; oid: string }[]
@@ -54,8 +70,10 @@ export interface SourceControlGitHub {
 }
 
 export interface SourceControlBridge {
+  createTag(request: { name: string; from: string }): Promise<void>
   createBranch(request: { name: string; from: string }): Promise<void>
   conflict(request: { path: string }): Promise<SourceControlConflict>
+  previewComparison(request: SourceControlComparisonRequest): Promise<SourceControlComparison>
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>
   cloneGitHub(repository: string): Promise<string | null>

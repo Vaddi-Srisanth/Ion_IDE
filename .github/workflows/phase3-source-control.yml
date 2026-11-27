@@ -48,7 +48,7 @@ jobs:
       - name: Verify trusted Git operations, conflicts and destination protection
         env:
           ION_TEST_GITHUB_CLONE_LIVE: '1'
-        run: node scripts/test.mjs source-control source-control-branch source-control-browse source-control-conflict source-control-github source-control-clone
+        run: node scripts/test.mjs source-control source-control-branch source-control-browse source-control-comparison source-control-conflict source-control-github source-control-clone
       - name: Drive the production Source Control interface
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:

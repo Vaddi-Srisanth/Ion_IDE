@@ -32,7 +32,7 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
   const { root, service, git } = await fixture(t)
   await assert.rejects(service.browse(root), /Refresh/)
   assert.equal((await service.status(root)).kind, 'repository')
-  assert.deepEqual(await service.browse(root), { commits: [], branches: [], tags: [], remotes: [], truncated: false })
+  assert.deepEqual(await service.browse(root), { commits: [], branches: [], tags: [], remotes: [], stash: null, truncated: false })
   const saved = join(root, 'saved.txt')
   await writeFile(saved, 'original\n')
   git(['add', '--', 'saved.txt'])
@@ -59,7 +59,7 @@ test('Git browser reads HEAD history, namespaced local refs and annotated tag ob
     commits: [{ oid: second, subject: 'Second subject', author: 'Ion Fixture', time: 1577836800 },
       { oid: first, subject: 'First subject', author: 'Ion Fixture', time: 1577836800 }],
     branches: [{ name: 'feature/é', oid: first }, { name: 'main', oid: second }],
-    tags: [{ name: 'feature/é', oid: first }, { name: 'release', oid: tagObject }], remotes: [], truncated: false,
+    tags: [{ name: 'feature/é', oid: first }, { name: 'release', oid: tagObject }], remotes: [], stash: null, truncated: false,
   })
   assert.deepEqual(await readFile(join(root, '.git', 'index')), index)
   assert.equal(await readFile(saved, 'utf8'), 'local edit\n')

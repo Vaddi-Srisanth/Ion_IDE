@@ -12,15 +12,21 @@ const fixture = `
   window.conflictCalls = []
   window.githubCalls = []
   window.finish = []
+  window.previews = []
+  window.finishPreview = []
+  window.tagCalls = []
   function bridge(root) {
+    const tags = []
     return {
       status: async () => ({ kind:'repository', root, branch:'main',
         entries:[{path:'merge.txt',absolutePath:root+'/merge.txt',worktree:'U',index:'U',unmerged:true}] }),
       browse: () => new Promise(resolve => {
         window.browseCalls.push(root)
-        window.finish.push((subject, remotes=[{name:'origin', repository:'team/demo'}, {name:'mirror',repository:null}]) =>
-          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[], tags:[], remotes, truncated:false }))
+        window.finish.push((subject, remotes=[{name:'origin', repository:'team/demo'}, {name:'mirror',repository:null}], stash={oid:'c'.repeat(40)}) =>
+          resolve({ commits:[{oid:'a'.repeat(40),subject,author:'Test',time:0}], branches:[{name:'topic',oid:'b'.repeat(40)}], tags, remotes, stash, truncated:false }))
       }),
+      previewComparison: request => new Promise(resolve => { window.previews.push([root,request]); window.finishPreview.push(resolve) }),
+      createTag: async request => { window.tagCalls.push([root,request]); tags.push({name:request.name,oid:request.from}) },
       conflict: async ({path}) => {
         window.conflictCalls.push([root,path])
         return { path, absolutePath:root+'/'+path, base:'before', ours:'left', theirs:'right' }
@@ -39,7 +45,7 @@ const fixture = `
   function App() {
     const [root, setRoot] = useState('first'), [open, setOpen] = useState(true)
     return <>
-      <button onClick={() => setRoot('second')}>Switch workspace</button>
+      <button onClick={() => setRoot(current => current==='first'?'second':'first')}>Switch workspace</button>
       <button onClick={() => setOpen(true)}>Open panel</button>
       {open && <Panel key={root} bridge={root==='first'?first:second} onClose={()=>setOpen(false)}
         onDiff={()=>{throw Error('Conflict requested a two-way diff')}} onEntries={()=>{}} isDirty={()=>false}/>}
@@ -116,9 +122,68 @@ try {
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo']])
   assert.equal(await hosted.getByText(/Cloned to/).count(), 0)
   assert.equal(await page.getByTestId('git-branch').innerText(), 'main')
+
+  const head = 'a'.repeat(40), tip = 'b'.repeat(40), stash = 'c'.repeat(40), base = 'd'.repeat(40)
+  const compare = page.getByRole('button', { name: 'Compare topic with HEAD' })
+  const stashButton = page.getByRole('button', { name: 'Preview latest stash' })
+  const region = page.getByRole('region', { name: 'Comparison preview' })
+  const finishPreview = result => page.evaluate(data => window.finishPreview.at(-1)(data), result)
+  const branchResult = { from:head, to:tip, relation:'ahead', changes:[{path:'src/a.ts',status:'M'}], truncated:false, includesUntrackedParent:false }
+  await view.selectOption('stash')
+  await stashButton.waitFor()
+  await view.selectOption('branches')
+  assert.deepEqual(await page.evaluate(() => window.previews), [])
+  await compare.click()
+  assert.deepEqual(await page.evaluate(() => window.previews), [['second', {kind:'branch',name:'topic',from:head,to:tip}]])
+  await finishPreview(branchResult)
+  await region.getByText('This branch is ahead of HEAD.').waitFor()
+  await region.getByRole('listitem').filter({ hasText: 'src/a.ts' }).getByText('Modified').waitFor()
+  await page.getByRole('button', { name: 'Refresh repository browser' }).click()
+  await page.evaluate(() => window.finish.at(-1)('refreshed'))
+  await compare.waitFor()
+  assert.equal(await region.count(), 0)
+  await view.selectOption('stash')
+  await stashButton.click()
+  assert.deepEqual(await page.evaluate(() => window.previews.at(-1)), ['second', {kind:'stash',name:'refs/stash',from:head,to:stash}])
+  const paths = Array.from({length:200}, (_, i) => ({path:'file-'+i, status:'A'}))
+  await finishPreview({from:base, to:stash, relation:'stash', changes:paths, truncated:true, includesUntrackedParent:true})
+  await region.getByText(base.slice(0, 10), {exact:true}).waitFor()
+  assert.equal(await region.getByRole('listitem').count(), 200)
+  await region.getByText(/Some changed files are omitted/).waitFor()
+  await region.getByText('This stash also contains untracked files outside this preview.').waitFor()
+  await region.getByRole('button', {name:'Close preview'}).click()
+  await stashButton.click()
+  await toggle.click()
+  await finishPreview(branchResult)
+  await toggle.click()
+  await page.evaluate(() => window.finish.at(-1)('no stash', [], null))
+  await page.getByText('No stash saved.').waitFor()
+  assert.equal(await region.count(), 0)
+  await view.selectOption('branches')
+  await compare.click()
+  await page.getByRole('button', { name:'Switch workspace' }).click()
+  await toggle.waitFor()
+  await finishPreview(branchResult)
+  await toggle.click()
+  await page.evaluate(() => window.finish.at(-1)('new root'))
+  await view.selectOption('branches')
+  await compare.waitFor()
+  assert.equal(await region.count(), 0)
+  await view.selectOption('tags')
+  await page.getByRole('button', {name:'Create lightweight tag…'}).click()
+  await page.getByLabel('Tag name').fill('v2.1')
+  assert.deepEqual(await page.evaluate(() => window.tagCalls), [])
+  await page.getByRole('button', {name:'Create lightweight tag',exact:true}).click()
+  await page.getByText('Loading repository…').waitFor()
+  await page.evaluate(() => window.finish.at(-1)('tag created'))
+  await page.getByRole('list', {name:'Tags'}).getByText('v2.1').waitFor()
+  assert.equal(await page.getByLabel('Tag name').count(), 0)
+  assert.equal(await view.inputValue(), 'tags')
+  assert.equal(await page.getByTestId('git-branch').innerText(), 'main')
+  assert.deepEqual(await page.evaluate(() => window.tagCalls), [['first',{name:'v2.1',from:head}]])
   assert.deepEqual(network, [])
   assert.deepEqual(errors, [])
-  console.log('PASS repository browse lifecycle, remotes, conflict review, explicit GitHub lookup, reviewed link and clone cancellation')
+  console.log('PASS repository browse lifecycle, remotes, conflict review, GitHub lookup/link/clone cancellation, branch and stash previews, lightweight tags')
 } finally {
   await browser.close()
 }
