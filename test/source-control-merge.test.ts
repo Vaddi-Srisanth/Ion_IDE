@@ -18,6 +18,9 @@ async function fixture(t: TestContext) {
       GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' },
   }).trim()
   git('init', '-q', '-b', 'main'); git('config', 'user.name', 'Ion fixture'); git('config', 'user.email', 'fixture@ion.invalid')
+  // Keep the byte-level fixture independent of a host-wide Git for Windows
+  // autocrlf default, so it tests merge behavior rather than checkout policy.
+  git('config', 'core.autocrlf', 'false')
   await writeFile(join(root, 'source.txt'), 'base\n')
   git('add', '--', 'source.txt'); git('commit', '-qm', 'Base')
   const base = git('rev-parse', 'HEAD')
@@ -58,6 +61,21 @@ test('pull from a reviewed cached remote branch is explicit, keeps HEAD until co
   await service.commit(root, { message: 'Merge topic' })
   assert.deepEqual(git('rev-list', '--parents', '-n', '1', 'HEAD').split(' '), [git('rev-parse', 'HEAD'), base, topic])
   assert.equal(await readFile(join(root, '.git', 'MERGE_HEAD')).then(() => true, () => false), false)
+})
+
+test('reviewed merge honors an explicit Git autocrlf policy when writing incoming files', async t => {
+  const { root, service, git, base } = await fixture(t)
+  git('config', 'core.autocrlf', 'true')
+  git('checkout', '-qb', 'topic')
+  await writeFile(join(root, 'topic.txt'), 'topic\n')
+  git('add', '--', 'topic.txt'); git('commit', '-qm', 'Topic')
+  const topic = git('rev-parse', 'HEAD')
+  git('update-ref', 'refs/remotes/origin/topic', topic)
+  git('checkout', '-q', 'main')
+  await prepare(root, service)
+  const request = { current: 'main', target: 'origin/topic', from: base, to: topic, targetKind: 'cached-remote' as const, dirtyPaths: [] }
+  assert.deepEqual(await service.mergeBranch(root, request, async () => true), { applied: true, conflicts: false })
+  assert.equal(await readFile(join(root, 'topic.txt'), 'utf8'), 'topic\r\n')
 })
 
 test('reviewed merge conflicts remain visible and an external merge driver is refused', async t => {
