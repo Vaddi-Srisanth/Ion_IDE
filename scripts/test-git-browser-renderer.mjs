@@ -56,6 +56,13 @@ const fixture = `
         return {repository:'Team/Demo', login:'octo', pullRequests:[{number:9, title:'Read the changes', url:'https://github.com/Team/Demo/pull/9'}],
           issues:[{number:7,title:'Reviewed issue',url:'https://github.com/Team/Demo/issues/7'}]}
       },
+      githubSignIn: async () => {
+        window.githubCalls.push(['sign-in',root])
+        window.githubAuthEvent?.({kind:'device-code',code:'ABCD-1234'})
+        return true
+      },
+      githubSignOut: async () => { window.githubCalls.push(['sign-out',root]); return true },
+      onGitHubAuthEvent: callback => { window.githubAuthEvent = callback; return () => { window.githubAuthEvent = undefined } },
       githubPullRequest: request => new Promise(resolve => {
         window.githubCalls.push(['pull',root,request])
         window.finishPullRequest.push(() => resolve({number:9, title:'Read the changes', url:'https://github.com/Team/Demo/pull/9',
@@ -274,6 +281,15 @@ try {
   await hosted.getByRole('button', { name: 'GitHub', exact: true }).click()
   assert.equal(await pullDetail.count(), 0)
   assert.deepEqual((await page.evaluate(() => window.githubCalls)).at(-1), ['close', 'second'])
+  await hosted.getByRole('button', { name: 'Sign in with GitHub…' }).click()
+  await hosted.getByText('ABCD-1234', { exact: true }).waitFor()
+  await hosted.getByRole('button', { name: 'Load from GitHub' }).click()
+  await hosted.getByText('Signed in as octo').waitFor()
+  await hosted.getByRole('button', { name: 'Sign out of GitHub…' }).click()
+  await hosted.getByText('Signed out of GitHub on this computer.').waitFor()
+  assert.deepEqual((await page.evaluate(() => window.githubCalls)).slice(-3), [
+    ['sign-in', 'second'], ['load', 'second', 'team/demo'], ['sign-out', 'second'],
+  ])
 
   const head = 'a'.repeat(40), tip = 'b'.repeat(40), stash = 'c'.repeat(40), base = 'd'.repeat(40)
   const compare = page.getByRole('button', { name: 'Compare topic with HEAD' })

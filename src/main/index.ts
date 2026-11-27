@@ -334,7 +334,8 @@ async function activeProjects(target: BrowserWindow) {
   return handlers
 }
 
-let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>>; gitHubPages?: Set<string>; cloneReview?: symbol } | undefined
+let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>>; gitHubPages?: Set<string>;
+  githubAccount?: string; githubAuth?: symbol; cloneReview?: symbol } | undefined
 let sourceControlCleanup = Promise.resolve()
 let trustedGitRoot: string | undefined
 
@@ -1787,7 +1788,9 @@ function registerIpc(): void {
   handle('source-control-github', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
     session.gitHubPages = undefined
+    session.githubAccount = undefined
     const overview = await service.github(path, repository, [...files.rootPaths])
+    session.githubAccount = overview.login
     session.gitHubPages = new Set([
       'https://github.com/' + overview.repository,
       'https://github.com/' + overview.repository + '/compare?expand=1',
@@ -1795,6 +1798,41 @@ function registerIpc(): void {
       ...overview.issues.map(item => item.url),
     ])
     return overview
+  }))
+  handle('source-control-github-sign-in', (target, root) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    if (session.githubAuth) throw new Error('A GitHub sign-in is already in progress.')
+    const operation = Symbol()
+    session.githubAuth = operation
+    try {
+      const result = await service.githubSignIn(path, [...files.rootPaths], code => {
+        if (target === window && sourceControl === session && session.githubAuth === operation && !target.isDestroyed()) {
+          target.webContents.send('ion:source-control-github-auth-event', { kind: 'device-code', code })
+        }
+      })
+      if (sourceControl === session && session.githubAuth === operation) {
+        session.githubAccount = undefined
+        session.gitHubPages = undefined
+      }
+      return result
+    } finally { if (session.githubAuth === operation) session.githubAuth = undefined }
+  }))
+  handle('source-control-github-sign-out', (target, root) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    const account = session.githubAccount
+    if (!account) throw new Error('Load a GitHub repository first to review the signed-in account.')
+    const answer = await dialog.showMessageBox(target, {
+      type: 'question', buttons: ['Cancel', 'Sign Out'], cancelId: 0, defaultId: 0,
+      message: 'Remove the local GitHub sign-in for ' + account + '?',
+      detail: 'This removes that account’s local GitHub CLI configuration from this computer. It does not revoke the account’s GitHub CLI authorization elsewhere.',
+    })
+    if (answer.response !== 1 || sourceControl !== session || session.githubAccount !== account) return false
+    const result = await service.githubSignOut(path, account, [...files.rootPaths])
+    if (result && sourceControl === session && session.githubAccount === account) {
+      session.githubAccount = undefined
+      session.gitHubPages = undefined
+    }
+    return result
   }))
   handle('source-control-github-pull-request', (target, root, value) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
@@ -1874,12 +1912,15 @@ function registerIpc(): void {
     if (!active || target !== window || active.root !== root) return
     active.gitHubPages = undefined
     active.cloneReview = undefined
+    active.githubAuth = undefined
     const service = await active.service
     if (sourceControl === active) service.closeGitHub()
   })
   handle('source-control-github-open', (target, root, url) => useSourceControl(target, root, async () => {
-    if (typeof url !== 'string' || !url.startsWith('https://github.com/') || !sourceControl?.gitHubPages?.has(url)) {
-      throw new Error('Load this GitHub repository before opening its links.')
+    const devicePage = url === 'https://github.com/login/device' && Boolean(sourceControl?.githubAuth)
+    if (typeof url !== 'string' || !url.startsWith('https://github.com/')
+      || !sourceControl?.gitHubPages?.has(url) && !devicePage) {
+      throw new Error('Load this GitHub repository or start a reviewed device sign-in before opening its links.')
     }
     await shell.openExternal(url)
   }))

@@ -178,6 +178,30 @@ export class SourceControlService {
     })
   }
 
+  githubSignIn(root: string, workspaceRoots: readonly string[], onDeviceCode: (code: string) => void): Promise<boolean> {
+    if (this.githubCreate) throw new Error('Wait for the GitHub pull request request to finish.')
+    const { repository } = this.requireSnapshot(root)
+    this.githubRead?.abort()
+    const controller = new AbortController()
+    this.githubRead = controller
+    return this.verifyRepository(repository, controller.signal).then(async () => {
+      const { githubSignIn } = await import('./github')
+      return githubSignIn(root, workspaceRoots, controller.signal, onDeviceCode)
+    }).finally(() => { if (this.githubRead === controller) this.githubRead = undefined })
+  }
+
+  githubSignOut(root: string, account: string, workspaceRoots: readonly string[]): Promise<boolean> {
+    if (this.githubCreate) throw new Error('Wait for the GitHub pull request request to finish.')
+    const { repository } = this.requireSnapshot(root)
+    this.githubRead?.abort()
+    const controller = new AbortController()
+    this.githubRead = controller
+    return this.verifyRepository(repository, controller.signal).then(async () => {
+      const { githubSignOut } = await import('./github')
+      return githubSignOut(root, workspaceRoots, account, controller.signal)
+    }).finally(() => { if (this.githubRead === controller) this.githubRead = undefined })
+  }
+
   createGitHubPullRequest(root: string, request: SourceControlGitHubCreatePullRequestRequest,
     workspaceRoots: readonly string[]): Promise<SourceControlGitHubCreatedPullRequest> {
     if (this.githubCreate) throw new Error('A GitHub pull request is already being created.')

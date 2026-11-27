@@ -69,10 +69,11 @@ function items(value: unknown, repository: string, segment: 'pull' | 'issues') {
   })
 }
 
-interface Dependencies {
+export interface GitHubDependencies {
   run?: typeof execute
   findGh?: typeof resolveGitHubCli
 }
+type Dependencies = GitHubDependencies
 
 /** Retrieve a GitHub.com token through the user's official CLI/keyring. Keep it main-process-only. */
 export async function githubToken(root: string, workspaceRoots: readonly string[], scratch: string, signal: AbortSignal,
@@ -100,6 +101,102 @@ export async function githubToken(root: string, workspaceRoots: readonly string[
     throw new Error('Sign in to github.com with gh auth login using your OS credential store.')
   }
   return { tool, token }
+}
+
+async function cliEnvironment(root: string, workspaceRoots: readonly string[], scratch: string, signal: AbortSignal,
+  dependencies: Dependencies) {
+  if (!isAbsolute(root) || !workspaceRoots.includes(root)) throw new Error('Choose an open workspace root.')
+  const tool = await (dependencies.findGh ?? resolveGitHubCli)(root, workspaceRoots, signal)
+  if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root)
+    || workspaceRoots.some(other => isWithin(other, tool))) throw new Error('The installed GitHub CLI changed. Review the repository again.')
+  const helperPaths = process.platform === 'win32' ? [windowsSystemDirectory] : ['/usr/bin', '/bin']
+  const paths: string[] = []
+  for (const path of helperPaths) {
+    const canonical = await realpath(path).catch(() => null)
+    if (canonical && workspaceRoots.every(other => !isWithin(other, path) && !isWithin(other, canonical))) paths.push(canonical)
+  }
+  return { tool, environment: { ...envFor(paths, scratch), GH_HOST: 'github.com', GH_PROMPT_DISABLED: '1',
+    GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1' } }
+}
+
+async function activeAccount(root: string, workspaceRoots: readonly string[], scratch: string, signal: AbortSignal,
+  dependencies: Dependencies): Promise<{ login: string; tokenSource: string } | undefined> {
+  const { tool, environment } = await cliEnvironment(root, workspaceRoots, scratch, signal, dependencies)
+  const result = await (dependencies.run ?? execute)(tool, ['auth', 'status', '--hostname', 'github.com', '--json', 'hosts'],
+    { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: 8192 }, environment,
+      splitOutput: true, collectOutput: false })
+  signal.throwIfAborted()
+  if (result.state !== 'exited' || result.exitCode !== 0 || result.outputComplete === false
+    || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 8192) return undefined
+  try {
+    const hosts = record(JSON.parse(result.stdout)).hosts
+    const accounts = record(hosts)['github.com']
+    if (!Array.isArray(accounts) || accounts.length > 20) return undefined
+    const active = accounts.map(value => record(value)).find(value => value.active === true)
+    if (!active || active.state !== 'success' || active.host !== 'github.com' || typeof active.login !== 'string' || !accountName.test(active.login)
+      || typeof active.tokenSource !== 'string') return undefined
+    return { login: active.login, tokenSource: active.tokenSource }
+  } catch { return undefined }
+}
+
+/** Start the official browser/device sign-in. Only the one-time device code is surfaced to the UI. */
+export async function githubSignIn(root: string, workspaceRoots: readonly string[], signal: AbortSignal,
+  onDeviceCode: (code: string) => void, dependencies: Dependencies = {}): Promise<boolean> {
+  signal.throwIfAborted()
+  const temp = await realpath(tmpdir())
+  if (workspaceRoots.some(other => isWithin(other, temp))) throw new Error('GitHub sign-in requires temporary storage outside the open workspaces.')
+  const scratch = await mkdtemp(join(temp, 'ion-gh-login-'))
+  try {
+    const { tool, environment } = await cliEnvironment(root, workspaceRoots, scratch, signal, dependencies)
+    let observed = '', sent = false
+    const result = await (dependencies.run ?? execute)(tool,
+      ['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web', '--clipboard=false'],
+      { cwd: scratch, input: '', signal, timeoutMs: 300_000, budget: { remaining: 8192 }, environment,
+        splitOutput: true, collectOutput: false, onOutput: text => {
+          if (sent) return
+          observed = (observed + text).slice(-1024)
+          const match = /one-time code\s*:\s*([A-Z0-9]{4}-[A-Z0-9]{4})/i.exec(observed)
+          if (match) { sent = true; onDeviceCode(match[1].toUpperCase()) }
+        } })
+    signal.throwIfAborted()
+    if (result.state !== 'exited' || result.exitCode !== 0 || result.outputComplete === false) {
+      throw new Error('GitHub sign-in did not complete. You can retry from the GitHub panel.')
+    }
+    const account = await activeAccount(root, workspaceRoots, scratch, signal, dependencies)
+    if (account?.tokenSource === 'keyring') return true
+    if (account && account.tokenSource !== 'keyring') {
+      const removed = await (dependencies.run ?? execute)(tool, ['auth', 'logout', '--hostname', 'github.com', '--user', account.login],
+        { cwd: scratch, input: '', signal, timeoutMs: 30_000, budget: { remaining: 4096 }, environment,
+          splitOutput: true, collectOutput: false })
+      if (removed.state !== 'exited' || removed.exitCode !== 0 || removed.outputComplete === false) {
+        throw new Error('GitHub used plain-text credential storage, and Ion could not verify its removal. Run `gh auth logout --hostname github.com --user '
+          + account.login + '` before using GitHub features.')
+      }
+      throw new Error('GitHub CLI could not use the OS credential store. Ion removed the new local sign-in; configure a system credential store and retry.')
+    }
+    throw new Error('GitHub could not confirm a secure local sign-in. Check the GitHub CLI credential store and try again.')
+  } finally { await rm(scratch, { recursive: true, force: true }) }
+}
+
+/** Remove one explicitly reviewed account from the local GitHub CLI configuration. */
+export async function githubSignOut(root: string, workspaceRoots: readonly string[], account: string, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<boolean> {
+  if (!accountName.test(account)) throw new Error('Choose a reviewed GitHub account.')
+  signal.throwIfAborted()
+  const temp = await realpath(tmpdir())
+  if (workspaceRoots.some(other => isWithin(other, temp))) throw new Error('GitHub sign-out requires temporary storage outside the open workspaces.')
+  const scratch = await mkdtemp(join(temp, 'ion-gh-logout-'))
+  try {
+    const { tool, environment } = await cliEnvironment(root, workspaceRoots, scratch, signal, dependencies)
+    const result = await (dependencies.run ?? execute)(tool, ['auth', 'logout', '--hostname', 'github.com', '--user', account],
+      { cwd: scratch, input: '', signal, timeoutMs: 30_000, budget: { remaining: 4096 }, environment,
+        splitOutput: true, collectOutput: false })
+    signal.throwIfAborted()
+    if (result.state !== 'exited' || result.exitCode !== 0 || result.outputComplete === false) {
+      throw new Error('GitHub could not remove the selected local sign-in. Check the GitHub CLI and try again.')
+    }
+    return true
+  } finally { await rm(scratch, { recursive: true, force: true }) }
 }
 
 type ApiRequest = (endpoint: string, filter: string, options?: { textBody?: boolean; method?: 'GET' | 'POST'; input?: string }) => Promise<unknown>

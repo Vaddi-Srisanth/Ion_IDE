@@ -77,6 +77,11 @@ export interface SourceControlGitHub {
   issues: { number: number; title: string; url: string }[]
 }
 
+export interface SourceControlGitHubAuthEvent {
+  kind: 'device-code'
+  code: string
+}
+
 export interface SourceControlSwitchRequest {
   current: string
   target: string
@@ -160,6 +165,9 @@ export interface SourceControlBridge {
   previewComparison(request: SourceControlComparisonRequest): Promise<SourceControlComparison>
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>
+  githubSignIn(): Promise<boolean>
+  githubSignOut(): Promise<boolean>
+  onGitHubAuthEvent(callback: (event: SourceControlGitHubAuthEvent) => void): () => void
   githubPullRequest(request: SourceControlGitHubPullRequestRequest): Promise<SourceControlGitHubPullRequest>
   githubIssue(request: SourceControlGitHubIssueRequest): Promise<SourceControlGitHubIssue>
   createGitHubPullRequest(request: SourceControlGitHubCreatePullRequestRequest): Promise<SourceControlGitHubCreatedPullRequest | null>

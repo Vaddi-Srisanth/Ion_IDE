@@ -19,6 +19,14 @@ Git operations require the repository's existing trust review. Local browsing ha
 
 ## Evidence and limits
 
+### GitHub CLI account controls — 27 November 2026
+
+The GitHub panel now supports explicit sign-in through the official `gh auth login --web` device flow and explicit local sign-out through account-specific `gh auth logout`. Ion disables clipboard copying in the CLI, forwards only the bounded one-time device code to the renderer, and permits opening `https://github.com/login/device` only while that sign-in operation is active. Sign-out uses a native cancel-by-default confirmation that identifies the account and explains that local CLI credentials are removed without revoking authorization elsewhere.
+
+After the device flow, Ion requires GitHub CLI to report a successful account whose token source is the OS keyring. If GitHub CLI reports plain-text credential storage, Ion attempts a targeted logout and fails closed; raw CLI diagnostics and credentials are not shown to the renderer. Both controls use the existing verified `gh` executable, a sanitized child environment, bounded output and private temporary working directory. Closing the GitHub operation cancels it.
+
+Targeted macOS verification: **15 GitHub unit tests passed, one opt-in live-keyring test skipped**; TypeScript checking and the production build passed. Unit tests cover device-code extraction from fragmented output, keyring-only acceptance, cleanup of a plain-text fallback, account-specific sign-out and diagnostic redaction. The headless browser journey now exercises sign-in, device-code display, account reload and sign-out. No real sign-in or sign-out was run against the developer's account, and native Windows, actual native confirmation behavior, and authenticated private-repository transfer remain open. These checks do not close Phase 3.
+
 All 41 focused backend tests passed locally on macOS ARM64 with zero skips, including both opt-in network reads. An earlier fixture exposed a system SSH-to-HTTPS rewrite on the host. The corrected projection checks whether the rewritten address still identifies the same GitHub repository and refuses ambiguous or credential-bearing targets.
 
 The focused suites exercise real commits, failed branch collisions, annotated tags, linked worktrees, merge conflicts, index and working-file preservation, cancellation, child cleanup, credentials in Git configuration and destination replacement. The local authenticated smoke read the Ion repository. An anonymous smoke cloned the public octocat/Hello-World fixture. Hosted CI exercises public cloning and a disposable production Electron journey; it does not have access to the developer's keyring.

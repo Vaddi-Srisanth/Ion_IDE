@@ -3,7 +3,7 @@ import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createGitHubPullRequest, githubIssue, githubOverview, githubPullRequest } from '../src/main/source-control/github'
+import { createGitHubPullRequest, githubIssue, githubOverview, githubPullRequest, githubSignIn, githubSignOut } from '../src/main/source-control/github'
 import { checkCreatePullRequestRequest } from '../src/main/source-control/github-repository'
 import type { execute } from '../src/main/runner'
 
@@ -127,6 +127,70 @@ test('GitHub rejects invalid official keyring credentials before any API request
     : (apiRequests++, ok({ login: 'octo-user' }))), error =>
     error instanceof Error && /Sign in/.test(error.message) && !error.message.includes('secret-invalid'))
   assert.equal(apiRequests, 0)
+})
+
+test('GitHub sign-in uses the official browser device flow and exposes only its one-time code', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const codes: string[] = []
+  const result = await githubSignIn(f.root, [f.root], new AbortController().signal, code => codes.push(code), {
+    findGh: async () => f.binary,
+    run: async (binary, args, options) => {
+      assert.equal(binary, f.binary)
+      assert.equal(options.environment.GH_CONFIG_DIR, undefined)
+      assert.equal(options.environment.GH_TOKEN, undefined)
+      assert.equal(options.environment.GH_PROMPT_DISABLED, '1')
+      if (args[1] === 'login') {
+        assert.deepEqual(args, ['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web', '--clipboard=false'])
+        options.onOutput?.('! First copy your one-time co')
+        options.onOutput?.('de: abcd-1234\n')
+        return { ...ok({}), stdout: '', stderr: '' }
+      }
+      assert.deepEqual(args, ['auth', 'status', '--hostname', 'github.com', '--json', 'hosts'])
+      return { ...ok({ hosts: { 'github.com': [{ state: 'success', active: true, host: 'github.com', login: 'octo-user', tokenSource: 'keyring' }] } }), stderr: '' }
+    },
+  })
+  assert.equal(result, true)
+  assert.deepEqual(codes, ['ABCD-1234'])
+  assert.doesNotMatch(JSON.stringify(codes), /fixtureToken|gho_/)
+})
+
+test('GitHub sign-in removes an insecure fallback credential before reporting failure', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const calls: string[][] = []
+  await assert.rejects(githubSignIn(f.root, [f.root], new AbortController().signal, () => {}, {
+    findGh: async () => f.binary,
+    run: async (_binary, args) => {
+      calls.push(args)
+      if (args[1] === 'login') return { ...ok({}), stdout: '', stderr: '' }
+      if (args[1] === 'status') return { ...ok({ hosts: { 'github.com': [{ state: 'success', active: true,
+        host: 'github.com', login: 'octo-user', tokenSource: 'config' }] } }), stderr: '' }
+      return ok({})
+    },
+  }), /could not use the OS credential store.*removed/)
+  assert.deepEqual(calls, [
+    ['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web', '--clipboard=false'],
+    ['auth', 'status', '--hostname', 'github.com', '--json', 'hosts'],
+    ['auth', 'logout', '--hostname', 'github.com', '--user', 'octo-user'],
+  ])
+})
+
+test('GitHub sign-out targets only the reviewed account and never echoes CLI diagnostics', async t => {
+  const f = await fixture(); t.after(f.clean)
+  let calls = 0
+  assert.equal(await githubSignOut(f.root, [f.root], 'octo-user', new AbortController().signal, {
+    findGh: async () => f.binary,
+    run: async (binary, args, options) => {
+      calls++
+      assert.equal(binary, f.binary)
+      assert.deepEqual(args, ['auth', 'logout', '--hostname', 'github.com', '--user', 'octo-user'])
+      assert.equal(options.environment.GH_TOKEN, undefined)
+      assert.equal(options.environment.GH_CONFIG_DIR, undefined)
+      return ok({})
+    },
+  }), true)
+  assert.equal(calls, 1)
+  await assert.rejects(githubSignOut(f.root, [f.root], '../other-account', new AbortController().signal,
+    { findGh: async () => { throw Error('unexpected CLI resolution') } }), /reviewed GitHub account/)
 })
 
 test('GitHub validates repository and type of every result and rejects truncated searches', async t => {

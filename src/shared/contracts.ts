@@ -208,6 +208,9 @@ export interface IonBridge {
     previewComparison(root: string, request: Parameters<SourceControlBridge['previewComparison']>[0]): ReturnType<SourceControlBridge['previewComparison']>
     browse(root: string): ReturnType<SourceControlBridge['browse']>
     github(root: string, repository: string): ReturnType<SourceControlBridge['github']>
+    githubSignIn(root: string): ReturnType<SourceControlBridge['githubSignIn']>
+    githubSignOut(root: string): ReturnType<SourceControlBridge['githubSignOut']>
+    onGitHubAuthEvent(callback: Parameters<SourceControlBridge['onGitHubAuthEvent']>[0]): ReturnType<SourceControlBridge['onGitHubAuthEvent']>
     githubPullRequest(root: string, request: Parameters<SourceControlBridge['githubPullRequest']>[0]): ReturnType<SourceControlBridge['githubPullRequest']>
     githubIssue(root: string, request: Parameters<SourceControlBridge['githubIssue']>[0]): ReturnType<SourceControlBridge['githubIssue']>
     createGitHubPullRequest(root: string, request: Parameters<SourceControlBridge['createGitHubPullRequest']>[0]): ReturnType<SourceControlBridge['createGitHubPullRequest']>

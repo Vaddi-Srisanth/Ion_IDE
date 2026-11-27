@@ -7,7 +7,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   const [open, setOpen] = useState(false)
   const [repository, setRepository] = useState('')
   const [overview, setOverview] = useState<SourceControlGitHub>()
-  const [operation, setOperation] = useState<'load' | 'clone' | 'pull-request' | 'issue' | 'create-pull-request'>()
+  const [operation, setOperation] = useState<'load' | 'clone' | 'pull-request' | 'issue' | 'create-pull-request' | 'sign-in' | 'sign-out'>()
   const [pullRequest, setPullRequest] = useState<SourceControlGitHubPullRequest>()
   const [issue, setIssue] = useState<SourceControlGitHubIssue>()
   const [createOpen, setCreateOpen] = useState(false)
@@ -16,6 +16,8 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   const [created, setCreated] = useState<SourceControlGitHubCreatedPullRequest>()
   const busy = Boolean(operation)
   const [error, setError] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [deviceCode, setDeviceCode] = useState('')
   const [cloned, setCloned] = useState('')
   const generation = useRef(0)
   const requested = useRef(false)
@@ -29,6 +31,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     requested.current = false
   }
   useEffect(() => () => { closeRequest() }, [bridge])
+  useEffect(() => bridge.onGitHubAuthEvent(event => setDeviceCode(event.code)), [bridge])
   useEffect(() => { if (pullRequest || issue) detailHeading.current?.focus() }, [pullRequest, issue])
 
   async function load() {
@@ -46,6 +49,8 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
     setCreated(undefined)
     setCloned('')
     setError('')
+    setAuthMessage('')
+    setDeviceCode('')
     try {
       const result = await bridge.github(selected)
       if (generation.current === current) setOverview(result)
@@ -69,6 +74,34 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       if (path && generation.current === current) setCloned(path)
     } catch (reason) {
       if (generation.current === current) setError(reason instanceof Error ? reason.message : 'The clone failed.')
+    } finally { if (generation.current === current) setOperation(undefined) }
+  }
+  async function signIn() {
+    if (busy) return
+    const current = ++generation.current
+    requested.current = true
+    setOperation('sign-in'); setError(''); setAuthMessage(''); setDeviceCode('')
+    try {
+      const complete = await bridge.githubSignIn()
+      if (generation.current === current && complete) setAuthMessage('GitHub sign-in completed. Load a repository to confirm your account.')
+    } catch (reason) {
+      if (generation.current === current) setError(reason instanceof Error ? reason.message : 'GitHub sign-in did not complete.')
+    } finally { if (generation.current === current) setOperation(undefined) }
+  }
+  async function signOut() {
+    if (busy || !overview) return
+    const current = ++generation.current
+    requested.current = true
+    setOperation('sign-out'); setError(''); setAuthMessage('')
+    try {
+      const complete = await bridge.githubSignOut()
+      if (generation.current === current && complete) {
+        setOverview(undefined); setPullRequest(undefined); setIssue(undefined); setCreateOpen(false)
+        setCreateDraft(undefined); setCreateReview(undefined); setCreated(undefined); setCloned('')
+        setAuthMessage('Signed out of GitHub on this computer.')
+      }
+    } catch (reason) {
+      if (generation.current === current) setError(reason instanceof Error ? reason.message : 'GitHub sign-out did not complete.')
     } finally { if (generation.current === current) setOperation(undefined) }
   }
   async function openPage(url: string) {
@@ -132,7 +165,7 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
   return <section className="git-hosted" aria-label="GitHub">
     <button type="button" className="button" aria-expanded={open} onClick={() => {
       if (open) { closeRequest(); setOverview(undefined); setPullRequest(undefined); setIssue(undefined); setCreateOpen(false); setCreateDraft(undefined);
-        setCreateReview(undefined); setCreated(undefined); setOperation(undefined); setError(''); setCloned('') }
+        setCreateReview(undefined); setCreated(undefined); setOperation(undefined); setError(''); setCloned(''); setAuthMessage(''); setDeviceCode('') }
       setOpen(!open)
     }}>GitHub</button>
     {open && <>
@@ -140,13 +173,21 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
         <label>GitHub repository<input aria-label="GitHub repository" placeholder="owner/repository" autoComplete="off"
           spellCheck={false} value={repository} maxLength={140} disabled={busy} onChange={event => {
             setRepository(event.target.value); setOverview(undefined); setPullRequest(undefined); setIssue(undefined); setCreateOpen(false);
-            setCreateDraft(undefined); setCreateReview(undefined); setCreated(undefined); setError(''); setCloned('')
+            setCreateDraft(undefined); setCreateReview(undefined); setCreated(undefined); setError(''); setCloned(''); setAuthMessage('')
           }}/></label>
         <button className="button" type="submit" disabled={!repository.trim() || busy}>{operation === 'load' ? 'Loading…' : 'Load from GitHub'}</button>
         <button className="button" type="button" disabled={!repository.trim() || busy} onClick={() => void clone('public')}>
           {operation === 'clone' ? 'Cloning…' : 'Clone public repository…'}
         </button>
+        {!overview && <button className="button" type="button" disabled={busy} onClick={() => void signIn()}>
+          {operation === 'sign-in' ? 'Waiting for GitHub approval…' : 'Sign in with GitHub…'}
+        </button>}
       </form>
+      {deviceCode && <section className="git-created-pull-request" role="status" aria-label="GitHub device sign-in">
+        <p>Enter this one-time code in the GitHub browser window:</p><code>{deviceCode}</code>
+        <button type="button" onClick={() => void openPage('https://github.com/login/device')}>Open GitHub device page</button>
+      </section>}
+      {authMessage && <p role="status">{authMessage}</p>}
       {cloned && <p role="status">Cloned to {cloned}</p>}
       {operation === 'pull-request' && <p role="status">Loading pull request…</p>}
       {operation === 'issue' && <p role="status">Loading issue…</p>}
@@ -158,6 +199,9 @@ export function GitHubRepository({ bridge }: { bridge: SourceControlBridge }) {
       {overview && <div className="git-hosted-results">
         <button type="button" onClick={() => void openPage('https://github.com/' + overview.repository)}>{overview.repository}</button>
         <small>Signed in as {overview.login}</small>
+        <button className="button" type="button" disabled={busy} onClick={() => void signOut()}>
+          {operation === 'sign-out' ? 'Signing out…' : 'Sign out of GitHub…'}
+        </button>
         <button className="button" type="button" disabled={busy} onClick={() => void clone('authenticated')}>
           {operation === 'clone' ? 'Cloning…' : 'Clone with GitHub account…'}
         </button>
