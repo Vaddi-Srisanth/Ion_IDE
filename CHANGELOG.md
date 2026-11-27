@@ -1,12 +1,12 @@
 # Changelog
 
-## Accepted development through Phase 2.5 — 27 November 2026 (unreleased)
+## 0.9.9 — macOS Apple Silicon, 27 November 2026
 
 - Promote the accepted development checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`, whose application/build source is identical to native-tested `036781e7fe99be4480e5f0803fb6b22124be72a8`.
 - Include Phase 1 backup/restore and safety, editor groups, multi-root workspaces, shared LSP services, Editor Essentials, C/C++ DAP and the accepted Build/Tasks adapter foundation. Exact scope, native runs, preserved failures and remaining debt are in the [checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
 - Corrected eager task-backend bundling after a real macOS warm-start regression. The eager bundle fell from 303,441 to 291,846 bytes; matched resource checks and final functional/full-suite jobs passed on macOS ARM64 and Windows x64. Measured memory increases and sample limits remain disclosed.
 - Pause unfinished Phase 2.6 Test Explorer on `codex/ion-core-excellence-phase-2-tests`; exclude its implementation from this main checkpoint. Phase 2 overall remains incomplete.
-- This is source and documentation delivery only. No public release, installer, update-feed change or installed-app replacement.
+- Published the Apple Silicon DMG and SHA-256 checksum from `b883f8512dadcd56d6e36e57bef2821ba32ab226`. The Windows x64 public installer remains at 0.9.6. [0.9.9 release notes](docs/releases/0.9.9.md)
 
 ## Earlier next-generation development checkpoint (included in accepted source)
 
