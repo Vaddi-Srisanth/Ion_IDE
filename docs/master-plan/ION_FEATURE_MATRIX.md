@@ -1,5 +1,11 @@
 # Ion feature matrix
 
+## Current accepted scope
+
+Updated through accepted checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c` and latest production correction `036781e7fe99be4480e5f0803fb6b22124be72a8`. Phase 0/1, editor/workspace milestones 2.1/2.2, LSP 2.3, Editor Essentials, C/C++ DAP 2.4 and the bounded 2.5 task-adapter foundation are accepted at their documented scopes. **Phase 2 remains incomplete.** Test Explorer 2.6 is paused/incomplete on a separate branch and is not included here. This matrix describes accepted development source, not an assertion that every published installer contains it.
+
+Evidence and limits: [tracker](ION_IMPLEMENTATION_TRACKER.md), [editor/workspaces](ION_PHASE_2_EDITOR_EXCELLENCE.md), [LSP](ION_PHASE_2_LANGUAGE_SERVICES.md), [DAP](ION_PHASE_2_DEBUGGER.md), [tasks](ION_PHASE_2_BUILD_TASKS.md). Counts and measurements in older catalog/feature audits remain historical unless those reports explicitly reran them; no new runtime measurements were performed for this documentation update.
+
 Status vocabulary is deliberately strict:
 
 - **Verified** — existing and verified at the cited scope.
@@ -9,28 +15,30 @@ Status vocabulary is deliberately strict:
 - **External** — blocked by optional tools, service APIs, credentials, licensing, or platform facilities.
 - **Unsupported** — no official/safe integration has been established.
 - **Deferred** — intentionally outside the current phase.
+- **Paused** — separate unfinished work stopped before acceptance; excluded from the accepted checkpoint.
 
 ## Desktop, editor, and data
 
 | Capability | Status | Current scope and next gap |
 | --- | --- | --- |
 | Standalone Electron desktop app | Verified | macOS-first, packaged Electron app with Windows build/test infrastructure. Linux is not a verified release target. |
-| Monaco source editor | Verified | Single visible editor, bounded recent models, undo/redo, selections, syntax, diagnostics, and large-file preview. |
+| Monaco source editor | Verified | Shared models across up to four editor groups; bounded recent models, undo/redo, independent views, syntax, diagnostics and large-file preview. |
 | New/open/save/save as/autosave | Verified | Revision-aware saves and existing save policy. |
 | External-change protection | Verified | Conflict banner, reload/save-as behavior, and atomic publication tests. |
 | Crash recovery and session resume | Verified | Local drafts and session metadata; full upgrade/endurance acceptance remains release-gate work. |
-| Backup and reviewed restore | Verified at hosted native scope | Exact candidate `c530644` passed fresh/populated restore, actual relaunch, interruption recovery, rollback, trust exclusion and cleanup on hosted macOS/Windows. Installer migration, maximum limits and physical power-loss testing remain release gates. |
+| Backup and reviewed restore | Verified at hosted native scope | Exact candidate `c530644` passed fresh/populated restore, actual relaunch, interruption recovery, rollback, trust exclusion and cleanup on hosted macOS/Windows; Phase 1 packaged migration/rollback also passed. Maximum archives, physical power loss, external filesystems and long endurance remain coverage limits. |
 | Multi-tab editing | Verified | Bounded live Monaco models; hidden tab text/view state retained. |
-| Split source/document view | Verified | Document/Markdown preview split is available. General source-to-source editor groups are incomplete. |
-| Source-to-source editor groups | Incomplete | Keyboard split controls and document split exist; full group management is missing. |
-| Multi-root workspaces | Missing | Current authorization and explorer model is single-root. |
+| Split source/document view | Verified | Document/Markdown preview split plus same/different-source editor groups; views share source models and undo. |
+| Source-to-source editor groups | Verified at bounded scope | Up to four nested horizontal/vertical groups, drag/move/focus/close/rebalance, keyboard resize and validated restored layouts. |
+| Multi-root workspaces | Verified at bounded scope | Up to eight canonical non-overlapping roots, reviewed `.ion-workspace` descriptors, bounded editor settings, root-aware tools and session restoration without trust import. |
 | Explorer create/rename/delete | Verified | Main-process validation and safe mutations. |
-| Workspace search/replace | Incomplete | On-demand bounded ripgrep search exists. Full multi-file reviewed replace is not established. |
+| Workspace search/replace | Verified at supported scope | On-demand bounded ripgrep search and reviewed multi-file replacement; main-owned revision/hash snapshots, dirty-buffer guards, atomic per-file writes and explicit partial conflicts. Not an arbitrary refactoring engine. |
 | Quick Open / Go to line / command palette | Verified | Existing command registry, shortcuts, and on-demand file enumeration. |
-| Breadcrumbs and navigation history | Incomplete | Navigation back/forward exists for semantic locations; comprehensive breadcrumbs/symbol trail is missing. |
+| Breadcrumbs and navigation history | Verified at path/navigation scope | Root-aware file breadcrumbs and semantic Back/Forward; a comprehensive symbol breadcrumb trail remains incomplete. |
 | Minimap, bracket matching, folding, multi-cursor | Verified | Monaco-provided editor fundamentals. |
 | Snippets and Emmet | Incomplete | Built-in language snippets exist; professional configurable snippet/Emmet system is not verified. |
 | Configurable shortcuts | Verified | Validated local command overrides. Conflict UX and full discoverability can improve. |
+| Editor Essentials / Explorer interactions | Verified | Accessible Explorer/tab menus, safe batch close/reopen, group-aware Ctrl+Tab MRU, Explorer keyboard navigation/rename/delete, authorized Copy Path/Reveal and on-demand folder terminals. |
 | Settings UI and JSON-level personalization | Incomplete | Major preferences exist. A complete searchable settings registry is missing. |
 | Accessibility | Incomplete | Keyboard paths and reduced-motion considerations exist; formal WCAG/screen-reader acceptance is not complete. |
 
@@ -46,15 +54,16 @@ Status vocabulary is deliberately strict:
 | Other language execution | Incomplete | Registry is broader than runner support; do not equate syntax with execution. |
 | Integrated terminal | Verified | Lazy PTY shell, multiple sessions, resize/input/search/copy, bounded scrollback, explicit cleanup. |
 | Format document | Verified at supported-tool scope | clang-format, Ruff/Black, Prettier, optional Java formatter. Missing tools are reported; no universal formatter claim. |
-| C/C++ semantic navigation | Incomplete | Scoped clangd definition/references for an active translation unit; no full project index/rename/completion suite. |
-| Java semantic tooling | Incomplete | Bounded JDK compiler worker for completion/signatures/navigation/diagnostics; not a complete Java language server. |
-| Python language server | Missing | Syntax/run/format exist; project-aware completion, navigation, refactor, and diagnostics do not. |
-| JavaScript/TypeScript language service | Missing | Syntax/run/format exist; project-aware TypeScript service is not integrated. |
+| C/C++ semantic tooling | Verified at clangd scope | Diagnostics, completion, hover/signatures, definitions/declarations/references, symbols, reviewed rename and code-action queries; installed trusted clangd required. No universal project-indexing claim. |
+| Java semantic tooling | Verified at JDK-adapter scope | Bounded JDK worker behind the shared lifecycle manager: completion/signatures/navigation/diagnostics. This is not a complete Java language server or universal Java refactoring support. |
+| Python language service | Verified at Pyright scope | Installed trusted Pyright: unsaved-buffer diagnostics, completion, hover/signatures, definition/references and reviewed rename through the shared host; native cold/warm, isolation and cleanup acceptance passed. |
+| JavaScript/TypeScript language service | Verified at tested-server scope | Installed TypeScript Language Server and TypeScript runtime: synchronized diagnostics, completion, hover/signatures, navigation and reviewed rename; native lifecycle and cleanup passed. |
 | Go/Rust/C#/other LSP | Missing | Syntax and some lesson metadata only. |
-| Language-server lifecycle manager | Missing | Needed before adding universal LSPs; must enforce per-workspace opt-in, idle shutdown, limits, and ownership. |
+| Language-server lifecycle manager | Verified | Root/adapter-isolated on-demand processes, bounded JSON-RPC, version/generation handling, cancellation, bounded restart, idle shutdown and owned cleanup. Unused smart tooling starts no server. |
+| Reviewed server-provided workspace edits | Verified at text-edit scope | Main-owned expiring review; canonical-root, dirty-buffer, revision/hash, overlap, link and removed-root checks before safe publication. Server requests do not grant filesystem authority or automatic approval. |
 | C/C++ debugger / DAP | Verified at Milestone 2.4 scope | Lazy trusted clang/lldb-dap path with reviewed saved-source launch, breakpoints, call stack, scopes, variables, watches/evaluate, stepping, continue/restart/stop and owned cleanup. Python/Java debugging, attach, remote and advanced breakpoint types remain unimplemented. |
-| Build-system discovery | Incomplete | Run plans and optional Java project launchers exist. General task/build graph support is missing. |
-| Test Explorer | Incomplete | Saved project C console tests and evidence exist; framework discovery/tree/rerun/debug is missing. |
+| Build/task adapter foundation | Verified at bounded scope | Lazy Run Task picker; static top-level Make/CMake/npm/Python/Maven/Gradle/Cargo/Go manifest inspection, profile records and bounded sequential graph. Native execution/Stop/cleanup proves npm; remaining adapter journeys, workspace task definitions and safe problem matching stay open. |
+| General Test Explorer | Paused / incomplete | Phase 2.6 work is isolated on its unfinished branch and excluded from this checkpoint. Existing saved Project Tests and historical C console evidence remain available. Framework discovery/tree/history and debugging tests are not accepted features. |
 | Problems panel | Verified at runner scope | Compiler/run diagnostics and Learning Lens links. Cross-language live problem aggregation is incomplete. |
 
 ## Git, GitHub, updates, and distribution
@@ -110,6 +119,6 @@ Status vocabulary is deliberately strict:
 | Extension API/marketplace | Missing | Learning packs/themes are data packages, not arbitrary code extensions. |
 | Remote development/containers/SSH | Deferred | Major security/resource/product surface; not Phase 1–2. |
 
-## Required ordering
+## Remaining ordering and boundaries
 
-The matrix is not a feature backlog sorted by excitement. `Backup and reviewed restore`, exact-candidate release identity, recovery/migration durability, and lifecycle cleanup are the only active product gates in Phase 1. Missing professional tooling starts only after those gates are closed.
+Phase 1's defined hosted acceptance passed before professional-tooling development. Phase 2.5's adapter foundation is accepted, but broader task requirements and Phase 2.6 remain incomplete. The user paused Test Explorer development; no resumed feature work is implied by this report. Later AI, Copilot, extension and remote-development proposals remain unimplemented or limited exactly as described above. Release/installation authority and exact-artifact verification remain separate from source-milestone acceptance.

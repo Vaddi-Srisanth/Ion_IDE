@@ -1,10 +1,12 @@
 # Ion IDE architecture
 
+Current accepted source: Phase 2.5 checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`, application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`. See the [current architecture plan](docs/master-plan/ION_ARCHITECTURE_PLAN.md) and [evidence/report index](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md). Test Explorer is paused on a separate branch and absent from this source checkpoint.
+
 Ion IDE is a macOS-first, offline desktop editor. Electron provides native windows and dialogs and a Node process for filesystem and toolchain work. React, Vite, and Monaco supply the interface. Versioned local JSON under Electron's user-data directory stores preferences, learning history, project specifications and evidence, and practice metadata. Individual learning concepts and practice source files are separate resources. The current bounded record sizes and access patterns do not require a database service.
 
 ## Boundaries
 
-- **Renderer** owns workbench layout, tab and buffer state, and Monaco. Opening the first document loads Monaco on demand. One editor displays the active document and retains up to three recent text models. It detaches closed models. Minimal Mode disposes the widget after the last tab closes. Full Mode can keep an empty widget warm until leaving the workbench. The tab store keeps unsaved text when a model is evicted. The explorer lists directories as they are expanded.
+- **Renderer** owns workbench layout, tab and buffer state, and Monaco. Opening the first document loads Monaco on demand. Persistent editor groups share a model per document, preserving undo and unsaved content when views change. Closed views release their resources under the existing model-retention policy. Minimal Mode disposes unused editor widgets; the document store preserves unsaved text when an eligible model is evicted. The explorer lists authorized workspace roots and directories as they are expanded.
 - **Preload** exposes typed file, settings, recovery, lifecycle, and Run Console operations. The main process validates requests against the active workbench frame.
 - **Main process** owns native dialogs, filesystem authorization, stale-file checks, persistence, and the controlled process runner. The renderer loads local bundled resources through a restricted application protocol. A C run compiles the selected saved file using an installed toolchain, then runs a temporary binary.
 - **Shared contracts** describe the data crossing the desktop boundary. The renderer consumes these contracts without knowing how a compiler was located or how preferences were stored.

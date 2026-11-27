@@ -212,6 +212,14 @@ await withScratch('release-check', async (scratch) => {
     await markdownView.getByRole('heading', { name: 'Local Markdown preview' }).waitFor()
     await page.getByTestId('markdown-preview-toggle').click()
     await markdownView.waitFor({ state: 'hidden' })
+    const savedNote = '# Saved from the packaged editor'
+    await page.locator('.monaco-editor .view-line').first().click()
+    await page.keyboard.press('Meta+a')
+    await page.keyboard.insertText(savedNote)
+    await (await editorShows(page, savedNote)).dispose()
+    await page.getByTestId('save-file').click()
+    await eventually(async () => (await readFile(markdown, 'utf8')).trimEnd() === savedNote,
+      'The packaged editor did not save the edited Markdown file.')
     await atPath(page, 'close-tab', markdown).click()
     await markdownView.waitFor({ state: 'detached' })
     await page.getByRole('button', { name: 'Welcome', exact: true }).click()

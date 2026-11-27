@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased next-generation feature branch
+## 0.9.9 — macOS Apple Silicon and Windows x64, 27 November 2026
+
+- Promote the accepted development checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`, whose application/build source is identical to native-tested `036781e7fe99be4480e5f0803fb6b22124be72a8`.
+- Include Phase 1 backup/restore and safety, editor groups, multi-root workspaces, shared LSP services, Editor Essentials, C/C++ DAP and the accepted Build/Tasks adapter foundation. Exact scope, native runs, preserved failures and remaining debt are in the [checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
+- Corrected eager task-backend bundling after a real macOS warm-start regression. The eager bundle fell from 303,441 to 291,846 bytes; matched resource checks and final functional/full-suite jobs passed on macOS ARM64 and Windows x64. Measured memory increases and sample limits remain disclosed.
+- Pause unfinished Phase 2.6 Test Explorer on `codex/ion-core-excellence-phase-2-tests`; exclude its implementation from this main checkpoint. Phase 2 overall remains incomplete.
+- Published the Apple Silicon DMG, Windows x64 per-user installer and SHA-256 checksums from `b883f8512dadcd56d6e36e57bef2821ba32ab226`. [0.9.9 release notes](docs/releases/0.9.9.md)
+
+## Earlier next-generation development checkpoint (included in accepted source)
 
 - Code-first Welcome/workbench, theme-compatible design tokens and guarded navigation.
 - Direct offline language lessons; imported content managed in Preferences, preserving saved progress and attempts.
@@ -17,6 +25,7 @@
 - Retains the verified stdin-boundary, terminal-readiness, eventual Git refresh, repeated-error history and Windows process/updater corrections. Existing offline editor, learning, practice, document and execution features remain present.
 - Preserves compiler lifecycle traces, observer corrections, failed samples, platform-qualified test evidence and matched performance reports. The historical 12.67-second Windows GCC delay is still unexplained; no universal speed-up or leak-free claim is made.
 - Restores ordinary push/PR desktop verification using the existing native gates and retains verified macOS/Windows installer artifacts. No public release or update-feed change is automatic.
+- Packaged a new Windows x64 setup candidate from source commit `a108a01` on 25 November 2026 and recorded its exact byte count, SHA-256, verification results and environmental test limits. The unsigned installer remains a candidate until an authorized GitHub release publishes it. [Windows candidate build record](docs/releases/0.9.8-windows-x64.md)
 - Excludes the canceled Code-OSS reuse audit and unfinished experiments. No new production dependency, service, editor engine or feature is introduced in this handoff.
 
 See [candidate notes and limitations](docs/releases/0.9.8.md).

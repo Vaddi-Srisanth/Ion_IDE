@@ -1,5 +1,11 @@
 # Ion IDE bottleneck report
 
+## Phase 2.5 confirmed bottleneck — corrected before acceptance
+
+The first task-feature comparison found macOS warm startup **631.17 → 779.96 ms (+23.57%)**. The optional task backend was unintentionally bundled into the eager desktop entry. Application/build correction `036781e7fe99be4480e5f0803fb6b22124be72a8` externalized it through the existing lazy-entry mechanism: eager bytes **303,441 → 291,846**, separate task entry **19,092 bytes**. No timeout, safety control or dependency was weakened.
+
+[Matched run 45923748325](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45923748325) passed; [final native task/full-suite run 45924540081](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45924540081) verified the actual lazy production entry on both platforms. The earlier CDP input-event wait and missing `rg` assertions were separate harness defects. All failed runs and individual samples remain in the [task report](docs/master-plan/ION_PHASE_2_BUILD_TASKS.md). Small persistent memory costs and Windows idle-CPU variation remain watchlist items, not claimed savings. Four paired workloads do not establish long-term leak freedom.
+
 ## Stabilization follow-up
 
 The follow-up changed the Git execution boundary, index publication and test cleanup. It preserves the existing renderer and Monaco architecture. Seven alternating startup pairs measured fresh medians of 330.2 → 328.3 ms and warm medians of 335.8 → 338.0 ms. This recheck did not reproduce the earlier slower sequential launch group. The configuration snapshot added a measured 7.1 ms to median Git refresh in the three-trial workload. No permanent service was introduced. [Measurements and commands](PERFORMANCE.md#stabilization-from-9adcdea)

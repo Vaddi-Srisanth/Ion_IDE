@@ -1,5 +1,7 @@
 # Next-generation implementation checkpoint
 
+**Historical checkpoint report.** The statements below describe the earlier next-generation branch at the time tested. Accepted development through Phase 2.5 is now documented in the [current report index](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) and [implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md). Those reports distinguish the main source delivery from the unchanged public update feed; unfinished Phase 2.6 is excluded.
+
 Work is on `feature/ion-next-generation`, based on reviewed source `a108a01bad53a6008761049c28a86e90bdd0374e`. Main, the installed app, real profiles, existing dirty workspace, installers and update feed remain unchanged. Only this feature branch was authorized for hosted verification.
 
 | Milestone | Actual implementation | Verification / remaining limit |

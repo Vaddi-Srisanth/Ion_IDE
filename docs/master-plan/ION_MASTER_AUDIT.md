@@ -1,5 +1,7 @@
 # Ion master audit
 
+This is the preserved Phase 0 audit snapshot. Its findings/verdict are dated to the revision below, not a replacement for later acceptance evidence. See the [current Phase 2.5 checkpoint](ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) and [implementation tracker](ION_IMPLEMENTATION_TRACKER.md) for resolved findings, current limits and the paused Phase 2.6 boundary.
+
 Audit date: 23 November 2026
 Audited revision: `c5306449445e16090c81d8396003b9885b710fd0`
 Audit branch: `codex/ion-master-plan-phase-0`

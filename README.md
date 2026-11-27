@@ -1,14 +1,29 @@
 # Ion IDE
 
-> **Unreleased next-generation feature branch:** Code-first layout, direct offline learning, three practical Python/Java/C lessons and an on-demand offline Project Lens foundation. All 13 selected native verification jobs passed; measured resource costs and remaining acceptance limits are documented. This branch has no published installer/update. Explicitly reviewed AI Tutor/Lens explanations and editable roadmap suggestions are implemented and pass focused native Mac/Windows journeys; live-provider quality is unverified. [Actual checkpoint](ION_IMPLEMENTATION_REPORT.md) · [Tests and limits](ION_TEST_RESULTS.md)
+> **Available now.** Ion IDE **0.9.9 for macOS Apple Silicon and Windows x64** includes the accepted editor, workspace, backup/restore, language-services, C/C++ debugger and Build/Tasks work through Phase 2.5. The general Test Explorer is in development on a separate branch. [Engineering checkpoint](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
 
 **An offline-first desktop IDE for learning by coding.**
 
 *Write code. Understand errors. Learn offline.*
 
+<p align="center">
+  <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-mac-arm64.dmg"><img alt="Download Ion 0.9.9 for macOS (Apple Silicon)" src="https://img.shields.io/badge/macOS_(Apple_Silicon)-v0.9.9-176B69"></a>
+  <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-windows-x64-setup.exe"><img alt="Download Ion 0.9.9 for Windows (x64 Preview)" src="https://img.shields.io/badge/Windows_(x64_Preview)-v0.9.9-305684"></a>
+</p>
+
 Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes and progress are stored locally. Optional AI sends only the context you explicitly review and approve. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
-The 0.9.8 source candidate collects the completed notebook-trust, recovery, file-integrity, terminal, Windows process/updater and diagnostic-verification fixes. It retains **Install and Restart** and optional remembered Run-folder approvals from 0.9.7. The rare historical Windows GCC delay remains unexplained; later successful tests do not prove it fixed. [Candidate notes](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Verified scope and limits](diagnostics/windows-gcc/RELEASE_VERIFICATION.md) · [Measured performance](diagnostics/windows-gcc/FINAL_PERFORMANCE.md)
+0.9.9 includes the notebook-trust, recovery, file-integrity, terminal and diagnostic work documented at the 0.9.8 checkpoint, followed by the accepted Phase 2.5 changes. The historical Windows GCC delay remains unexplained. [0.9.8 record](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Historical verification](diagnostics/windows-gcc/RELEASE_VERIFICATION.md)
+
+### Current accepted source capabilities
+
+- Validated local backup archives, reviewed restore, detached drafts and durable rollback/restart recovery.
+- Persistent editor groups with shared Monaco models and undo history, multi-root workspaces, safe search/replace, navigation and context-menu/keyboard essentials.
+- On-demand Java, clangd, Pyright and TypeScript intelligence, with reviewed rename/workspace edits and scoped filesystem authority.
+- An opt-in C/C++ debugger with breakpoints, stepping, call stacks, variables, watches and owned-process cleanup. Python/Java debugging is not claimed by this acceptance.
+- A lazy **Run Task** picker with reviewed adapter plans and sequential task execution. Native npm discovery/run/Stop is verified; saved workspace task definitions, problem matching and remaining adapter-native journeys remain technical debt.
+
+These extend the existing offline editor, Run Console, terminal, learning, practice, Git, notebooks and document features. Optional tools do not start until requested. See [exact native tests and limitations](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md); earlier performance numbers are not reused as measurements of this checkpoint.
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -16,16 +31,18 @@ The 0.9.8 source candidate collects the completed notebook-trust, recovery, file
 
 ## Download and install
 
-Get publicly published installers and SHA-256 checksums from the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest). At this source handoff, the latest public release is **0.9.6**; **0.9.8 is a source/local-install candidate**, not a published update. Successful native desktop verification jobs retain both candidate installers under the run's **Artifacts** for 14 days (GitHub sign-in required). Pushing source alone does not change the update feed. Choose **Preferences → Updates → Check for Updates** to check for a newer published compatible release. From 0.9.7 onward, **Install and Restart** protects unsaved work and replaces the existing installation.
+Download the installer and matching `SHA256SUMS` from the release for your platform. [Version 0.9.9](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/tag/v0.9.9) includes both installers. On Windows, save your work, quit Ion and run Setup to upgrade your existing per-user installation. Ion checks the [latest GitHub release](https://github.com/Vaddi-Srisanth/Ion_IDE/releases/latest) for a compatible installer. Native CI retains its build artifacts for 14 days and requires GitHub sign-in to access them.
 
-**Updating from 0.9.6 or earlier:** those versions only download an installer. Install 0.9.7 once into the same Applications location as your existing Mac copy, or run Windows Setup. In-place updates are available from 0.9.7 onward. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
+**Updating a Mac from 0.9.6.** Choose **Preferences → Updates → Check for Updates**, then click **Update available** to download the DMG. Save your work and quit Ion. Drag Ion IDE from the DMG into the Applications folder that holds your existing copy and choose **Replace**. Check both `/Applications` and `~/Applications` if you are unsure which folder you used. From 0.9.7 onward, **Install and Restart** protects unsaved work during an in-place update. [Update and recovery details](docs/UPDATES.md)
+
+The historical unsigned Windows 0.9.8 candidate from commit `a108a01` never entered the public feed. The build record preserves its 25 November 2026 filename, size and checksum (`Ion-IDE-0.9.8-windows-x64-setup.exe`, 119,928,329 bytes, SHA-256 `b06789e7ffa3ef840bdc28eb3293deb1ce9659d1f77178b6a87ea34b860a3aa6`). [Windows candidate build record](docs/releases/0.9.8-windows-x64.md)
 
 | Platform | Installer | Install |
 | --- | --- | --- |
 | macOS 13 or later, Apple Silicon | `Ion-IDE-<version>-mac-arm64.dmg` | Open the disk image, drag **Ion IDE** into **Applications**, then launch it there. |
 | Windows x64 preview | `Ion-IDE-<version>-windows-x64-setup.exe` | Run setup, then open **Ion IDE** from Start. |
 
-The macOS disk image is ad-hoc signed and unnotarized. Gatekeeper may block it on first open. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Compare the installer’s SHA-256 with `SHA256SUMS` from the same release before opening it. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
+The macOS application in the disk image is ad-hoc signed and unnotarized. Gatekeeper may block it on first open. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Compare the installer’s SHA-256 with `SHA256SUMS` from the same release before opening it. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
 
 Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional planner, reviewed Tutor/Lens explanations and update checks use the network.
 

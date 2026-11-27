@@ -1,5 +1,9 @@
 # Ion Core Excellence — Milestone 1 checkpoint
 
+## Current source delivery through Phase 2.5
+
+This report retains Phase 1's durable backup/restore and save-safety evidence. Subsequent accepted editor/workspace, LSP, interaction, C/C++ DAP and Build/Tasks checks are linked in the [current checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md). Final tasks application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8` passed both native functional/full-unit-security jobs and matched resource checks with owned cleanup. No new broad qualification cycle was run for the documentation/main promotion. Historical GCC latency, physical power-loss/8 GB/endurance coverage and macOS development-registration limitations remain disclosed. Test Explorer is paused outside main; installed Ion, live profiles and the public update feed remain unchanged.
+
 ## Phase 1 acceptance checkpoint — 2026-11-24
 
 **PASS for the defined hosted macOS/Windows Phase 1 scope.** The immutable application source is `c5306449445e16090c81d8396003b9885b710fd0`; the final verification harness checkpoint is `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`. The later commits do not alter production `src` or dependencies.

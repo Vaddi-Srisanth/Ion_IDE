@@ -1,5 +1,7 @@
 # Next-generation verification — candidate, not release acceptance
 
+**Historical test cohort.** These results remain tied to their named revisions. Current accepted Phase 2.5 native full suites report **macOS 461 passed / 26 skipped (487 total)** and **Windows 460 passed / 17 skipped (477 total)**, with zero failures. See [exact runs, scope and skipped-test limitations](docs/master-plan/ION_PHASE_2_BUILD_TASKS.md) and [the report index](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md). Paused Phase 2.6 local tests are separate and are not counted as main-branch verification.
+
 Branch `feature/ion-next-generation`, reviewed base `a108a01`. Product commits A52a7137, B80f89c5, Cf4c6331, Db8132ec, Eceb6b63 and F5489a3c. Subsequent test-only corrections preserve failed evidence. Installed Ion, main, releases and update feed are untouched.
 
 ## Current checks

@@ -1,18 +1,18 @@
 # Ion Phase 2.6 — Test Explorer
 
-Status: **PAUSED / PARTIALLY IMPLEMENTED — by user request, 27 November 2026**
+Status: **IN PROGRESS — resumed after Windows v0.9.9 publication**
 
 Branch: `codex/ion-core-excellence-phase-2-tests`
 
 Starting checkpoint: `23dff68` (Build/Tasks adapter-foundation native evidence).
 
-The last locally verified pytest foundation is `329789c7ff33f163764bfd30b6ce94d1d91a962b`. Subsequent generic framework-selection and Vitest adapter edits were stopped before their tests/typecheck; they are preserved as unfinished work on this branch. No final native Test Explorer acceptance has run. None of this milestone's implementation is included in the accepted Phase 2.5 main delivery. Resume only when explicitly requested.
+The last locally verified pytest foundation is `329789c7ff33f163764bfd30b6ce94d1d91a962b`. Subsequent generic framework-selection and Vitest adapter edits were stopped before their tests/typecheck; they are preserved as unfinished work on this branch. No final native Test Explorer acceptance has run. None of this milestone's implementation is included in the accepted Phase 2.5 main delivery. Work resumed from preservation commit `2c025c5cc34b89b0e79255e594b61dd2eff78dee`.
 
 ## Implementation sequence and acceptance
 
 1. Shared test discovery, execution, result/history and lifecycle interfaces; one complete pytest journey.
 2. Real Java/JUnit and Jest/Vitest adapters using reviewed installed tooling.
-3. Production Electron acceptance on macOS ARM64 and Windows x64, matched unused/active resource measurements, full relevant regression/security gates.
+3. Targeted production Electron acceptance on macOS ARM64 and Windows x64 with critical data-safety and approval regressions. Expanded resource measurements and long stress sessions belong to Phase 10.
 
 The first slice does not complete Milestone 2.6. Framework discovery must produce real framework test identities; static method-name scanning or a successful task exit cannot substitute for individual test evidence.
 
@@ -43,4 +43,4 @@ The pytest helper uses documented [collection and reporting hooks](https://docs.
 
 ## Verdict
 
-**PAUSED / INCOMPLETE.** The pytest slice has local evidence; the subsequent Vitest/generalization edits are unverified. Native UI, framework completeness, resource gates, Java/JUnit, and relocated historical-result relinking remain unfinished. Phase 2 overall remains incomplete. No further implementation is authorized at this checkpoint.
+**OPEN.** The pytest slice has local evidence; the subsequent Vitest/generalization edits are unverified. Native UI, framework completeness, resource gates, Java/JUnit, and relocated historical-result relinking remain unfinished. Phase 2 overall remains incomplete. The resumed development branch carries these gaps forward.

@@ -1,8 +1,9 @@
 # Ion implementation tracker
 
-Current branch: `codex/ion-core-excellence-phase-2-tests`<br>
-Current Phase 2.6 Test Explorer: **PAUSED / partially implemented** by user request; pytest checkpoint `329789c` passed 474 tests with 26 skips, subsequent Vitest/generalization work is unverified; no native acceptance<br>
-Accepted Phase 2 build/tasks adapter foundation: production `036781e7fe99be4480e5f0803fb6b22124be72a8`, evidence checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; broader scope remains open<br>
+Current delivery: `main` — accepted development through Phase 2.5 plus reviewed reports<br>
+Accepted checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
+Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
+Phase 2.6 Test Explorer: **IN PROGRESS** on this feature branch, resumed from the checkpoint preserved on `codex/ion-core-excellence-phase-2-tests` at `2c025c5cc34b89b0e79255e594b61dd2eff78dee`<br>
 Current Phase 2 debugger production source: `bcd2d5560510492b7dae8c69c97a925b2c7db787` with workflow-only evidence commit `041a5b02c886bcbe7255e58b0fb711aeac6e69ac` (**native acceptance PASS**)<br>
 Current Editor Essentials candidate: `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` with evidence commit `c0a33785d006cae0c9eed280ba398c288a3babc9` (**macOS and Windows x64 acceptance PASS**)<br>
 Current Phase 2 language-services production source: `6bcc06c059a13461b145e5e4ccec55d22bb3bced` (**native acceptance PASS**)<br>
@@ -10,9 +11,15 @@ Accepted editor/workspace foundation: `0718aa7b35894474e1932efba7cee3286dcf0aab`
 Phase 1 accepted candidate: `c5306449445e16090c81d8396003b9885b710fd0`<br>
 Verification harness checkpoint: `9aaeaeffff5cbb5b20a00ddbe373ba51c4e24578`<br>
 Comparison baseline: `d67613a1e9b77c7d677bd304628d57c58542fa71`<br>
-Public release: `0.9.6`<br>
-Local source version: `0.9.8`<br>
-Installed application and live profile: untouched
+Public release: `0.9.9` for Apple Silicon and Windows x64<br>
+Local source version: `0.9.9`<br>
+Phase 2.6 uses disposable profiles on a development branch. The public v0.9.9 release contains accepted work through Phase 2.5.
+
+## Current cutoff and roadmap decision — 27 November 2026
+
+Phase 0, Phase 1, Phase 2.1, Phase 2.2, Phase 2.3, Editor Essentials, Phase 2.4 (accepted C/C++ DAP scope), and Phase 2.5 (accepted adapter foundation) are complete for their documented acceptance scope. **Phase 2 overall remains incomplete.** Phase 2.6 is paused at the user's request; later milestones are not authorized to resume automatically after this source/report delivery.
+
+The last verified 2.6 pytest slice is `329789c7ff33f163764bfd30b6ce94d1d91a962b`: 474 local tests passed, 26 skipped, zero failures, plus typecheck/build. Later framework-selection/Vitest changes in the preservation checkpoint are **unverified**. No final native 2.6 acceptance occurred. These tests and features are not attributed to the accepted main code. See [the pause record](ION_PHASE_2_TEST_EXPLORER.md) and [the consolidated report index](ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
 
 ## Phase status
 
@@ -122,7 +129,7 @@ Phase 2 started from Phase 1 checkpoint `005c402` on the dedicated local branch 
 | Editor Essentials — menus, Explorer keyboard and MRU tabs | **Accepted on macOS and Windows x64** | Candidate `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` adds accessible tab/Explorer context menus, bounded group-aware Ctrl+Tab history, safe batch close/reopen, Explorer tree keyboard semantics, focus-scoped delete/rename, authorized Copy Path/Reveal and selected-folder integrated terminals. Local macOS typecheck/build, 22 focused tests, the 467-test suite (441 pass/26 explicit skips), keyboard/relaunch and production Electron acceptance passed. Focused Windows run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed 440/457 tests with 17 explicit skips, both production workflows, restoration and resource cleanup. No dependency or background process was added. |
 | 2.4 — C/C++ DAP | **Accepted on macOS ARM64 and Windows x64** | Lazy bounded DAP host, trusted clang/lldb-dap discovery, reviewed saved-source binding, breakpoint/call-stack/scope/variable/watch/evaluate UI, stepping, continue/restart/stop and owned cleanup pass. macOS packaged/native job [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321/job/140103900405) and Windows packaged/native job [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977/job/140106512467) passed. Exact scope, failures and limitations are in `ION_PHASE_2_DEBUGGER.md`. |
 | 2.5 — Build/tasks | **Adapter foundation accepted; broader scope open** | App `036781e7fe99be4480e5f0803fb6b22124be72a8` passes final native full suites, lazy task loading, approved npm execution, Stop and cleanup in [45924540081](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45924540081), harness `c7b925caf6aef4e7956301692007330a0e3e1d08`: macOS 461/487 passed, 26 skipped; Windows 460/477 passed, 17 skipped; zero failures. Matched run [45923748325](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45923748325) passes startup/first-file budgets with four processes, zero task children and full cleanup. Saved workspace task definitions, safe problem matching and remaining adapter native journeys are still pending. Exact costs, individual samples and preserved failures are in `ION_PHASE_2_BUILD_TASKS.md`. |
-| 2.6 — Test Explorer | **OPEN / in development** | Reusable lazy service and real pytest discovery/run/history are being implemented on `codex/ion-core-excellence-phase-2-tests`. Existing saved C tests remain intact. Backup evidence is restored stale with runnable selections cleared. Java/JUnit, Jest/Vitest, complete native UI/cancellation acceptance and matched resource gates remain required. See `ION_PHASE_2_TEST_EXPLORER.md`; no acceptance claim yet. |
+| 2.6 — Test Explorer | **In progress; excluded from the 0.9.9 release** | Preserved at `2c025c5cc34b89b0e79255e594b61dd2eff78dee` on `codex/ion-core-excellence-phase-2-tests`. Pytest foundation `329789c` has local test/build evidence; later generic/Vitest edits are unverified. No final native acceptance. Development resumed after Windows v0.9.9 publication. Existing saved project tests remain intact in main. |
 
 Phase 2 performance baseline remains the corrected Phase 1 comparison in this document. No new always-running process, worker, listener or service was added in this accepted slice. The multi-cursor contribution is a separate lazy chunk and ordinary one-file editing does not request it.
 

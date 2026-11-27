@@ -1,6 +1,6 @@
 # Ion Phase 2.5 — Build and tasks
 
-Status: **PASS — reviewed adapter foundation; broader task scope remains incomplete**
+Status: **COMPLETE for the accepted reviewed-adapter foundation — native acceptance PASS; broader task capabilities remain technical debt**
 Branch: `codex/ion-core-excellence-phase-2-tasks`
 
 Production candidate: `036781e7fe99be4480e5f0803fb6b22124be72a8`

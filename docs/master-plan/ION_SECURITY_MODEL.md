@@ -33,7 +33,27 @@
 8. **Offline means quiet.** Ordinary editing initiates no network request. Update, provider, GitHub, and remote-Git operations are explicit or clearly enabled.
 9. **Failure preserves data.** Conflicts retain both versions; interrupted restore resumes or rolls back; repair failure preserves evidence and recovery instructions.
 
+## Accepted controls and current watchlist — through Milestone 2.5
+
+The following is an evidence summary for accepted application checkpoints, not a fresh security scan or a signed-release claim. Earlier failures, platform skips and coverage limits remain in the linked reports.
+
+| Area | Accepted evidence and security boundary | Remaining scope / limitation |
+| --- | --- | --- |
+| Backup, recovery and user data | Phase 1 application `c5306449445e16090c81d8396003b9885b710fd0` passed real restore/relaunch, normal-store access, detached drafts, changed-preview rejection, interruption recovery, populated rollback and trust/credential exclusion on both hosted platforms. See the [tracker's exact native acceptance](ION_IMPLEMENTATION_TRACKER.md#exact-native-acceptance) and completed release gates. | Archives remain unencrypted. Maximum-capacity archives, external filesystems, physical power loss and four-hour endurance are not established by those fixtures. |
+| Multi-root editing and reviewed writes | Accepted editor/workspace foundation preserves explicit grants, shared Monaco models/undo, dirty buffers and restored layouts. Reviewed replacements revalidate revisions and hashes through safe publication; restored paths grant no trust. | Continue testing native locks, junctions, casing and interrupted writes as each subsystem changes. |
+| Language services | Application `6bcc06c059a13461b145e5e4ccec55d22bb3bced` passed [native run 45859946256](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45859946256): root isolation, stale/cancelled request rejection, bounded hostile-protocol handling, unauthorized-path protection and zero owned services after shutdown. Server-provided edits require main-owned review tokens and root/revision/hash/link checks. | The supported semantic adapters are the bounded scope in the [LSP report](ION_PHASE_2_LANGUAGE_SERVICES.md); installed language-server processes are not an OS security sandbox. |
+| C/C++ debugging | Application `bcd2d5560510492b7dae8c69c97a925b2c7db787` passed native and packaged journeys on both platforms with trusted compiler/adapter discovery, bounded DAP, saved-source hash binding, explicit launch and owned adapter/debuggee cleanup. The same-size rewrite defect and its correction are retained in the [debugger report](ION_PHASE_2_DEBUGGER.md). | Python/Java debugging, attach/remote debugging and long-session measurements are not accepted by this checkpoint. |
+| Build/task foundation | Application `036781e7fe99be4480e5f0803fb6b22124be72a8` passed [final native run 45924540081](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45924540081) on macOS ARM64 and Windows x64: static discovery, approved real npm execution, Stop and owned cleanup. Full unit/security results were 461 passed / 26 skipped on macOS and 460 passed / 17 skipped on Windows, with zero failures. | Saved workspace task definitions, problem matchers and native execution of the other adapter plans remain open. The [task report](ION_PHASE_2_BUILD_TASKS.md) preserves skips, intermediate failures and exact evidence identities. |
+
+Task discovery performs bounded static inspection and does not execute manifests, wrappers, scripts or workspace binaries. Main resolves trusted installed tools outside every workspace root, constructs structured executable/argument/cwd plans, and requires exact execution review for every run. Renderer requests cannot supply arbitrary executable paths, environment variables or arguments. Stored task records contain declarative selectors and source revisions, not shell commands or approvals. Current source/task/workspace identity is rechecked before execution; root removal, replacement, Stop and shutdown cancel and drain the owned operation.
+
+**Explicit approval is essential:** npm, Make and other build tools can execute project-controlled build logic with the user's account permissions. Ion's offline-first behavior means it does not install task dependencies or start discovery/processes/network work during ordinary editing; it does not promise that an approved build script cannot access files or the network. Task history and restored evidence never grant permission. Tests use disposable profiles and roots; this acceptance did not authorize modifying user projects or the installed app.
+
+The eager task-backend bundling defect was corrected without changing execution approvals, dependencies, timeouts or file integrity. Process cleanup is verified for the recorded bounded journeys, not all possible third-party scripts. Milestone 2.6 is paused on its separate development branch and its code is excluded from this accepted checkpoint. Signing, notarization, supply-chain provenance, long-session coverage and the unresolved historical GCC/notebook/Learning Lens evidence remain distinct watchlist items; successful recent tests do not erase them.
+
 ## Threats and controls
+
+This table preserves the original threat inventory. Its forward-looking entries are refined by the accepted-control summary above; they are not a claim that later LSP, DAP or task acceptance has not occurred.
 
 | Threat | Existing control | Remaining work |
 | --- | --- | --- |
@@ -56,7 +76,7 @@ V1 `.ionbackup` uses ZIP with a versioned manifest, store schemas, SHA-256 entry
 
 Restore validates into a private unique stage before preview. It imports drafts as detached copies, requires explicit category replacement, restores copied workspaces only into a new destination, and never turns imported paths into filesystem grants. Application occurs through a controlled restart and durable journal with a verified pre-restore rollback archive.
 
-The implementation is not release-complete until native restore/relaunch, normal-store access, trust exclusion, interruption recovery, rollback, and cleanup pass for the exact candidate on macOS and Windows.
+Native restore/relaunch, normal-store access, trust exclusion, interruption recovery, rollback and cleanup are mandatory gates. They passed for the Phase 1 candidate recorded above; they must be revalidated when relevant production behavior changes. Acceptance is separate from public packaging/signing authorization, and the documented capacity, filesystem and power-loss limitations remain.
 
 ## AI and Copilot requirements
 
