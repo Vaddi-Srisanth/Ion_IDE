@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current development: `codex/ion-phase-6-copilot` — Phase 3 core workflow checkpointed locally; continue roadmap work through Phase 10<br>
-Latest local Phase 3 checkpoint: pending commit — reviewed push pins one commit, uses an exact remote OID lease, verifies remote state and compare-and-swap updates the cached ref (**2/2 backend tests, renderer, typecheck and production build pass; no live push; Windows/native dialog qualification deferred to Phase 10**)<br>
+Latest local Phase 3 checkpoint: `e00dcf9` — reviewed push pins one commit, uses an exact remote OID lease, verifies remote state and compare-and-swap updates the cached ref (**2/2 backend tests, renderer, typecheck and production build pass; no live push; Windows/native dialog qualification deferred to Phase 10**)<br>
 Latest local Phase 4 checkpoint: `ad71777` — offline solved/unsolved practice filters using retained local verdicts (**9/9 focused tests, typecheck and build PASS; production Electron assertions passed but final inspector shutdown timed out; not pushed**)<br>
 Latest local Phase 8 checkpoint: `9b9192b` — lazy offline binary-tree traversal lesson (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
