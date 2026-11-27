@@ -228,7 +228,7 @@ export default function MonacoSurface({
         try {
           const result = await window.ion.copilot.complete(requestId, { uri: Uri.file(currentTab.path).toString(), languageId: model.getLanguageId(),
             version: model.getVersionId(), text: model.getValue() }, { line: position.lineNumber - 1, character: position.column - 1 },
-          context.triggerKind === languages.InlineCompletionTriggerKind.Explicit ? 2 : 1);
+          context.triggerKind === languages.InlineCompletionTriggerKind.Explicit ? 1 : 2);
           if (controller.signal.aborted || token.isCancellationRequested || instance.getModel() !== model
             || model.isDisposed() || model.getVersionId() !== result[0]?.version) return { items: [] };
           return { items: result.map(completion => ({
