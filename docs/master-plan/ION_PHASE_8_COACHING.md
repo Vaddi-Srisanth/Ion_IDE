@@ -26,6 +26,12 @@ Practice → Browse now also offers a lazy, offline DFS walkthrough over the sam
 
 The lesson explains O(V + E) time and O(V) algorithm working space under the adjacency-list assumption, and clarifies that the interactive replay retains step snapshots. These are analytical bounds, not measured timings. Targeted macOS checks passed for stack order, discovery order, duplicate suppression, alternate and isolated starts, completion/reset, complexity wording, lazy loading, no extra bridge calls, 250 px viewport fit, keyboard focus return and no browser errors or external requests. The BFS regression journey, type checking and production build passed. Native Windows verification remains open.
 
+## Dijkstra shortest-path walkthrough
+
+Practice → Browse adds a fourth lazy, offline algorithm lesson for Dijkstra over a small weighted directed graph. It steps through the minimum-distance unsettled node, relaxations, current distances, predecessors and settled nodes. Learners can start at A, C or isolated E; the example demonstrates an improved route to B and leaves unreachable nodes at ∞. It states the non-negative-weight requirement and does not execute learner code or make network requests.
+
+This uses an array-based minimum selection, not a priority queue: the stated analytical bounds are O(V² + E) time and O(V) auxiliary working space, excluding the graph input. Replay snapshots are identified as UI storage. Targeted macOS browser verification passed for each relaxation and final distance from A, updated distances from C, unreachable nodes from E, lazy loading, offline/no-extra-bridge behavior, 250 px viewport fit, complexity wording, keyboard focus return and zero browser errors. BFS and DFS regressions, type checking and the production build passed. Native Windows verification remains open.
+
 ## Local topic focus signal — 27 November 2026
 
 Local checkpoint: `d471127` on `codex/ion-phase-6-copilot` (not pushed).
