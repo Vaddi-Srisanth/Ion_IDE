@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-27T19:59:03.395Z",
+  "timestamp": "2026-11-27T20:34:47.456Z",
   "platform": "darwin",
   "source": "src/main/notebooks/kernel-service.ts",
   "sourceSha256": "cddd01878b5034245345e33e1141adc2ef44f9720a47a11034b2b65f1a069312",
@@ -31,6 +31,6 @@
   "forcedTeardownCount": 0,
   "result": "passed-raw-sticky-nested-disposal-regressions",
   "complete": true,
-  "durationMs": 432.46866700000004,
+  "durationMs": 435.186834,
   "unhandledRejections": []
 }

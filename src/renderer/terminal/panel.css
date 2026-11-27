@@ -101,6 +101,10 @@
 .terminal-find .icon-button { width: 22px; height: 22px; flex: none; }
 .terminal-find-previous svg { transform: rotate(180deg); }
 .output-frame { container-type: inline-size; }
+@container (max-width: 700px) {
+  .run-console-file { display: none; }
+  .run-console .run-tag { max-width: 78px; }
+}
 @container (max-width: 530px) {
   .bottom-tab { padding-inline: 5px; }
   .bottom-tab svg, .run-console-file { display: none; }

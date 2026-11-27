@@ -1,0 +1,98 @@
+{
+  "complete": true,
+  "platform": "darwin",
+  "cases": [
+    {
+      "app": "stock Monaco",
+      "method": "insertText",
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "stock Monaco",
+      "method": "typing",
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "stock Monaco",
+      "method": "paste",
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "insertText",
+      "swap": false,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "insertText",
+      "swap": true,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "typing",
+      "swap": false,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "typing",
+      "swap": true,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h> /* ION_AUDIT_UNDO\nint main(void) { return 0; }\n",
+        "#include <stdio.h> /*\nint main(void) { return 0; }\n",
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "paste",
+      "swap": false,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    },
+    {
+      "app": "Ion production",
+      "method": "paste",
+      "swap": true,
+      "before": "#include <stdio.h> /* ION_AUDIT_UNDO */\nint main(void) { return 0; }\n",
+      "focusedUndoStates": [
+        "#include <stdio.h>\nint main(void) { return 0; }\n"
+      ]
+    }
+  ],
+  "method": "Hidden stock Monaco and production Ion; insertText, sequential typing, existing Monaco paste command (no OS clipboard access); refocus every Undo. No production undo instrumentation.",
+  "stockProfileIsolated": true
+}
