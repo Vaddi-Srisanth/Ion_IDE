@@ -1,0 +1,69 @@
+name: Phase 8-9 offline learning acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ion-phase-6-copilot]
+    paths:
+      - '.github/workflows/phase8-9-learning-native.yml'
+      - 'src/main/learning/**'
+      - 'src/main/practice/**'
+      - 'src/renderer/practice/**'
+      - 'src/renderer/learning/**'
+      - 'scripts/test-practice-*.mjs'
+      - 'scripts/test-learning-marketplace.mjs'
+      - 'scripts/test.mjs'
+      - 'test/**'
+      - 'package.json'
+      - 'package-lock.json'
+permissions:
+  contents: read
+jobs:
+  offline-learning:
+    name: Offline coaching and pack safety on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, platform: darwin, arch: arm64 }
+          - { os: windows-2025, platform: win32, arch: x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Build the candidate
+        id: build
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node -e "const a=require('node:assert/strict');a.equal(process.platform,process.env.EXPECTED_PLATFORM);a.equal(process.arch,process.env.EXPECTED_ARCH)"
+          npm ci
+          node node_modules/electron/install.js
+          npm run typecheck
+          npm run build
+      - name: Verify offline lessons and local progress data
+        run: |
+          node scripts/test.mjs practice practice-catalog-data learning-packs learning
+          node scripts/test-practice-binary-search.mjs
+          node scripts/test-practice-breadth-first.mjs
+          node scripts/test-practice-depth-first.mjs
+          node scripts/test-practice-dijkstra.mjs
+          node scripts/test-practice-merge-sort.mjs
+          node scripts/test-practice-tree-traversal.mjs
+      - name: Exercise production learning pack review and import
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          ION_SHOW_TEST_WINDOWS: '0'
+        run: node scripts/test-learning-marketplace.mjs --target dist
+      - name: Verify tracked files
+        run: git diff --exit-code HEAD
