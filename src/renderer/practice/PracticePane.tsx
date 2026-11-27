@@ -16,6 +16,7 @@ import './practice.css'
 
 const BinarySearchWalkthrough = lazy(() => import('./BinarySearchWalkthrough'))
 const BreadthFirstSearchWalkthrough = lazy(() => import('./BreadthFirstSearchWalkthrough'))
+const DepthFirstSearchWalkthrough = lazy(() => import('./DepthFirstSearchWalkthrough'))
 
 export interface PracticePaneProps {
   bridge: PracticeBridge
@@ -118,13 +119,14 @@ function ProgressPractice({ bridge, busy, onStart }: {
   </>
 }
 
-function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEntry, onWalkthrough, onStart }: {
+function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEntry, depthFirstEntry, onWalkthrough, onStart }: {
   bridge: PracticeBridge
   hidden: boolean
   busy: boolean
   walkthroughEntry: RefObject<HTMLButtonElement | null>
   breadthFirstEntry: RefObject<HTMLButtonElement | null>
-  onWalkthrough(kind: 'binary-search' | 'breadth-first-search'): void
+  depthFirstEntry: RefObject<HTMLButtonElement | null>
+  onWalkthrough(kind: 'binary-search' | 'breadth-first-search' | 'depth-first-search'): void
   onStart(id: string, language: RunLanguage): void
 }) {
   const [language, setLanguage] = useState<RunLanguage | ''>('')
@@ -171,6 +173,10 @@ function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEn
       <button ref={breadthFirstEntry} className="button practice-walkthrough-entry" type="button"
         onClick={() => onWalkthrough('breadth-first-search')}>
         <Icon name="book" size={14} /> Walk through breadth-first search
+      </button>
+      <button ref={depthFirstEntry} className="button practice-walkthrough-entry" type="button"
+        onClick={() => onWalkthrough('depth-first-search')}>
+        <Icon name="book" size={14} /> Walk through depth-first search
       </button>
       <form className="practice-search" role="search" aria-label="Practice catalog" onSubmit={(event) => {
         event.preventDefault()
@@ -337,7 +343,7 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
 
 
 export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onLearn }: PracticePaneProps) {
-  const [view, setView] = useState<'browse' | 'saved' | 'progress' | 'binary-search' | 'breadth-first-search'>(initialProblem ? 'saved' : 'browse')
+  const [view, setView] = useState<'browse' | 'saved' | 'progress' | 'binary-search' | 'breadth-first-search' | 'depth-first-search'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
   const [attemptId, setAttemptId] = useState('')
@@ -353,7 +359,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
   const scroll = useRef<HTMLDivElement>(null)
   const walkthroughEntry = useRef<HTMLButtonElement>(null)
   const breadthFirstEntry = useRef<HTMLButtonElement>(null)
-  const walkthroughKind = useRef<'binary-search' | 'breadth-first-search'>('binary-search')
+  const depthFirstEntry = useRef<HTMLButtonElement>(null)
+  const walkthroughKind = useRef<'binary-search' | 'breadth-first-search' | 'depth-first-search'>('binary-search')
   const returningFromWalkthrough = useRef(false)
 
   function setSelected(next: PracticeProblem | undefined) {
@@ -389,7 +396,8 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
   useEffect(() => {
     if (view === 'browse' && returningFromWalkthrough.current) {
       returningFromWalkthrough.current = false;
-      (walkthroughKind.current === 'binary-search' ? walkthroughEntry.current : breadthFirstEntry.current)?.focus()
+      (walkthroughKind.current === 'binary-search' ? walkthroughEntry.current
+        : walkthroughKind.current === 'breadth-first-search' ? breadthFirstEntry.current : depthFirstEntry.current)?.focus()
     }
   }, [view])
 
@@ -564,7 +572,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         <button className="icon-button" onClick={onClose} aria-label="Hide Practice" title="Hide Practice"><Icon name="x" size={15} /></button>
       </div>
       <nav className="practice-nav" aria-label="Practice views">
-        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse' || view === 'binary-search' || view === 'breadth-first-search'}
+        <button data-testid="practice-browse-tab" aria-pressed={view === 'browse' || view === 'binary-search' || view === 'breadth-first-search' || view === 'depth-first-search'}
           onClick={() => { setView('browse'); setError(''); setNotice('') }}><Icon name="search" size={14} /> Browse</button>
         <button data-testid="practice-saved-tab" aria-pressed={view === 'saved'}
           onClick={() => { setView('saved'); setError(''); setNotice('') }}><Icon name="folder" size={14} /> Saved</button>
@@ -576,7 +584,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
         {notice && <p className="practice-notice" role="status">{notice}</p>}
         {pending === 'start' && <p className="practice-muted" role="status">Opening your challenge…</p>}
         <BrowsePractice bridge={bridge} hidden={view !== 'browse'} busy={Boolean(pending)}
-          walkthroughEntry={walkthroughEntry} breadthFirstEntry={breadthFirstEntry}
+          walkthroughEntry={walkthroughEntry} breadthFirstEntry={breadthFirstEntry} depthFirstEntry={depthFirstEntry}
           onWalkthrough={kind => { walkthroughKind.current = kind; setView(kind); setError(''); setNotice('') }}
           onStart={(id, language) => void start(id, language)} />
         {view === 'binary-search' && <div className="practice-discovery practice-walkthrough">
@@ -595,6 +603,15 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
           }}>Back to Browse</button>
           <Suspense fallback={<p className="practice-muted" role="status">Opening walkthrough…</p>}>
             <BreadthFirstSearchWalkthrough />
+          </Suspense>
+        </div>}
+        {view === 'depth-first-search' && <div className="practice-discovery practice-walkthrough">
+          <button className="button" type="button" autoFocus onClick={() => {
+            returningFromWalkthrough.current = true
+            setView('browse')
+          }}>Back to Browse</button>
+          <Suspense fallback={<p className="practice-muted" role="status">Opening walkthrough…</p>}>
+            <DepthFirstSearchWalkthrough />
           </Suspense>
         </div>}
         {view === 'progress' && <ProgressPractice bridge={bridge} busy={Boolean(pending)}

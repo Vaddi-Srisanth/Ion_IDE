@@ -1,21 +1,12 @@
 import { useId, useState } from 'react'
 import './breadth-first-search.css'
-
-const graph = {
-  A: ['B', 'C'],
-  B: ['D', 'E'],
-  C: ['F'],
-  D: [],
-  E: ['F'],
-  F: [],
-} as const
-type Node = keyof typeof graph
-const starts = ['A', 'C', 'F'] as const satisfies readonly Node[]
+import { traversalGraph as graph, traversalStarts as starts, type TraversalNode as Node } from './graph-traversal'
 type Step = { current: Node; queue: Node[]; discovered: Node[]; processed: Node[]; edges: string[] }
 
 function trace(start: Node): Step[] {
   const queue: Node[] = [start]
   const discovered: Node[] = [start]
+  const discoveredSet = new Set<Node>([start])
   const processed: Node[] = []
   const edges: string[] = []
   const steps: Step[] = []
@@ -23,7 +14,8 @@ function trace(start: Node): Step[] {
     const current = queue.shift()!
     processed.push(current)
     for (const next of graph[current]) {
-      if (discovered.includes(next)) continue
+      if (discoveredSet.has(next)) continue
+      discoveredSet.add(next)
       discovered.push(next)
       queue.push(next)
       edges.push(current + '→' + next)
@@ -94,7 +86,7 @@ export default function BreadthFirstSearchWalkthrough() {
       <h4>Complexity for <var>V</var> nodes and <var>E</var> edges</h4>
       <dl><div><dt>Time</dt><dd>O(V + E): each reachable node and outgoing edge is examined at most once.</dd></div>
         <div><dt>Auxiliary space</dt><dd>O(V) for the queue and discovered set.</dd></div></dl>
-      <p>Assumes adjacency-list input. These are analytical bounds, not measured timings.</p>
+      <p>Assumes adjacency-list input. These are analytical bounds, not measured timings; the bounds describe traversal state, while this lesson retains step snapshots so you can replay it.</p>
     </section>
     <div className="practice-run-actions" role="group" aria-label="Traversal step controls">
       <button className="button" type="button" disabled={index === 0}
