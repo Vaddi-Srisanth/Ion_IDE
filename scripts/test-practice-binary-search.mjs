@@ -64,13 +64,17 @@ try {
   await entryButton.press('Enter')
   const lesson = page.getByRole('region', { name: 'Binary search' })
   await lesson.getByRole('heading', { name: 'Binary search' }).waitFor()
+  const complexity = lesson.getByRole('region', { name: 'Complexity analysis' })
+  await complexity.getByText('O(log n) comparisons: each step halves the remaining range.').waitFor()
+  await complexity.getByText('O(1) for this iterative version; this excludes the input list.').waitFor()
+  await complexity.getByText('These are analytical bounds, not measured timings.').waitFor()
   assert.equal(requested.filter(name => name === lessonModule).length, 1)
   if (entry[1].cssBundle) {
     await page.addStyleTag({ url: origin + '/' + basename(entry[1].cssBundle) })
   }
   const back = page.getByRole('button', { name: 'Back to Browse' })
   assert.equal(await back.evaluate(button => button === document.activeElement), true)
-  const range = lesson.locator('dl dd')
+  const range = lesson.locator('.practice-binary-range dd')
   const list = lesson.getByRole('list', { name: 'Sorted values' })
   const status = lesson.getByRole('status')
   const next = lesson.getByRole('button', { name: 'Next step' })

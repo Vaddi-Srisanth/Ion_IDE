@@ -10,7 +10,9 @@ Seventeen focused backend tests and four offline headless journeys passed on mac
 
 Practice → Browse includes an offline lesson that steps through binary search on a sorted example. Learners can choose a target that exists or one that does not, compare low, mid and high, and replay each eliminated range. Previous, next and reset support keyboard use. The walkthrough loads only when opened and sends no requests to the main process.
 
-The headless Chromium check verified the lazy chunk, both search outcomes, transitions, controls and returning keyboard focus to the entry. The production Electron journey also followed the found case on macOS ARM64. The walkthrough uses a fixed example without executing or persisting learner code.
+The headless Chromium check verified the lazy chunk, both search outcomes, transitions, controls, complexity assumptions and returning keyboard focus to the entry. The production Electron journey also followed the found case on macOS ARM64. The walkthrough uses a fixed example without executing or persisting learner code.
+
+It also gives an offline analysis for `n` already sorted values: O(log n) comparisons because each step halves the candidate range, and O(1) auxiliary space for this iterative implementation, excluding storage for the input. It labels these as analytical bounds, not measured timings.
 
 ## Local topic focus signal — 27 November 2026
 

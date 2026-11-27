@@ -1,4 +1,11 @@
 .practice-binary-search { display: grid; gap: 10px; min-width: 0; }
+.practice-binary-complexity { padding: 10px; border: 1px solid var(--subtle-border); border-radius: 8px; }
+.practice-binary-complexity h4 { margin: 0 0 6px; }
+.practice-binary-complexity dl { display: grid; gap: 6px; margin: 0; }
+.practice-binary-complexity dl > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px; }
+.practice-binary-complexity dt { color: var(--muted); }
+.practice-binary-complexity dd { margin: 0; }
+.practice-binary-complexity p { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .practice-binary-heading { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; justify-content: space-between; }
 .practice-binary-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
 .practice-binary-heading .practice-label { flex: 0 0 72px; }

@@ -86,6 +86,12 @@ export default function BinarySearchWalkthrough() {
       <h4>{step.kind === 'found' ? 'Target found' : step.kind === 'absent' ? 'Target absent' : 'Step ' + (index + 1)}</h4>
       <p>{explanation(step, target)}</p>
     </div>
+    <section className="practice-binary-complexity" aria-label="Complexity analysis">
+      <h4>Complexity for <var>n</var> sorted values</h4>
+      <dl><div><dt>Time</dt><dd>O(log <var>n</var>) comparisons: each step halves the remaining range.</dd></div>
+        <div><dt>Auxiliary space</dt><dd>O(1) for this iterative version; this excludes the input list.</dd></div></dl>
+      <p>Assumes the values are already sorted. These are analytical bounds, not measured timings.</p>
+    </section>
     <div className="practice-run-actions" role="group" aria-label="Search step controls">
       <button className="button" type="button" disabled={index === 0}
         onClick={() => setIndex(current => Math.max(0, current - 1))}>Previous step</button>
