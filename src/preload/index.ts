@@ -129,7 +129,7 @@ const bridge: IonBridge = {
   },
   testExplorer: {
     list: (root) => ipcRenderer.invoke('ion:test-explorer-list', root),
-    discover: (root) => ipcRenderer.invoke('ion:test-explorer-discover', root),
+    discover: (root, adapter) => ipcRenderer.invoke('ion:test-explorer-discover', root, adapter),
     run: (root, revision, ids) => ipcRenderer.invoke('ion:test-explorer-run', root, revision, ids),
     cancel: () => ipcRenderer.invoke('ion:test-explorer-cancel'),
   },

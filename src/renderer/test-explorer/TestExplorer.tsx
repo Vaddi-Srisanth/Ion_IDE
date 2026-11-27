@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Entry } from '../../shared/contracts'
-import type { TestCaseResult, TestExplorerBridge, TestNode, TestOperationResult, TestSnapshot } from '../../shared/test-explorer'
+import type { TestAdapter, TestCaseResult, TestExplorerBridge, TestNode, TestOperationResult, TestSnapshot } from '../../shared/test-explorer'
 import { Modal } from '../Dialogs'
 import { errorMessage } from '../documents'
 import './test-explorer.css'
@@ -21,6 +21,7 @@ const duration = (ms: number) => ms < 1_000 ? `${Math.round(ms)} ms` : `${(ms / 
 export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSavedTests, onClose }: TestExplorerProps) {
   const [rootPath, setRootPath] = useState(roots[0]?.path ?? '')
   const [snapshot, setSnapshot] = useState<TestSnapshot | null>()
+  const [adapter, setAdapter] = useState<TestAdapter>('pytest')
   const [selectedId, setSelectedId] = useState('')
   const [historyId, setHistoryId] = useState('')
   const [historicalCaseId, setHistoricalCaseId] = useState('')
@@ -48,7 +49,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
     setBusy('load')
     const read = rootPath ? api.list(rootPath) : Promise.resolve(null)
     void read.then(value => {
-      if (current && epoch === generation.current) setSnapshot(value)
+      if (current && epoch === generation.current) { setSnapshot(value); setAdapter(value?.adapter ?? 'pytest') }
     }, reason => {
       if (current && epoch === generation.current) setError(errorMessage(reason))
     }).finally(() => {
@@ -93,7 +94,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
   }
 
   function discover() {
-    void perform('discover', () => api.discover(rootPath))
+    void perform('discover', () => api.discover(rootPath, adapter))
   }
 
   function run(ids: string[]) {
@@ -153,7 +154,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
   const latest = history[0]
   const failedIds = latest?.cases.filter(item => (item.outcome === 'failed' || item.outcome === 'error')
     && cases.some(node => node.id === item.id)).map(item => item.id) ?? []
-  const canRun = !busy && !snapshot?.stale && cases.length > 0
+  const canRun = !busy && !snapshot?.stale && snapshot?.adapter === adapter && cases.length > 0
   const running = busy === 'discover' || busy === 'run' || busy === 'stop'
   const location = result?.location ?? selected?.location
   const status = busy === 'load' ? 'Loading saved test history…' : busy === 'discover' ? 'Reviewing or collecting tests…'
@@ -187,12 +188,16 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
           {roots.map(item => <option key={item.path} value={item.path}>{item.name}</option>)}
         </select>
       </label>
-      <span className="test-explorer-adapter">pytest · local</span>
+      <label>Framework
+        <select aria-label="Test framework" value={adapter} disabled={Boolean(busy)} onChange={event => setAdapter(event.target.value as TestAdapter)}>
+          <option value="pytest">Python · pytest</option><option value="vitest">JavaScript / TypeScript · Vitest</option>
+        </select>
+      </label>
       <button type="button" className="button" disabled={!root || Boolean(busy)} onClick={discover}>
         {snapshot ? 'Refresh Discovery…' : 'Discover Tests…'}
       </button>
     </div>
-    <p className="test-explorer-note">Discovery imports Python tests and project configuration. Ion asks you to review the command before discovery or execution. Tests use saved files and an installed pytest; no packages are downloaded.</p>
+    <p className="test-explorer-note">Discovery imports tests and project configuration. Ion asks you to review the command before discovery or execution. Tests use saved files and an installed {adapter === 'pytest' ? 'pytest' : 'Vitest 4.1.x'}; no packages are downloaded.</p>
     <div className="test-explorer-actions">
       <button type="button" className="button primary" disabled={!canRun || !selected} onClick={() => run([selectedId])}>Run Selected</button>
       <button type="button" className="button" disabled={!canRun} onClick={() => run(cases.map(node => node.id))}>Run All</button>
@@ -202,13 +207,14 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
     </div>
     {error && <p className="test-explorer-error" role="alert">{error}</p>}
     {snapshot?.stale && <p className="test-explorer-warning">Saved discovery or source data changed. Refresh Discovery before running. Previous results remain historical evidence.</p>}
+    {snapshot && snapshot.adapter !== adapter && <p className="test-explorer-warning">Discover {adapter} tests to replace the current discovery. Previous results remain in history.</p>}
     <p className="test-explorer-status" role="status" aria-live="polite">{status}</p>
     <div className="test-explorer-body">
       <nav className="test-explorer-tree" aria-label="Discovered test suites">
         {nodes.length ? renderNodes(null) : <div className="test-explorer-empty">
           <strong>{snapshot ? 'No runnable tests in this snapshot' : 'Discover your tests'}</strong>
           <p>{snapshot?.history.length ? 'Saved history is available. Rediscover this workspace to obtain runnable test identities.'
-            : 'Discover collects real pytest cases, including parameterized tests. Saved C behavior tests remain available below.'}</p>
+            : 'Discover collects real framework cases, including parameterized tests. Saved C behavior tests remain available below.'}</p>
         </div>}
       </nav>
       <section className="test-explorer-detail" aria-label="Test result details">
@@ -217,7 +223,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
             onChange={event => setHistoryId(event.target.value)}>
             {!history.length && <option value="">No runs yet</option>}
             {history.map((item, index) => <option key={item.id} value={item.id}>
-              {index === 0 ? 'Latest · ' : ''}{new Date(item.checkedAt).toLocaleString()} · {item.status}{item.restored ? ' · restored' : ''}
+              {index === 0 ? 'Latest · ' : ''}{new Date(item.checkedAt).toLocaleString()} · {item.adapter ?? 'pytest'} · {item.status}{item.restored ? ' · restored' : ''}
             </option>)}
           </select>
         </label>

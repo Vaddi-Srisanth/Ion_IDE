@@ -1,7 +1,7 @@
 import { constants } from 'node:fs'
 import { access, open, realpath, stat, writeFile } from 'node:fs/promises'
 import { basename, delimiter, join, relative, sep } from 'node:path'
-import type { TestCaseResult, TestNode } from '../../shared/test-explorer'
+import type { TestAdapter, TestCaseResult, TestNode } from '../../shared/test-explorer'
 import type { WorkspaceFiles } from '../files'
 import { isWithin, revision } from '../files'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
@@ -12,6 +12,8 @@ import { pytestHelper } from './pytest-helper'
 export interface TestPlan {
   executable: string; args: string[]; cwd: string; environment: NodeJS.ProcessEnv; timeoutMs: number
   report: string; operation: 'discover' | 'run'
+  trackedFiles?: string[]
+  warning?: string
 }
 export interface CollectedCase { selector: string; label: string; location: { path: string; line: number } }
 export interface FrameworkCase extends Omit<TestCaseResult, 'id'> { selector: string; finished: boolean }
@@ -39,7 +41,7 @@ export async function safeTool(tool: string, roots: readonly string[]): Promise<
 }
 
 const excluded = new Set(['.git', '.venv', 'venv', 'env', 'node_modules', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache', 'build', 'dist', 'target', '.tox', '.nox'])
-export async function sourceRevisions(scope: WorkspaceFiles, root: string, signal?: AbortSignal): Promise<Record<string, string>> {
+export async function sourceRevisions(scope: WorkspaceFiles, root: string, signal?: AbortSignal, adapter: TestAdapter = 'pytest'): Promise<Record<string, string>> {
   const result: Record<string, string> = {}; let visited = 0, bytes = 0
   async function walk(path: string, depth: number) {
     signal?.throwIfAborted()
@@ -48,11 +50,14 @@ export async function sourceRevisions(scope: WorkspaceFiles, root: string, signa
       signal?.throwIfAborted()
       if (++visited > 10_000) throw new Error('Test workspace exceeds the bounded inspection limit. Open a smaller root.')
       if (entry.kind === 'folder') { if (!excluded.has(entry.name)) await walk(entry.path, depth + 1); continue }
-      if (!entry.name.endsWith('.py') && !['pytest.ini', '.pytest.ini', 'pyproject.toml', 'setup.cfg', 'tox.ini'].includes(entry.name)) continue
-      if (Object.keys(result).length >= testLimits.sources) throw new Error('Too many Python/configuration files. Open a smaller root.')
+      const included = adapter === 'pytest'
+        ? entry.name.endsWith('.py') || ['pytest.ini', '.pytest.ini', 'pyproject.toml', 'setup.cfg', 'tox.ini'].includes(entry.name)
+        : /\.(?:[cm]?[jt]sx?|json|ya?ml)$/.test(entry.name) || ['.npmrc', '.yarnrc', '.yarnrc.yml'].includes(entry.name)
+      if (!included) continue
+      if (Object.keys(result).length >= testLimits.sources) throw new Error('Too many source/configuration files. Open a smaller root.')
       const inspected = await scope.inspect(entry.path, 'file')
       bytes += Number(inspected.stats.size)
-      if (bytes > testLimits.sourceBytes) throw new Error('Python/configuration sources exceed the 16 MiB inspection limit.')
+      if (bytes > testLimits.sourceBytes) throw new Error('Test source/configuration files exceed the 16 MiB inspection limit.')
       result[relativeTestPath(relative(root, entry.path).split(sep).join('/'))] = revision(inspected.stats)
     }
   }
@@ -132,13 +137,15 @@ export async function readPytestReport(plan: TestPlan, allowPartial = false): Pr
   return { nodes, cases, errors: row.errors.map(value => text(value)), durationMs: Number(row.durationMs), exitCode: Number(row.exitCode), complete: row.complete === true }
 }
 
-export function testTree(collected: CollectedCase[]) {
-  const suiteId = testId('pytest'), nodes: TestNode[] = [{ id: suiteId, parentId: null, kind: 'suite', label: 'pytest' }]
+export const readFrameworkReport = readPytestReport
+
+export function testTree(collected: CollectedCase[], adapter: TestAdapter = 'pytest') {
+  const suiteId = testId(adapter), nodes: TestNode[] = [{ id: suiteId, parentId: null, kind: 'suite', label: adapter }]
   const selectors: Record<string, string> = {}, groups = new Set<string>()
   for (const item of collected) {
     const file = item.location.path, groupId = testId('file:' + file)
     if (!groups.has(groupId)) { groups.add(groupId); nodes.push({ id: groupId, parentId: suiteId, kind: 'file', label: file, location: { path: file, line: 1 } }) }
-    const id = testId('pytest:' + item.selector)
+    const id = testId(adapter + ':' + item.selector)
     nodes.push({ id, parentId: groupId, kind: 'test', label: item.label || basename(file), location: item.location })
     selectors[id] = item.selector
   }

@@ -1,10 +1,12 @@
 # Ion Phase 2.6 — Test Explorer
 
-Status: **OPEN / IN DEVELOPMENT**
+Status: **PAUSED / PARTIALLY IMPLEMENTED — by user request, 27 November 2026**
 
 Branch: `codex/ion-core-excellence-phase-2-tests`
 
 Starting checkpoint: `23dff68` (Build/Tasks adapter-foundation native evidence).
+
+The last locally verified pytest foundation is `329789c7ff33f163764bfd30b6ce94d1d91a962b`. Subsequent generic framework-selection and Vitest adapter edits were stopped before their tests/typecheck; they are preserved as unfinished work on this branch. No final native Test Explorer acceptance has run. None of this milestone's implementation is included in the accepted Phase 2.5 main delivery. Resume only when explicitly requested.
 
 ## Implementation sequence and acceptance
 
@@ -41,4 +43,4 @@ The pytest helper uses documented [collection and reporting hooks](https://docs.
 
 ## Verdict
 
-**OPEN.** This report records implementation and verified evidence as it arrives. It does not claim native readiness, complete framework coverage or zero measured performance cost.
+**PAUSED / INCOMPLETE.** The pytest slice has local evidence; the subsequent Vitest/generalization edits are unverified. Native UI, framework completeness, resource gates, Java/JUnit, and relocated historical-result relinking remain unfinished. Phase 2 overall remains incomplete. No further implementation is authorized at this checkpoint.

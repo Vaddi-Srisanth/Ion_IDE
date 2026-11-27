@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current branch: `codex/ion-core-excellence-phase-2-tests`<br>
-Current Phase 2.6 Test Explorer: real pytest first slice; local full suite 474 passed, 26 skipped, zero failed; native acceptance pending<br>
+Current Phase 2.6 Test Explorer: **PAUSED / partially implemented** by user request; pytest checkpoint `329789c` passed 474 tests with 26 skips, subsequent Vitest/generalization work is unverified; no native acceptance<br>
 Accepted Phase 2 build/tasks adapter foundation: production `036781e7fe99be4480e5f0803fb6b22124be72a8`, evidence checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; broader scope remains open<br>
 Current Phase 2 debugger production source: `bcd2d5560510492b7dae8c69c97a925b2c7db787` with workflow-only evidence commit `041a5b02c886bcbe7255e58b0fb711aeac6e69ac` (**native acceptance PASS**)<br>
 Current Editor Essentials candidate: `8cce186b8b2bb3a703bfb434c24c29c89dbc45dd` with evidence commit `c0a33785d006cae0c9eed280ba398c288a3babc9` (**macOS and Windows x64 acceptance PASS**)<br>

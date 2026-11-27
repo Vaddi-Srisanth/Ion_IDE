@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { posix, win32 } from 'node:path'
-import type { TestCaseResult, TestNode, TestRun, TestSnapshot } from '../../shared/test-explorer'
+import type { TestAdapter, TestCaseResult, TestNode, TestRun, TestSnapshot } from '../../shared/test-explorer'
 
 export const maxTestRecordBytes = 4 * 1024 * 1024
 export const testLimits = { cases: 1000, nodes: 2500, sources: 2000, sourceBytes: 16 * 1024 * 1024,
@@ -9,6 +9,10 @@ export interface StoredTests { schema: 1; snapshot: TestSnapshot; selectors: Rec
 const uuid = /^[0-9a-f-]{36}$/i
 const idPattern = /^[0-9a-f]{64}$/
 export const testId = (value: string) => createHash('sha256').update(value).digest('hex')
+export function testAdapter(value: unknown): TestAdapter {
+  if (value !== 'pytest' && value !== 'vitest') throw new Error('Choose a supported test framework.')
+  return value
+}
 
 function object(value: unknown, keys: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid test record.')
@@ -61,12 +65,13 @@ function result(value: unknown): TestCaseResult {
     ...(row.label === undefined ? {} : { label: text(row.label) }) }
 }
 function run(value: unknown): TestRun {
-  const row = object(value, ['id', 'checkedAt', 'durationMs', 'status', 'selectedIds', 'cases', 'stale'], ['restored'])
+  const row = object(value, ['id', 'checkedAt', 'durationMs', 'status', 'selectedIds', 'cases', 'stale'], ['restored', 'adapter'])
   if (!uuid.test(String(row.id)) || !['completed', 'cancelled', 'failed'].includes(String(row.status))) throw new Error('Invalid test run.')
   const selectedIds = array(row.selectedIds, testLimits.cases).map(id), cases = array(row.cases, testLimits.cases).map(result)
   if (new Set(selectedIds).size !== selectedIds.length || new Set(cases.map(c => c.id)).size !== cases.length || cases.some(c => !selectedIds.includes(c.id))) throw new Error('Invalid test run references.')
   return { id: row.id as string, checkedAt: integer(row.checkedAt), durationMs: integer(row.durationMs), status: row.status as TestRun['status'],
-    selectedIds, cases, stale: bool(row.stale), ...(row.restored === undefined ? {} : { restored: bool(row.restored) }) }
+    selectedIds, cases, stale: bool(row.stale), ...(row.restored === undefined ? {} : { restored: bool(row.restored) }),
+    ...(row.adapter === undefined ? {} : { adapter: testAdapter(row.adapter) }) }
 }
 export function validateStoredTests(value: unknown): StoredTests {
   const row = object(value, ['schema', 'snapshot', 'selectors', 'sources'])
@@ -74,7 +79,8 @@ export function validateStoredTests(value: unknown): StoredTests {
   const s = object(row.snapshot, ['root', 'revision', 'adapter', 'discoveredAt', 'nodes', 'history', 'stale'])
   const root = text(s.root, 4096)
   // Roots are inert association metadata here. Native authority is checked by the service, never this portable validator.
-  if (!(posix.isAbsolute(root) || win32.isAbsolute(root)) || /[\x00-\x1f\x7f]/.test(root) || !uuid.test(String(s.revision)) || s.adapter !== 'pytest') throw new Error('Invalid stored test identity.')
+  if (!(posix.isAbsolute(root) || win32.isAbsolute(root)) || /[\x00-\x1f\x7f]/.test(root) || !uuid.test(String(s.revision))) throw new Error('Invalid stored test identity.')
+  const adapter = testAdapter(s.adapter)
   const nodes = array(s.nodes, testLimits.nodes).map(node), ids = new Set(nodes.map(n => n.id))
   if (ids.size !== nodes.length || nodes.filter(n => n.kind === 'test').length > testLimits.cases) throw new Error('Invalid test tree.')
   const byId = new Map(nodes.map(n => [n.id, n]))
@@ -95,7 +101,7 @@ export function validateStoredTests(value: unknown): StoredTests {
   }
   if (nodes.some(n => n.kind === 'test' && !selectors[n.id])) throw new Error('Missing test selector.')
   for (const [path, token] of Object.entries(row.sources)) sources[relativeTestPath(path)] = text(token, 256)
-  const snapshot: TestSnapshot = { root, revision: s.revision as string, adapter: 'pytest', discoveredAt: integer(s.discoveredAt), nodes,
+  const snapshot: TestSnapshot = { root, revision: s.revision as string, adapter, discoveredAt: integer(s.discoveredAt), nodes,
     history: array(s.history, testLimits.history).map(run), stale: bool(s.stale) }
   const checked: StoredTests = { schema: 1, snapshot, selectors, sources }
   if (Buffer.byteLength(JSON.stringify(checked)) > maxTestRecordBytes) throw new Error('Stored tests exceed their size limit.')

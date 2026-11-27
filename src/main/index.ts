@@ -290,7 +290,7 @@ function testExplorer(target: BrowserWindow): Promise<TestExplorerService> {
       const choice = await dialog.showMessageBox(target, {
         signal, type: 'warning', buttons: ['Cancel', review.operation === 'discover' ? 'Discover Tests' : 'Run Tests'],
         defaultId: 0, cancelId: 0,
-        message: review.operation === 'discover' ? 'Allow pytest to collect tests?' : 'Run the selected pytest tests?',
+        message: review.operation === 'discover' ? `Allow ${review.adapter} to collect tests?` : `Run the selected ${review.adapter} tests?`,
         detail: [`Workspace: ${review.root}`, `Tool: ${review.executable}`,
           `Arguments: ${review.args.map(value => JSON.stringify(value)).join(' ')}`,
           `Working directory: ${review.cwd}`, `Time limit: ${Math.round(review.timeoutMs / 1000)} seconds`,
@@ -1975,7 +1975,7 @@ function registerIpc(): void {
   })
   handle('tasks-list', async (target, root) => (await taskRunner(target)).list(root))
   handle('test-explorer-list', async (target, root) => (await testExplorer(target)).list(root))
-  handle('test-explorer-discover', (target, root) => performTestExplorer(target, service => service.discover(root)))
+  handle('test-explorer-discover', (target, root, adapter) => performTestExplorer(target, service => service.discover(root, adapter)))
   handle('test-explorer-run', (target, root, expected, ids) => performTestExplorer(target, service => service.run(root, expected, ids)))
   handle('test-explorer-cancel', async (target) => activeTestExplorer?.owner === target && Boolean(await cancelTestExplorer()))
   handle('tasks-discover', async (target, root) => (await taskRunner(target)).discover(root))

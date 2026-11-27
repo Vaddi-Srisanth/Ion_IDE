@@ -1,4 +1,4 @@
-export type TestAdapter = 'pytest'
+export type TestAdapter = 'pytest' | 'vitest'
 export interface TestNode {
   id: string
   parentId: string | null
@@ -16,6 +16,7 @@ export interface TestCaseResult {
   location?: { path: string; line: number }
 }
 export interface TestRun {
+  adapter?: TestAdapter
   id: string
   checkedAt: number
   durationMs: number
@@ -42,7 +43,7 @@ export interface TestOperationResult {
 }
 export interface TestExplorerBridge {
   list(root: string): Promise<TestSnapshot | null>
-  discover(root: string): Promise<TestOperationResult>
+  discover(root: string, adapter?: TestAdapter): Promise<TestOperationResult>
   run(root: string, revision: string, ids: string[]): Promise<TestOperationResult>
   cancel(): Promise<boolean>
 }
