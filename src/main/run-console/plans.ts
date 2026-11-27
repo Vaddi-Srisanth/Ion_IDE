@@ -438,7 +438,11 @@ async function prepareJava(options: PrepareOptions, paths: string[], environment
   const compileArgs = windows ? ['@ion-javac-arguments.txt'] : compilerArgs
   const compileCwd = windows ? scratch : cwd
   if (windows) {
-    await writeFile(join(scratch, 'ion-javac-arguments.txt'), javaCompilerArgumentFile(compilerArgs),
+    // javac's Windows argument-file parser treats backslashes as escapes. Use
+    // Java's supported forward-slash form for paths, avoiding any ambiguity
+    // around escaped spaces and Unicode directory names.
+    const windowsCompilerArgs = compilerArgs.map((argument) => argument.replaceAll('\\', '/'))
+    await writeFile(join(scratch, 'ion-javac-arguments.txt'), javaCompilerArgumentFile(windowsCompilerArgs),
       { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   }
   return {

@@ -119,7 +119,7 @@ class Actual {
     assert.deepEqual(plan.compile?.args, ['@ion-javac-arguments.txt'])
     assert.equal(plan.compile?.cwd, build)
     const argumentFile = await readFile(join(build, 'ion-javac-arguments.txt'), 'utf8')
-    assert.ok(argumentFile.includes(javaCompilerArgumentFile([path])))
+    assert.ok(argumentFile.includes(javaCompilerArgumentFile([path.replaceAll('\\', '/')])))
     assert.match(argumentFile, /"-proc:none"/)
   } else {
     assert.equal(plan.compile?.args.at(-1), path)
