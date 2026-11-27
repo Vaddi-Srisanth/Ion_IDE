@@ -4,9 +4,7 @@ on:
   push:
     branches: [codex/ion-phase-6-copilot]
     paths:
-      - '.github/workflows/phase10-windows-regression.yml'
       - 'src/**'
-      - 'scripts/**'
       - 'test/**'
       - 'package.json'
       - 'package-lock.json'

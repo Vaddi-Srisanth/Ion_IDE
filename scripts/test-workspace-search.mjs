@@ -22,6 +22,7 @@ await withScratch('workspace-search', async (scratch) => {
     writeFile(join(nested, '.gitignore'), 'ignored.txt\n'),
   ])
   const session = await launch(target, profile)
+  let primaryError
   try {
     const { app, page } = session
     await page.context().setOffline(true)
@@ -67,13 +68,27 @@ await withScratch('workspace-search', async (scratch) => {
     await atPath(page, 'workspace-search-file', notes).getByRole('button', { name: /line 3/ }).click()
     await page.getByRole('button', { name: 'Show Markdown preview', exact: true }).waitFor()
     await page.getByText('Ln 3, Col 1', { exact: true }).waitFor()
+    await page.getByRole('dialog', { name: 'Search in Files' }).waitFor({ state: 'detached' })
     assert.deepEqual(session.requests, [])
     assert.deepEqual(session.errors, [])
     console.log('PASS offline grouped workspace search, ignore rules, cancellation and source navigation')
     const median = [...samples].sort((a, b) => a - b)[Math.floor(samples.length / 2)]
     console.log(JSON.stringify({ searchableFiles: 1016, matchedFiles: 2, matchingLines: 3,
       searchInputToResultsMs: samples, medianMs: median, dialogReadyMs: dialogSamples, debounceMs: 160, cancelResponseMs }))
+  } catch (error) {
+    primaryError = error
+    throw error
   } finally {
-    await close(session)
+    try {
+      const modal = session.page.getByRole('dialog', { name: 'Search in Files' })
+      if (await modal.count()) {
+        await session.page.keyboard.press('Escape')
+        await modal.waitFor({ state: 'detached' })
+      }
+      await close(session)
+    } catch (cleanupError) {
+      if (primaryError) throw new AggregateError([primaryError, cleanupError], 'Workspace search journey and cleanup both failed.')
+      throw cleanupError
+    }
   }
 })
