@@ -41,7 +41,7 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 
 ### Continued development — 27 November 2026
 
-The Phase 3 GitHub account path now retrieves credentials through the officially installed `gh auth token` while it can access the user's normal CLI/keyring configuration, then supplies the token only to the isolated main-process `gh api` child. Offline GitHub API tests verify the token boundary and tool revalidation; the production build and Git browser journey pass on macOS ARM64. This fixes an authenticated-request configuration defect, but account sign-in/sign-out UI, native Windows verification and authenticated Git remote transfer remain open. No real credential, remote write, release, feed, installed app or public branch was touched. Details are recorded in [Phase 3 source control](ION_PHASE_3_SOURCE_CONTROL.md).
+The Phase 3 GitHub account path now retrieves credentials through the officially installed `gh auth token` while it can access the user's normal CLI/keyring configuration, then supplies the token only to the isolated main-process `gh api` child. Offline GitHub API tests verify the token boundary and tool revalidation; the production build and Git browser journey pass on macOS ARM64. The opt-in live-keyring smoke also passed **13/13**, reading the account, pull request and issue overview for Ion. Account sign-in/sign-out UI, native Windows verification and authenticated Git remote transfer remain open; no remote write, release, feed, installed app or public branch was touched. Details are recorded in [Phase 3 source control](ION_PHASE_3_SOURCE_CONTROL.md).
 
 ## Phase 0 completion
 
