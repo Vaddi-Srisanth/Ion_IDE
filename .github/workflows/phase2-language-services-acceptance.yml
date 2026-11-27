@@ -25,7 +25,7 @@ jobs:
       run:
         shell: bash
     env:
-      ION_TASKS_APPLICATION_SHA: d5d89e19b6a10b0727071c2283c6774baf1b842d
+      ION_TASKS_APPLICATION_SHA: 036781e7fe99be4480e5f0803fb6b22124be72a8
       ION_TASKS_BASELINE_SHA: 99acaaa4bac7239d3f2b8dff672b51ea777cb4d3
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir -p performance-results/phase2-tasks
           git cat-file -e "$ION_TASKS_APPLICATION_SHA^{commit}"
-          git diff --exit-code "$ION_TASKS_APPLICATION_SHA" HEAD -- src package.json package-lock.json test/tasks.test.ts
+          git diff --exit-code "$ION_TASKS_APPLICATION_SHA" HEAD -- src package.json package-lock.json scripts/build.mjs test/tasks.test.ts
           {
             printf 'application_sha=%s\nverification_sha=%s\n' "$ION_TASKS_APPLICATION_SHA" "$(git rev-parse HEAD)"
             node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))'
@@ -70,6 +70,9 @@ jobs:
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
           npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
+          test -f dist/main/tasks/service.cjs
+          rg -q 'ion-task-' dist/main/tasks/service.cjs
+          ! rg -q 'ion-task-' dist/main/index.cjs
           npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
       - name: Matched unused-task startup, editor and resource comparison
         id: matched_tasks
