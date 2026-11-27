@@ -28,7 +28,8 @@ Real pytest, JUnit Jupiter and Vitest fixtures passed 21 focused macOS backend t
 | 0 — Audit and baseline | **Complete** | Six master-plan documents committed, exact candidate verified, failures retained, native evidence linked. |
 | 1 — Stability and data safety | **Acceptance PASS** | Core backup/restore, corrected matched performance, packaged migration/rollback, security and native macOS/Windows regression gates passed for the immutable application source `c530644`. Publication/signing is a separate release decision. |
 | 2 — Core editor excellence | **Editor/workspace foundation, LSP Milestone 2.3, Editor Essentials and C/C++ DAP Milestone 2.4 accepted** | LSP run `45859946256` passed macOS ARM64 and Windows x64. Editor Essentials run [45863976766](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45863976766) passed its focused native gates. DAP production source `bcd2d55` passed packaged and native macOS in [45876230321](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45876230321) and the identical production tree passed Windows x64 under workflow-only SHA `041a5b0` in [45877000977](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45877000977). |
-| 3–10 | Development continues after Phase 2.6 | Follow the architecture, security and performance gates in this roadmap. |
+| 3 — Git and GitHub | In progress on a development branch | Git history, branch creation, conflict review, remote identities, authenticated reads and fresh public clones. [Evidence and remaining gates](ION_PHASE_3_SOURCE_CONTROL.md). |
+| 4–10 | Pending | Targeted correctness and data safety at each checkpoint. Extended release hardening is scheduled for Phase 10. |
 
 ## Phase 0 completion
 

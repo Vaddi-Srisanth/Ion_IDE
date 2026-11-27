@@ -1,0 +1,58 @@
+name: Phase 3 Source Control
+on:
+  push:
+    branches: [codex/ion-phase-3-source-control]
+    paths:
+      - '.github/workflows/phase3-source-control.yml'
+      - 'src/**'
+      - 'scripts/**'
+      - 'test/**'
+      - 'package*.json'
+permissions:
+  contents: read
+jobs:
+  source-control:
+    name: Source Control on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, platform: darwin, arch: arm64 }
+          - { os: windows-2025, platform: win32, arch: x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Verify native host and build
+        id: build
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node -e "const a=require('node:assert/strict');a.equal(process.platform,process.env.EXPECTED_PLATFORM);a.equal(process.arch,process.env.EXPECTED_ARCH)"
+          npm ci
+          node node_modules/electron/install.js
+          npm run typecheck
+          npm run build
+          node -e "Promise.all(['index','github','clone'].map(n=>import('./dist/main/source-control/'+n+'.cjs'))).then(([s,g,c])=>{if(!s.SourceControlService||!s.gitDirectory||!g.githubOverview||!c.clonePublicGitHub)throw Error('Missing bundled source-control export')})"
+      - name: Verify trusted Git operations, conflicts and destination protection
+        env:
+          ION_TEST_GITHUB_CLONE_LIVE: '1'
+        run: node scripts/test.mjs source-control source-control-branch source-control-browse source-control-conflict source-control-github source-control-clone
+      - name: Drive the production Source Control interface
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          ION_SHOW_TEST_WINDOWS: '0'
+        run: node scripts/test-source-control.mjs
+      - name: Verify source state
+        run: git diff --exit-code HEAD

@@ -3,7 +3,7 @@ import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { once } from 'node:events'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { buildWindowsPty } from './windows/build-pty.mjs'
 import { buildFileMutations } from './build-file-mutations.mjs'
@@ -80,6 +80,9 @@ async function buildDesktop() {
       'main/debug/service': 'src/main/debug/service.ts',
       'main/tasks/service': 'src/main/tasks/service.ts',
       'main/test-explorer/service': 'src/main/test-explorer/service.ts',
+      'main/source-control/index': 'src/main/source-control/index.ts',
+      'main/source-control/github': 'src/main/source-control/github.ts',
+      'main/source-control/clone': 'src/main/source-control/clone.ts',
       'main/web-preview': 'src/main/web-preview.ts',
       'main/profile-export': 'src/main/profile-export.ts',
       'main/backup/service': 'src/main/backup/service.ts',
@@ -92,7 +95,10 @@ async function buildDesktop() {
     plugins: [{
       name: 'optional-desktop-features',
       setup(build) {
-        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|explanations\/(?:session|context)|provider-vault|viewers|run-console|(?:terminal|java|format|debug|tasks|test-explorer)\/service|web-preview|profile-export|backup\/(?:service|transaction)|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
+        build.onResolve({ filter: /^\.\/(?:github|clone)$/ }, ({ path, importer, kind }) => {
+          if (kind === 'dynamic-import' && basename(dirname(importer)) === 'source-control') return { path: path + '.cjs', external: true }
+        })
+        build.onResolve({ filter: /^\.\/(learning(?:\/catalog-store)?|practice|projects\/ipc|project-lens\/session|explanations\/(?:session|context)|provider-vault|viewers|source-control|run-console|(?:terminal|java|format|debug|tasks|test-explorer)\/service|web-preview|profile-export|backup\/(?:service|transaction)|workspace-search|update-install|run-trust|notebooks\/kernel-service)$/ }, ({ path, kind }) => {
           if (kind !== 'dynamic-import') return
           const singleFile = path.endsWith('/ipc') || path === './project-lens/session' || path.startsWith('./explanations/')
             || path === './provider-vault' || path === './web-preview' || path === './profile-export'

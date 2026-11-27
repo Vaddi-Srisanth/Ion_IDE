@@ -1,0 +1,6 @@
+.git-conflict-review { width: min(54rem, 90vw); }
+.git-conflict-review .git-conflict-path { font-family: var(--mono); overflow-wrap: anywhere; }
+.git-conflict-review label { display: flex; gap: 8px; align-items: center; }
+.git-conflict-review pre { max-height: 48vh; overflow: auto; background: var(--background); border: 1px solid var(--subtle-border); padding: 10px; font: 12px/1.55 var(--mono); user-select: text; }
+.git-conflict-review p { margin-block: 8px; color: var(--muted); }
+.git-conflict-review p[role=alert] { color: var(--danger); }

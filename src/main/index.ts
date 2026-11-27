@@ -333,7 +333,7 @@ async function activeProjects(target: BrowserWindow) {
   return handlers
 }
 
-let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>> } | undefined
+let sourceControl: { root: string; service: Promise<SourceControlService>; operations: Set<Promise<unknown>>; gitHubPages?: Set<string> } | undefined
 let sourceControlCleanup = Promise.resolve()
 let trustedGitRoot: string | undefined
 
@@ -1699,7 +1699,7 @@ function registerIpc(): void {
   handle('source-control-status', async (target, root): Promise<SourceControlStatus> => {
     const path = sourceControlRoot(target, root)
     if (path === trustedGitRoot) return useSourceControl(target, path, (service) => service.status(path))
-    const { gitDirectory } = await import('./source-control/repository')
+    const { gitDirectory } = await import('./source-control')
     if (!await gitDirectory(path)) return { kind: 'none', message: 'Open the root folder of a Git repository to see its changes.' }
     sourceControlRoot(target, path)
     return { kind: 'untrusted', message: 'Review this repository before Ion runs its local Git configuration.' }
@@ -1707,7 +1707,7 @@ function registerIpc(): void {
   handle('source-control-trust', async (target, root) => {
     const path = sourceControlRoot(target, root)
     if (path === trustedGitRoot) return true
-    const { gitDirectory } = await import('./source-control/repository')
+    const { gitDirectory } = await import('./source-control')
     if (!await gitDirectory(path)) return false
     sourceControlRoot(target, path)
     const answer = await dialog.showMessageBox(target, {
@@ -1719,6 +1719,54 @@ function registerIpc(): void {
     trustedGitRoot = sourceControlRoot(target, path)
     return true
   })
+  handle('source-control-create-branch', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.createBranch(path, request)))
+  handle('source-control-conflict', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.conflict(path, request)))
+  handle('source-control-browse', (target, root) => useSourceControl(target, root, (service, path) => service.browse(path)))
+  handle('source-control-github', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    session.gitHubPages = undefined
+    const overview = await service.github(path, repository, [...files.rootPaths])
+    session.gitHubPages = new Set([
+      'https://github.com/' + overview.repository,
+      'https://github.com/' + overview.repository + '/compare?expand=1',
+      ...overview.pullRequests.map(item => item.url),
+      ...overview.issues.map(item => item.url),
+    ])
+    return overview
+  }))
+  handle('source-control-github-clone', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    const pages = session.gitHubPages
+    if (typeof repository !== 'string' || !pages?.has('https://github.com/' + repository)) {
+      throw new Error('Load this GitHub repository before cloning.')
+    }
+    const selection = await dialog.showOpenDialog(target, {
+      title: 'Clone ' + repository + ' into a new folder', buttonLabel: 'Clone Here',
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    if (selection.canceled || !selection.filePaths[0]) return null
+    const parent = await realpath(selection.filePaths[0])
+    if (isWithin(await realpath(app.getPath('userData')), parent)) throw new Error('Choose a folder outside the Ion profile.')
+    if (target !== window || sourceControl !== session || session.gitHubPages !== pages || sourceControlRoot(target, path) !== trustedGitRoot) {
+      throw new Error('The repository review changed. Load the repository again.')
+    }
+    return service.cloneGitHub(path, repository, parent, [...files.rootPaths], safeMutations)
+  }))
+  handle('source-control-github-close', async (target, root) => {
+    const active = sourceControl
+    if (!active || target !== window || active.root !== root) return
+    active.gitHubPages = undefined
+    const service = await active.service
+    if (sourceControl === active) service.closeGitHub()
+  })
+  handle('source-control-github-open', (target, root, url) => useSourceControl(target, root, async () => {
+    if (typeof url !== 'string' || !url.startsWith('https://github.com/') || !sourceControl?.gitHubPages?.has(url)) {
+      throw new Error('Load this GitHub repository before opening its links.')
+    }
+    await shell.openExternal(url)
+  }))
   handle('source-control-diff', (target, root, request) => useSourceControl(target, root, (service, path) => service.diff(path, request)))
   handle('source-control-change', (target, root, request) => useSourceControl(target, root, (service, path) => service.change(path, request)))
   handle('source-control-commit', (target, root, request) => useSourceControl(target, root, (service, path) => service.commit(path, request)))

@@ -200,6 +200,13 @@ const bridge: IonBridge = {
   sourceControl: {
     status: (root) => ipcRenderer.invoke('ion:source-control-status', root),
     trust: (root) => ipcRenderer.invoke('ion:source-control-trust', root),
+    createBranch: (root, request) => ipcRenderer.invoke('ion:source-control-create-branch', root, request),
+    conflict: (root, request) => ipcRenderer.invoke('ion:source-control-conflict', root, request),
+    browse: (root) => ipcRenderer.invoke('ion:source-control-browse', root),
+    github: (root, repository) => ipcRenderer.invoke('ion:source-control-github', root, repository),
+    cloneGitHub: (root, repository) => ipcRenderer.invoke('ion:source-control-github-clone', root, repository),
+    closeGitHub: (root) => ipcRenderer.invoke('ion:source-control-github-close', root),
+    openGitHubPage: (root, url) => ipcRenderer.invoke('ion:source-control-github-open', root, url),
     diff: (root, request) => ipcRenderer.invoke('ion:source-control-diff', root, request),
     change: (root, request) => ipcRenderer.invoke('ion:source-control-change', root, request),
     commit: (root, request) => ipcRenderer.invoke('ion:source-control-commit', root, request),

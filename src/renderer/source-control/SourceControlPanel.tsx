@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { GitDiffSide, GitStatusCode, SourceControlBridge, SourceControlDiff, SourceControlEntry,
   SourceControlStatus } from '../../shared/source-control'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import { GitHubRepository } from './GitHubRepository'
+import RepositoryBrowser from './RepositoryBrowser'
 import './source-control.css'
 
 interface Props {
@@ -19,6 +21,7 @@ const statusLabels: Record<GitStatusCode, string> = {
   T: 'Type changed', U: 'Conflict', '?': 'Untracked',
 }
 const pageSize = 80
+const ConflictReview = lazy(() => import('./ConflictReview'))
 
 export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff, isDirty, revision }: Props) {
   const [status, setStatus] = useState<SourceControlStatus>()
@@ -27,6 +30,7 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [selection, setSelection] = useState<string>()
+  const [conflictPath, setConflictPath] = useState<string>()
   const mounted = useRef(false)
   const pending = useRef(false)
   const refreshRequested = useRef(false)
@@ -38,6 +42,8 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
     const current = await bridge.status()
     if (!mounted.current) return
     setStatus(current)
+    setConflictPath(path => path && current.kind === 'repository' && current.entries.some(entry => entry.path === path && entry.unmerged)
+      ? path : undefined)
     listeners.current.onEntries(current.kind === 'repository' ? current.entries : [])
   }
 
@@ -85,6 +91,7 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
   const working = repository?.entries.filter(({ worktree, unmerged }) => worktree || unmerged) ?? []
   const conflict = repository?.entries.some(({ unmerged }) => unmerged)
   const review = (entry: SourceControlEntry, side: GitDiffSide) => void act(async () => {
+    if (entry.unmerged) { setConflictPath(entry.path); return }
     const diff = await bridge.diff({ path: entry.path, side })
     if (!mounted.current) return
     setSelection(side + ':' + entry.path)
@@ -126,6 +133,9 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
           {repository.detached && <span>Detached</span>}
           {repository.unborn && <span>First commit</span>}
         </div>
+        <RepositoryBrowser key={'browse:' + repository.root} bridge={bridge} busy={busy} perform={act}
+          currentBranch={repository.detached ? undefined : repository.branch}/>
+        <GitHubRepository key={repository.root} bridge={bridge}/>
         <form className="source-control-commit" onSubmit={(event) => {
           event.preventDefault()
           if (!staged.length || conflict || repository.truncated || !message.trim()) return
@@ -151,6 +161,9 @@ export default function SourceControlPanel({ bridge, onClose, onEntries, onDiff,
         {staged.length === 0 && working.length === 0 && <p className="source-control-empty">Working tree is clean.</p>}
       </>}
     </div>
+    {repository && conflictPath && <Suspense fallback={<p className="source-control-empty" role="status">Opening conflict review…</p>}>
+      <ConflictReview key={conflictPath} path={conflictPath} bridge={bridge} onClose={() => setConflictPath(undefined)}/>
+    </Suspense>}
   </aside>
 }
 
@@ -177,9 +190,10 @@ function Changes({ title, side, entries, busy, selection, isDirty, review, chang
         const action = side === 'staged' ? 'Unstage' : 'Stage'
         const selected = selection === side + ':' + entry.path
         return <li key={entry.path} className="source-control-change" data-selected={selected || undefined}>
-          <button className="source-control-change-name" type="button" data-testid="git-open-diff" data-git-path={entry.path}
-            title={entry.previousPath ? entry.previousPath + ' → ' + entry.path : entry.path}
-            aria-label={`Open ${side === 'staged' ? 'staged' : 'working tree'} diff for ${entry.path} (${label})`}
+          <button className="source-control-change-name" type="button" data-testid={entry.unmerged ? 'git-review-conflict' : 'git-open-diff'} data-git-path={entry.path}
+            title={entry.unmerged ? 'Review conflict for ' + entry.path : entry.previousPath ? entry.previousPath + ' → ' + entry.path : entry.path}
+            aria-haspopup={entry.unmerged ? 'dialog' : undefined}
+            aria-label={entry.unmerged ? 'Review conflict for ' + entry.path : `Open ${side === 'staged' ? 'staged' : 'working tree'} diff for ${entry.path} (${label})`}
             disabled={busy} onClick={() => review(entry, side)}>
             <span className="source-control-code" data-code={status} aria-hidden="true">{status}</span>
             <span className="source-control-filename">{name}</span>

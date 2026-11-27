@@ -1,24 +1,14 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import type { SourceControlDiff, SourceControlEntry, SourceControlStatus } from '../../shared/source-control'
+import type { SourceControlBrowse, SourceControlConflict, SourceControlDiff, SourceControlEntry, SourceControlGitHub, SourceControlStatus } from '../../shared/source-control'
+import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
-import { absent, git, gitDirectory, inside, readTextFile, resolveGit,
+import { absent, browseRepository, git, gitDirectory, inside, readTextFile, resolveGit,
   type Repository, UnavailableDiff } from './repository'
 import { parseStatus, safeGitPath, type ParsedStatus, type StatusEntry } from './status'
+import { blob, checkLines, textLimit } from './text-preview'
 
-const textLimit = 256 * 1024
 const statusLimit = 512 * 1024
-const regularMode = /^100[0-7]{3}$/
-const lineLimit = 12_000
-
-function exceedsLineLimit(text: string): boolean {
-  let offset = -1
-  for (let line = 1; line <= lineLimit; line++) {
-    offset = text.indexOf('\n', offset + 1)
-    if (offset < 0) return false
-  }
-  return true
-}
 
 async function statusOf(repository: Repository, signal: AbortSignal): Promise<ParsedStatus> {
   const { text, complete } = await git(repository, signal, [
@@ -56,15 +46,6 @@ async function fileWithin(repository: Repository, path: string): Promise<void> {
   throw new Error('This file is outside the open repository.')
 }
 
-async function blob(repository: Repository, signal: AbortSignal, mode?: string, object?: string): Promise<string> {
-  if (!mode || mode === '000000') return ''
-  if (!regularMode.test(mode)) throw new UnavailableDiff('Symlinks and Git links do not have a text preview.')
-  if (!object || !gitObjectId.test(object)) throw new Error('Git returned an invalid object identifier.')
-  const { text } = await git(repository, signal, ['cat-file', 'blob', object], { limit: textLimit })
-  if (text.includes('\0') || text.includes('\uFFFD')) throw new UnavailableDiff('This Git object is not UTF-8 text.')
-  return text
-}
-
 const stagedEntry = (entry: StatusEntry) => Boolean(entry.index)
 
 function stagedIdentity(status: ParsedStatus) {
@@ -80,6 +61,8 @@ interface Snapshot {
 
 export class SourceControlService {
   private read?: AbortController
+  private githubRead?: AbortController
+  private clone?: { controller: AbortController; done: Promise<string> }
   private write?: Promise<void>
   private writeController?: AbortController
   private snapshot?: Snapshot
@@ -114,6 +97,88 @@ export class SourceControlService {
     }
   }
 
+  async browse(root: string): Promise<SourceControlBrowse> {
+    if (this.write) throw new Error('Wait for the Git operation to finish.')
+    const { repository } = this.requireSnapshot(root)
+    const controller = this.beginRead()
+    try {
+      await this.verifyRepository(repository, controller.signal)
+      const result = await browseRepository(repository, controller.signal)
+      controller.signal.throwIfAborted()
+      return result
+    } finally {
+      if (this.read === controller) this.read = undefined
+    }
+  }
+
+  async github(root: string, selected: unknown, workspaceRoots: readonly string[]): Promise<SourceControlGitHub> {
+    const { repository } = this.requireSnapshot(root)
+    this.githubRead?.abort()
+    const controller = new AbortController()
+    this.githubRead = controller
+    try {
+      await this.verifyRepository(repository, controller.signal)
+      const { githubOverview } = await import('./github')
+      controller.signal.throwIfAborted()
+      const result = await githubOverview(root, workspaceRoots, selected, controller.signal)
+      controller.signal.throwIfAborted()
+      return result
+    } finally {
+      if (this.githubRead === controller) this.githubRead = undefined
+    }
+  }
+
+  closeGitHub(): void {
+    this.githubRead?.abort()
+    this.githubRead = undefined
+    this.clone?.controller.abort()
+  }
+
+  cloneGitHub(root: string, selected: unknown, parent: string, workspaceRoots: readonly string[], mutations: FileMutations): Promise<string> {
+    const { repository } = this.requireSnapshot(root)
+    if (this.clone) throw new Error('A GitHub clone is already running.')
+    const controller = new AbortController()
+    const done = this.verifyRepository(repository, controller.signal).then(async () => {
+      const { clonePublicGitHub } = await import('./clone')
+      controller.signal.throwIfAborted()
+      return clonePublicGitHub(selected, parent, root, workspaceRoots, controller.signal, { mutations })
+    }).finally(() => { this.clone = undefined })
+    this.clone = { controller, done }
+    return done
+  }
+
+  createBranch(root: string, value: unknown): Promise<void> {
+    const { repository, status } = this.requireSnapshot(root)
+    if (status.unborn || !gitObjectId.test(status.head) || requestObject(value).from !== status.head) {
+      throw new Error('Refresh and review the current commit before creating a branch.')
+    }
+    return this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const { createLocalBranch } = await import('./branches')
+      signal.throwIfAborted()
+      await createLocalBranch(repository, signal, value, status.head)
+    }, { preserveSnapshot: true }) // Creating another ref leaves the reviewed HEAD, index and worktree intact.
+  }
+
+  async conflict(root: string, value: unknown): Promise<SourceControlConflict> {
+    const path = requestPath(requestObject(value).path)
+    if (this.write) throw new Error('Wait for the Git operation to finish.')
+    const { repository, status } = this.requireSnapshot(root)
+    const entry = status.entries.get(path)
+    if (!entry?.unmerged) throw new Error('Refresh to review the current merge conflict.')
+    const controller = this.beginRead()
+    try {
+      await this.verifyRepository(repository, controller.signal)
+      const { readConflict } = await import('./conflict')
+      controller.signal.throwIfAborted()
+      const result = await readConflict(repository, entry, controller.signal, this.runGit)
+      controller.signal.throwIfAborted()
+      return result
+    } finally {
+      if (this.read === controller) this.read = undefined
+    }
+  }
+
   async diff(root: string, value: unknown): Promise<SourceControlDiff> {
     const request = requestObject(value)
     const path = requestPath(request.path)
@@ -143,9 +208,8 @@ export class SourceControlService {
         }
       }
       signal.throwIfAborted()
-      if (exceedsLineLimit(original) || exceedsLineLimit(modified)) {
-        throw new UnavailableDiff('This file exceeds the 12,000-line preview limit.')
-      }
+      checkLines(original)
+      checkLines(modified)
       return { ...identity, kind: 'text', original, modified }
     } catch (error) {
       if (error instanceof UnavailableDiff) return { ...identity, kind: 'unavailable', message: error.message }
@@ -213,13 +277,14 @@ export class SourceControlService {
 
   close(): void {
     this.read?.abort()
+    this.closeGitHub()
     this.writeController?.abort()
     this.read = undefined
     this.snapshot = undefined
   }
 
   async drain(): Promise<void> {
-    await this.write?.catch(() => {})
+    await Promise.all([this.write?.catch(() => {}), this.clone?.done.catch(() => {})])
   }
 
   private beginRead(): AbortController {
@@ -241,14 +306,14 @@ export class SourceControlService {
     if (!actual || relative(actual, repository.directory)) throw new Error('The repository moved. Refresh before continuing.')
   }
 
-  private mutate(operation: (signal: AbortSignal) => Promise<void>): Promise<void> {
+  private mutate(operation: (signal: AbortSignal) => Promise<void>, { preserveSnapshot = false } = {}): Promise<void> {
     if (this.write) throw new Error('Another Git operation is running.')
     this.read?.abort()
     const current = this.snapshot
     const controller = new AbortController()
     this.writeController = controller
     const pending = operation(controller.signal).then(() => {
-      if (this.snapshot === current) this.snapshot = undefined
+      if (!preserveSnapshot && this.snapshot === current) this.snapshot = undefined
     }).finally(() => {
       this.write = undefined
       this.writeController = undefined
@@ -257,3 +322,5 @@ export class SourceControlService {
     return pending
   }
 }
+
+export { gitDirectory } from './repository'

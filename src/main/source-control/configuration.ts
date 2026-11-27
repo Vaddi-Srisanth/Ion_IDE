@@ -9,11 +9,9 @@ function quote(value: string): string {
 }
 
 /** Git emits scope NUL key LF value NUL. A bare boolean has no LF. */
-function freezeConfiguration(text: string, originalCommon: string): string {
+export function* configurationEntries(text: string) {
   const fields = text.split('\0')
   if (fields.pop() !== '' || fields.length % 2) throw new Error('Git returned incomplete configuration.')
-  const lines: string[] = []
-  let lfsStorage = ''
   for (let offset = 0; offset < fields.length; offset += 2) {
     const scope = fields[offset]
     const record = fields[offset + 1]
@@ -27,6 +25,14 @@ function freezeConfiguration(text: string, originalCommon: string): string {
     const subsection = last === first ? undefined : key.slice(first + 1, last)
     if (first < 1 || !/^[a-z][a-z0-9-]*$/i.test(section) || !/^[a-z][a-z0-9-]*$/i.test(name)
       || subsection && /[\r\n]/.test(subsection)) throw new Error('Git returned an invalid configuration key.')
+    yield { scope, key, section, name, subsection, value }
+  }
+}
+
+function freezeConfiguration(text: string, originalCommon: string): string {
+  const lines: string[] = []
+  let lfsStorage = ''
+  for (const { scope, key, section, name, subsection, value } of configurationEntries(text)) {
     if ((scope === 'local' || scope === 'worktree') && /^(?:filter\..*\.(?:clean|process)|lfs\.extension\..*\.(?:clean|smudge)|lfs\.customtransfer\..*\.(?:path|args)|lfs\.standalonetransferagent)$/i.test(key)) {
       throw new Error('This repository configures a local Git filter. Use your terminal if you trust it.')
     }
@@ -70,7 +76,7 @@ async function copyMetadata(source: string, destination: string, limit: number):
   if (text !== undefined) await writeFile(destination, text, { flag: 'wx', mode: 0o600 })
 }
 
-/** Only status/add use this view. Ref-changing plumbing uses the original refs. */
+/** Status, staging and browsing use this view. Ref-changing plumbing uses the original refs. */
 export async function withFrozenConfiguration<T>(repository: Repository, text: string, signal: AbortSignal,
   run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>): Promise<T> {
   const linked = relative(join(repository.root, '.git'), repository.directory) !== ''

@@ -79,6 +79,39 @@
 .source-control-change .icon-button { width: 25px; height: 24px; }
 .source-control-more { margin: 5px 10px 0; }
 
+.git-browser { border-bottom: 1px solid var(--subtle-border); min-width: 0; }
+.git-browser-heading { display: flex; align-items: center; padding-right: 5px; }
+.git-browser-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border: 0; background: transparent; color: var(--text); text-align: left; font-size: 12px;
+}
+.git-browser-toggle:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.git-browser-toggle:disabled { opacity: .55; }
+.git-browser-heading .icon-button { width: 24px; height: 24px; }
+.git-browser-view, .git-browser-create input {
+  padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--ink); background: var(--background); font-size: 12px; min-width: 0;
+}
+.git-browser-view { width: calc(100% - 20px); margin: 0 10px 6px; }
+.git-browser-list {
+  margin: 0; padding: 0 10px 4px; list-style: none; min-width: 0;
+  max-height: min(38vh, 24rem); overflow: auto; scrollbar-width: thin; user-select: text;
+}
+.git-browser-list li { padding: 6px 0; }
+.git-browser-list li + li { border-top: 1px solid var(--subtle-border); }
+.git-browser-name { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 12px; }
+.git-browser-metadata, .git-browser-ref { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.git-browser-metadata { margin-top: 3px; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.git-browser code { color: var(--muted); font: 10px var(--mono); }
+.git-browser-ref .git-browser-name { flex: 1 1 50%; font-family: var(--mono); }
+.git-browser-ref small { color: var(--accent); font-size: 10px; }
+.git-browser-remote-repo { min-width: 0; overflow-wrap: anywhere; color: var(--muted); font: 11px var(--mono); }
+.git-browser-create { margin: 0 10px 6px; }
+.git-browser-create form, .git-browser-create label { display: grid; gap: 5px; color: var(--text); font-size: 12px; }
+.git-browser-create p { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.git-browser-form-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.git-browser-create .button { min-height: 24px; padding: 0 7px; font-size: 11px; }
+
 .source-control-diff {
   height: 100%;
   min-width: 0;

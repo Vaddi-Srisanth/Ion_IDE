@@ -30,7 +30,37 @@ export interface SourceControlChangeRequest {
   action: 'stage' | 'unstage'
 }
 
+export interface SourceControlConflict {
+  path: string
+  absolutePath: string
+  base: string | null
+  ours: string | null
+  theirs: string | null
+}
+
+export interface SourceControlBrowse {
+  commits: { oid: string; subject: string; author: string; time: number }[]
+  branches: { name: string; oid: string }[]
+  tags: { name: string; oid: string }[]
+  remotes: { name: string; repository: string | null }[]
+  truncated: boolean
+}
+
+export interface SourceControlGitHub {
+  repository: string
+  login: string
+  pullRequests: { number: number; title: string; url: string }[]
+  issues: { number: number; title: string; url: string }[]
+}
+
 export interface SourceControlBridge {
+  createBranch(request: { name: string; from: string }): Promise<void>
+  conflict(request: { path: string }): Promise<SourceControlConflict>
+  browse(): Promise<SourceControlBrowse>
+  github(repository: string): Promise<SourceControlGitHub>
+  cloneGitHub(repository: string): Promise<string | null>
+  closeGitHub(): Promise<void>
+  openGitHubPage(url: string): Promise<void>
   status(): Promise<SourceControlStatus>
   trust(): Promise<boolean>
   diff(request: SourceControlDiffRequest): Promise<SourceControlDiff>

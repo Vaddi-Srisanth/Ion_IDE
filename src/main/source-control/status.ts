@@ -9,7 +9,10 @@ export interface StatusEntry extends SourceControlEntry {
   indexMode?: string
   headObject?: string
   indexObject?: string
+  stages?: [ConflictStage, ConflictStage, ConflictStage]
 }
+
+export interface ConflictStage { mode: string; oid: string }
 
 export function safeGitPath(path: string): boolean {
   return path.length > 0 && path.length <= 4096 && !isAbsolute(path) && !/[\0\uFFFD]/.test(path)
@@ -70,7 +73,8 @@ export function parseStatus(root: string, output: string, complete: boolean) {
     const [index, worktree] = parts[1]
     entries.set(path, { path, absolutePath: join(root, path), previousPath, index: code(index), worktree: code(worktree),
       unmerged: type === 'u',
-      ...(type === 'u' ? {} : { headMode: parts[3], indexMode: parts[4], headObject: parts[6], indexObject: parts[7] }),
+      ...(type === 'u' ? { stages: [{ mode: parts[3], oid: parts[7] }, { mode: parts[4], oid: parts[8] }, { mode: parts[5], oid: parts[9] }] }
+        : { headMode: parts[3], indexMode: parts[4], headObject: parts[6], indexObject: parts[7] }),
     })
   }
   const detached = branch === '(detached)'

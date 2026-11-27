@@ -206,6 +206,13 @@ export function App() {
     if (!sourceControlRoot) return;
     return {
       status: () => bridge.sourceControl.status(sourceControlRoot),
+      createBranch: (request) => bridge.sourceControl.createBranch(sourceControlRoot, request),
+      conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
+      browse: () => bridge.sourceControl.browse(sourceControlRoot),
+      github: (repository) => bridge.sourceControl.github(sourceControlRoot, repository),
+      cloneGitHub: (repository) => bridge.sourceControl.cloneGitHub(sourceControlRoot, repository),
+      closeGitHub: () => bridge.sourceControl.closeGitHub(sourceControlRoot),
+      openGitHubPage: (url) => bridge.sourceControl.openGitHubPage(sourceControlRoot, url),
       trust: () => bridge.sourceControl.trust(sourceControlRoot),
       diff: (request) => bridge.sourceControl.diff(sourceControlRoot, request),
       change: (request) => bridge.sourceControl.change(sourceControlRoot, request),

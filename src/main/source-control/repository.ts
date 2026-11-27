@@ -4,8 +4,11 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { execute } from '../runner'
+import { browseLocalRefs } from './browse'
 import { withFrozenConfiguration } from './configuration'
 import { withIndexTransaction } from './index-transaction'
+import { safeGitPath } from './status'
+import { reviewedRemotes } from './remotes'
 
 export function inside(root: string, path: string): boolean {
   const fromRoot = relative(root, path)
@@ -136,6 +139,7 @@ const objectId = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
 function plumbingCommand(args: string[]): boolean {
   switch (args[0]) {
     case 'cat-file': return args.length === 3 && args[1] === 'blob' && objectId.test(args[2])
+    case 'ls-files': return args.length === 5 && args[1] === '--unmerged' && args[2] === '-z' && args[3] === '--' && safeGitPath(args[4])
     case 'read-tree': return args.length === 2 && (args[1] === '--empty' || objectId.test(args[1]))
     case 'update-index': return args.join(' ') === 'update-index -z --index-info'
       || args.length >= 4 && args[1] === '--force-remove' && args[2] === '--'
@@ -157,10 +161,7 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
       || args[0] === 'status' && args.join(' ') !== 'status --porcelain=v2 -z --branch --untracked-files=all --ignore-submodules=dirty --find-renames=50%') {
       throw new Error('This Git operation is outside Ion Source Control.')
     }
-    const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'],
-      { limit: 256 * 1024 })
-    return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) => {
-      const projected = { ...repository, directory }
+    return withProjectedRepository(repository, signal, (projected, environment, verifyMetadata) => {
       if (args[0] === 'add') return withIndexTransaction(repository.directory, signal, async indexFile => {
         const result = await invokeGit(projected, signal, args, { ...options, indexFile }, environment)
         await verifyMetadata()
@@ -175,6 +176,21 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
       invokeGit(repository, signal, args, { ...options, indexFile }))
   }
   return invokeGit(repository, signal, args, options)
+}
+
+async function withProjectedRepository<T>(repository: Repository, signal: AbortSignal,
+  run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>) {
+  const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
+  if (!captured.complete) throw new Error('Git returned incomplete configuration.')
+  return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>
+    run({ ...repository, directory }, environment, verifyMetadata, captured.text))
+}
+
+export function browseRepository(repository: Repository, signal: AbortSignal) {
+  return withProjectedRepository(repository, signal, (projected, environment, _verify, configuration) => browseLocalRefs(async args => {
+    signal.throwIfAborted()
+    return invokeGit(projected, signal, args, { limit: 128 * 1024, allowTruncation: true }, environment)
+  }, reviewedRemotes(configuration)))
 }
 
 async function invokeGit(repository: Repository, signal: AbortSignal, args: string[], options: GitOptions = {},
@@ -199,7 +215,9 @@ async function invokeGit(repository: Repository, signal: AbortSignal, args: stri
   if (result.state === 'exited' && (result.exitCode === 0 || options.allowNotFound && result.exitCode === 1)) {
     return { text: result.stdout ?? '', complete: result.outputComplete !== false }
   }
-  const detail = result.stderr?.trim().slice(0, 360)
   if (result.state === 'timeout') throw new Error('Git took too long. Try again or use a terminal for this repository.')
+  // Git diagnostics from repository inspection can quote unredacted configuration values.
+  if (['config', 'status', 'log', 'for-each-ref'].includes(args[0])) throw new Error('Git could not read the repository information.')
+  const detail = result.stderr?.trim().slice(0, 360)
   throw new Error(detail || result.detail || 'Git could not complete the operation.')
 }
