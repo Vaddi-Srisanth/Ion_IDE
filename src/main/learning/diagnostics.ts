@@ -359,6 +359,20 @@ function classifyNode(lines: string[], source: string): RuntimeClassification | 
 }
 
 /** A classifier copy, not a terminal emulator or a rewrite of original evidence. */
+function removeConptyPythonCursorEcho(output: string): string {
+  // Windows ConPTY can finish a Python traceback by moving the cursor to its
+  // final cell and echoing the last character there. Treat only the observed,
+  // single-character duplicate after a complete NameError as framing. Any
+  // different character or cursor activity still fails closed below.
+  const echo = /(\x1b\[(?:\d{1,5}(?:;\d{1,5})?)?H)([A-Za-z])((?:\r?\n|\x1b\[(?:\d{1,5}(?:;\d{1,5})?)?H|\x1b\[\?(?:9001|1004|25)[hl])*)$/.exec(output)
+  if (!echo) return output
+  const prefix = output.slice(0, echo.index)
+  const visible = stripVTControlCharacters(prefix).trimEnd()
+  if (!/^NameError: name '[a-z_]\w*' is not defined$/i.test(visible.split(/\r?\n/).at(-1) ?? '')
+    || echo[2] !== visible.at(-1)) return output
+  return prefix + echo[1] + echo[3]
+}
+
 function runtimeClassificationText(output: string): string | undefined {
   if (output.length > 64 * 1024) return
   const control = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\]0;[^\x00-\x1f\x7f-\x9f]*(?:\x07|\x1b\\))/y
@@ -403,7 +417,7 @@ function runtimeDiagnostic(result: RunResult, language: RunLanguage, compiler: C
     else if (language === 'cpp') known = { category: 'cpp-memory-access' }
   } else if (source && result.exitCode === 1 && result.outputComplete !== false && output
     && (compiler === 'javac' || compiler === 'python' || compiler === 'node')) {
-    const classifiedOutput = runtimeClassificationText(output)
+    const classifiedOutput = runtimeClassificationText(compiler === 'python' ? removeConptyPythonCursorEcho(output) : output)
     if (classifiedOutput) {
       const lines = classifiedOutput.split(/\r?\n/)
       if (compiler === 'javac') known = classifyJavaRuntime(lines, source)

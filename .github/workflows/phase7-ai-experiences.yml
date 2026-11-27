@@ -9,7 +9,8 @@ on:
       - 'src/renderer/**'
       - 'scripts/test-explanations.mjs'
       - 'scripts/test.mjs'
-      - 'test/**'
+      - 'test/explanation-*.test.ts'
+      - 'test/projects.test.ts'
       - 'package.json'
       - 'package-lock.json'
 permissions:

@@ -115,6 +115,19 @@ test('reviewed ConPTY framing is normalized only for classification, preserving 
   assert.equal(executed.programOutput, output)
 })
 
+test('a final ConPTY cursor echo cannot hide or replace the Python diagnostic', () => {
+  const output = conptyPrefix + pythonTrace + '\x1b[6;54Hd\r\n' + conptySuffix
+  const executed = conptyResult(output)
+  const [diagnostic] = diagnose(executed, 'python', conptyPath)
+  assert.equal(diagnostic.category, 'python-undefined-name')
+  assert.equal(diagnostic.confidence, 'high')
+  assert.ok(diagnostic.raw.includes('\x1b[6;54Hd'), 'Original terminal evidence remains available for review.')
+  assert.equal(executed.programOutput, output)
+
+  const overwritten = conptyResult(conptyPrefix + pythonTrace + '\x1b[6;54Hx\r\n' + conptySuffix)
+  assert.equal(diagnose(overwritten, 'python', conptyPath)[0].category, 'unclassified-runtime')
+})
+
 test('malformed, overwritten, unknown and source-mismatched terminal diagnostics remain uncertain', () => {
   const cases = [
     { output: '\x1b]0;unfinished title' + pythonTrace },
