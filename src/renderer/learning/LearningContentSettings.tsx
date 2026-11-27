@@ -119,6 +119,9 @@ export function LearningContentSettings({ packs, onLibraryChange }: Props) {
 
   const blocked = pending !== null || preview !== null
   const catalog = new Map(library?.catalog.map((pack) => [pack.id, pack]))
+  const changes = preview?.update ? preview.changes : null
+  const addedLessons = new Set(changes?.addedLessonIds)
+  const changedLessons = new Set(changes?.changedLessonIds)
 
   return <section className="settings-group learning-content-settings" aria-labelledby="learning-content-heading"
     data-testid="learning-content-settings">
@@ -147,12 +150,16 @@ export function LearningContentSettings({ packs, onLibraryChange }: Props) {
       <p>{preview.details.pack.summary}</p>
       <p>Version {preview.details.pack.version} · {preview.details.pack.topicCount} {preview.details.pack.topicCount === 1 ? 'lesson' : 'lessons'}
         {preview.details.pack.author ? ' · ' + preview.details.pack.author : ''}</p>
+      {changes && <p>Installed version {changes.installedVersion} · {addedLessons.size} added · {changedLessons.size} changed</p>}
       <p>Only validated lesson data is imported. Existing lesson IDs are preserved when updating content.</p>
-      <details data-testid="content-import-review">
-        <summary>Review lesson titles and attribution</summary>
+      <details data-testid="content-import-review" open={preview.update || undefined}>
+        <summary>{preview.update ? 'Review lesson changes and attribution' : 'Review lesson titles and attribution'}</summary>
         <p>Collection ID: {preview.details.pack.id}</p>
+        {changes?.previousAttribution !== undefined && <p>Previously installed author: {changes.previousAttribution?.author ?? 'Not provided'}
+          {' · '}License: {changes.previousAttribution?.license ?? 'Not provided'}</p>}
         <p>Author: {preview.details.pack.author ?? 'Not provided'} · License: {preview.details.pack.license ?? 'Not provided'}</p>
-        <ul>{preview.details.topics.map(topic => <li key={topic.id}>{topic.title}</li>)}</ul>
+        <ul>{preview.details.topics.map(topic => <li key={topic.id}>{topic.title}
+          {addedLessons.has(topic.id) ? ' · Added' : changedLessons.has(topic.id) ? ' · Changed' : ''}</li>)}</ul>
       </details>
       <div className="learning-content-actions">
         <button type="button" className="button" disabled={pending !== null} data-testid="content-import-discard"

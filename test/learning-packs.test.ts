@@ -230,6 +230,55 @@ test('an import preview does not install, binds confirmation to the file, and ex
   })
 })
 
+test('update preview identifies lesson and attribution changes and requires the reviewed installed baseline', async () => {
+  await withPacks(async (profile, catalog) => {
+    const store = new LearningPackStore(profile, catalog)
+    const originalPath = join(profile, 'original.json')
+    const updatePath = join(profile, 'update.json')
+    const base = pack('community', 'Community')
+    const [branch] = base.lessons
+    const unchanged = { ...branch, id: 'constants', title: 'Constants' }
+    const original = { ...base, schema: 2, lessons: [branch, unchanged], metadata: {
+      kind: 'language', categories: ['automation'], languageVersion: '1.0', prerequisites: [],
+      miniProject: 'Collect repeated commands in a script.', attribution: { author: 'Original', license: 'CC BY 4.0' },
+      references: [{ title: 'Language guide', url: 'https://example.org/guide' }],
+    } }
+    const revised = {
+      ...original, version: 2, metadata: { ...original.metadata, attribution: { author: 'Revised', license: 'CC BY-SA 4.0' } },
+      lessons: [{ ...branch, explanation: 'Run code only when its condition holds.' }, unchanged,
+        { ...branch, id: 'loops', title: 'Loops' }],
+    }
+    await writeFile(originalPath, JSON.stringify(original))
+    await writeFile(updatePath, JSON.stringify(revised))
+    await store.importFile(originalPath)
+
+    let preview = await store.previewFile(updatePath)
+    assert.ok(preview.update)
+    assert.deepEqual(preview.changes, {
+      installedVersion: 1, addedLessonIds: ['loops'], changedLessonIds: ['branches'], previousAttribution: original.metadata.attribution,
+    })
+    assert.equal(preview.details.pack.author, 'Revised')
+    assert.equal(await store.getLesson(base.id, branch.id).then((lesson) => lesson.explanation), branch.explanation)
+    const installed = parseInstalledLibrary(await readFile(join(profile, learningLibraryDirectory, 'library.json'), 'utf8')).installed[0]
+    const installedPath = join(profile, learningLibraryDirectory, 'pack-' + installed.storage, 'lesson-branches.json')
+    const edited = { ...branch, explanation: 'An installed lesson changed independently.' }
+    await writeFile(installedPath, JSON.stringify(edited))
+    await assert.rejects(store.confirmImport(preview.token), /installed learning content changed after preview/)
+    assert.deepEqual(await store.getLesson(base.id, branch.id), edited)
+    assert.equal((await store.getLibrary()).installed[0].version, 1)
+
+    preview = await store.previewFile(updatePath)
+    await store.remove(base.id)
+    await assert.rejects(store.confirmImport(preview.token), /installed learning content changed after preview/)
+    assert.deepEqual((await store.getLibrary()).installed, [])
+
+    await store.importFile(originalPath)
+    preview = await store.previewFile(updatePath)
+    assert.equal((await store.confirmImport(preview.token)).installed[0].version, 2)
+    assert.deepEqual(await store.getLesson(base.id, branch.id), revised.lessons[0])
+  })
+})
+
 
 test('four reviewed lesson prompts agree with their acceptance contracts', async () => {
   const read = async (language: string) => JSON.parse(await readFile(resolve('src/main/learning/catalog', language + '.json'), 'utf8')) as {

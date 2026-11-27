@@ -2,11 +2,12 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import { diagnosticPackIds, type PackDetails, type PackImportPreview, type PackLesson, type PackLibrary,
-  type PackSummary, type PackTopic } from '../../shared/learning-packs'
+  type PackSummary, type PackTopic, type PackUpdateReview } from '../../shared/learning-packs'
 import { coreSummaryKeys, describe, details, hasKeys, isCompatible, isId, isLesson, isSummaryList, isTopicId, legacySource,
   lessonByteLimit, manifestFor, maxLearningLibraryBytes, maxLearningPackBytes, maxPackIndexBytes, maxPacks,
-  parseManifest, parsePack, topicIndex, type PackManifest } from './pack-format'
+  packBytes, parseManifest, parsePack, topicIndex, type PackManifest } from './pack-format'
 
 export { maxLearningLibraryBytes, maxLearningPackBytes } from './pack-format'
 export const learningLibraryDirectory = 'learning-library'
@@ -16,7 +17,7 @@ const recentLimit = 8
 type PackDefinition = ReturnType<typeof parsePack>
 type Installed = PackSummary & { storage?: string }
 interface Registry { schema: 1; selected: string | null; installed: Installed[]; recent?: string[] }
-interface PendingImport { path: string; token: string; fingerprint: string; expires: number }
+interface PendingImport { path: string; token: string; fingerprint: string; baseline: string | null; expires: number }
 
 function errorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
@@ -124,6 +125,20 @@ function fingerprint(pack: PackDefinition): string {
   return createHash('sha256').update(JSON.stringify(pack)).digest('hex')
 }
 
+function reviewUpdate(previous: PackDefinition, next: PackDefinition): PackUpdateReview {
+  const installed = new Map(previous.lessons.map((lesson) => [lesson.id, lesson]))
+  const changes: PackUpdateReview = { installedVersion: previous.version, addedLessonIds: [], changedLessonIds: [] }
+  for (const lesson of next.lessons) {
+    const before = installed.get(lesson.id)
+    if (!before) changes.addedLessonIds.push(lesson.id)
+    else if (!isDeepStrictEqual(before, lesson)) changes.changedLessonIds.push(lesson.id)
+  }
+  if (!isDeepStrictEqual(previous.metadata?.attribution, next.metadata?.attribution)) {
+    changes.previousAttribution = previous.metadata?.attribution ?? null
+  }
+  return changes
+}
+
 function verifyMatch(manifest: PackManifest, item: Installed) {
   if (manifest.id !== item.id || manifest.version !== item.version || manifest.topics.length !== item.topicCount) {
     throw new Error('The installed learning pack does not match its index.')
@@ -217,9 +232,13 @@ export class LearningPackStore {
       const registry = await this.readRegistry()
       const summary = describe(pack, 'local')
       const previous = await this.checkImport(registry, catalog, pack, summary)
+      const installed = previous ? await this.readInstalledPack(previous) : null
       const token = randomUUID()
-      this.preview = { path, token, fingerprint: fingerprint(pack), expires: Date.now() + 10 * 60_000 }
-      return { token, details: details(summary, pack.lessons.map(topicIndex), pack.metadata), update: !!previous }
+      this.preview = { path, token, fingerprint: fingerprint(pack), baseline: installed ? fingerprint(installed) : null,
+        expires: Date.now() + 10 * 60_000 }
+      const incoming = details(summary, pack.lessons.map(topicIndex), pack.metadata)
+      return installed ? { token, details: incoming, update: true, changes: reviewUpdate(installed, pack) }
+        : { token, details: incoming, update: false }
     })
   }
 
@@ -232,7 +251,7 @@ export class LearningPackStore {
       this.preview = undefined
       const pack = parsePack(await readJson(preview.path, maxLearningPackBytes, 'Learning pack'))
       if (fingerprint(pack) !== preview.fingerprint) throw new Error('The pack changed after preview. Open the file again.')
-      return this.importPack(pack)
+      return this.importPack(pack, preview.baseline)
     })
   }
 
@@ -248,12 +267,7 @@ export class LearningPackStore {
   exportFile(id: unknown, path: string): Promise<void> {
     return this.serial(async () => {
       const installed = await this.requireInstalled(id)
-      if (!installed.storage) return writeJson(path, await this.readLegacy(installed), maxLearningPackBytes)
-      const manifest = await this.readInstalledIndex(installed)
-      const { topics, ...metadata } = manifest
-      const lessons: PackLesson[] = []
-      for (const topic of topics) lessons.push(await this.readLesson(installed, topic, manifest.schema))
-      await writeJson(path, parsePack({ ...metadata, lessons }), maxLearningPackBytes)
+      await writeJson(path, await this.readInstalledPack(installed), maxLearningPackBytes)
     })
   }
 
@@ -370,9 +384,14 @@ export class LearningPackStore {
     await this.save(registry, pack, summary, previous)
   }
 
-  private async importPack(pack: PackDefinition): Promise<PackLibrary> {
+  private async importPack(pack: PackDefinition, reviewedBaseline?: string | null): Promise<PackLibrary> {
     const catalog = await this.readCatalog()
     const registry = await this.readRegistry()
+    if (reviewedBaseline !== undefined) {
+      const installed = registry.installed.find((item) => item.id === pack.id)
+      const current = installed ? fingerprint(await this.readInstalledPack(installed)) : null
+      if (current !== reviewedBaseline) throw new Error('The installed learning content changed after preview. Open the file again.')
+    }
     const summary = describe(pack, 'local')
     const previous = await this.checkImport(registry, catalog, pack, summary)
     await this.save(registry, pack, summary, previous)
@@ -468,6 +487,20 @@ export class LearningPackStore {
       throw new Error('The installed lesson does not match its index.')
     }
     return lesson
+  }
+
+  private async readInstalledPack(item: Installed): Promise<PackDefinition> {
+    if (!item.storage) return this.readLegacy(item)
+    const { topics, ...metadata } = await this.readInstalledIndex(item)
+    const lessons: PackLesson[] = []
+    let bytes = 0
+    for (const topic of topics) {
+      const lesson = await this.readLesson(item, topic, metadata.schema)
+      bytes += packBytes(lesson)
+      if (bytes > maxLearningPackBytes) throw new Error('Installed learning content exceeds its size limit.')
+      lessons.push(lesson)
+    }
+    return parsePack({ ...metadata, lessons })
   }
 
   private async readLegacy(item: Installed): Promise<PackDefinition> {

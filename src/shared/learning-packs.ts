@@ -89,11 +89,16 @@ export interface PackDetails {
   miniProject?: string
 }
 
-export interface PackImportPreview {
-  token: string
-  details: PackDetails
-  update: boolean
+export interface PackUpdateReview {
+  installedVersion: number
+  addedLessonIds: string[]
+  changedLessonIds: string[]
+  previousAttribution?: PackMetadata['attribution'] | null
 }
+
+export type PackImportPreview = { token: string; details: PackDetails } & (
+  { update: false } | { update: true; changes: PackUpdateReview }
+)
 
 export interface PackLibrary {
   catalog: PackSummary[]

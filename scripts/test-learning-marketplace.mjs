@@ -298,10 +298,16 @@ try { await withScratch('learning-marketplace', async (scratch) => {
     await lesson.getByText(hostileText, { exact: true }).waitFor()
     assert.equal(await lesson.locator('img').count(), 0)
     content = await openContent(page)
-    const updated = { ...authored, version: 2, summary: 'Reviewed update with stable lesson IDs.' }
+    const updated = { ...authored, version: 2, summary: 'Reviewed update with stable lesson IDs.',
+      lessons: [{ ...authored.lessons[0], example: 'print(43)' },
+        { ...authored.lessons[0], id: 'second', title: 'Another local lesson' }] }
     await writeFile(custom, JSON.stringify(updated))
     await content.getByTestId('content-import').click()
-    await content.getByTestId('content-import-preview').getByText('Version 2', { exact: false }).waitFor()
+    const updatePreview = content.getByTestId('content-import-preview')
+    await updatePreview.getByText('Version 2', { exact: false }).waitFor()
+    await updatePreview.getByText('Installed version 1 · 1 added · 1 changed', { exact: true }).waitFor()
+    await updatePreview.getByText('A local lesson · Changed', { exact: true }).waitFor()
+    await updatePreview.getByText('Another local lesson · Added', { exact: true }).waitFor()
     await writeFile(custom, JSON.stringify({ ...updated, name: 'Changed after review' }))
     await content.getByTestId('content-import-confirm').click()
     await content.getByRole('alert').filter({ hasText: 'changed after preview' }).waitFor()
