@@ -3,6 +3,7 @@ import { constants } from 'node:fs'
 import { lstat, mkdir, mkdtemp, open, opendir, realpath, rename, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { RunResult } from '../../shared/contracts'
+import type { LearningTaskEvidence } from '../../shared/learning'
 import {
   catalogDifficulties, maxPracticeSamples, practiceCompletion, practiceDifficulties, practiceLanguages, practiceTopics,
   type PracticeAttempt, type PracticeChallenge, type PracticeChallengeSummary, type PracticeFields, type PracticeLibrary, type PracticeProblem,
@@ -11,6 +12,7 @@ import {
 import type { RunLanguage } from '../../shared/run-console'
 import { maxFileBytes, revision } from '../files'
 import { practiceChallenges } from './catalog-data'
+import { isId, isTopicId } from '../learning/pack-format'
 
 const maxProblems = 200
 const maxAttempts = 20
@@ -32,6 +34,7 @@ const starters: Record<RunLanguage, string> = {
 type RunSamples = (path: string, inputs: readonly string[], sourceRevision: string) => Promise<readonly RunResult[]>
 
 interface StoredReport {
+  restored?: boolean
   version: 1
   testedAt: number
   sourceRevision: string
@@ -143,11 +146,12 @@ function parseAttempt(value: unknown): StoredAttempt {
   }
 }
 
-function parseReport(value: unknown): StoredReport {
+export function validatePracticeReport(value: unknown): StoredReport {
   const item = record(value)
   if (item.version !== 1) throw new Error('Unsupported practice result format.')
   return {
     version: 1,
+    ...(item.restored === true ? { restored: true } : {}),
     testedAt: integer(item.testedAt, 'test date'),
     sourceRevision: text(item.sourceRevision, 'Source revision', 256, true),
     samplesKey: text(item.samplesKey, 'Sample signature', 64, true),
@@ -190,10 +194,23 @@ function skipped(sample: PracticeSample, message: string): PracticeSampleResult 
   return { id: sample.id, label: sample.label, status: 'skipped', message, expected: preview(sample.expectedOutput), stdout: '', stderr: '' }
 }
 
+export function validatePracticeProblem(input: unknown, id: string): StoredProblem {
+  const value = record(input)
+  if (value.version !== 1 || value.id !== id) throw new Error('Unsupported practice problem format.')
+  return {
+    ...fields(value), id, version: 1, revision: integer(value.revision, 'practice revision'),
+    language: value.language === undefined ? 'c' : choice(value.language, supportedLanguages, 'practice language'),
+    ...(value.catalogId === undefined ? {} : { catalogId: catalogIdentifier(value.catalogId) }),
+    attempts: uniqueIds(list(value.attempts, maxAttempts, parseAttempt)),
+  }
+}
+
 export class PracticeStore {
   private root: Promise<string> | undefined
   private pending: Promise<void> = Promise.resolve()
   private running = false
+
+  drain(): Promise<void> { return this.pending }
 
   constructor(private readonly path: string) {}
 
@@ -224,8 +241,8 @@ export class PracticeStore {
     return path
   }
 
-  private async problemDirectory(id: string): Promise<string> {
-    return this.requireDirectory(join(await this.directory(), id))
+  private async problemDirectory(id: string, root?: string): Promise<string> {
+    return this.requireDirectory(join(root ?? await this.directory(), id))
   }
 
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -252,26 +269,19 @@ export class PracticeStore {
     }
   }
 
-  private async readProblem(id: string): Promise<StoredProblem> {
-    const directory = await this.problemDirectory(id)
-    const value = record(await this.readJson(join(directory, 'problem.json')))
-    if (value.version !== 1 || value.id !== id) throw new Error('Unsupported practice problem format.')
-    return {
-      ...fields(value), id, version: 1, revision: integer(value.revision, 'practice revision'),
-      language: value.language === undefined ? 'c' : choice(value.language, supportedLanguages, 'practice language'),
-      ...(value.catalogId === undefined ? {} : { catalogId: catalogIdentifier(value.catalogId) }),
-      attempts: uniqueIds(list(value.attempts, maxAttempts, parseAttempt)),
-    }
+  private async readProblem(id: string, root?: string): Promise<StoredProblem> {
+    const directory = await this.problemDirectory(id, root)
+    return validatePracticeProblem(await this.readJson(join(directory, 'problem.json')), id)
   }
 
   private reportName(attempt: StoredAttempt): string {
     return 'attempt-' + attempt.id + '.report.json'
   }
 
-  private async readReport(problem: StoredProblem, attempt: StoredAttempt): Promise<StoredReport | undefined> {
+  private async readReport(problem: StoredProblem, attempt: StoredAttempt, root?: string): Promise<StoredReport | undefined> {
     try {
-      const directory = await this.problemDirectory(problem.id)
-      return parseReport(await this.readJson(join(directory, this.reportName(attempt))))
+      const directory = await this.problemDirectory(problem.id, root)
+      return validatePracticeReport(await this.readJson(join(directory, this.reportName(attempt))))
     } catch {
       // A missing or unreadable result should not prevent access to the source or problem.
       return undefined
@@ -314,8 +324,8 @@ export class PracticeStore {
     }
   }
 
-  private async attemptSource(problem: StoredProblem, attempt: StoredAttempt): Promise<{ path: string; token: string }> {
-    const path = this.sourcePath(await this.problemDirectory(problem.id), attempt, problem.language)
+  private async attemptSource(problem: StoredProblem, attempt: StoredAttempt, root?: string): Promise<{ path: string; token: string }> {
+    const path = this.sourcePath(await this.problemDirectory(problem.id, root), attempt, problem.language)
     const stats = await lstat(path, { bigint: true })
     if (!stats.isFile() || stats.size > BigInt(maxFileBytes) || await realpath(path) !== path) {
       throw new Error('The attempt must be a regular source file up to 2 MiB inside the practice library.')
@@ -323,29 +333,29 @@ export class PracticeStore {
     return { path, token: revision(stats) }
   }
 
-  private async view(problem: StoredProblem): Promise<PracticeProblem> {
+  private async view(problem: StoredProblem, root?: string): Promise<PracticeProblem> {
     const { version: _version, catalogId: _catalogId, attempts, ...fields } = problem
     const key = samplesKey(fields.samples)
     return {
       ...fields,
       attempts: await Promise.all(attempts.map(async (attempt): Promise<PracticeAttempt> => {
-        const lastRun = await this.readReport(problem, attempt)
+        const lastRun = await this.readReport(problem, attempt, root)
         if (!lastRun) return attempt
-        const source = await this.attemptSource(problem, attempt).catch(() => undefined)
+        const source = await this.attemptSource(problem, attempt, root).catch(() => undefined)
         return {
           ...attempt,
           lastRun: {
             testedAt: lastRun.testedAt, results: lastRun.results,
-            current: source?.token === lastRun.sourceRevision && lastRun.samplesKey === key,
+            current: !lastRun.restored && source?.token === lastRun.sourceRevision && lastRun.samplesKey === key,
           },
         }
       })),
     }
   }
 
-  private async problemIds(): Promise<string[]> {
+  private async problemIds(root?: string): Promise<string[]> {
     const ids: string[] = []
-    const directory = await opendir(await this.directory())
+    const directory = await opendir(root ?? await this.directory())
     let seen = 0
     for await (const entry of directory) {
       if (++seen > maxProblems + 100) throw new Error('Too many entries in the practice library.')
@@ -393,12 +403,53 @@ export class PracticeStore {
     return this.startChallenge(challenge, selectedLanguage)
   }
 
-  startLearningExercise(pack: string, lesson: string, language: RunLanguage, exercise: Omit<PracticeChallenge, 'id' | 'topic'> & { topic: string }) {
+  async startLearningExercise(pack: string, lesson: string, language: RunLanguage,
+    exercise: Omit<PracticeChallenge, 'id' | 'topic'> & { topic: string }, starter?: string) {
+    if (!isId(pack) || !isTopicId(lesson)) throw new Error('Invalid learning lesson identity.')
+    if (starter !== undefined && (typeof starter !== 'string' || Buffer.byteLength(starter) > 8000
+      || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\uD800-\uDFFF]/u.test(starter))) {
+      throw new Error('Lesson starter must contain valid source text up to 8000 UTF-8 bytes.')
+    }
     const id = 'lesson-' + createHash('sha256').update(pack + ':' + lesson).digest('hex')
-    return this.startChallenge({ ...exercise, id }, language)
+    return this.startChallenge({ ...exercise, id }, language, starter)
   }
 
-  private async startChallenge(challenge: Omit<PracticeChallenge, 'topic'> & { topic: string }, selectedLanguage: unknown) {
+  async learningTaskEvidence(pack: unknown, lesson: unknown): Promise<LearningTaskEvidence> {
+    if (!isId(pack) || !isTopicId(lesson)) throw new Error('Invalid learning lesson identity.')
+    const catalogId = 'lesson-' + createHash('sha256').update(pack + ':' + lesson).digest('hex')
+    return this.serialize(async () => {
+      const empty: LearningTaskEvidence = { problemId: null, attemptCount: 0, manualStatus: null, samples: null }
+      // Reading lesson evidence must not create a practice library or an attempt.
+      const root = await realpath(dirname(this.path))
+        .then(parent => this.requireDirectory(join(parent, basename(this.path))))
+        .catch((error: NodeJS.ErrnoException) => {
+          if (error.code === 'ENOENT') return null
+          throw error
+        })
+      if (!root) return empty
+      for (const id of await this.problemIds(root)) {
+        const problem = await this.readProblem(id, root).catch(() => undefined)
+        if (problem?.catalogId !== catalogId || problem.language !== pack) continue
+        // Reuse freshness checks without reading the output of every historical attempt.
+        const latest = (await this.view({ ...problem, attempts: problem.attempts.slice(-1) }, root)).attempts[0]
+        const report = latest?.lastRun
+        return {
+          problemId: problem.id, attemptCount: problem.attempts.length, manualStatus: problem.completion,
+          samples: report && latest ? {
+            attemptId: latest.id, testedAt: report.testedAt, current: report.current,
+            passed: report.results.filter(({ status }) => status === 'passed').length,
+            failed: report.results.filter(({ status }) => status === 'failed').length,
+            unavailable: report.results.filter(({ status }) => status === 'unavailable').length,
+            skipped: report.results.filter(({ status }) => status === 'skipped').length,
+            total: report.results.length,
+          } : null,
+        }
+      }
+      return empty
+    })
+  }
+
+  private async startChallenge(challenge: Omit<PracticeChallenge, 'topic'> & { topic: string }, selectedLanguage: unknown, starter?: string) {
     const id = challenge.id
     const language = choice(selectedLanguage, supportedLanguages, 'practice language')
     return this.serialize(async () => {
@@ -422,7 +473,7 @@ export class PracticeStore {
       const root = await this.directory()
       const staging = await mkdtemp(join(root, '.challenge-'))
       try {
-        await this.writeSource(staging, attempt, language, starters[language])
+        await this.writeSource(staging, attempt, language, starter ?? starters[language])
         await this.publish(staging, 'problem.json', prepared)
         await this.requireDirectory(root)
         await rename(staging, join(root, prepared.id))

@@ -3,7 +3,7 @@
   "id": "python",
   "name": "Python",
   "summary": "Build confidence with core Python, collections, files, JSON, and the standard library.",
-  "version": 3,
+  "version": 4,
   "lessons": [
     {
       "id": "values",
@@ -51,7 +51,7 @@
       "id": "flow",
       "title": "Conditions, loops, and ranges",
       "section": "Syntax",
-      "explanation": "A colon ends the header. In the multiline form, an indented body follows. Use if, elif, and else for alternatives. A for loop takes successive values from an iterable. A while loop repeats while its condition holds.",
+      "explanation": "A colon ends the header. In the multiline form, an indented body follows. Use if, elif, and else for alternatives. A for loop takes successive values from an iterable. A while loop repeats while its condition holds.\n\nFor practice, input() reads a line from stdin and int(...) converts the supplied whole-number text. The editable starter reads the nonnegative upper bound without printing a prompt. Keep the descending loop and its output as your own work.",
       "example": "for index in range(1, 6):\n    if index % 2 == 0:\n        print(index, \"even\")\n    else:\n        print(index, \"odd\")",
       "api": [
         {
@@ -65,6 +65,10 @@
         {
           "name": "zip(a, b)",
           "description": "Pair values from both iterables, stopping at the shorter one by default."
+        },
+        {
+          "name": "int(input())",
+          "description": "Read the supplied line from standard input and convert it to an integer. Calling input() without a prompt avoids adding extra text to tested output."
         }
       ],
       "practice": "Read a nonnegative upper bound from stdin. Print multiples of 3 down to 1 in descending order.",
@@ -105,7 +109,15 @@
         "values",
         "collections",
         "iterators"
-      ]
+      ],
+      "objective": "Read a nonnegative upper bound and combine descending iteration with a divisibility condition to print only multiples of 3.",
+      "starter": "upper = int(input())\n\n# TODO: Print the positive multiples of 3 at or below upper, largest first.\n# Print each selected value on its own line, without an input prompt.\n",
+      "hints": [
+        "The upper bound is inclusive. Do not print zero, and produce no lines if the bound is below 3.",
+        "A range can use a negative step to move downward. Its stop value is excluded, so choose a stop that still visits 1.",
+        "Inside the descending loop, use the remainder operator to decide whether a value is divisible by 3. Print only those values; print() already adds a newline."
+      ],
+      "followUp": "Optional challenge, not checked by these samples: count the printed values without storing them in a list. Put any additional summary output in a separate attempt to preserve the original output contract."
     },
     {
       "id": "collections",

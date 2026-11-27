@@ -1,6 +1,7 @@
 export type RunLanguage = 'c' | 'cpp' | 'java' | 'python' | 'javascript'
 export type FormatterFamily = 'clang' | 'java' | 'python' | 'prettier'
-export type SemanticOperation = 'diagnostics' | 'complete' | 'signature' | 'definition' | 'references' | 'hover'
+export type SemanticOperation = 'diagnostics' | 'complete' | 'signature' | 'definition' | 'declaration'
+  | 'references' | 'hover' | 'documentSymbols' | 'workspaceSymbols' | 'rename' | 'codeActions'
 
 export interface LanguageCapability {
   id: string
@@ -21,7 +22,8 @@ export interface LanguageCapability {
 
 const clang = { family: 'clang', tools: 'clang-format' } as const
 const clangd = { adapter: 'clangd', tools: 'clangd · current translation unit',
-  operations: ['definition', 'references'] } as const
+  operations: ['diagnostics', 'complete', 'signature', 'definition', 'declaration', 'references', 'hover',
+    'documentSymbols', 'workspaceSymbols', 'rename', 'codeActions'] } as const
 const prettier = { family: 'prettier', tools: 'Prettier and Node.js' } as const
 
 export const languageCapabilities: readonly LanguageCapability[] = [
@@ -38,11 +40,14 @@ export const languageCapabilities: readonly LanguageCapability[] = [
     pack: 'java', diagnosticLessons: 'reviewed', practice: true },
   { id: 'python', label: 'Python', wave: 1, extensions: ['py', 'python'], syntax: 'python',
     runner: { id: 'python', extensions: ['py', 'python'], tools: 'Python 3' }, formatter: { family: 'python', tools: 'Ruff or Black' },
+    semantic: { adapter: 'python-lsp', tools: 'Pyright or Python LSP Server', operations: ['diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'] },
     pack: 'python', diagnosticLessons: 'reviewed', practice: true },
   { id: 'javascript', label: 'JavaScript', wave: 1, extensions: ['js', 'mjs', 'cjs', 'jsx'], syntax: 'javascript',
     runner: { id: 'javascript', extensions: ['js', 'mjs', 'cjs'], tools: 'Node.js' }, formatter: prettier,
+    semantic: { adapter: 'typescript-lsp', tools: 'TypeScript Language Server', operations: ['diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'] },
     pack: 'javascript', diagnosticLessons: 'reviewed', practice: true },
-  { id: 'typescript', label: 'TypeScript', wave: 1, extensions: ['ts', 'tsx', 'mts', 'cts'], syntax: 'typescript', formatter: prettier, pack: 'typescript' },
+  { id: 'typescript', label: 'TypeScript', wave: 1, extensions: ['ts', 'tsx', 'mts', 'cts'], syntax: 'typescript', formatter: prettier,
+    semantic: { adapter: 'typescript-lsp', tools: 'TypeScript Language Server', operations: ['diagnostics', 'complete', 'signature', 'definition', 'references', 'hover', 'rename'] }, pack: 'typescript' },
   { id: 'html', label: 'HTML', wave: 2, extensions: ['html', 'htm'], syntax: 'html', formatter: prettier, pack: 'html' },
   { id: 'css', label: 'CSS', wave: 2, extensions: ['css'], syntax: 'css', formatter: prettier, pack: 'css' },
   { id: 'sql', label: 'SQL', wave: 2, extensions: ['sql'], syntax: 'sql', pack: 'sql' },

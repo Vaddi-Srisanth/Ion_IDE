@@ -2,6 +2,12 @@
 .workspace-search-root { margin: 0 0 8px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-search-form { display: flex; gap: 8px; }
 .workspace-search-form .button { flex: none; }
+.workspace-replace-toggle { margin: 8px 0; }
+.workspace-replace { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.workspace-replace-files { max-height: 220px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.workspace-replace-files label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 2px; }
+.workspace-replace-files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-replace-files small { color: var(--muted); font-variant-numeric: tabular-nums; }
 .workspace-search-results, .workspace-search-results ul { list-style: none; margin: 0; padding: 0; }
 .workspace-search-results { max-height: min(460px, 55vh); overflow-y: auto; }
 .workspace-search-results h3 { margin: 10px 0 4px; padding: 5px 7px; background: var(--panel); color: var(--ink); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

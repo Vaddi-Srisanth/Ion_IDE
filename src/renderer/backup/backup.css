@@ -1,0 +1,14 @@
+.backup-dialog fieldset { border: 1px solid var(--border); border-radius: 6px; margin: 16px 0; padding: 12px; min-width: 0; }
+.backup-dialog legend { color: var(--text); font-weight: 600; padding: 0 6px; }
+.backup-check { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; }
+.backup-check input { flex: 0 0 auto; margin-top: 3px; }
+.backup-dialog small { display: block; color: var(--muted); font-size: 12px; }
+.backup-folder { display: flex; gap: 12px; justify-content: space-between; align-items: center; margin: 10px 0; }
+.backup-folder span { min-width: 0; overflow-wrap: anywhere; }
+.backup-folder select { max-width: 55%; }
+.backup-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.backup-files { max-height: 240px; overflow: auto; padding-left: 32px; }
+.backup-files li { margin: 8px 0; overflow-wrap: anywhere; }
+.backup-dialog details { margin: 16px 0; }
+.backup-dialog summary { cursor: pointer; }
+.backup-path { overflow-wrap: anywhere; user-select: text; }

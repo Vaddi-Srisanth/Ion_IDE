@@ -23,7 +23,8 @@ const require = createRequire(import.meta.url)
 const { LearningPackStore } = require(join(target.path, 'main/learning/catalog-store.cjs'))
 const version = JSON.parse(await readFile('package.json', 'utf8')).version
 const execute = promisify(execFile)
-const searchSamples = 5
+// Historical filename kept for the npm alias; the workload changed with the product.
+const navigationSamples = 5
 const settleMs = 1000
 const closeSettleMs = 3000
 
@@ -50,7 +51,7 @@ async function sample(session, probe) {
     ? parts.reduce((sum, [, bytes]) => sum + bytes, 0) / 1024 ** 2 : null, processes: members.length }
 }
 
-const result = await withScratch('marketplace-benchmark', async (scratch) => {
+const result = await withScratch('content-settings-benchmark', async (scratch) => {
   const probe = join(scratch, 'resource-probe')
   await execute('/usr/bin/xcrun', ['clang', '-O2', 'scripts/benchmark-resources-probe.c', '-o', probe])
   const project = await createProject(join(scratch, 'source'), { fileCount: 1 })
@@ -74,39 +75,33 @@ const result = await withScratch('marketplace-benchmark', async (scratch) => {
         await openFolder(page, project)
         await openFromExplorer(page, project.files[0], 'Ion fixture')
         assert.equal(await page.evaluate(() => performance.getEntriesByType('resource')
-          .some((entry) => /MarketplacePane/.test(entry.name))), false, 'Marketplace chunk stayed unloaded in the editor')
+          .some((entry) => /LearningContentSettings|MarketplacePane/.test(entry.name))), false, 'Content management stayed unloaded in the editor')
         await sleep(settleMs)
         const idle = await sample(session, probe)
-        const market = page.getByTestId('marketplace-pane')
-        const search = market.getByTestId('marketplace-search')
+        const content = page.getByTestId('learning-content-settings')
         const started = performance.now()
-        await page.getByTestId('toggle-marketplace').click()
-        await search.waitFor()
-        await market.getByTestId('marketplace-install').first().waitFor()
+        await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('ion:command', 'toggle-marketplace'))
+        await content.getByTestId('content-import').waitFor()
+        await page.waitForFunction(() => document.querySelector('[data-testid="content-import"]')?.disabled === false)
         const openMs = performance.now() - started
-        const list = market.getByRole('list', { name: 'Learning packs' })
-        const windowed = await list.getAttribute('data-windowed') === 'true'
-        if (size >= 25) {
-          assert.equal(windowed, true)
-          assert.ok(await list.getByRole('listitem').count() < size)
-        }
+        const list = content.getByRole('list', { name: 'Saved learning content' })
+        if (size) assert.equal(await list.getByRole('listitem').count(), size)
+        else await content.getByText('No saved copies or imported lessons yet.', { exact: false }).waitFor()
         await sleep(settleMs)
         const opened = await sample(session, probe)
-        const searchMs = []
-        const queries = size ? Array.from({ length: Math.min(size, searchSamples) }, (_, index) => title(index))
-          : ['Python', 'TypeScript', 'JavaScript', 'Rust', 'Python']
-        for (const name of queries) {
+        const rowNavigationMs = []
+        const names = Array.from({ length: Math.min(size, navigationSamples) }, (_, index) => title(index))
+        for (const name of names) {
           const start = performance.now()
-          await search.fill(name)
-          await market.getByText(name, { exact: true }).first().waitFor()
-          searchMs.push(performance.now() - start)
+          await content.getByText(name, { exact: true }).scrollIntoViewIfNeeded()
+          rowNavigationMs.push(performance.now() - start)
         }
-        await page.getByTestId('toggle-marketplace').click()
-        await market.waitFor({ state: 'detached' })
+        await page.keyboard.press('Escape')
+        await content.waitFor({ state: 'detached' })
         await sleep(closeSettleMs)
         const closed = await sample(session, probe)
         assert.deepEqual(session.requests, [])
-        report.push({ size, run: run + 1, idle, opened, closed, openMs, searchMs, windowed })
+        report.push({ size, run: run + 1, idle, opened, closed, openMs, rowNavigationMs })
         console.log(JSON.stringify(report.at(-1)))
       } finally {
         await close(session)
@@ -123,6 +118,6 @@ const host = {
 }
 const directory = resolve('performance-results')
 await mkdir(directory, { recursive: true })
-const file = join(directory, 'learning-marketplace-' + new Date().toISOString().replaceAll(':', '-') + '.json')
-await writeFile(file, JSON.stringify({ host, version, repetitions, settleMs, closeSettleMs, searchSamples, result }, null, 2) + '\n')
+const file = join(directory, 'learning-content-' + new Date().toISOString().replaceAll(':', '-') + '.json')
+await writeFile(file, JSON.stringify({ protocol: 'learning-content-settings-v1', comparison: 'Not matched to historical Marketplace cards/search workloads', host, version, repetitions, settleMs, closeSettleMs, navigationSamples, result }, null, 2) + '\n')
 console.log(file)

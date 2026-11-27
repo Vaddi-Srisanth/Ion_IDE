@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatterFamily, languageCapabilities, languageCapability, type SemanticOperation } from '../shared/languages';
+import type { LanguageToolStatus } from '../shared/language-tools';
 import { Modal } from './Dialogs';
 
 const operationLabels: Record<SemanticOperation, string> = {
   diagnostics: 'Diagnostics', complete: 'Autocomplete', signature: 'Signatures',
-  definition: 'Go to Definition', references: 'Find References', hover: 'Hover',
+  definition: 'Go to Definition', declaration: 'Go to Declaration', references: 'Find References', hover: 'Hover',
+  documentSymbols: 'Document Symbols', workspaceSymbols: 'Workspace Symbols', rename: 'Reviewed Rename',
+  codeActions: 'Code Actions',
 };
 
 export default function LanguageSupport({ initial, onClose }: { initial?: string; onClose(): void }) {
   const [id, setId] = useState(initial && languageCapability(initial) ? initial : 'c');
+  const [statuses, setStatuses] = useState<LanguageToolStatus[]>([]);
+  const refresh = () => window.ion.languageTools.status().then(setStatuses, () => setStatuses([]));
+  useEffect(() => { void refresh(); }, []);
   const language = languageCapability(id)!;
+  const status = statuses.filter((entry) => entry.language === id).at(-1);
   const extensions = (values: readonly string[]) => values.map((ext) => '.' + ext).join(', ');
   const formatExtensions = language.extensions.filter((ext) => formatterFamily('file.' + ext));
   const detail = [
@@ -36,6 +43,16 @@ export default function LanguageSupport({ initial, onClose }: { initial?: string
       <dl>
         {detail.map(([label, value]) => <div className="setting" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
+      {language.semantic && <div className="setting">
+        <span><b>Current service</b><small>{status ? `${status.state}${status.version ? ` · ${status.version}` : ''}${status.detail ? ` · ${status.detail}` : ''}` : 'Not started'}</small>
+          {status?.executable && <small title={status.executable}>{status.executable}</small>}
+          {status?.root && <small title={status.root}>Root: {status.root}</small>}
+          {status?.capabilities?.length && <small>Capabilities: {status.capabilities.join(', ')}</small>}</span>
+        <span className="inline-actions"><button className="button" type="button" onClick={refresh}>Refresh</button>
+          <button className="button" type="button" disabled={!status || status.state === 'stopped'} onClick={() => {
+            void window.ion.languageTools.restart(id).then(refresh);
+          }}>Stop / Restart</button></span>
+      </div>}
     </div>
     <div className="modal-actions"><button className="button primary" type="button" onClick={onClose}>Done</button></div>
   </Modal>;

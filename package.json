@@ -21,7 +21,12 @@
     "test:recovery": "node scripts/test-recovery.mjs",
     "test:editor-session": "node scripts/test-editor-session.mjs && node scripts/test-editor-retention.mjs",
     "test:keyboard": "node scripts/test-keyboard.mjs",
+    "test:editor-essentials": "node scripts/test-editor-essentials.mjs",
     "test:java-tools": "node scripts/test-java-tools.mjs",
+    "test:language-services": "node scripts/test-language-services.mjs",
+    "test:debugger": "node scripts/test-debugger.mjs",
+    "test:debugger:native": "node scripts/test-debugger-native.mjs",
+    "test:debugger:desktop": "node scripts/test-debugger-desktop.mjs",
     "test:format": "node scripts/test-format-code.mjs",
     "test:workspace-search": "node scripts/test-workspace-search.mjs",
     "test:profile-export": "node scripts/test-profile-export.mjs",
@@ -29,6 +34,7 @@
     "test:markdown": "node scripts/test-markdown-preview.mjs",
     "test:marketplace": "node scripts/test-learning-marketplace.mjs",
     "test:practice": "node scripts/test-practice-catalog.mjs",
+    "test:practical-learning": "node scripts/test-practical-learning.mjs",
     "test:starters": "node scripts/test-starter-code.mjs",
     "test:notebooks": "node scripts/test-notebook.mjs --edit",
     "test:notebook-trust": "node scripts/test-notebook-trust.mjs",
@@ -58,6 +64,7 @@
     "bench:resources": "node scripts/benchmark-resources.mjs",
     "bench:session": "node scripts/benchmark-session-lifecycle.mjs",
     "bench:editor-residency": "node scripts/benchmark-editor-residency.mjs",
+    "bench:editor-split": "node scripts/benchmark-editor-split.mjs",
     "bench:notebooks": "node scripts/benchmark-notebooks.mjs",
     "bench:markdown": "node scripts/benchmark-markdown-preview.mjs",
     "check:performance": "node scripts/check-performance-regression.mjs",
@@ -76,7 +83,10 @@
     "bench:terminal": "node scripts/benchmark-integrated-terminal.mjs",
     "stats:live": "node scripts/sample-live-runtime.mjs",
     "test:shutdown-failure": "node scripts/test-shutdown-cleanup-failure.mjs",
-    "test:notebook-cleanup": "node scripts/test-notebook-cleanup-ownership.mjs"
+    "test:notebook-cleanup": "node scripts/test-notebook-cleanup-ownership.mjs",
+    "test:backup": "node scripts/test.mjs backup",
+    "test:backup:ui": "node scripts/test-backup-ui.mjs",
+    "bench:backup": "node scripts/benchmark-backup.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
@@ -91,7 +101,8 @@
     "react-dom": "19.3.1",
     "sax": "1.6.1",
     "vscode-jsonrpc": "10.0.0",
-    "yauzl": "3.4.0"
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1"
   },
   "devDependencies": {
     "@electron/fuses": "2.1.3",

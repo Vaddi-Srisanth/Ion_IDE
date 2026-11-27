@@ -1,0 +1,884 @@
+{
+  "baseline": "a108a01bad53a6008761049c28a86e90bdd0374e",
+  "candidate": "df089aabfc8b5f3f5e19eb1d3372fc12131c7703",
+  "run": 43694512103,
+  "artifact": 14153732893,
+  "sourceSha256": "73b4e5a0821ed039a6a7ebe9f620123e6d9423f7d2514e3d00ad369d784dd877",
+  "scope": "Four matched native Mac pairs WITH optional test instrumentation; not pooled with uninstrumented samples",
+  "complete": true,
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "24.6.0",
+    "cpu": {
+      "redacted": true,
+      "sha256": "9c84587ddfa080b046895a3177ddf54efe0d58dd7fa9d46eb5ce5d90528b4d12"
+    },
+    "ramBytes": 7516192768
+  },
+  "builds": {
+    "candidate": "99831193cc6999862dd2a20a01acdffb95ec03a0cb7f25782147ca4b49797fc1",
+    "baseline": "20541e080b94762f6b6215ebe32d890a9fc7e99a741d4faaa274f66b7ce9f265"
+  },
+  "samples": {
+    "candidate": [
+      {
+        "trial": 1,
+        "complete": true,
+        "freshMs": 532.4472079999978,
+        "warmMs": 369.468458000003,
+        "openSourceMs": 370.2145839999939,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 373,
+          "footprintMiB": 126.30780029296875,
+          "cpuPercent": 1.37044082166082
+        },
+        "oneFile": {
+          "rssMiB": 469.609375,
+          "footprintMiB": 206.13665771484375,
+          "cpuPercent": 2.186128129972096
+        },
+        "tenTabs": {
+          "rssMiB": 478.65625,
+          "footprintMiB": 204.19915771484375,
+          "cpuPercent": 1.3966791369178237
+        },
+        "savedConfigIdle": {
+          "rssMiB": 557.65625,
+          "footprintMiB": 269.90277099609375,
+          "cpuPercent": 0.1643395896143269
+        },
+        "input": {
+          "tabMs": [
+            69.54445799999667,
+            92.91408399999636,
+            65.81133299999783,
+            65.87029099999927,
+            50.50416699999914,
+            67.60575000000244,
+            49.85370800000237,
+            60.61170899999706
+          ],
+          "typingMs": 27.70000000001164,
+          "scrollMs": 35.107208000001265
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 290.26870800000324
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 290.3822910000017
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 290.38495800000237
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 369.468458000003
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2257.089791000006,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 138.35279199999786
+            },
+            {
+              "name": "tab-observed",
+              "ms": 140.70691699999588
+            },
+            {
+              "name": "text-observed",
+              "ms": 370.2145839999939
+            }
+          ],
+          "status": "complete",
+          "durationMs": 370.2145839999939
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 15.10000000000582,
+            "responseStart": 15.10000000000582,
+            "responseEnd": 37.29999999998836,
+            "domInteractive": 47.5,
+            "domContentLoadedEventStart": 77.60000000000582,
+            "domContentLoadedEventEnd": 77.69999999998254,
+            "domComplete": 77.69999999998254,
+            "loadEventStart": 77.69999999998254,
+            "loadEventEnd": 77.69999999998254
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 2,
+        "complete": true,
+        "freshMs": 581.7351250000065,
+        "warmMs": 461.2532910000009,
+        "openSourceMs": 523.2900829999999,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 372.453125,
+          "footprintMiB": 125.52667236328125,
+          "cpuPercent": 1.0157851367059823
+        },
+        "oneFile": {
+          "rssMiB": 465.84375,
+          "footprintMiB": 194.5899658203125,
+          "cpuPercent": 1.6235994035988042
+        },
+        "tenTabs": {
+          "rssMiB": 478.90625,
+          "footprintMiB": 204.1993408203125,
+          "cpuPercent": 1.0591256970488372
+        },
+        "savedConfigIdle": {
+          "rssMiB": 555.71875,
+          "footprintMiB": 266.16839599609375,
+          "cpuPercent": 0.3657145252745936
+        },
+        "input": {
+          "tabMs": [
+            40.174749999991036,
+            49.16995899999165,
+            66.75104200000351,
+            49.80516699999862,
+            49.82741699999315,
+            65.50716599999578,
+            67.75170900000376,
+            49.67620800000441
+          ],
+          "typingMs": 26.400000000023283,
+          "scrollMs": 36.63191700000607
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 384.15766599999915
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 384.31437500000175
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 384.3180410000059
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 461.2532910000009
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2412.3847079999978,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 209.38175000000047
+            },
+            {
+              "name": "tab-observed",
+              "ms": 212.61658299999544
+            },
+            {
+              "name": "text-observed",
+              "ms": 523.2900829999999
+            }
+          ],
+          "status": "complete",
+          "durationMs": 523.2900829999999
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 20.20000000001164,
+            "responseStart": 20.20000000001164,
+            "responseEnd": 41,
+            "domInteractive": 51.89999999999418,
+            "domContentLoadedEventStart": 79.89999999999418,
+            "domContentLoadedEventEnd": 79.89999999999418,
+            "domComplete": 79.89999999999418,
+            "loadEventStart": 79.89999999999418,
+            "loadEventEnd": 79.89999999999418
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 3,
+        "complete": true,
+        "freshMs": 1218.8025830000115,
+        "warmMs": 561.7584999999963,
+        "openSourceMs": 438.8478339999856,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 375.796875,
+          "footprintMiB": 130.94830322265625,
+          "cpuPercent": 0.5095925972044612
+        },
+        "oneFile": {
+          "rssMiB": 464.453125,
+          "footprintMiB": 196.1678466796875,
+          "cpuPercent": 1.4015518947242427
+        },
+        "tenTabs": {
+          "rssMiB": 478.890625,
+          "footprintMiB": 206.4803466796875,
+          "cpuPercent": 1.9676846848859102
+        },
+        "savedConfigIdle": {
+          "rssMiB": 551.65625,
+          "footprintMiB": 261.54302978515625,
+          "cpuPercent": 0.15786113472918856
+        },
+        "input": {
+          "tabMs": [
+            94.15287499999977,
+            131.16508399997838,
+            61.27562500000931,
+            93.40724999998929,
+            63.342124999995576,
+            75.647667000012,
+            62.453917000006186,
+            103.51383399998304
+          ],
+          "typingMs": 25.899999999965075,
+          "scrollMs": 35.02116699999897
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 447.36041699998896
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 447.62779199998477
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 447.6322919999948
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 561.7584999999963
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2594.443082999991,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 106.83320900000399
+            },
+            {
+              "name": "tab-observed",
+              "ms": 111.21516699998756
+            },
+            {
+              "name": "text-observed",
+              "ms": 438.8478339999856
+            }
+          ],
+          "status": "complete",
+          "durationMs": 438.8478339999856
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 2.800000000046566,
+            "responseStart": 2.800000000046566,
+            "responseEnd": 68.5,
+            "domInteractive": 79.40000000002328,
+            "domContentLoadedEventStart": 116.10000000003492,
+            "domContentLoadedEventEnd": 116.30000000004657,
+            "domComplete": 116.30000000004657,
+            "loadEventStart": 116.30000000004657,
+            "loadEventEnd": 116.30000000004657
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 4,
+        "complete": true,
+        "freshMs": 741.2728340000031,
+        "warmMs": 669.9308329999913,
+        "openSourceMs": 492.37670900000376,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 374.359375,
+          "footprintMiB": 133.198486328125,
+          "cpuPercent": 1.2688540774866564
+        },
+        "oneFile": {
+          "rssMiB": 467.109375,
+          "footprintMiB": 196.5897216796875,
+          "cpuPercent": 1.7351019727529582
+        },
+        "tenTabs": {
+          "rssMiB": 481.375,
+          "footprintMiB": 206.8084716796875,
+          "cpuPercent": 1.8722522641017034
+        },
+        "savedConfigIdle": {
+          "rssMiB": 555.484375,
+          "footprintMiB": 263.71514892578125,
+          "cpuPercent": 0.0903471090770106
+        },
+        "input": {
+          "tabMs": [
+            57.289875000016764,
+            79.85524999999325,
+            59.83916699999827,
+            48.744459000008646,
+            50.45295800000895,
+            49.979458000016166,
+            66.07620799998404,
+            86.75725000002421
+          ],
+          "typingMs": 26.400000000023283,
+          "scrollMs": 32.68970800001989
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 546.9725000000035
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 547.0914579999808
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 547.0931669999845
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 669.9308329999913
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2627.453332999983,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 152.77791699999943
+            },
+            {
+              "name": "tab-observed",
+              "ms": 155.52600000001257
+            },
+            {
+              "name": "text-observed",
+              "ms": 492.37670900000376
+            }
+          ],
+          "status": "complete",
+          "durationMs": 492.37670900000376
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 34.20000000001164,
+            "responseStart": 34.20000000001164,
+            "responseEnd": 76.5,
+            "domInteractive": 91.79999999998836,
+            "domContentLoadedEventStart": 144.09999999997672,
+            "domContentLoadedEventEnd": 144.09999999997672,
+            "domComplete": 144.20000000001164,
+            "loadEventStart": 144.20000000001164,
+            "loadEventEnd": 144.20000000001164
+          }
+        ],
+        "diagnosticErrors": []
+      }
+    ],
+    "baseline": [
+      {
+        "trial": 1,
+        "complete": true,
+        "freshMs": 2295.46525,
+        "warmMs": 504.6022090000006,
+        "openSourceMs": 782.564625,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.71875,
+          "footprintMiB": 125.1357421875,
+          "cpuPercent": 1.2829356013940265
+        },
+        "oneFile": {
+          "rssMiB": 462.359375,
+          "footprintMiB": 187.85516357421875,
+          "cpuPercent": 2.2287312509247204
+        },
+        "tenTabs": {
+          "rssMiB": 468.8125,
+          "footprintMiB": 197.68328857421875,
+          "cpuPercent": 1.971194054107927
+        },
+        "savedConfigIdle": {
+          "rssMiB": 549.3125,
+          "footprintMiB": 262.62127685546875,
+          "cpuPercent": 0.27885155894591934
+        },
+        "input": {
+          "tabMs": [
+            63.13879100000122,
+            66.89312500000051,
+            72.29320799999914,
+            58.38875000000007,
+            66.76204199999847,
+            66.5492090000007,
+            50.59900000000016,
+            49.62158400000044
+          ],
+          "typingMs": 25.20000000001164,
+          "scrollMs": 50.533541999999215
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 399.63475000000017
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 399.7945840000002
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 399.7987090000006
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 504.6022090000006
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2458.364292,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 310.74833300000046
+            },
+            {
+              "name": "tab-observed",
+              "ms": 328.24104200000056
+            },
+            {
+              "name": "text-observed",
+              "ms": 782.564625
+            }
+          ],
+          "status": "complete",
+          "durationMs": 782.564625
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 7,
+            "responseStart": 7,
+            "responseEnd": 61,
+            "domInteractive": 69.89999999999418,
+            "domContentLoadedEventStart": 101.39999999999418,
+            "domContentLoadedEventEnd": 101.5,
+            "domComplete": 101.5,
+            "loadEventStart": 101.5,
+            "loadEventEnd": 101.5
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 2,
+        "complete": true,
+        "freshMs": 566.3542089999974,
+        "warmMs": 456.60095900000306,
+        "openSourceMs": 347.12304200000654,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.234375,
+          "footprintMiB": 125.37030029296875,
+          "cpuPercent": 1.30944449187904
+        },
+        "oneFile": {
+          "rssMiB": 466.703125,
+          "footprintMiB": 201.48040771484375,
+          "cpuPercent": 2.8185311562786732
+        },
+        "tenTabs": {
+          "rssMiB": 475.6875,
+          "footprintMiB": 201.77728271484375,
+          "cpuPercent": 2.104164748587515
+        },
+        "savedConfigIdle": {
+          "rssMiB": 558.140625,
+          "footprintMiB": 265.7620849609375,
+          "cpuPercent": 0.2978788916250978
+        },
+        "input": {
+          "tabMs": [
+            69.12974999999278,
+            77.99283400000422,
+            49.471082999996725,
+            66.91675000000396,
+            83.51420799999323,
+            48.89366600000358,
+            67.84354200000234,
+            49.84475000000384
+          ],
+          "typingMs": 21.400000000023283,
+          "scrollMs": 34.4831669999985
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 377.54945900000166
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 377.6697089999943
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 377.6724169999943
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 456.60095900000306
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2339.3691249999974,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 169.42662500000733
+            },
+            {
+              "name": "tab-observed",
+              "ms": 184.06674999999814
+            },
+            {
+              "name": "text-observed",
+              "ms": 347.12304200000654
+            }
+          ],
+          "status": "complete",
+          "durationMs": 347.12304200000654
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 3.3999999999650754,
+            "responseStart": 3.3999999999650754,
+            "responseEnd": 58.59999999997672,
+            "domInteractive": 66.5,
+            "domContentLoadedEventStart": 98.19999999995343,
+            "domContentLoadedEventEnd": 98.19999999995343,
+            "domComplete": 98.29999999998836,
+            "loadEventStart": 98.29999999998836,
+            "loadEventEnd": 98.29999999998836
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 3,
+        "complete": true,
+        "freshMs": 644.0694579999836,
+        "warmMs": 399.9354170000006,
+        "openSourceMs": 496.9553339999984,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.34375,
+          "footprintMiB": 127.44842529296875,
+          "cpuPercent": 1.6384240336794778
+        },
+        "oneFile": {
+          "rssMiB": 461.765625,
+          "footprintMiB": 186.0740966796875,
+          "cpuPercent": 2.7066323446965943
+        },
+        "tenTabs": {
+          "rssMiB": 475.21875,
+          "footprintMiB": 195.3553466796875,
+          "cpuPercent": 2.5799292948728825
+        },
+        "savedConfigIdle": {
+          "rssMiB": 546.046875,
+          "footprintMiB": 258.09014892578125,
+          "cpuPercent": 0.8010532931003772
+        },
+        "input": {
+          "tabMs": [
+            89.0633749999979,
+            75.21429199998965,
+            78.45570799999405,
+            100.80416699999478,
+            68.19516599999042,
+            85.48295800000778,
+            83.45762500001001,
+            64.35720800000126
+          ],
+          "typingMs": 21.099999999976717,
+          "scrollMs": 44.02812500001164
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 310.74083300001803
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 310.8808330000029
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 310.8869169999962
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 399.9354170000006
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2349.447583000001,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 144.67945900000632
+            },
+            {
+              "name": "tab-observed",
+              "ms": 147.85770900000352
+            },
+            {
+              "name": "text-observed",
+              "ms": 496.9553339999984
+            }
+          ],
+          "status": "complete",
+          "durationMs": 496.9553339999984
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 3.7999999999883585,
+            "responseStart": 3.7999999999883585,
+            "responseEnd": 49.20000000001164,
+            "domInteractive": 56.70000000001164,
+            "domContentLoadedEventStart": 92.09999999997672,
+            "domContentLoadedEventEnd": 92.09999999997672,
+            "domComplete": 92.20000000001164,
+            "loadEventStart": 92.20000000001164,
+            "loadEventEnd": 92.20000000001164
+          }
+        ],
+        "diagnosticErrors": []
+      },
+      {
+        "trial": 4,
+        "complete": true,
+        "freshMs": 910.4295000000275,
+        "warmMs": 632.5270000000019,
+        "openSourceMs": 425.98620899999514,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 369.859375,
+          "footprintMiB": 126.1046142578125,
+          "cpuPercent": 1.988275224863697
+        },
+        "oneFile": {
+          "rssMiB": 465.859375,
+          "footprintMiB": 186.2615966796875,
+          "cpuPercent": 2.1953986342687184
+        },
+        "tenTabs": {
+          "rssMiB": 475.234375,
+          "footprintMiB": 196.7928466796875,
+          "cpuPercent": 2.3901722244924075
+        },
+        "savedConfigIdle": {
+          "rssMiB": 553.953125,
+          "footprintMiB": 263.93389892578125,
+          "cpuPercent": 0.2073673952618026
+        },
+        "input": {
+          "tabMs": [
+            69.72108299995307,
+            50.11795799998799,
+            86.13200000004144,
+            76.4696249999688,
+            47.773374999989755,
+            49.82862500002375,
+            67.69479099998716,
+            66.06725000002189
+          ],
+          "typingMs": 26,
+          "scrollMs": 36.802332999999635
+        },
+        "startupPhases": [
+          {
+            "name": "launch-requested",
+            "ms": 0
+          },
+          {
+            "name": "electron-launch-resolved",
+            "ms": 500.0132909999811
+          },
+          {
+            "name": "first-window-resolved",
+            "ms": 500.14583300001686
+          },
+          {
+            "name": "start-locator-wait-requested",
+            "ms": 500.147874999966
+          },
+          {
+            "name": "start-locator-observed",
+            "ms": 632.5270000000019
+          }
+        ],
+        "firstFilePhases": {
+          "sequence": 1,
+          "startedMs": 2604.0230410000077,
+          "phases": [
+            {
+              "name": "click-requested",
+              "ms": 0
+            },
+            {
+              "name": "click-resolved",
+              "ms": 130.6954169999808
+            },
+            {
+              "name": "tab-observed",
+              "ms": 134.95558399998117
+            },
+            {
+              "name": "text-observed",
+              "ms": 425.98620899999514
+            }
+          ],
+          "status": "complete",
+          "durationMs": 425.98620899999514
+        },
+        "rendererNavigation": [
+          {
+            "startTime": 0,
+            "fetchStart": 6.5,
+            "responseStart": 6.5,
+            "responseEnd": 59.09999999997672,
+            "domInteractive": 68.59999999997672,
+            "domContentLoadedEventStart": 114.29999999998836,
+            "domContentLoadedEventEnd": 114.39999999996508,
+            "domComplete": 114.39999999996508,
+            "loadEventStart": 114.39999999996508,
+            "loadEventEnd": 114.39999999996508
+          }
+        ],
+        "diagnosticErrors": []
+      }
+    ]
+  },
+  "controllerClock": "performance.now relative to launch request; includes inspection transport",
+  "rendererClock": "navigation timings relative to independent renderer time origin; never subtracted from controller timestamps",
+  "limitations": [
+    "Four pairs do not support stable p95/p99.",
+    "No pre-main/application IPC/model-creation marks; post-tab interval includes renderer transport/polling.",
+    "No root-cause or optimization claim. All outliers retained."
+  ]
+}

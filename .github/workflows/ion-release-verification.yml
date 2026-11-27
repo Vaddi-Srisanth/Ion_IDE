@@ -2,6 +2,11 @@ name: Ion isolated release verification (no publication)
 
 on:
   workflow_dispatch:
+    inputs:
+      windows_follow_up_only:
+        description: Re-run only the two Windows lanes that previously failed
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       performance_only:
@@ -10,13 +15,19 @@ on:
       follow_up_only:
         type: boolean
         default: false
+      retain_installers:
+        type: boolean
+        default: true
+      windows_follow_up_only:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   macos:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: macOS Apple silicon
     runs-on: macos-15
     timeout-minutes: 35
@@ -43,6 +54,8 @@ jobs:
           fi
           test "$(node -p "require('node:os').userInfo().shell")" = /bin/zsh
       - run: npm run test:regression
+      - name: Verify practical learning with actual local toolchains
+        run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
       - name: Verify configuration isolation and shutdown cleanup
         run: |
           npm run test:git-security
@@ -74,6 +87,7 @@ jobs:
       - run: node scripts/verify-mac-release.mjs
       - run: node scripts/release-evidence.mjs record mac-arm64
       - name: Retain verified macOS installer (no public release)
+        if: ${{ inputs.retain_installers }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ion-macos-arm64-${{ github.sha }}-${{ github.run_attempt }}
@@ -119,7 +133,6 @@ jobs:
           $gcc = 'C:\mingw64\bin'
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
           if (!(Test-Path (Join-Path $gcc 'g++.exe'))) { throw 'MinGW-w64 G++ is unavailable.' }
-          $gcc >> $env:GITHUB_PATH
           $jdk = $env:JAVA_HOME_21_X64
           if (!$jdk -or !(Test-Path (Join-Path $jdk 'bin\javac.exe'))) { throw 'JDK 21 is unavailable.' }
           "JAVA_HOME=$jdk" >> $env:GITHUB_ENV
@@ -135,6 +148,25 @@ jobs:
           npm install --global --prefix $tools --ignore-scripts --no-audit --no-fund prettier@3.6.2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $tools >> $env:GITHUB_PATH
+      - name: Pin and verify GCC first for production discovery
+        shell: pwsh
+        run: |
+          $expected = 'C:\mingw64\bin'
+          # This must run after every GITHUB_PATH mutation. Otherwise the
+          # assertion can validate a different PATH from the test process.
+          $remaining = ($env:PATH -split ';' | Where-Object { $_ -and $_ -ne $expected }) -join ';'
+          $env:PATH = "$expected;$remaining"
+          # Actions prepends accumulated GITHUB_PATH entries after applying
+          # GITHUB_ENV. Add GCC last so the following process sees it first.
+          $expected >> $env:GITHUB_PATH
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          $gxx = (Get-Command g++.exe -ErrorAction Stop).Source
+          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
+          if ((Split-Path $gxx) -ne $expected) { throw "Unexpected C++ compiler: $gxx" }
+          & $gcc --version
+          & $gxx --version
+      - name: Trace Ion's trusted Windows compiler selection
+        run: node scripts/diagnose-windows-tool-selection.mjs
       - name: Verify native filesystem conflicts and scoped mutation
         run: npm test -- workspace-files-windows file-mutation-races
       - name: Run portable and Windows-specific unit tests
@@ -244,14 +276,15 @@ jobs:
           npm run test:source-control
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:project-suites
-      - name: Verify configuration isolation and shutdown cleanup
+      - name: Verify Git configuration isolation
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
-        run: |
-          npm run test:git-security
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/test-git-lfs.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:shutdown
+        run: npm run test:git-security
+      - name: Verify genuine Git LFS
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-git-lfs.mjs
+      - name: Verify shutdown cleanup independently of LFS availability
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: npm run test:shutdown
       - name: Verify rendered syntax and capability labels
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: node scripts/test-language-capabilities.mjs
@@ -273,6 +306,12 @@ jobs:
       - name: Verify offline Learning Lens
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: npm run test:learning-lens
+      - name: Verify direct learning and saved exercise evidence
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-learning-marketplace.mjs
+      - name: Verify practical learning with actual local toolchains
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
+        run: node scripts/test-practical-learning.mjs --require-toolchains --out performance-results/practical-learning.json
       - name: Verify offline onboarding
         if: ${{ !cancelled() && steps.native-build.outcome == 'success' }}
         run: |
@@ -302,7 +341,7 @@ jobs:
           retention-days: 14
 
   windows-run-diagnostic:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.windows_follow_up_only }}
     name: Windows cold C diagnostic ${{ matrix.cold }} (not a benchmark)
     runs-on: windows-2025
     timeout-minutes: 15
@@ -366,7 +405,7 @@ jobs:
           retention-days: 14
 
   windows-installer:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: Windows x64 installer and upgrade
     runs-on: windows-2025
     timeout-minutes: 25
@@ -406,6 +445,7 @@ jobs:
       - run: npm run test:release:win
       - run: node scripts/release-evidence.mjs record windows-x64
       - name: Retain verified Windows installer (no public release)
+        if: ${{ inputs.retain_installers }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ion-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
@@ -428,6 +468,9 @@ jobs:
 
   windows-performance:
     name: Windows x64 process-tree benchmark
+    env:
+      ION_INSPECTOR_SHUTDOWN_DIAGNOSTICS: '1'
+      ION_STARTUP_PHASE_DIAGNOSTICS: '1'
     runs-on: windows-2025
     # Two complete three-trial controls plus interleaved development samples.
     # This bounds CI volume; application/compiler deadlines are unchanged.
@@ -447,18 +490,25 @@ jobs:
           if (!(Test-Path (Join-Path $gcc 'gcc.exe'))) { throw 'MinGW-w64 GCC is unavailable.' }
           & (Join-Path $gcc 'gcc.exe') --version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $gcc >> $env:GITHUB_PATH
+          "PATH=$gcc;$env:PATH" >> $env:GITHUB_ENV
+      - name: Verify GCC-first production discovery
+        shell: pwsh
+        run: |
+          $expected = 'C:\mingw64\bin'
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          if ((Split-Path $gcc) -ne $expected) { throw "Unexpected C compiler: $gcc" }
+          & $gcc --version
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run build
       - run: node scripts/benchmark-windows.mjs --label candidate --terminal
-      - name: Matched production baseline versus optional-trace candidate
+      - name: Matched 0.9.8 source control versus feature candidate
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'ion-performance-baseline'
-          git fetch --no-tags origin 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git fetch --no-tags origin a108a01bad53a6008761049c28a86e90bdd0374e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git worktree add --detach $baseline 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git worktree add --detach $baseline a108a01bad53a6008761049c28a86e90bdd0374e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Push-Location $baseline
           try {
@@ -472,11 +522,13 @@ jobs:
           $candidateSha = $env:GITHUB_SHA
           try {
             $env:GITHUB_SHA = (git -C $baseline rev-parse HEAD).Trim()
-            if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne '38cf7ff333d02be298a71c4b5315d317d57157c6') { throw 'Baseline identity mismatch.' }
-            node (Join-Path $baseline 'scripts/benchmark-windows.mjs') --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
+            if ($LASTEXITCODE -ne 0 -or $env:GITHUB_SHA -ne 'a108a01bad53a6008761049c28a86e90bdd0374e') { throw 'Baseline identity mismatch.' }
+            node scripts/benchmark-windows.mjs --target (Join-Path $baseline 'dist') --label baseline --terminal --out performance-results/windows-baseline.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { $env:GITHUB_SHA = $candidateSha }
-          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 3 --soak-seconds 60 --out performance-results/windows-development-workflows.json
+          node --test scripts/fixture-process-runner.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run bench:development -- --baseline (Join-Path $baseline 'dist') --trials 4 --alternate-order --soak-seconds 60 --out performance-results/windows-development-workflows.json
       - name: Collect bounded sanitized release evidence
         if: always()
         run: node scripts/collect-release-gate-evidence.mjs --rootperformance performance-results --out "${{ runner.temp }}/ion-release-safe-windows-performance"
@@ -491,7 +543,7 @@ jobs:
 
 
   security-audit:
-    if: ${{ !inputs.performance_only && !inputs.follow_up_only }}
+    if: ${{ !inputs.performance_only && !inputs.follow_up_only && !inputs.windows_follow_up_only }}
     name: Dependency security review
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -506,6 +558,9 @@ jobs:
       - run: npm audit --audit-level=high
 
   macos-performance:
+    if: ${{ !inputs.windows_follow_up_only }}
+    env:
+      ION_STARTUP_PHASE_DIAGNOSTICS: '1'
     name: macOS matched production performance
     runs-on: macos-15
     timeout-minutes: 25
@@ -519,10 +574,10 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run build
-      - name: Build exact published control with identical dependencies
+      - name: Build exact reviewed 0.9.8 source control with identical dependencies
         run: |
-          git fetch --depth=1 origin 38cf7ff333d02be298a71c4b5315d317d57157c6
-          git worktree add --detach "$RUNNER_TEMP/ion-baseline" 38cf7ff333d02be298a71c4b5315d317d57157c6
+          git fetch --depth=1 origin a108a01bad53a6008761049c28a86e90bdd0374e
+          git worktree add --detach "$RUNNER_TEMP/ion-baseline" a108a01bad53a6008761049c28a86e90bdd0374e
           cd "$RUNNER_TEMP/ion-baseline"
           npm ci
           node node_modules/electron/install.js
@@ -537,7 +592,8 @@ jobs:
         run: node --test scripts/benchmark-integrated-terminal.test.mjs
       - name: Measure matched production profiles and optional-panel recovery
         run: |
-          node scripts/benchmark-development-workflows.mjs --target dist --baseline "$RUNNER_TEMP/ion-baseline/dist" --trials 3 --soak-seconds 60 --out performance-results/macos-development-workflows.json
+          node --test scripts/fixture-process-runner.test.mjs
+          node scripts/benchmark-development-workflows.mjs --target dist --baseline "$RUNNER_TEMP/ion-baseline/dist" --trials 4 --alternate-order --soak-seconds 60 --out performance-results/macos-development-workflows.json
           node scripts/benchmark-integrated-terminal.mjs --target "$RUNNER_TEMP/ion-baseline/dist" --mode baseline --matched-terminal-workload --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
           node scripts/benchmark-integrated-terminal.mjs --target dist --mode candidate --matched-terminal-workload --trials 3 --cycles 3 --idle-ms 3000 --out performance-results
       - name: Collect bounded sanitized release evidence
@@ -553,7 +609,7 @@ jobs:
           retention-days: 14
 
   windows-unit:
-    if: ${{ !inputs.performance_only }}
+    if: ${{ !inputs.performance_only && !inputs.windows_follow_up_only }}
     name: Complete native Windows unit suite
     runs-on: windows-2025
     timeout-minutes: 30

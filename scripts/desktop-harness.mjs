@@ -13,6 +13,7 @@ import { nativePsEnvironment, parseIdentities } from './live-runtime-metrics.mjs
 import { familyFor, identityCpuPercent, parseMacFamilyRows, rememberLaunchMetrics } from './process-family.mjs'
 import { installBenchmarkRun } from './run-completion.mjs'
 import { observeInspectorShutdown } from './inspector-shutdown-observer.mjs'
+import { createDesktopStartupObserver, desktopStartupObserverFor } from './desktop-startup-observer.mjs'
 
 const execute = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -93,10 +94,13 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
     assert.ok(args.length === 1, 'Background desktop checks need an unpackaged production build.')
     env.ION_TEST_ENTRY = args[0]
   }
+  const startupObserver = process.env.ION_STARTUP_PHASE_DIAGNOSTICS === '1' ? createDesktopStartupObserver() : undefined
   const began = performance.now()
+  startupObserver?.mark('launch-requested', began)
   const app = await _electron.launch({
     executablePath, args: [`--user-data-dir=${profile}`, ...launchArgs, ...(background ? [backgroundEntry] : args)], env, timeout: 20_000,
   })
+  startupObserver?.mark('electron-launch-resolved')
   const appProcess = app.process()
   const requests = []
   const errors = []
@@ -105,10 +109,13 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
   })
   try {
     const page = await app.firstWindow({ timeout: 12_000 })
+    startupObserver?.mark('first-window-resolved')
     page.on('pageerror', (error) => errors.push(error.message))
     page.setDefaultTimeout(8_000)
+    startupObserver?.mark('start-locator-wait-requested')
     await page.getByTestId(startAt).waitFor()
     const startupMs = performance.now() - began
+    startupObserver?.mark('start-locator-observed', began + startupMs)
     if (background) {
       const visible = await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().some((window) => window.isVisible() || window.isFocused()))
@@ -125,14 +132,23 @@ export async function launch(target, profile, { firstRun = false, args: launchAr
     if (process.env.ION_INSPECTOR_SHUTDOWN_DIAGNOSTICS === '1') {
       session.inspectorShutdownObserver = observeInspectorShutdown(session)
     }
+    if (startupObserver) {
+      // Attach only after the original aggregate boundary. This optional lane
+      // observes DOM clicks/resources; it does not redefine startup readiness.
+      await startupObserver.attach(page)
+      session.startupObserver = startupObserver
+      session.startupPhases = startupObserver.report
+    }
     return session
   } catch (error) {
+    if (startupObserver) await startupObserver.dispose()
     await close({ app, appProcess }).catch(() => {})
     throw error
   }
 }
 
 export async function close(session) {
+  if (session.startupObserver) await session.startupObserver.dispose()
   const proc = session.appProcess ?? session.app.process()
   if (proc.exitCode !== null || proc.signalCode !== null) {
     session.inspectorShutdownObserver?.dispose()
@@ -254,7 +270,12 @@ export async function stubDialogs(app, choices) {
       const testIndex = buttons.findIndex((label) => /^(Approve|Run) Test$/.test(label))
       const automaticIndex = buttons.indexOf('Enable Automatic Test')
       const gitIndex = buttons.indexOf('Trust Repository')
-      const approved = gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
+      const workspaceIndex = buttons.indexOf('Open Workspace')
+      const debugIndex = buttons.indexOf('Start Debugging')
+      const taskIndex = buttons.indexOf('Run Task')
+      const approved = workspaceIndex >= 0 && data.allowWorkspace ? workspaceIndex
+        : gitIndex >= 0 && data.allowGit ? gitIndex : automaticIndex >= 0 && data.allowAutomatic ? automaticIndex
+        : debugIndex >= 0 && data.allowDebug ? debugIndex : taskIndex >= 0 && data.allowTask ? taskIndex
         : runIndex >= 0 && data.allowRun ? runIndex : testIndex >= 0 && data.allowProjectTests ? testIndex : -1
       const response = approved >= 0 ? approved : (options?.cancelId ?? 0)
       return { response, checkboxChecked: false }
@@ -273,11 +294,27 @@ export async function openFolder(page, project) {
 }
 
 export async function openFromExplorer(page, path, expected) {
+  const observer = desktopStartupObserverFor(page)
   const start = performance.now()
-  await atPath(page, 'explorer-entry', path).click()
-  await atPath(page, 'tab', path).waitFor()
-  await editorShows(page, expected)
-  return performance.now() - start
+  const phases = observer?.beginFile(start)
+  try {
+    await atPath(page, 'explorer-entry', path).click()
+    phases?.mark('click-resolved')
+    await atPath(page, 'tab', path).waitFor()
+    phases?.mark('tab-observed')
+    await editorShows(page, expected)
+    const elapsed = performance.now() - start
+    phases?.mark('text-observed', start + elapsed)
+    phases?.finish('complete', elapsed)
+    // Outside the original timed interval; optional diagnostic overhead must
+    // be matched between baseline/candidate and reported as an instrumented run.
+    if (observer) await observer.readRenderer()
+    return elapsed
+  } catch (error) {
+    phases?.finish('failed', performance.now() - start)
+    if (observer) await observer.readRenderer()
+    throw error
+  }
 }
 
 export function editorShows(page, expected) {

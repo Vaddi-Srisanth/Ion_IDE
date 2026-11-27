@@ -33,7 +33,7 @@ try {
     await buildWindowsPty(detachedControlHelper, process.arch, detachedControl)
     await buildWindowsConsoleProbe(consoleProbe)
   }
-  if (files.some((name) => /^(backend|editor-session|file-mutation-races|file-metadata|workspace-files-windows)\.test\.ts$/.test(name))) {
+  if (files.some((name) => /^(backend|editor-session|file-mutation-races|file-metadata|lsp-workspace-edit-review|workspace-files-windows|workspace-search)\.test\.ts$/.test(name))) {
     await buildFileMutations(native)
   }
   await build({
@@ -46,11 +46,13 @@ try {
     sourcemap: 'inline',
     external: ['electron'],
   })
-  // Several fixture files start cold JVMs/compilers/build tools. Concurrent
-  // files on the hosted Windows VM exhausted their individual tool deadlines;
-  // serialize them without changing the application's execution limits.
+  // Several fixture files own cold JVMs, compilers, language servers and build
+  // tools. Run files serially so their process lifecycles cannot compete for
+  // host resources or keep another file's worker alive. This changes no
+  // application deadline and keeps native coverage deterministic on CI.
+  const testConcurrency = 1
   const result = spawnSync(process.execPath, ['--enable-source-maps', '--test',
-    ...(process.platform === 'win32' ? ['--test-concurrency=1'] : []),
+    `--test-concurrency=${testConcurrency}`,
     ...files.map((file) => join(directory, file.replace(/\.ts$/, '.cjs')))], {
     stdio: 'inherit', env: { ...process.env, ION_FILE_MUTATIONS_TEST_HELPER: native, ION_WINDOWS_PROCESS_TEST_HELPER: processHelper,
       ION_WINDOWS_PROCESS_BASELINE_TEST_HELPER: baselineHelper, ION_WINDOWS_PROCESS_DETACHED_CONTROL_HELPER: detachedControlHelper,

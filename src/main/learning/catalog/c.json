@@ -3,7 +3,7 @@
   "id": "c",
   "name": "C",
   "summary": "Learn C syntax, memory, strings, structs, and the standard headers used in everyday programs.",
-  "version": 3,
+  "version": 4,
   "lessons": [
     {
       "id": "program",
@@ -52,7 +52,7 @@
       "id": "flow",
       "title": "Expressions, decisions, and loops",
       "section": "Syntax",
-      "explanation": "An if condition treats zero as false and nonzero as true. Use for when you have a counting pattern and while for a repetition driven by a condition. The remainder operator % is useful for checking divisibility.",
+      "explanation": "An if condition treats zero as false and nonzero as true. Use for when you have a counting pattern and while for a repetition driven by a condition. The remainder operator % is useful for checking divisibility.\n\nFor the practice task, stdin contains one integer; do not print an input prompt. scanf(\"%d\", &upper) reads it into an int and returns 1 when conversion succeeds. The editable starter supplies this input step so you can focus on the loop and accumulator.",
       "example": "#include <stdio.h>\nint main(void) {\n    for (int number = 1; number <= 8; number++) {\n        if (number % 2 == 0) {\n            printf(\"%d\\n\", number);\n        }\n    }\n    return 0;\n}",
       "api": [
         {
@@ -66,6 +66,10 @@
         {
           "name": "break / continue",
           "description": "Exit a loop or skip to its next iteration."
+        },
+        {
+          "name": "scanf(\"%d\", &upper)",
+          "description": "From <stdio.h>, read one decimal int from stdin. Pass its address with &, and check that the return value is 1 before using it."
         }
       ],
       "practice": "Read one integer upper bound from stdin and sum the multiples of 3 from 1 through that bound.",
@@ -106,7 +110,15 @@
         "functions",
         "integer-limits",
         "enum-state"
-      ]
+      ],
+      "objective": "Read an upper bound, use a loop and a remainder test to select multiples of 3, and accumulate their sum.",
+      "starter": "#include <stdio.h>\n\nint main(void) {\n    int upper;\n    if (scanf(\"%d\", &upper) != 1) {\n        return 1;\n    }\n\n    /* TODO: Accumulate the multiples of 3 from 1 through upper. */\n    /* TODO: Print the sum followed by a newline, without a prompt. */\n    return 0;\n}\n",
+      "hints": [
+        "An accumulator starts at zero before the loop. A bound below 3 should leave it unchanged.",
+        "Visit integers starting at 1 while the current value is at most the upper bound. The remainder operator can identify multiples of 3.",
+        "Add only the selected values to the accumulator. After the loop, print the total once with a newline; input prompts would change the tested output."
+      ],
+      "followUp": "Optional challenge, not checked by these samples: also count the selected multiples. Keep that experiment in a separate attempt because its extra output changes the original contract."
     },
     {
       "id": "functions",

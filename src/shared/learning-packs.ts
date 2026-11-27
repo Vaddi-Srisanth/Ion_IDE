@@ -66,6 +66,13 @@ export interface PackLesson extends PackTopic {
   example: string
   api: Array<{ name: string; description: string }>
   practice: string
+  objective?: string
+  // Editable exercise scaffold; the solved teaching example remains separate.
+  starter?: string
+  // Ordered from a small nudge to more concrete guidance. At most three.
+  hints?: string[]
+  // Optional extension challenge, outside this lesson's existing test contract.
+  followUp?: string
   pitfall?: string
   exampleFile?: string
   exampleMode?: 'program' | 'fragment'

@@ -29,6 +29,14 @@ export class SavedTestQueue {
   private timer: ReturnType<typeof setTimeout> | undefined
   private active: AbortController | undefined
   private activeSource: string | undefined
+  private settling: Promise<void> | undefined
+  get running() { return this.active !== undefined }
+  async settle(): Promise<void> { while (this.settling) await this.settling }
+  private beginDrain() {
+    if (this.active) return
+    const job = this.drain(); this.settling = job
+    void job.finally(() => { if (this.settling === job) this.settling = undefined })
+  }
 
   constructor(
     private readonly execute: (source: string, saved: SavedTestSource, signal: AbortSignal) => Promise<void>,
@@ -42,7 +50,7 @@ export class SavedTestQueue {
     clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.timer = undefined
-      void this.drain()
+      this.beginDrain()
     }, this.debounceMs)
   }
 
@@ -76,7 +84,7 @@ export class SavedTestQueue {
     } finally {
       this.activeSource = undefined
       this.active = undefined
-      if (!this.timer && this.pending.size) void this.drain()
+      if (!this.timer && this.pending.size) this.beginDrain()
     }
   }
 }

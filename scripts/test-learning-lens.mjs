@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFromExplorer,
   stubDialogs, withScratch } from './desktop-harness.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' }, screenshots: { type: 'string' },
+  out: { type: 'string', default: 'performance-results/learning-lens-failure.json' },
 } })
 const target = await artifact(values.target)
 const screenshots = values.screenshots && resolve(values.screenshots)
@@ -22,6 +23,52 @@ const problem = (page, kind) => page.locator(`[data-testid="problem-row"][data-c
 const lensMarker = (page) => page.locator('[data-testid="editor"] .ion-lens-line').first()
 const editor = (page) => page.locator('[data-testid="editor"] .monaco-editor')
 const editorHost = (page) => page.locator('[data-testid="editor"] .monaco-host')
+
+async function failureReceipt(session, step) {
+  const bounded = async operation => {
+    let timer
+    try { return await Promise.race([operation(), new Promise(resolve => { timer = setTimeout(() => resolve({ unavailable: 'diagnostic-deadline' }), 1000) })]) }
+    catch { return { unavailable: 'diagnostic-error' } }
+    finally { clearTimeout(timer) }
+  }
+  const renderer = await bounded(() => session.page.evaluate(() => {
+    const rect = node => { if (!node) return null; const value = node.getBoundingClientRect();
+      return { x: value.x, y: value.y, width: value.width, height: value.height } }
+    const markers = selector => [...document.querySelectorAll(selector)].slice(0, 8).map(node => {
+      const style = getComputedStyle(node)
+      return { rect: rect(node), display: style.display, visibility: style.visibility,
+        hiddenAncestor: Boolean(node.closest('[hidden]')) }
+    })
+    const output = document.querySelector('[data-testid="output"]')
+    return { viewport: { width: innerWidth, height: innerHeight, scale: devicePixelRatio },
+      mode: document.querySelector('[data-testid="workspace"]')?.getAttribute('data-mode'),
+      selectedLanguage: document.querySelector('[data-testid="learning-language"]')?.value ?? null,
+      output: { phase: output?.getAttribute('data-phase'), status: output?.getAttribute('data-status'),
+        rect: rect(document.querySelector('.output-frame')) },
+      editor: { rect: rect(document.querySelector('[data-testid="editor"]')), host: rect(document.querySelector('.monaco-host')),
+        renderedLines: document.querySelectorAll('[data-testid="editor"] .view-line').length,
+        dirtyTabs: document.querySelectorAll('.tab-dirty').length, conflicts: document.querySelectorAll('.conflict-banner').length },
+      lensMarkers: markers('[data-testid="editor"] .ion-lens-line'),
+      problemMarkers: markers('[data-testid="editor"] .ion-problem-line'),
+      diagnostics: [...document.querySelectorAll('[data-testid="learning-diagnostic"]')].slice(0, 16).map(node => ({
+        category: node.getAttribute('data-category'), known: node.getAttribute('data-known') })),
+      problems: [...document.querySelectorAll('[data-testid="problem-row"]')].slice(0, 16).map(node => ({
+        category: node.getAttribute('data-category'), severity: node.getAttribute('data-severity'),
+        canReveal: Boolean(node.querySelector('[data-testid="problem-reveal"]')),
+        canExplain: Boolean(node.querySelector('[data-testid="problem-explain"]')) })),
+    }
+  }))
+  const main = await bounded(() => session.app.evaluate(() => globalThis.ionLearningLensObservation ?? { unavailable: 'packaged-entry-not-observed' }))
+  const preferences = await bounded(() => session.page.evaluate(async () => {
+    const { settings } = await window.ion.getPreferences()
+    return { learningLens: settings.learningLens, resourceProfile: settings.resourceProfile }
+  }))
+  const output = resolve(values.out)
+  await mkdir(dirname(output), { recursive: true })
+  // Fixed metadata only: no source, compiler text, paths, environment or IDs.
+  await writeFile(output, JSON.stringify({ protocol: 'learning-lens-failure-v1', platform: process.platform,
+    arch: process.arch, step, renderer, main, preferences }, null, 2) + '\n')
+}
 
 async function replaceCode(page, code, expected) {
   await editor(page).locator('.view-line').first().click({ position: { x: 8, y: 8 } })
@@ -66,11 +113,10 @@ async function history(page) {
 }
 
 async function selectCPack(page) {
-  await page.getByTestId('toggle-marketplace').click()
-  await page.locator('[data-testid="marketplace-install"][data-pack="c"]').click()
-  await page.locator('[data-testid="marketplace-use"][data-pack="c"]').click()
-  await page.getByTestId('marketplace-pane').waitFor({ state: 'detached' })
-  await (await page.waitForFunction(() => document.querySelector('[data-testid="learning-language"]')?.value === 'c')).dispose()
+  await page.getByTestId('learning-language').selectOption('c')
+  await (await page.waitForFunction(async () =>
+    document.querySelector('[data-testid="learning-language"]')?.value === 'c'
+    && (await window.ion.learningPacks.getLibrary(false)).selected === 'c')).dispose()
 }
 
 async function theme(page, id) {
@@ -91,7 +137,40 @@ await withScratch('learning-lens', async (scratch) => {
       version: 1, settings: { autoSave: false, openFullScreen: false },
     })),
   ])
-  const session = await launch(target, profile)
+  let observedTarget = target
+  if (target.args.length === 1) {
+    const wrapper = join(scratch, 'learning-lens-observation.cjs')
+    await writeFile(wrapper, `const { ipcMain } = require('electron');
+const rows = globalThis.ionLearningLensObservation = [];
+const original = ipcMain.handle;
+const normalize = value => typeof value === 'string' ? value.replaceAll('\\\\', '/').replace(/^[a-z]:/i, drive => drive.toUpperCase()) : null;
+ipcMain.handle = function(channel, listener) {
+  if (channel !== 'ion:live-run-start') return original.call(this, channel, listener);
+  return original.call(this, channel, async function(...args) {
+    const started = performance.now();
+    const result = await listener.apply(this, args);
+    if (rows.length < 16) rows.push({ durationMs: performance.now() - started, learnRequested: args[3] === true,
+      status: result.status, hasSourceRevision: typeof result.sourceRevision === 'string',
+      expectedRevisionMatches: args[4] === result.sourceRevision, sourceChanged: result.sourceChanged === true,
+      outputComplete: result.outputComplete, learningLanguage: result.learning?.language ?? null,
+      problemCount: result.problems?.length ?? 0,
+      diagnostics: (result.learning?.diagnostics ?? []).slice(0, 16).map(item => ({
+        category: item.category, confidence: item.confidence, compiler: item.compiler,
+        line: item.location?.line, column: item.location?.column,
+        fileMatchesRequested: normalize(item.location?.file) === normalize(args[2]),
+        rawMatchesProblem: result.problems?.some(problem => problem.raw === item.raw) ?? false,
+        hasConcept: Boolean(item.concepts?.length || item.packTopic),
+      })),
+      problems: (result.problems ?? []).slice(0, 16).map(item => ({ line: item.location?.line, column: item.location?.column,
+        severity: item.severity, fileMatchesRequested: normalize(item.location?.file) === normalize(args[2]) })),
+    });
+    return result;
+  });
+};
+require(${JSON.stringify(target.args[0])});\n`)
+    observedTarget = { ...target, args: [wrapper] }
+  }
+  const session = await launch(observedTarget, profile)
   const { app, page } = session
   let step = 'prepare the offline Learn workspace'
   let completed = false
@@ -258,6 +337,7 @@ await withScratch('learning-lens', async (scratch) => {
     console.log('PASS unknown compiler text stays visible, the optional panel reopens, and disabling Lens preserves regular Problems')
   } catch (error) {
     console.error('Learning Lens smoke failed while trying to ' + step + '.')
+    await failureReceipt(session, step).catch(() => console.error('Learning Lens failure receipt was unavailable.'))
     throw error
   } finally {
     await close(session).catch((error) => { if (completed) throw error })

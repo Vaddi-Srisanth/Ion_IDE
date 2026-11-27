@@ -6,11 +6,12 @@ import { cpus, release, totalmem } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 import { artifact, atPath, close, editorShows, eventually, launch, openFolder, openFromExplorer, sleep, stubDialogs, withScratch } from './desktop-harness.mjs'
-import { developmentFixture, processTree, testSpec, waitForChildren } from './development-workflow-fixtures.mjs'
+import { developmentFixture, fixtureRunnerProtocol, processTree, testSpec, waitForChildren } from './development-workflow-fixtures.mjs'
 
 const { values } = parseArgs({ options: { target: { type: 'string', default: 'dist' }, baseline: { type: 'string' },
   trials: { type: 'string', default: '3' }, 'soak-seconds': { type: 'string', default: '60' },
   out: { type: 'string', default: 'performance-results/development-workflows.json' },
+  'alternate-order': { type: 'boolean', default: false },
   'allow-unavailable-baseline': { type: 'boolean', default: false } } })
 const trials = Number(values.trials)
 const soakSeconds = Number(values['soak-seconds'])
@@ -30,9 +31,11 @@ const report = {
   time: new Date().toISOString(), host: { platform: process.platform, arch: process.arch, release: release(),
     cpu: cpus()[0]?.model, ramBytes: totalmem() },
   protocol: { trials, soakSeconds, idleMs: 1_400, fixture: '1000 files, 10 open tabs, 7,000-line diff, 4 C cases',
+    fixtureRunner: fixtureRunnerProtocol, order: values['alternate-order'] ? 'alternating-baseline-first-candidate-first' : 'baseline-first',
     memory: win ? 'summed working set and private bytes, per-process CIM and Get-Process counters' : 'summed RSS and per-process macOS-attributed footprint',
     cpu: 'delta over settled samples as percent of a logical core. CPU in processes that exit between probes is excluded.',
     input: 'keypress to second renderer animation callback. Physical screen presentation is outside the measurement.',
+    startupPhaseDiagnostics: process.env.ION_STARTUP_PHASE_DIAGNOSTICS === '1',
     baselineFailurePolicy: values['allow-unavailable-baseline'] ? 'Record an incomplete baseline as unavailable. Every candidate trial must pass.' : 'Fail on an incomplete baseline.' },
   builds: { candidate: await hash(candidate), ...(baseline && { baseline: await hash(baseline) }) },
   samples: { candidate: [], baseline: [] },
@@ -118,10 +121,12 @@ await withScratch('development-bench', async (scratch) => {
       settings: { resourceProfile: 'minimal', autoSave: false, showOutput: true, openFullScreen: false } }))
     const first = await launch(target, profile)
     const freshMs = first.startupMs
+    if (first.startupPhases) result.freshStartupPhases = first.startupPhases
     await close(first)
     session = await launch(target, profile)
     const { app, page } = session
-    Object.assign(result, { freshMs, warmMs: session.startupMs })
+    Object.assign(result, { freshMs, warmMs: session.startupMs,
+      ...(session.startupPhases && { startupPhases: session.startupPhases }) })
     const capture = async (key) => { result.phase = key; await sleep(300); result[key] = await idle(session); await writeFile(output, JSON.stringify(report, null, 2) + '\n') }
       await page.context().setOffline(true)
       await stubDialogs(app, { folder: project.directory, allowProjectTests: true, allowRun: true, allowGit: true })
@@ -169,6 +174,10 @@ await withScratch('development-bench', async (scratch) => {
 
         const root = project.directory
         const spec = testSpec({ waits: 'waiting.c', waitingOutput: 'done\n' })
+        // The resource sample needs the deliberately long-running case, not a
+        // race against three preceding compiler invocations. Keep the same four
+        // cases and expected aggregate, but put the observable process first.
+        spec.tests = [...spec.tests].sort((left, right) => Number(right.id === 'waiting') - Number(left.id === 'waiting'))
         await page.evaluate(async ({ root, spec }) => {
           const api = window.ion.projects
           let record = await api.save(root, spec, null)
@@ -188,10 +197,22 @@ await withScratch('development-bench', async (scratch) => {
         await tests.getByTestId('project-stop-suite').waitFor()
         let running
         const hasProgram = ({ members }) => members.some(({ name }) => /^program(?:\.exe)?$/i.test(name))
+        result.suiteLaunchTrace = []
+        const observationStarted = performance.now()
+        // Compilation owns a 15 second product deadline and up to four seconds
+        // of verified Windows cleanup. The previous generic 8 second observer
+        // could fail before Ion's own boundary, especially after three earlier
+        // C cases. Sample the actual stage instead; do not extend Ion's limit.
         await eventually(async () => {
           running = await snapshot(session)
+          const elapsedMs = performance.now() - observationStarted
+          if (!result.suiteLaunchTrace.length || elapsedMs - result.suiteLaunchTrace.at(-1).elapsedMs >= 250) {
+            result.suiteLaunchTrace.push({ elapsedMs, status: (await status.textContent())?.trim().slice(0, 160) ?? '',
+              children: running.members.filter(({ kind }) => kind === 'child').map(({ name }) => name).slice(0, 16) })
+          }
           return hasProgram(running)
-        }, 'No native C program was observed during the approved suite.')
+        }, 'No native C program was observed before Ion\'s compilation and cleanup boundary.', 19_000)
+        result.suiteProgramObservedMs = performance.now() - observationStarted
         await sleep(350)
         const latest = await snapshot(session)
         result.suiteActive = hasProgram(latest) ? withCpu(running, latest) : running
@@ -229,6 +250,8 @@ await withScratch('development-bench', async (scratch) => {
       primaryError = error
       result.complete = false
       result.failure = { stage: result.phase, message: String(error).slice(0, 1000) }
+      if (error?.fixtureCommand) result.fixtureFailure = { command: error.fixtureCommand,
+        stdout: error.stdout, stderr: error.stderr }
       report.failure = { build: label, trial: index + 1, message: String(error).slice(0, 1000) }
       await writeFile(output, JSON.stringify(report, null, 2) + '\n')
       console.error(`${label} ${index + 1}/${trials} failed`, error)
@@ -253,17 +276,20 @@ await withScratch('development-bench', async (scratch) => {
   }
 
   for (let index = 0; index < trials; index++) {
-    if (baseline && !report.baselineUnavailable) {
-      try { await sample(baseline, 'baseline', index) }
-      catch (error) {
-        if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
-        report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
-        delete report.failure
-        console.error('BASELINE UNAVAILABLE. Its failed workload is retained in the report. No matched comparison can be claimed.')
-        await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+    const order = values['alternate-order'] && index % 2 ? ['candidate', 'baseline'] : ['baseline', 'candidate']
+    for (const label of order) {
+      if (label === 'candidate') await sample(candidate, label, index)
+      else if (baseline && !report.baselineUnavailable) {
+        try { await sample(baseline, label, index) }
+        catch (error) {
+          if (!values['allow-unavailable-baseline'] || report.failure?.build !== 'baseline') throw error
+          report.baselineUnavailable = { trial: index + 1, workload: report.failure, cleanupError: String(error) }
+          delete report.failure
+          console.error('BASELINE UNAVAILABLE. Its failed workload is retained in the report. No matched comparison can be claimed.')
+          await writeFile(output, JSON.stringify(report, null, 2) + '\n')
+        }
       }
     }
-    await sample(candidate, 'candidate', index)
     await writeFile(output, JSON.stringify(report, null, 2) + '\n')
   }
 })

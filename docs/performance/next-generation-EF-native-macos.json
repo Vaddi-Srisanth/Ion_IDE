@@ -1,0 +1,2073 @@
+{
+  "candidate": "8c0ae1b47c98f85c4a47bb48def331a58124f68b",
+  "run": 43702977386,
+  "artifact": 14157223378,
+  "sourceSha256": "07b8db55686006395be07bde542d6f0eb4fcf457768ee2cac2f1a54d3750d8c0",
+  "scope": "One actual native app session, synthetic HTTPS, complete20cycles and natural20/60s recovery, endpointnotpeak",
+  "complete": true,
+  "checks": {
+    "dormantBeforeExplicitOpen": "passed",
+    "explicitProviderConfiguration": "passed",
+    "explicitReviewExactBytesSingleUseConsent": "passed",
+    "forgedTokenAndCitationRejected": "passed",
+    "installedLessonUnsavedBufferUndoAndInvalidation": "passed",
+    "mainVerifiedSelectedStructureAndSource": "passed",
+    "actualCitationNavigationPreservesUnsavedEditor": "passed",
+    "recommendationSavePreservesExistingWorkAndNeverRuns": "passed",
+    "recommendationConflictReloadPreservesDraft": "passed",
+    "externalSourceChangePreventsSend": "passed",
+    "providerFailureAndCitationValidation": "passed",
+    "pendingCancellationAndUnmountCleanup": "passed",
+    "pendingRequestShutdownDrain": "passed"
+  },
+  "cleanupVerified": true,
+  "resources": {
+    "complete": true,
+    "maximumDurationMs": 300000,
+    "cycles": 20,
+    "protocol": {
+      "idleWindowMs": 1400,
+      "settleMs": 350,
+      "maximumSamples": 24,
+      "repeats": 20,
+      "memory": {
+        "redacted": true,
+        "sha256": "d1b48f4e4ea5d2ae66137a65bcc6fe50dbd3f03c1aa8feaa159bff591d0051a3"
+      },
+      "cpu": {
+        "redacted": true,
+        "sha256": "f26ecec060d9061d1e56d68150702386b6faed5d648c7ee11a4f180628d31567"
+      },
+      "scope": {
+        "redacted": true,
+        "sha256": "f6d8f66340831a8b999b80072439c920e2cbe171c37ca59c7f721d07f8993b62"
+      },
+      "field_6694ea8075001f6628da20f1afdafc74a763e2098bafc633b057534792db6aad": {
+        "redacted": true,
+        "sha256": "ceb51d396d43bf9c2d355a49fa5d9cd8b647d1692a18e4f28373054117a1383e"
+      },
+      "field_8c585378513f5f7a2e1456ee54042605fdb890392becefadd2ab180fd02fb341": {
+        "redacted": true,
+        "sha256": "541a9b888b6cabcb00a5510c84774b743236030cbaf3f9f3ec6a3a7437cd374a"
+      }
+    },
+    "samples": [
+      {
+        "label": "code-one-file-before-optional",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 732,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 448.1045624999997,
+          "timeMs": 2298.5954795,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.522441375,
+              "rssMiB": 162.84375,
+              "footprintMiB": 52.28509521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.233103875,
+              "rssMiB": 79.578125,
+              "footprintMiB": 46.736572265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084425666,
+              "rssMiB": 37.265625,
+              "footprintMiB": 7.392578125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.612546833,
+              "rssMiB": 182.265625,
+              "footprintMiB": 87.15972900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.522441375,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.233103875,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084425666,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.612546833
+          },
+          "rssMiB": 461.953125,
+          "footprintMiB": 193.573974609375
+        },
+        "last": {
+          "elapsedMs": 1895.750583,
+          "timeMs": 3746.2415,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.544818875,
+              "rssMiB": 162.84375,
+              "footprintMiB": 52.28509521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.248577208,
+              "rssMiB": 74.9375,
+              "footprintMiB": 33.674072265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084425666,
+              "rssMiB": 37.28125,
+              "footprintMiB": 7.392578125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.618792458,
+              "rssMiB": 182.1875,
+              "footprintMiB": 87.08160400390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.544818875,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.248577208,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084425666,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.618792458
+          },
+          "rssMiB": 457.25,
+          "footprintMiB": 180.433349609375
+        },
+        "intervalMs": 1447.6460205000003,
+        "cpuPercent": 3.0460801449769934,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "learn-installed-lesson-before-ai",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 2541.795854,
+          "timeMs": 4392.286771,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.63101175,
+              "rssMiB": 161.859375,
+              "footprintMiB": 47.86322021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.282973666,
+              "rssMiB": 80.125,
+              "footprintMiB": 47.31475830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084425666,
+              "rssMiB": 37.28125,
+              "footprintMiB": 7.392578125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.718623625,
+              "rssMiB": 189.4375,
+              "footprintMiB": 95.23785400390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.63101175,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.282973666,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084425666,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.718623625
+          },
+          "rssMiB": 468.703125,
+          "footprintMiB": 197.80841064453125
+        },
+        "last": {
+          "elapsedMs": 3999.812521,
+          "timeMs": 5850.303438,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.653440958,
+              "rssMiB": 161.875,
+              "footprintMiB": 47.86322021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.283323125,
+              "rssMiB": 80.109375,
+              "footprintMiB": 47.20538330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084425666,
+              "rssMiB": 37.28125,
+              "footprintMiB": 7.392578125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.719813166,
+              "rssMiB": 189.453125,
+              "footprintMiB": 95.25347900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.653440958,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.283323125,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084425666,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.719813166
+          },
+          "rssMiB": 468.71875,
+          "footprintMiB": 197.71466064453125
+        },
+        "intervalMs": 1458.0166669999999,
+        "cpuPercent": 1.6438912217181154,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "tutor-question-only-review",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 5655.797187499999,
+          "timeMs": 7506.2881044999995,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.807763916,
+              "rssMiB": 163.40625,
+              "footprintMiB": 49.33197021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.398090958,
+              "rssMiB": 82.75,
+              "footprintMiB": 55.67413330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084954708,
+              "rssMiB": 37.265625,
+              "footprintMiB": 7.345703125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.947031708,
+              "rssMiB": 199.328125,
+              "footprintMiB": 102.0972900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.807763916,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.398090958,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084954708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.947031708
+          },
+          "rssMiB": 482.75,
+          "footprintMiB": 214.4490966796875
+        },
+        "last": {
+          "elapsedMs": 7099.006791499999,
+          "timeMs": 8949.4977085,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.808104791,
+              "rssMiB": 163.40625,
+              "footprintMiB": 49.33197021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.398632958,
+              "rssMiB": 82.75,
+              "footprintMiB": 53.26788330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084954708,
+              "rssMiB": 37.265625,
+              "footprintMiB": 7.345703125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.948280541,
+              "rssMiB": 199.328125,
+              "footprintMiB": 102.0972900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.808104791,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.398632958,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084954708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.948280541
+          },
+          "rssMiB": 482.75,
+          "footprintMiB": 212.0428466796875
+        },
+        "intervalMs": 1443.2096039999997,
+        "cpuPercent": 0.14770605697826344,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "tutor-question-only-reply",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": true,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 7599.8419375,
+          "timeMs": 9450.3328545,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.835006458,
+              "rssMiB": 163.75,
+              "footprintMiB": 49.50384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.434511041,
+              "rssMiB": 82.9375,
+              "footprintMiB": 52.65850830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084954708,
+              "rssMiB": 37.265625,
+              "footprintMiB": 7.345703125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.997783375,
+              "rssMiB": 201.390625,
+              "footprintMiB": 104.1441650390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.835006458,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.434511041,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084954708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.997783375
+          },
+          "rssMiB": 485.34375,
+          "footprintMiB": 213.6522216796875
+        },
+        "last": {
+          "elapsedMs": 9061.9977085,
+          "timeMs": 10912.4886255,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.836381333,
+              "rssMiB": 163.75,
+              "footprintMiB": 49.50384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.435655625,
+              "rssMiB": 82.921875,
+              "footprintMiB": 52.31475830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.084954708,
+              "rssMiB": 37.265625,
+              "footprintMiB": 7.345703125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 0.998495541,
+              "rssMiB": 201.390625,
+              "footprintMiB": 104.1441650390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.836381333,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.435655625,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.084954708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 0.998495541
+          },
+          "rssMiB": 485.328125,
+          "footprintMiB": 213.3084716796875
+        },
+        "intervalMs": 1462.1557709999997,
+        "cpuPercent": 0.22101783298983513,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "lens-before-analysis",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 10141.8458545,
+          "timeMs": 11992.3367715,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.963974125,
+              "rssMiB": 166.46875,
+              "footprintMiB": 50.28509521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.488094166,
+              "rssMiB": 83.296875,
+              "footprintMiB": 55.84600830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085837708,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.233495458,
+              "rssMiB": 212.953125,
+              "footprintMiB": 104.0816650390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.963974125,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.488094166,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085837708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.233495458
+          },
+          "rssMiB": 500.0625,
+          "footprintMiB": 217.5740966796875
+        },
+        "last": {
+          "elapsedMs": 11619.435562499999,
+          "timeMs": 13469.9264795,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.9658635,
+              "rssMiB": 166.46875,
+              "footprintMiB": 50.28509521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.4910495,
+              "rssMiB": 78.65625,
+              "footprintMiB": 41.377197265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.234894791,
+              "rssMiB": 212.84375,
+              "footprintMiB": 103.9722900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.9658635,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.4910495,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.234894791
+          },
+          "rssMiB": 495.3125,
+          "footprintMiB": 202.99591064453125
+        },
+        "intervalMs": 1477.5897079999995,
+        "cpuPercent": 0.42884313322519224,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "lens-after-analysis",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 12094.404354000002,
+          "timeMs": 13944.895271000001,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.991951333,
+              "rssMiB": 164.875,
+              "footprintMiB": 48.66009521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.506983166,
+              "rssMiB": 83.34375,
+              "footprintMiB": 52.22100830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.262557333,
+              "rssMiB": 213.921875,
+              "footprintMiB": 105.0347900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.991951333,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.506983166,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.262557333
+          },
+          "rssMiB": 499.484375,
+          "footprintMiB": 213.2772216796875
+        },
+        "last": {
+          "elapsedMs": 13604.794624999999,
+          "timeMs": 15455.285542,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 0.992345791,
+              "rssMiB": 164.875,
+              "footprintMiB": 48.66009521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.508212666,
+              "rssMiB": 83.328125,
+              "footprintMiB": 50.34600830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.264675,
+              "rssMiB": 213.921875,
+              "footprintMiB": 105.0347900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 0.992345791,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.508212666,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.264675
+          },
+          "rssMiB": 499.46875,
+          "footprintMiB": 211.4022216796875
+        },
+        "intervalMs": 1510.3902709999984,
+        "cpuPercent": 0.24772570850332065,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "project-selected-evidence-review",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 14332.1518545,
+          "timeMs": 16182.642771499999,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.069660875,
+              "rssMiB": 165.265625,
+              "footprintMiB": 49.01947021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.552636166,
+              "rssMiB": 82.71875,
+              "footprintMiB": 55.11163330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.390421458,
+              "rssMiB": 216.078125,
+              "footprintMiB": 107.1597900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.069660875,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.552636166,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.390421458
+          },
+          "rssMiB": 501.40625,
+          "footprintMiB": 218.6522216796875
+        },
+        "last": {
+          "elapsedMs": 15805.184854000003,
+          "timeMs": 17655.675771000002,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.070842083,
+              "rssMiB": 165.234375,
+              "footprintMiB": 48.98822021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.55780125,
+              "rssMiB": 82.71875,
+              "footprintMiB": 41.03350830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.392863541,
+              "rssMiB": 216.078125,
+              "footprintMiB": 107.0347900390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.070842083,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.55780125,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.392863541
+          },
+          "rssMiB": 501.375,
+          "footprintMiB": 204.4178466796875
+        },
+        "intervalMs": 1473.032999500003,
+        "cpuPercent": 0.5966176591415903,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "project-selected-evidence-reply",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 1,
+          "dialogCount": 1,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 16300.560479,
+          "timeMs": 18151.051396,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.098271,
+              "rssMiB": 165.609375,
+              "footprintMiB": 49.36322021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.582571083,
+              "rssMiB": 82.734375,
+              "footprintMiB": 51.89288330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.434067583,
+              "rssMiB": 216.890625,
+              "footprintMiB": 108.0504150390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.098271,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.582571083,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.434067583
+          },
+          "rssMiB": 502.578125,
+          "footprintMiB": 216.6678466796875
+        },
+        "last": {
+          "elapsedMs": 17747.896708,
+          "timeMs": 19598.387625,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.098271,
+              "rssMiB": 165.609375,
+              "footprintMiB": 49.36322021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.583384333,
+              "rssMiB": 82.734375,
+              "footprintMiB": 51.87725830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 1.435007375,
+              "rssMiB": 216.890625,
+              "footprintMiB": 108.0504150390625
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.098271,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.583384333,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 1.435007375
+          },
+          "rssMiB": 502.578125,
+          "footprintMiB": 216.6522216796875
+        },
+        "intervalMs": 1447.3362290000005,
+        "cpuPercent": 0.12112195942274291,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "cycle-baseline-dialog-closed",
+        "complete": true,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 22163.063749999998,
+          "timeMs": 24013.554666999997,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.75552925,
+              "rssMiB": 166.59375,
+              "footprintMiB": 50.16009521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.926684625,
+              "rssMiB": 83.625,
+              "footprintMiB": 59.89288330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 2.656607041,
+              "rssMiB": 245.625,
+              "footprintMiB": 136.98797607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.75552925,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.926684625,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 2.656607041
+          },
+          "rssMiB": 533.1875,
+          "footprintMiB": 254.40228271484375
+        },
+        "last": {
+          "elapsedMs": 23614.506333499998,
+          "timeMs": 25464.997250499997,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 1.755866708,
+              "rssMiB": 166.59375,
+              "footprintMiB": 50.16009521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 0.930722166,
+              "rssMiB": 78.84375,
+              "footprintMiB": 47.06475830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 2.658526708,
+              "rssMiB": 245.5,
+              "footprintMiB": 136.86297607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 1.755866708,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 0.930722166,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 2.658526708
+          },
+          "rssMiB": 528.28125,
+          "footprintMiB": 241.44915771484375
+        },
+        "intervalMs": 1451.4425835000002,
+        "cpuPercent": 0.4336834313363854,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "cycles-5-dialog-closed",
+        "complete": true,
+        "cycle": 5,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 26043.6509585,
+          "timeMs": 27894.141875499998,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.157916291,
+              "rssMiB": 167.171875,
+              "footprintMiB": 51.09759521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.093430916,
+              "rssMiB": 83.78125,
+              "footprintMiB": 58.00225830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 3.27374975,
+              "rssMiB": 246.8125,
+              "footprintMiB": 138.19110107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.157916291,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.093430916,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 3.27374975
+          },
+          "rssMiB": 535.109375,
+          "footprintMiB": 254.65228271484375
+        },
+        "last": {
+          "elapsedMs": 27477.7038125,
+          "timeMs": 29328.1947295,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.157916291,
+              "rssMiB": 167.171875,
+              "footprintMiB": 51.09759521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.096090458,
+              "rssMiB": 79.234375,
+              "footprintMiB": 45.78350830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 3.274714,
+              "rssMiB": 246.703125,
+              "footprintMiB": 138.08172607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.157916291,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.096090458,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 3.274714
+          },
+          "rssMiB": 530.453125,
+          "footprintMiB": 242.32415771484375
+        },
+        "intervalMs": 1434.0528540000014,
+        "cpuPercent": 0.2526958465925521,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "cycles-10-dialog-closed",
+        "complete": true,
+        "cycle": 10,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 29663.4775,
+          "timeMs": 31513.968417,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.427322916,
+              "rssMiB": 167.40625,
+              "footprintMiB": 51.25384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.207771791,
+              "rssMiB": 82.953125,
+              "footprintMiB": 58.15850830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 3.677842333,
+              "rssMiB": 246.5,
+              "footprintMiB": 139.37860107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.427322916,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.207771791,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 3.677842333
+          },
+          "rssMiB": 534.203125,
+          "footprintMiB": 256.15228271484375
+        },
+        "last": {
+          "elapsedMs": 31114.472104000004,
+          "timeMs": 32964.963021,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.427322916,
+              "rssMiB": 167.40625,
+              "footprintMiB": 51.25384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.2128375,
+              "rssMiB": 78.296875,
+              "footprintMiB": 41.08038330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 3.67946525,
+              "rssMiB": 246.40625,
+              "footprintMiB": 139.28485107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.427322916,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.2128375,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 3.67946525
+          },
+          "rssMiB": 529.453125,
+          "footprintMiB": 238.98040771484375
+        },
+        "intervalMs": 1450.9946040000032,
+        "cpuPercent": 0.46096835794984303,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "cycles-15-dialog-closed",
+        "complete": true,
+        "cycle": 15,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 33423.86474999999,
+          "timeMs": 35274.355666999996,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.784712708,
+              "rssMiB": 167.546875,
+              "footprintMiB": 51.39447021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.375682125,
+              "rssMiB": 83.140625,
+              "footprintMiB": 53.29913330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 4.2890855,
+              "rssMiB": 242.6875,
+              "footprintMiB": 135.44110107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.784712708,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.375682125,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 4.2890855
+          },
+          "rssMiB": 530.71875,
+          "footprintMiB": 247.49603271484375
+        },
+        "last": {
+          "elapsedMs": 34864.0329165,
+          "timeMs": 36714.5238335,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 2.78507475,
+              "rssMiB": 167.546875,
+              "footprintMiB": 51.39447021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.377866083,
+              "rssMiB": 78.625,
+              "footprintMiB": 41.392822265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 4.290525125,
+              "rssMiB": 242.59375,
+              "footprintMiB": 135.34735107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 2.78507475,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.377866083,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 4.290525125
+          },
+          "rssMiB": 526.109375,
+          "footprintMiB": 235.4959716796875
+        },
+        "intervalMs": 1440.168166500007,
+        "cpuPercent": 0.27674719471734505,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "cycles-20-dialog-closed",
+        "complete": true,
+        "cycle": 20,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 406,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": true
+        },
+        "first": {
+          "elapsedMs": 37514.8515625,
+          "timeMs": 39365.3424795,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.31687375,
+              "rssMiB": 167.625,
+              "footprintMiB": 51.47259521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.624648625,
+              "rssMiB": 83.375,
+              "footprintMiB": 53.48663330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.128023333,
+              "rssMiB": 243.09375,
+              "footprintMiB": 135.72235107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.31687375,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.624648625,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.128023333
+          },
+          "rssMiB": 531.4375,
+          "footprintMiB": 248.04290771484375
+        },
+        "last": {
+          "elapsedMs": 38973.96799999999,
+          "timeMs": 40824.458916999996,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.317973041,
+              "rssMiB": 167.625,
+              "footprintMiB": 51.47259521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.628093833,
+              "rssMiB": 78.953125,
+              "footprintMiB": 41.736572265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.129132125,
+              "rssMiB": 243.09375,
+              "footprintMiB": 135.72235107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.317973041,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.628093833,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.129132125
+          },
+          "rssMiB": 527.015625,
+          "footprintMiB": 236.2928466796875
+        },
+        "intervalMs": 1459.1164374999935,
+        "cpuPercent": 0.38744618693258,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "optional-panels-closed-code",
+        "complete": true,
+        "sinceCloseMs": 0.04595899999549147,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 732,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 39439.52629149999,
+          "timeMs": 41290.017208499994,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.329508625,
+              "rssMiB": 167.625,
+              "footprintMiB": 51.47259521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.643687083,
+              "rssMiB": 82.90625,
+              "footprintMiB": 51.42413330078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.163269208,
+              "rssMiB": 243.078125,
+              "footprintMiB": 135.70672607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.329508625,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.643687083,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.163269208
+          },
+          "rssMiB": 530.953125,
+          "footprintMiB": 245.96478271484375
+        },
+        "last": {
+          "elapsedMs": 40910.0286665,
+          "timeMs": 42760.519583500005,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.329508625,
+              "rssMiB": 167.625,
+              "footprintMiB": 51.47259521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.644544416,
+              "rssMiB": 82.890625,
+              "footprintMiB": 49.90850830078125
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.085930208,
+              "rssMiB": 37.34375,
+              "footprintMiB": 7.361328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.16439,
+              "rssMiB": 243.078125,
+              "footprintMiB": 135.70672607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.329508625,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.644544416,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.085930208,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.16439
+          },
+          "rssMiB": 530.9375,
+          "footprintMiB": 244.44915771484375
+        },
+        "intervalMs": 1470.502375000011,
+        "cpuPercent": 0.13452035397086162,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "optional-panels-closed-20s",
+        "complete": true,
+        "sinceCloseMs": 20007.640958999997,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 732,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 59438.04612499999,
+          "timeMs": 61288.537041999996,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.394663708,
+              "rssMiB": 166.53125,
+              "footprintMiB": 46.00384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.654885041,
+              "rssMiB": 78.515625,
+              "footprintMiB": 22.877197265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.089185708,
+              "rssMiB": 37.390625,
+              "footprintMiB": 7.111328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.316295875,
+              "rssMiB": 220.84375,
+              "footprintMiB": 102.94110107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.394663708,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.654885041,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.089185708,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.316295875
+          },
+          "rssMiB": 503.28125,
+          "footprintMiB": 178.9334716796875
+        },
+        "last": {
+          "elapsedMs": 60888.445812499995,
+          "timeMs": 62738.9367295,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.395798166,
+              "rssMiB": 166.53125,
+              "footprintMiB": 46.00384521484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.655155708,
+              "rssMiB": 78.515625,
+              "footprintMiB": 22.877197265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.089445083,
+              "rssMiB": 37.390625,
+              "footprintMiB": 7.111328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.31651275,
+              "rssMiB": 220.84375,
+              "footprintMiB": 102.94110107421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.395798166,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.655155708,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.089445083,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.31651275
+          },
+          "rssMiB": 503.28125,
+          "footprintMiB": 178.9334716796875
+        },
+        "intervalMs": 1450.3996875000012,
+        "cpuPercent": 0.12971424471576543,
+        "nativeChildCount": 0
+      },
+      {
+        "label": "optional-panels-closed-60s",
+        "complete": true,
+        "sinceCloseMs": 60002.06129199999,
+        "ui": {
+          "width": 1024,
+          "height": 681,
+          "deviceScaleFactor": 1,
+          "editorWidth": 732,
+          "editorHeight": 549,
+          "editorCount": 1,
+          "modelCount": 2,
+          "dialogCount": 0,
+          "learnVisible": false,
+          "lensVisible": false
+        },
+        "first": {
+          "elapsedMs": 99494.18954149999,
+          "timeMs": 101344.68045849999,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.496824,
+              "rssMiB": 165.109375,
+              "footprintMiB": 42.92572021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.672018625,
+              "rssMiB": 78.515625,
+              "footprintMiB": 22.814697265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.092788791,
+              "rssMiB": 37.390625,
+              "footprintMiB": 7.111328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.345327458,
+              "rssMiB": 220.859375,
+              "footprintMiB": 102.95672607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.496824,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.672018625,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.092788791,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.345327458
+          },
+          "rssMiB": 501.875,
+          "footprintMiB": 175.8084716796875
+        },
+        "last": {
+          "elapsedMs": 100942.97522949999,
+          "timeMs": 102793.4661465,
+          "rootAlive": true,
+          "members": [
+            {
+              "pid": 2468,
+              "startedMs": 1794737635000,
+              "kind": "main",
+              "cpuSeconds": 3.497219666,
+              "rssMiB": 165.109375,
+              "footprintMiB": 42.92572021484375
+            },
+            {
+              "pid": 2469,
+              "startedMs": 1794737635000,
+              "kind": {
+                "redacted": true,
+                "sha256": "29547807672c140e623f493315a9cfd7ee22058358809376e7123891d823a0c2"
+              },
+              "cpuSeconds": 1.672018625,
+              "rssMiB": 78.515625,
+              "footprintMiB": 22.814697265625
+            },
+            {
+              "pid": 2470,
+              "startedMs": 1794737635000,
+              "kind": "utility",
+              "cpuSeconds": 0.092864,
+              "rssMiB": 37.390625,
+              "footprintMiB": 7.111328125
+            },
+            {
+              "pid": 2471,
+              "startedMs": 1794737635000,
+              "kind": "renderer",
+              "cpuSeconds": 5.345825875,
+              "rssMiB": 220.859375,
+              "footprintMiB": 102.95672607421875
+            }
+          ],
+          "field_59f86aa74275ed947a895a3a4650f390b21243b990ef3bb55828bdde4f9e48f2": {
+            "field_21b57d1c6e500a5835d71bf0e46c7ecb782e5c60e7ed0ff32de95be565f39a2c": 3.497219666,
+            "field_dda09cdb90e38fe07e0713bfbfbf3f02f3a4661c02a762e7de848ac9ebfef51c": 1.672018625,
+            "field_432552009eed4d05e74beda7bec7242323fd486c0e457d8df64a5d7d98c102c5": 0.092864,
+            "field_9f4583d10439dca7380a6137f0966d0f3b41834f85a6665ac196424c241ec64d": 5.345825875
+          },
+          "rssMiB": 501.875,
+          "footprintMiB": 175.8084716796875
+        },
+        "intervalMs": 1448.7856880000036,
+        "cpuPercent": 0.0669037531243157,
+        "nativeChildCount": 0
+      }
+    ],
+    "cycleSamples": [
+      {
+        "cycle": 1,
+        "complete": true,
+        "elapsedMs": 374.416583000002
+      },
+      {
+        "cycle": 2,
+        "complete": true,
+        "elapsedMs": 369.5188330000019
+      },
+      {
+        "cycle": 3,
+        "complete": true,
+        "elapsedMs": 407.31604199999856
+      },
+      {
+        "cycle": 4,
+        "complete": true,
+        "elapsedMs": 424.6701670000002
+      },
+      {
+        "cycle": 5,
+        "complete": true,
+        "elapsedMs": 441.94254199999705
+      },
+      {
+        "cycle": 6,
+        "complete": true,
+        "elapsedMs": 355.3919999999998
+      },
+      {
+        "cycle": 7,
+        "complete": true,
+        "elapsedMs": 364.9150840000002
+      },
+      {
+        "cycle": 8,
+        "complete": true,
+        "elapsedMs": 355.617291999999
+      },
+      {
+        "cycle": 9,
+        "complete": true,
+        "elapsedMs": 348.1714589999974
+      },
+      {
+        "cycle": 10,
+        "complete": true,
+        "elapsedMs": 344.2029999999977
+      },
+      {
+        "cycle": 11,
+        "complete": true,
+        "elapsedMs": 354.62445899999875
+      },
+      {
+        "cycle": 12,
+        "complete": true,
+        "elapsedMs": 366.00433399999747
+      },
+      {
+        "cycle": 13,
+        "complete": true,
+        "elapsedMs": 364.2156660000037
+      },
+      {
+        "cycle": 14,
+        "complete": true,
+        "elapsedMs": 372.74770900000294
+      },
+      {
+        "cycle": 15,
+        "complete": true,
+        "elapsedMs": 438.650999999998
+      },
+      {
+        "cycle": 16,
+        "complete": true,
+        "elapsedMs": 447.5219999999972
+      },
+      {
+        "cycle": 17,
+        "complete": true,
+        "elapsedMs": 418.2662500000006
+      },
+      {
+        "cycle": 18,
+        "complete": true,
+        "elapsedMs": 472.43683299999975
+      },
+      {
+        "cycle": 19,
+        "complete": true,
+        "elapsedMs": 500.74758300000394
+      },
+      {
+        "cycle": 20,
+        "complete": true,
+        "elapsedMs": 405.3447079999969
+      }
+    ],
+    "profileElapsedMs": 100954.397583,
+    "postShutdownMembers": [],
+    "processCleanupVerified": true
+  }
+}

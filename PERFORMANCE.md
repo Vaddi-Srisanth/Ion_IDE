@@ -1,5 +1,11 @@
 # Performance
 
+## Current accepted development checkpoint — Phase 2.5
+
+The measurements below remain historical evidence for their named revisions. Current accepted application/build source is `036781e7fe99be4480e5f0803fb6b22124be72a8`. Its [matched native task-feature comparison](docs/master-plan/ION_PHASE_2_BUILD_TASKS.md#matched-unused-task-performance) and [resource watchlist](docs/master-plan/ION_PERFORMANCE_BUDGET.md) report all samples, separate platform counters and actual costs. macOS one-file footprint/RSS was **171.52/455.17 MiB**; Windows working set/private bytes was **353.24/183.08 MiB** in that defined hosted workload. These are not measurements of the user's installed app, physical 8 GB hardware or the paused Test Explorer feature.
+
+The confirmed eager task-bundle regression was corrected before acceptance. Final matched run [45923748325](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45923748325) and functional/full-suite run [45924540081](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45924540081) passed on macOS ARM64 and Windows x64. See [the full checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) for scope and remaining limitations.
+
 ## Final native diagnostic/performance gate — 14 November 2026
 
 The observer policy is corrected and verified by 909 successful native attempts. The discovered same-metadata save conflict now rejects before mutation. Final ordinary cohorts remain memory-flat within variation: Mac one-file footprint/RSS 194.11/469.17→189.45/461.77 MiB; Windows standalone working set/private 359.67/186.35→359.82/185.21 MiB. These are different OS metrics and not a claimed RAM optimization. n=20 startup retains Mac warm 890.89→945.29 ms (+54.40 ms); ranges overlap and source causality is unproven. [Full environment, every signed delta, ranges, resources and limits](diagnostics/windows-gcc/FINAL_PERFORMANCE.md) · [Release matrix](diagnostics/windows-gcc/RELEASE_VERIFICATION.md). No localGUI, installed-app change or publication.

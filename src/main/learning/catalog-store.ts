@@ -172,6 +172,8 @@ export class LearningPackStore {
   private readonly directory: string
   private readonly registryPath: string
   private pending = Promise.resolve()
+
+  drain(): Promise<void> { return this.pending }
   private preview?: PendingImport
 
   constructor(profile: string, private readonly catalogPath: string, private readonly current = '0.9.4') {
@@ -201,19 +203,8 @@ export class LearningPackStore {
   install(id: unknown): Promise<PackLibrary> {
     return this.serial(async () => {
       const catalog = await this.readCatalog()
-      const entry = catalog.find((item) => item.id === id)
-      if (!entry) throw new Error('This pack is not in the Marketplace catalog.')
       const registry = await this.readRegistry()
-      const previous = registry.installed.find((item) => item.id === entry.id)
-      if (previous && itemSource(previous) !== 'catalog') {
-        throw new Error('A local pack already uses this ID. Export it before removing it or changing its ID.')
-      }
-      if (previous && previous.version >= entry.version) return this.library(registry, catalog)
-      const pack = parsePack(await readBundledJson(join(this.catalogPath, entry.id + '.json'), maxLearningPackBytes))
-      const summary = describe(pack, 'catalog')
-      if (!coreSummaryKeys.every((key) => summary[key] === entry[key])) throw new Error('The catalog pack does not match its listing.')
-      if (previous) await this.checkTopicContinuity(previous, pack)
-      await this.save(registry, pack, summary, previous)
+      await this.installCatalog(registry, catalog, id)
       return this.library(registry, catalog)
     })
   }
@@ -268,17 +259,27 @@ export class LearningPackStore {
 
   select(id: unknown, includeCatalog = true): Promise<PackLibrary> {
     return this.serial(async () => {
-      const catalog = includeCatalog ? await this.readCatalog() : []
       const registry = await this.readRegistry()
-      if (id !== null && (!isId(id) || !registry.installed.some((entry) => entry.id === id))) {
-        throw new Error('Install this learning pack before selecting it.')
+      let catalog = includeCatalog ? await this.readCatalog() : undefined
+      if (id !== null) {
+        if (!isId(id)) throw new Error('Invalid learning pack ID.')
+        let selected = registry.installed.find((entry) => entry.id === id)
+        // Built-in lessons are available directly in Learn. Materialize only an
+        // explicitly selected missing pack, preserving installed versions and imports.
+        if (!selected) {
+          catalog ??= await this.readCatalog()
+          await this.installCatalog(registry, catalog, id)
+          selected = registry.installed.find((entry) => entry.id === id)!
+        }
+        // A missing or damaged installed pack must not be replaced silently.
+        await this.readInstalledIndex(selected)
       }
       if (registry.selected !== id || (id && registry.recent?.[0] !== id)) {
         registry.selected = id
         if (id) registry.recent = [id, ...(registry.recent ?? []).filter((item) => item !== id)].slice(0, recentLimit)
         await writeJson(this.registryPath, registry, maxLearningLibraryBytes)
       }
-      return this.library(registry, catalog)
+      return this.library(registry, includeCatalog ? catalog ?? [] : [])
     })
   }
 
@@ -351,6 +352,22 @@ export class LearningPackStore {
     }
     if (previous) await this.checkTopicContinuity(previous, pack)
     return previous
+  }
+
+  /** Called only inside the store's serialized operation, never through a queued public method. */
+  private async installCatalog(registry: Registry, catalog: PackSummary[], id: unknown): Promise<void> {
+    const entry = catalog.find((item) => item.id === id)
+    if (!entry) throw new Error('This pack is not in the bundled learning catalog.')
+    const previous = registry.installed.find((item) => item.id === entry.id)
+    if (previous && itemSource(previous) !== 'catalog') {
+      throw new Error('A local pack already uses this ID. Export it before removing it or changing its ID.')
+    }
+    if (previous && previous.version >= entry.version) return
+    const pack = parsePack(await readBundledJson(join(this.catalogPath, entry.id + '.json'), maxLearningPackBytes))
+    const summary = describe(pack, 'catalog')
+    if (!coreSummaryKeys.every((key) => summary[key] === entry[key])) throw new Error('The catalog pack does not match its listing.')
+    if (previous) await this.checkTopicContinuity(previous, pack)
+    await this.save(registry, pack, summary, previous)
   }
 
   private async importPack(pack: PackDefinition): Promise<PackLibrary> {

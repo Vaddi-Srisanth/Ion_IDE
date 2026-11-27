@@ -30,8 +30,8 @@ function markdownSource(value: unknown): string {
 }
 
 async function localFile(scope: WorkspaceFiles, sourcePath: unknown, href: string) {
-  const root = scope.rootPath
   const source = markdownSource(sourcePath)
+  const root = scope.rootFor(source)
   if (!root || !isAbsolute(source) || !isWithin(root, source)) {
     throw new Error('Open the Markdown file inside a workspace folder to access its local links or images.')
   }
@@ -42,9 +42,9 @@ async function localFile(scope: WorkspaceFiles, sourcePath: unknown, href: strin
   const path = resolve(dirname(source), relativePath)
   if (path === root || !isWithin(root, path)) throw new Error('The Markdown link or image is outside the workspace.')
   await scope.inspect(source, 'file')
-  if (scope.rootPath !== root) throw new Error('The workspace changed while resolving the Markdown link or image.')
+  if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed while resolving the Markdown link or image.')
   const file = await scope.inspect(path, 'file')
-  if (scope.rootPath !== root) throw new Error('The workspace changed while resolving the Markdown link or image.')
+  if (!scope.rootPaths.includes(root)) throw new Error('The workspace changed while resolving the Markdown link or image.')
   return { ...file, root }
 }
 
@@ -125,7 +125,7 @@ export async function readMarkdownImage(scope: WorkspaceFiles, sourcePath: unkno
       offset += bytesRead
     }
     const current = await scope.inspect(path, 'file')
-    if (scope.rootPath !== root || revision(current.stats) !== token) {
+    if (!scope.rootPaths.includes(root) || revision(current.stats) !== token) {
       throw new Error('The Markdown image or workspace changed while opening.')
     }
     const dimensions = imageSize(Buffer.from(data.buffer), mime)

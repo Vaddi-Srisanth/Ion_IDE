@@ -1,0 +1,396 @@
+{
+  "baseline": "a108a01bad53a6008761049c28a86e90bdd0374e",
+  "candidate": "b8132ec766ef6631585962f48cf2a71e6c850bc7",
+  "run": 43693605190,
+  "artifact": 14153672972,
+  "sourceSha256": "0ca9bcf231d225fd5a96264bb2be7a2d1b2708fc3081416ab15ac26b0ace32fc",
+  "scope": "D offline source; uninstrumented four-pair Mac benchmark; native Lens test fixture still failed in this run",
+  "complete": true,
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "24.6.0",
+    "cpu": {
+      "redacted": true,
+      "sha256": "9c84587ddfa080b046895a3177ddf54efe0d58dd7fa9d46eb5ce5d90528b4d12"
+    },
+    "ramBytes": 7516192768
+  },
+  "builds": {
+    "candidate": "99831193cc6999862dd2a20a01acdffb95ec03a0cb7f25782147ca4b49797fc1",
+    "baseline": "20541e080b94762f6b6215ebe32d890a9fc7e99a741d4faaa274f66b7ce9f265"
+  },
+  "trialsPerLane": 4,
+  "order": [
+    "baseline-candidate",
+    "candidate-baseline",
+    "baseline-candidate",
+    "candidate-baseline"
+  ],
+  "samples": {
+    "candidate": [
+      {
+        "trial": 1,
+        "complete": true,
+        "freshMs": 1052.9974999999977,
+        "warmMs": 635.5764580000032,
+        "openSourceMs": 683.4649999999965,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.671875,
+          "footprintMiB": 126.5892333984375,
+          "cpuPercent": 0.7661732137211181
+        },
+        "oneFile": {
+          "rssMiB": 463.859375,
+          "footprintMiB": 194.292724609375,
+          "cpuPercent": 1.2201286696079126
+        },
+        "tenTabs": {
+          "rssMiB": 477.671875,
+          "footprintMiB": 204.042724609375,
+          "cpuPercent": 1.3878132836393418
+        },
+        "savedConfigIdle": {
+          "rssMiB": 550.765625,
+          "footprintMiB": 264.59014892578125,
+          "cpuPercent": 0.14360457913693545
+        },
+        "input": {
+          "tabMs": [
+            94.76699999999983,
+            88.84833300000173,
+            60.01929100000416,
+            89.95920900000056,
+            106.84316699999908,
+            66.58150000000023,
+            107.203125,
+            63.51829100000032
+          ],
+          "typingMs": 23.20000000006985,
+          "scrollMs": 35.18000000000029
+        }
+      },
+      {
+        "trial": 2,
+        "complete": true,
+        "freshMs": 761.9022499999992,
+        "warmMs": 525.9771670000046,
+        "openSourceMs": 536.6929999999993,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.90625,
+          "footprintMiB": 125.71392822265625,
+          "cpuPercent": 1.4443609991456954
+        },
+        "oneFile": {
+          "rssMiB": 464.875,
+          "footprintMiB": 197.98028564453125,
+          "cpuPercent": 2.0707546255433464
+        },
+        "tenTabs": {
+          "rssMiB": 477.96875,
+          "footprintMiB": 207.15216064453125,
+          "cpuPercent": 1.791517978994021
+        },
+        "savedConfigIdle": {
+          "rssMiB": 549.09375,
+          "footprintMiB": 260.10552978515625,
+          "cpuPercent": 0.4939242159549108
+        },
+        "input": {
+          "tabMs": [
+            121.75504099999671,
+            118.0705420000013,
+            89.87816700000258,
+            113.16037500000675,
+            150.56020799999533,
+            72.64020899999014,
+            74.32249999999476,
+            82.72341700000106
+          ],
+          "typingMs": 17.5,
+          "scrollMs": 46.65466699999524
+        }
+      },
+      {
+        "trial": 3,
+        "complete": true,
+        "freshMs": 962.5353750000068,
+        "warmMs": 921.5230420000153,
+        "openSourceMs": 583.6564580000122,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 370.953125,
+          "footprintMiB": 124.7608642578125,
+          "cpuPercent": 1.9129722260330158
+        },
+        "oneFile": {
+          "rssMiB": 465.234375,
+          "footprintMiB": 196.105224609375,
+          "cpuPercent": 3.396666670801709
+        },
+        "tenTabs": {
+          "rssMiB": 478.765625,
+          "footprintMiB": 206.339599609375,
+          "cpuPercent": 2.5670174806220585
+        },
+        "savedConfigIdle": {
+          "rssMiB": 552.03125,
+          "footprintMiB": 260.777587890625,
+          "cpuPercent": 0.11744146319582038
+        },
+        "input": {
+          "tabMs": [
+            89.8802920000162,
+            118.35158299998147,
+            74.47187500001746,
+            95.02941700001247,
+            88.08204199999454,
+            66.77558300000965,
+            83.71612500000629,
+            84.44724999999744
+          ],
+          "typingMs": 21.5999999998603,
+          "scrollMs": 45.38345899997512
+        }
+      },
+      {
+        "trial": 4,
+        "complete": true,
+        "freshMs": 625.5324170000094,
+        "warmMs": 471.30374999999185,
+        "openSourceMs": 389.5273750000051,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 371.34375,
+          "footprintMiB": 124.21405029296875,
+          "cpuPercent": 1.4475261131827102
+        },
+        "oneFile": {
+          "rssMiB": 470.796875,
+          "footprintMiB": 205.05853271484375,
+          "cpuPercent": 2.270427719636914
+        },
+        "tenTabs": {
+          "rssMiB": 479.15625,
+          "footprintMiB": 204.9490966796875,
+          "cpuPercent": 1.9409986088968427
+        },
+        "savedConfigIdle": {
+          "rssMiB": 555.328125,
+          "footprintMiB": 264.652587890625,
+          "cpuPercent": 0.12258704265630103
+        },
+        "input": {
+          "tabMs": [
+            49.97004200000083,
+            64.97625000000698,
+            64.04099999999744,
+            52.43270899998606,
+            49.554917000001296,
+            49.13895799999591,
+            50.749875000008615,
+            49.74666600002092
+          ],
+          "typingMs": 25.199999999953434,
+          "scrollMs": 36.041417000000365
+        }
+      }
+    ],
+    "baseline": [
+      {
+        "trial": 1,
+        "complete": true,
+        "freshMs": 3485.9112499999997,
+        "warmMs": 1020.0064999999995,
+        "openSourceMs": 868.7504590000008,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 381.171875,
+          "footprintMiB": 127.635986328125,
+          "cpuPercent": 2.0671070504160585
+        },
+        "oneFile": {
+          "rssMiB": 466.828125,
+          "footprintMiB": 191.40228271484375,
+          "cpuPercent": 3.10597294482199
+        },
+        "tenTabs": {
+          "rssMiB": 480.0625,
+          "footprintMiB": 200.52728271484375,
+          "cpuPercent": 2.651398137706633
+        },
+        "savedConfigIdle": {
+          "rssMiB": 548.34375,
+          "footprintMiB": 257.43389892578125,
+          "cpuPercent": 0.17150432859831366
+        },
+        "input": {
+          "tabMs": [
+            111.63424999999916,
+            81.06662499999948,
+            71.32900000000154,
+            77.9308749999982,
+            67.64583300000231,
+            74.20558299999902,
+            74.29812500000116,
+            57.688374999997905
+          ],
+          "typingMs": 26.70000000006985,
+          "scrollMs": 80.19137499999852
+        }
+      },
+      {
+        "trial": 2,
+        "complete": true,
+        "freshMs": 780.0573330000043,
+        "warmMs": 784.2330829999992,
+        "openSourceMs": 364.6218749999971,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 375.328125,
+          "footprintMiB": 130.9483642578125,
+          "cpuPercent": 1.6382160210592547
+        },
+        "oneFile": {
+          "rssMiB": 463.453125,
+          "footprintMiB": 187.2926025390625,
+          "cpuPercent": 3.2862673599421046
+        },
+        "tenTabs": {
+          "rssMiB": 477.046875,
+          "footprintMiB": 196.8238525390625,
+          "cpuPercent": 3.4349647836630552
+        },
+        "savedConfigIdle": {
+          "rssMiB": 544.375,
+          "footprintMiB": 253.51171875,
+          "cpuPercent": 0.16839203361105887
+        },
+        "input": {
+          "tabMs": [
+            65.89216699999815,
+            72.94608300000255,
+            70.08524999998917,
+            68.36883300000045,
+            83.6583329999994,
+            83.61316700000316,
+            100.93166700001166,
+            82.0632079999923
+          ],
+          "typingMs": 16.300000000046566,
+          "scrollMs": 36.82112500000221
+        }
+      },
+      {
+        "trial": 3,
+        "complete": true,
+        "freshMs": 538.9269589999749,
+        "warmMs": 416.85391700000037,
+        "openSourceMs": 309.1361250000191,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 368.75,
+          "footprintMiB": 123.82318115234375,
+          "cpuPercent": 0.8500450193848079
+        },
+        "oneFile": {
+          "rssMiB": 465.78125,
+          "footprintMiB": 198.32373046875,
+          "cpuPercent": 1.3859206031751483
+        },
+        "tenTabs": {
+          "rssMiB": 474.140625,
+          "footprintMiB": 197.97998046875,
+          "cpuPercent": 0.8948106795400308
+        },
+        "savedConfigIdle": {
+          "rssMiB": 547.546875,
+          "footprintMiB": 257.02734375,
+          "cpuPercent": 0.059731863030603606
+        },
+        "input": {
+          "tabMs": [
+            75.13366599997971,
+            62.586999999999534,
+            83.2129169999971,
+            82.4126249999972,
+            103.63300000000163,
+            95.25974999999744,
+            78.15700000000652,
+            73.22804200000246
+          ],
+          "typingMs": 49.29999999993015,
+          "scrollMs": 33.70887499998207
+        }
+      },
+      {
+        "trial": 4,
+        "complete": true,
+        "freshMs": 646.6502910000272,
+        "warmMs": 445.9347500000149,
+        "openSourceMs": 373.18558300001314,
+        "cleanupVerified": true,
+        "cleanupExitCode": 0,
+        "cleanupSignal": null,
+        "cleanupScope": "main-process-exit",
+        "welcome": {
+          "rssMiB": 369.9375,
+          "footprintMiB": 127.13616943359375,
+          "cpuPercent": 0.6623822362282049
+        },
+        "oneFile": {
+          "rssMiB": 466.265625,
+          "footprintMiB": 196.4962158203125,
+          "cpuPercent": 1.5595462281552244
+        },
+        "tenTabs": {
+          "rssMiB": 475.1875,
+          "footprintMiB": 196.4493408203125,
+          "cpuPercent": 1.4641494129532728
+        },
+        "savedConfigIdle": {
+          "rssMiB": 554.796875,
+          "footprintMiB": 262.94970703125,
+          "cpuPercent": 0.24073761890496248
+        },
+        "input": {
+          "tabMs": [
+            64.8624580000178,
+            77.01770899997791,
+            50.22212500002934,
+            49.48108300002059,
+            67.20162499998696,
+            51.42125000001397,
+            48.83887500001583,
+            48.903833999997005
+          ],
+          "typingMs": 29.300000000046566,
+          "scrollMs": 36.476625000010245
+        }
+      }
+    ]
+  }
+}

@@ -34,17 +34,20 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
       submenu: [
         { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, { type: 'separator' },
-        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('go-to-definition'), command('find-references'), command('insert-starter'), command('format-document'),
+        command('find'), command('replace'), command('workspace-search'), command('go-to-line'), command('go-to-definition'), command('find-references'), command('rename-symbol'),
+        { type: 'separator' }, command('add-cursor-above'), command('add-cursor-below'), command('select-next-occurrence'), command('select-all-occurrences'),
+        { type: 'separator' }, command('insert-starter'), command('format-document'),
       ],
     },
     {
       label: 'View',
       submenu: [
         command('command-palette'), command('welcome'), command('focus-editor'),
-        command('next-tab'), command('previous-tab'), command('navigate-back'), command('navigate-forward'),
+        command('next-tab'), command('previous-tab'), command('move-tab-left'), command('move-tab-right'), command('navigate-back'), command('navigate-forward'),
         { type: 'separator' },
-        command('toggle-explorer'), command('toggle-source-control'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
-        command('toggle-terminal'), command('focus-terminal'),
+        command('toggle-explorer'), command('toggle-source-control'), command('toggle-debug'), command('toggle-marketplace'), command('toggle-output'), command('toggle-auxiliary'),
+        command('toggle-terminal'), command('focus-terminal'), command('focus-debug-console'),
+        command('toggle-editor-split'), command('focus-editor-split'),
         command('toggle-document-split'), command('focus-document-split'),
         command('markdown-preview'), command('markdown-split'), command('choose-theme'), command('language-support'),
         { type: 'separator' }, { role: 'togglefullscreen' },
@@ -52,7 +55,12 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
     },
     {
       label: 'Run',
-      submenu: [command('run'), command('run-tests'), command('stop'), command('preview-web')],
+      submenu: [
+        command('run'), command('run-tests'), command('stop'), command('preview-web'), { type: 'separator' },
+        command('start-debugging'), command('debug-continue'), command('debug-pause'),
+        command('debug-step-over'), command('debug-step-into'), command('debug-step-out'),
+        command('debug-restart'), command('debug-stop'), command('toggle-breakpoint'),
+      ],
     },
     { role: 'windowMenu' },
   )

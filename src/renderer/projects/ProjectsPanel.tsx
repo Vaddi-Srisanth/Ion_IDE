@@ -4,7 +4,28 @@ import type {
   ManualProgress, ProjectMilestone, ProjectRecord, ProjectSpec, ProjectTest, ProjectsBridge, ProviderSettings, TestEvidence,
 } from '../../shared/projects'
 import { errorMessage } from '../documents'
+import { ProviderConfiguration } from '../explanations/ProviderConfiguration'
 import './projects.css'
+import type { ProjectLensOpenResult } from '../../shared/project-lens'
+import type { ExplanationAction } from '../../shared/explanations'
+import type { ProjectLensReference } from '../../shared/project-lens'
+
+function LazyProjectLens({ root, onOpen, canExplain, onExplain }: { root: Entry; onOpen(result: ProjectLensOpenResult): void; canExplain: boolean; onExplain?: ProjectsPanelProps['onExplain'] }) {
+  const [loaded, setLoaded] = useState<{ Component: typeof import('./ProjectLens').ProjectLens } | { error: string }>()
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let active = true
+    setLoaded(undefined)
+    void import('./ProjectLens').then(module => { if (active) setLoaded({ Component: module.ProjectLens }) },
+      reason => { if (active) setLoaded({ error: errorMessage(reason) }) })
+    return () => { active = false }
+  }, [attempt])
+  if (!loaded) return <p role="status" className="project-message">Opening Project Lens…</p>
+  if ('error' in loaded) return <div className="project-message" role="alert">
+    <p>{loaded.error}</p><button type="button" className="button" onClick={() => setAttempt(value => value + 1)}>Retry</button>
+  </div>
+  return <loaded.Component root={root} bridge={window.ion.projectLens} onOpen={onOpen} canExplain={canExplain} onExplain={onExplain}/>
+}
 
 export interface ProjectsPanelProps {
   root: Entry | null
@@ -12,6 +33,8 @@ export interface ProjectsPanelProps {
   onOpenFolder(): void
   beforeRun?(): Promise<boolean>
   onDirtyChange?(dirty: boolean): void
+  onOpenLensSource(result: ProjectLensOpenResult): void
+  onExplain?(action: ExplanationAction, context: { root: string; refs: ProjectLensReference[] }): void
 }
 
 type Draft = { kind: 'new'; title: string; description: string }
@@ -33,12 +56,28 @@ const evidenceLabels = {
 }
 
 export default function ProjectsPanel(props: ProjectsPanelProps) {
+  const [view, setView] = useState<'roadmap' | 'lens'>('roadmap')
+  const dirty = useRef(false)
+  const [notice, setNotice] = useState<string>()
+  const markDirty = (value: boolean) => { dirty.current = value; props.onDirtyChange?.(value) }
   return (
     <section className="projects-panel" aria-label="Project roadmap" data-testid="projects-panel">
-      {props.root ? <ProjectFolder key={props.root.path} {...props} root={props.root}/>
+      <nav className="projects-views" aria-label="Project tools">
+        {(['roadmap', 'lens'] as const).map(next => <button type="button" key={next} className="button"
+          data-testid={'project-view-' + next} aria-pressed={view === next} onClick={() => {
+            if (next === view) return
+            if (dirty.current) { setNotice('Save or discard the current project draft before switching tools.'); return }
+            setNotice(undefined); setView(next)
+          }}>{next === 'roadmap' ? 'Roadmap' : 'Project Lens'}</button>)}
+      </nav>
+      {notice && <p role="status" className="project-message">{notice}</p>}
+      {props.root ? view === 'lens'
+        ? <LazyProjectLens key={props.root.path} root={props.root} onOpen={props.onOpenLensSource} canExplain={props.resourceProfile === 'full'} onExplain={props.onExplain}/>
+        : <ProjectFolder key={props.root.path} {...props} onDirtyChange={markDirty} root={props.root}/>
         : <div className="projects-empty">
-          <h2>Project roadmap</h2>
-          <p>Open a folder to create or resume its local project. Project specs and test evidence stay on this device.</p>
+          <h2>{view === 'lens' ? 'Project Lens' : 'Project roadmap'}</h2>
+          <p>{view === 'lens' ? 'Open a folder, then explicitly analyze its local structure. Nothing is scanned until you choose Analyze.'
+            : 'Open a folder to create or resume its local project. Project specs and test evidence stay on this device.'}</p>
           <button className="button primary" onClick={props.onOpenFolder}>Open Folder</button>
         </div>}
     </section>
@@ -328,7 +367,7 @@ function ProjectTestRow({ test, evidence, approved, busy, automatic, onAutomatic
         <label>Expected standard output ({test.match})<pre>{test.expectedOutput || '(empty)'}</pre></label>
         {evidence && <div className="project-evidence" data-testid="project-evidence"
           data-status={evidence.stale ? 'unable-to-verify' : evidence.outcome}>
-          <strong>{evidence.stale ? 'Stale evidence' : labels[evidence.outcome]}</strong>
+          <strong>{evidence.restored ? 'Restored historical result · rerun to verify' : evidence.stale ? 'Stale evidence' : labels[evidence.outcome]}</strong>
           <p>{evidenceLabels[evidence.kind]} · {new Date(evidence.checkedAt).toLocaleString()} · {evidence.durationMs} ms</p>
           <p>{evidence.message}</p>
           {evidence.exitCode !== null && <p>Observed exit code <code>{evidence.exitCode}</code></p>}
@@ -388,56 +427,27 @@ function OnlinePlanner({ api, busy, canPropose, onPropose }: {
   const [settings, setSettings] = useState<ProviderSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const keyRef = useRef<HTMLInputElement>(null)
-  const endpointRef = useRef<HTMLInputElement>(null)
-  const modelRef = useRef<HTMLInputElement>(null)
-
-  async function configure(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const button = (event.nativeEvent as SubmitEvent).submitter
-    const forgetKey = button?.getAttribute('data-forget') === 'true'
-    const apiKey = keyRef.current?.value ?? ''
-    if (keyRef.current) keyRef.current.value = ''
-    setPending(true)
-    setError(null)
-    try {
-      setSettings(await api.configure({
-        endpoint: endpointRef.current?.value ?? '', model: modelRef.current?.value ?? '',
-        ...(forgetKey ? { forgetKey: true } : apiKey ? { apiKey } : {}),
-      }))
-    } catch (reason) {
-      setError(errorMessage(reason))
-    } finally {
-      setPending(false)
-    }
-  }
+  const [expanded, setExpanded] = useState(false)
+  const alive = useRef(false), generation = useRef(0)
+  useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++ } }, [])
   return (
     <details className="project-card project-details" onToggle={event => {
-      if (event.currentTarget.open && !settings && !pending) {
-        setPending(true)
-        void api.provider().then(setSettings, reason => setError(errorMessage(reason))).finally(() => setPending(false))
-      } else if (!event.currentTarget.open && keyRef.current) {
-        keyRef.current.value = ''
+      const open = event.currentTarget.open
+      setExpanded(open)
+      if (!open) { generation.current++; setPending(false); return }
+      if (!settings && !pending) {
+        const token = ++generation.current
+        setPending(true); setError(null)
+        void api.provider().then(value => { if (alive.current && token === generation.current) setSettings(value) },
+          reason => { if (alive.current && token === generation.current) setError(errorMessage(reason)) })
+          .finally(() => { if (alive.current && token === generation.current) setPending(false) })
       }
     }}>
       <summary>Optional online planner</summary>
       <p className="project-muted">Generate a draft roadmap from the description. Ion asks before sending it to your configured provider.</p>
       {error && <p className="project-error" role="alert">{error}</p>}
-      {settings && <>
-        <form className="project-form" onSubmit={configure} key={settings.endpoint + '|' + settings.model}>
-          <label>Provider base URL
-            <input type="url" ref={endpointRef} defaultValue={settings.endpoint} maxLength={500} required disabled={busy || pending}/>
-          </label>
-          <label>Model ID<input ref={modelRef} defaultValue={settings.model} maxLength={120} disabled={busy || pending}/></label>
-          <label>API key
-            <input ref={keyRef} type="password" autoComplete="off" spellCheck={false} maxLength={4096} disabled={busy || pending}
-              placeholder={settings.hasKey ? 'Saved using OS-backed encryption' : 'Enter your provider key'}/>
-          </label>
-          <div className="project-actions">
-            <button className="button" type="submit" disabled={busy || pending}>Save Provider</button>
-            {settings.hasKey && <button className="button" type="submit" data-forget="true" disabled={busy || pending}>Forget Key</button>}
-          </div>
-        </form>
+      {settings && expanded && <>
+        <ProviderConfiguration provider={settings} onConfigure={value => api.configure(value)} onChange={setSettings} disabled={busy || pending}/>
         <button className="button" data-testid="project-propose" disabled={!settings.hasKey || !settings.model || !canPropose || busy || pending}
           onClick={onPropose}>Generate Proposal Online…</button>
       </>}

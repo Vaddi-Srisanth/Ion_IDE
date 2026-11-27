@@ -73,6 +73,56 @@ test('the opt-in observer removes its actual stderr listener and disposer proper
   assert.equal(stderr.listenerCount('data'), 0)
 })
 
+test('shutdown receipt captures exact-PID liveness before and after a failed native query and the owned wrapper exit', async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore', windowsHide: true })
+  const exit = once(child, 'exit')
+  let saved
+  const session = { appProcess: child, pid: child.pid, mainCreationTime: 123 }
+  const dispose = observeUpdateShutdown(session, async value => { saved = value }, async () => {
+    child.kill()
+    await exit
+    return { state: 'error', error: { code: 'ETIMEDOUT', killed: true } }
+  })
+  try {
+    await once(child, 'spawn')
+    await session.onShutdownFailure({ error: 'synthetic shutdown boundary' })
+    assert.deepEqual(saved.liveness.before.alive, [child.pid])
+    assert.deepEqual(saved.liveness.after.alive, [])
+    assert.equal(saved.native.error.code, 'ETIMEDOUT', 'query failure is preserved, not used as a liveness result')
+    assert.ok(saved.liveness.before.ms <= saved.liveness.after.ms)
+    assert.equal(saved.wrapperExitEvents.length, 1)
+    assert.ok(saved.wrapperExitEvents[0].ms >= saved.liveness.before.ms)
+    assert.ok(saved.wrapperExitEvents[0].ms <= saved.liveness.after.ms)
+  } finally {
+    dispose()
+    assert.equal(child.listenerCount('exit'), 0)
+    if (child.exitCode === null && child.signalCode === null) child.kill()
+    await exit
+  }
+})
+
+test('shutdown receipt preserves unavailable PID observations and a rejected native query explicitly', async () => {
+  const child = new EventEmitter()
+  child.stderr = new EventEmitter()
+  const session = { appProcess: child, pid: 'not-a-validated-pid' }
+  let saved
+  const dispose = observeUpdateShutdown(session, async value => { saved = value }, async () => {
+    throw new Error('synthetic native query failure')
+  })
+  try {
+    await session.onShutdownFailure({ error: 'synthetic close failure' })
+    assert.equal(saved.liveness.before.state, 'error')
+    assert.equal(saved.liveness.after.state, 'error')
+    assert.match(saved.liveness.before.error.message, /No validated shutdown PIDs/)
+    assert.equal(saved.native.state, 'error')
+    assert.equal(saved.native.error.message, 'synthetic native query failure')
+  } finally {
+    dispose()
+    assert.equal(child.listenerCount('exit'), 0)
+    assert.equal(child.stderr.listenerCount('data'), 0)
+  }
+})
+
 test('the serialized close probe preserves receivers, exact returns/errors and bounds without affecting other channels', () => {
   const handlers = new Map(), ipcMain = { handle(channel, handler) {
     assert.equal(this, ipcMain); handlers.set(channel, handler); return 'registered'

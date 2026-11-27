@@ -5,8 +5,8 @@ import './onboarding.css';
 
 const motionQuery = '(prefers-reduced-motion: reduce)';
 const routes: { id: WorkspaceMode; title: string; detail: string; icon: IconName }[] = [
-  { id: 'free', title: 'Free Coding', detail: 'An open editor for whatever you’re building.', icon: 'code' },
-  { id: 'learn', title: 'Learn a Language', detail: 'Offline lessons beside your own code.', icon: 'book' },
+  { id: 'free', title: 'Code', detail: 'An open editor for whatever you’re building.', icon: 'code' },
+  { id: 'learn', title: 'Learn a Language', detail: 'Choose a language and start offline. No content installation step.', icon: 'book' },
   { id: 'projects', title: 'Create a Project', detail: 'Plan milestones and check real behavior.', icon: 'map' },
   { id: 'practice', title: 'Practice Coding', detail: 'Local challenges, samples, and attempts.', icon: 'flask' },
 ];

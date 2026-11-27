@@ -207,7 +207,7 @@ The default **Minimal Mode** keeps editing, manual runs, and on-demand offline w
 
 ## Optional workspaces
 
-- **Learn** starts in Topics. Install a pack from Marketplace, then choose it in the Learn language picker. The C pack also exposes Learning Lens and local diagnostic history. Selected C++, Java, Python, and JavaScript packs have explanations for reviewed diagnostics.
+- **Learn** starts in Topics. Choose a built-in language directly in the language picker; no installation screen is required. Only the selected collection is materialized. C also exposes Learning Lens and local diagnostic history. Selected C++, Java, Python, and JavaScript collections have explanations for reviewed diagnostics. Open **Practice Lab** from Learn to reuse local challenges and saved attempts.
 - **Projects** attaches a versioned, locally stored specification to a folder. Create a plan offline and edit milestones or the full specification. Tests compare a saved C program's stdin, stdout, and exit status. Review and approve a test before choosing **Run Test**. Manual progress stays separate from current test evidence. Rerun after changing headers or other dependencies.
 - **Practice** opens on a challenge browser. Choose a language or topic, then Easy, Medium, or Hard. Ion supplies the statement, constraints, examples, and four sample tests for each of 27 offline challenges. Choose a solution language and select **Start** to open or resume an attempt in C, C++, Java, Python, or JavaScript. Your attempts, notes, and test results live in **Saved**, alongside any custom problems.
 
@@ -215,17 +215,17 @@ Use the activity rail to collapse a panel. Drag its divider or use the arrow key
 
 In Full Mode, **Online Planner** in Projects accepts an HTTPS OpenAI-compatible endpoint, model ID, and your own API key. The key is encrypted through Electron's OS-backed credential storage. The online confirmation shows the provider and text before sending. Ion sends only the project description and planning instructions and lets you review the returned specification. Plans contain planning text and declarative test definitions. They never write source files or run shell commands. All existing plans and local tests remain usable with the network off.
 
-### Learning Marketplace
+### Offline lessons and content settings
 
-Open **Marketplace** using the storefront icon on the activity rail. Search by pack or topic, filter by category and difficulty, browse recently used packs, and switch between compact list and card views. Pack details show the version, size, lesson count, prerequisites, attribution, and any available diagnostic support. **Install** adds a bundled pack offline. **Use in Learn** selects it and opens Topics.
+Open **Learn**, choose a language or topic, then open a lesson. Built-in languages are available offline without an installation ritual. Existing imported or installed versions take precedence; Ion does not silently update them. Topics remain first, and no language is chosen for you. For imported content and saved copies, open **Preferences → Learning Content → Manage Content**, or use **Manage Learning Content** in the command palette. Existing customized Marketplace shortcut IDs route to this settings section.
 
 The 19 bundled packs contain 162 lessons. C, C++, Java, Python, JavaScript, and TypeScript each have 15 lessons with practical exercises and a mini-project. The other packs cover Go, Rust, Swift, C#, Bash, Ruby, Perl, HTML, CSS, SQLite, JSON, XML, and YAML. Supported C, C++, Java, Python, and JavaScript exercises can open a saved attempt in Practice with a starter file and the supplied sample tests. Ion maps reviewed diagnostics from GCC or Clang, javac, CPython, and Node.js to learning material when the evidence is specific enough.
 
-Use **Import pack** to preview local UTF-8 JSON up to 256 KiB before installation. **Export** saves an installed pack as a portable file. Bundled updates require a click and keep existing lesson IDs. Lessons are stored individually in new installations and work offline. Tools for running examples are installed separately. [Pack authoring and validation guide](LEARNING_PACKS.md)
+Use **Import JSON** to review local UTF-8 JSON up to 256 KiB before confirming. **Export** saves content as a portable file. Updates require an explicit click and preserve existing lesson IDs. Removing a saved copy requires confirmation and leaves attempts, notes and diagnostic history alone; export imported content first if you may need it again. Lessons are stored individually and work offline. Toolchains are installed separately. [Authoring and validation guide](LEARNING_PACKS.md)
 
 ### Learning Lens
 
-Install and select the **C** pack in **Learn**, then run a saved C file. **Problems** shows the compiler's original diagnostic. For a recognized issue, **Explain** opens its Learning Lens card with an example and a link to an installed lesson. **Go to source** jumps to the compiled location while that revision is still current. Editing the file clears stale editor highlights.
+Choose **C** in **Learn**, then run a saved C file. **Problems** shows the compiler's original diagnostic. For a recognized issue, **Explain** opens its Learning Lens card with an example and a related offline lesson. **Go to source** jumps to the compiled location while that revision is still current. Editing the file clears stale editor highlights.
 
 **Explain Again** appears when the same issue returns after a verifiable code change. A complete, successful recompilation records that the diagnostic cleared. **History** shows local encounters and resolutions. For ambiguous diagnostics, Ion shows the compiler's message and says when it lacks a reliable explanation.
 

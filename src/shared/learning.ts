@@ -1,4 +1,5 @@
 import type { RunLanguage } from './run-console'
+import type { PracticeCompletion } from './practice'
 
 export const learningDiagnosticLanguages: readonly RunLanguage[] = ['c', 'java', 'python', 'cpp', 'javascript']
 
@@ -90,12 +91,43 @@ export interface LearningHistory {
   topics: Array<{ id: ConceptId; viewed: number; selected: number }>
 }
 
+export type LearningActivityAction = 'lesson-opened' | 'hint-revealed'
+
+/** Local engagement events; these counts do not assert understanding or mastery. */
+export interface LearningActivity {
+  packId: string
+  lessonId: string
+  opened: number
+  hintsRevealed: number
+  lastAt: number | null
+}
+
+/** A read-only projection of existing saved Practice data, never a second progress store. */
+export interface LearningTaskEvidence {
+  problemId: string | null
+  attemptCount: number
+  manualStatus: PracticeCompletion | null
+  samples: {
+    attemptId: string
+    testedAt: number
+    current: boolean
+    passed: number
+    failed: number
+    unavailable: number
+    skipped: number
+    total: number
+  } | null
+}
+
 export interface LearningBridge {
   getTopics(): Promise<LearningTopic[]>
   getConcept(id: ConceptId): Promise<LearningConcept>
   getHistory(): Promise<LearningHistory>
   clearHistory(): Promise<void>
   recordTopic(id: ConceptId, action: 'viewed' | 'selected'): Promise<void>
+  getLearningActivity(pack: string, lesson: string): Promise<LearningActivity>
+  recordLearningActivity(pack: string, lesson: string, action: LearningActivityAction): Promise<LearningActivity>
+  getLearningTaskEvidence(pack: string, lesson: string): Promise<LearningTaskEvidence>
 }
 
 export const diagnosticConcepts: Readonly<Partial<Record<DiagnosticCategory, ConceptId[]>>> = {

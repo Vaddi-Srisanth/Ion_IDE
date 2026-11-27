@@ -51,7 +51,15 @@ async function fixture(body: (context: {
   } finally {
     service?.close()
     await service?.drain()
-    await rm(parent, { recursive: true, force: true })
+    // Git for Windows can release reftable/worktree handles a few scheduler
+    // turns after its process has exited. Node's recursive rm supports bounded
+    // retries specifically for transient EBUSY/EPERM/ENOTEMPTY cleanup races.
+    await rm(parent, {
+      recursive: true,
+      force: true,
+      maxRetries: process.platform === 'win32' ? 5 : 0,
+      retryDelay: 100,
+    })
   }
 }
 

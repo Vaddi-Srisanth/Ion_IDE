@@ -39,13 +39,10 @@ async function selectCPack(page) {
   if (!await page.evaluate(() => Boolean(window.ion.learningPacks))) return
   const current = await page.evaluate(() => window.ion.learningPacks.getLibrary())
   if (current.selected === 'c') return
-  await page.getByTestId('toggle-marketplace').click()
-  if (!current.installed.some(({ id }) => id === 'c')) {
-    await page.locator('[data-testid="marketplace-install"][data-pack="c"]').click()
-  }
-  await page.locator('[data-testid="marketplace-use"][data-pack="c"]').click()
-  await page.getByTestId('marketplace-pane').waitFor({ state: 'detached' })
-  await page.waitForFunction(() => document.querySelector('[data-testid="learning-language"]')?.value === 'c')
+  await page.getByTestId('learning-language').selectOption('c')
+  await (await page.waitForFunction(async () =>
+    document.querySelector('[data-testid="learning-language"]')?.value === 'c'
+    && (await window.ion.learningPacks.getLibrary(false)).selected === 'c')).dispose()
 }
 
 await withScratch('workspaces', async (scratch) => {

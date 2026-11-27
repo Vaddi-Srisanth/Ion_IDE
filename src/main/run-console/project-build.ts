@@ -63,7 +63,7 @@ async function readManifest(scope: WorkspaceFiles, path: string, expected: strin
 
 export async function readNativeProject(scope: WorkspaceFiles, root: string, active: string): Promise<NativeProject | undefined> {
   const language = runLanguage(active)
-  if ((language !== 'c' && language !== 'cpp') || scope.rootPath !== root || !isWithin(root, active)) return
+  if ((language !== 'c' && language !== 'cpp') || !scope.rootPaths.includes(root) || !isWithin(root, active)) return
 
   const manifest = join(root, manifestName)
   const entry = await scope.inspect(manifest, 'file').catch((error: unknown) => {

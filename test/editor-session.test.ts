@@ -33,15 +33,23 @@ test('reopening a session grants only previously scoped paths, skips changed lin
       { path: changed, name: 'changed.txt' },
       { path: draftPath, name: 'draft.txt', draftId: draft.id },
       { path: outside, name: 'private.txt' },
-    ] }
+    ], editorGroups: { version: 1, activeGroupId: 'group-2', groups: [
+      { id: 'group-1', tabs: [0, 3], activeIndex: 0 },
+      { id: 'group-2', tabs: [1, 2], activeIndex: 2 },
+    ], layout: { kind: 'split', id: 'split-1', orientation: 'horizontal', percent: 62,
+      first: { kind: 'group', groupId: 'group-1' }, second: { kind: 'group', groupId: 'group-2' } } } }
     const store = new EditorSessionStore(sessionPath)
     assert.equal(await store.available(), false)
-    await assert.rejects(async () => store.save({ ...snapshot, rootPath: directory }, scope), /folder is no longer open/)
+    await assert.rejects(async () => store.save({ ...snapshot, rootPath: directory }, scope), /folder.*no longer open/)
     await store.save(snapshot, scope)
     const saved = await readFile(sessionPath, 'utf8')
     assert.equal(saved.includes(outside), false)
     assert.equal(saved.includes(draft.text), false)
+    assert.deepEqual(JSON.parse(saved).editorGroups.groups.map((group: { tabs: number[] }) => group.tabs), [[0], [1, 2]])
     await assert.rejects(async () => store.save({ ...snapshot, activeIndex: 999 }, scope), /Invalid editor session/)
+    await assert.rejects(async () => store.save({ ...snapshot, editorGroups: {
+      ...snapshot.editorGroups!, groups: [{ id: 'group-1', tabs: [999], activeIndex: 999 }],
+    } }, scope), /Invalid editor group/)
     assert.equal(await readFile(sessionPath, 'utf8'), saved)
     await rm(changed)
     await symlink(outside, changed)
@@ -58,6 +66,8 @@ test('reopening a session grants only previously scoped paths, skips changed lin
     assert.deepEqual(restored.tabs[0].view, view)
     assert.equal(restored.tabs[1].entry, undefined)
     assert.equal(restored.tabs[1].draft?.id, draft.id)
+    assert.equal(restored.editorGroups?.activeGroupId, 'group-2')
+    assert.deepEqual(restored.editorGroups?.groups.map(({ tabs }) => tabs), [[0], [1, 2]])
     assert.equal(await recovery.read(draft.id), draft.text)
     assert.equal((await reopened.read(draftPath)).text, 'new disk content')
     await assert.rejects(reopened.read(changed))
@@ -65,4 +75,25 @@ test('reopening a session grants only previously scoped paths, skips changed lin
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('editor sessions restore each explicit workspace root without broadening file authority', async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'ion-multi-root-session-')))
+  try {
+    const first = join(directory, 'first')
+    const second = join(directory, 'second')
+    const outside = join(directory, 'outside.txt')
+    await Promise.all([mkdir(first), mkdir(second), writeFile(outside, 'private')])
+    const scope = new WorkspaceFiles()
+    await scope.grant(first, 'folder')
+    await scope.addRoot(second)
+    const store = new EditorSessionStore(join(directory, 'editor-session.json'))
+    await store.save({ rootPath: first, rootPaths: [first, second], activeIndex: -1, tabs: [] }, scope)
+    const reopened = new WorkspaceFiles()
+    const resumed = await new EditorSessionStore(join(directory, 'editor-session.json'))
+      .resume(reopened, new RecoveryStore(join(directory, 'recovery')), () => true)
+    assert.deepEqual(resumed.roots?.map(({ path }) => path), [first, second])
+    assert.deepEqual(reopened.rootPaths, [first, second])
+    assert.equal(reopened.authorizes(outside), false)
+  } finally { await rm(directory, { recursive: true, force: true }) }
 })

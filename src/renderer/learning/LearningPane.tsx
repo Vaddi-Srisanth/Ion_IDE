@@ -3,14 +3,19 @@ import {
   diagnosticConcepts, diagnosticTitles, type ConceptId, type LearningBridge, type LearningConcept, type LearningDiagnostic,
   type LearningFeedback, type LearningHistory,
 } from '../../shared/learning'
-import { diagnosticPackIds, type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
+import { type LearningPacksBridge, type PackDetails, type PackLesson, type PackLibrary,
   type PackReference, type PackSummary, type PackTopic } from '../../shared/learning-packs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import type { PracticeBridge } from '../../shared/practice'
+import { PracticalExercise } from './PracticalExercise'
 import './learning.css'
 
 interface Props {
   bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun(path: string): Promise<boolean>
+  onStopRun(): void
   feedback?: LearningFeedback
   lensEnabled: boolean
   lensSelection?: LearningLensSelection
@@ -23,9 +28,13 @@ interface Props {
   loadError?: string
   onRetry?(): void
   onLibraryChange(library: PackLibrary): void
-  onMarketplace(): void
+  onManageContent(): void
+  canAskTutor?: boolean
+  lessonSelection?: { packId: string; lessonId: string; request: number }
+  onTutor?(context: { packId?: string; lessonId?: string; diagnostic?: string }): void
+  onPractice(): void
   onClose(): void
-  onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>) => void
+  onExercise: (result: Awaited<ReturnType<LearningPacksBridge['startExercise']>>, stayInLearn?: boolean) => void
 }
 
 interface LearningLensSelection {
@@ -178,7 +187,13 @@ function References({ references }: { references: PackReference[] }) {
   </details>
 }
 
-function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise }: {
+function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun, canAskTutor, onTutor }: {
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
+  bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   packs: LearningPacksBridge
   pack: PackSummary
   topicId: string
@@ -188,15 +203,8 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
   onExercise: Props['onExercise']
 }) {
   const [lesson, setLesson] = useState<Load<PackLesson> | null>(null)
-  const [starting, setStarting] = useState(false)
-  const [startError, setStartError] = useState<string>()
-  const mounted = useRef(false)
   const back = useRef<HTMLButtonElement>(null)
   const packId = pack.id
-  useEffect(() => {
-    mounted.current = true
-    return () => { mounted.current = false }
-  }, [])
   useEffect(() => { back.current?.focus() }, [])
   useEffect(() => {
     let active = true
@@ -215,6 +223,9 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
           : <article className="learning-concept learning-pack-lesson" data-testid="learning-pack-lesson" data-topic={lesson.value.id}>
             <p className="learning-kicker">{lesson.value.section}{lesson.value.difficulty && ' · ' + lesson.value.difficulty}</p>
             <h3>{lesson.value.title}</h3>
+            {onTutor && <button type="button" className="button" data-testid="lesson-ask-tutor" disabled={!canAskTutor}
+              title={canAskTutor ? 'Optional online explanation; review context before sending' : 'Online explanations are optional in the Full resource profile'}
+              onClick={() => onTutor({ packId, lessonId: topicId })}><Icon name="book" size={12}/> Ask Tutor</button>}
             {!!lesson.value.prerequisites?.length && <p className="learning-meta">Before this lesson, read {lesson.value.prerequisites.map(showTopic).join(', ')}.</p>}
             <p>{lesson.value.explanation}</p>
             <h4>Example</h4>
@@ -234,30 +245,8 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
               <h4>Watch for</h4>
               <p>{lesson.value.pitfall}</p>
             </div>}
-            <div className="learning-exercise">
-              <h4>Try it yourself</h4>
-              <p>{lesson.value.practice}</p>
-              {lesson.value.exercise && <>
-                <h4>Expected behavior</h4><p>{lesson.value.exercise.expected}</p>
-                <h4>Completion criteria</h4><p>{lesson.value.exercise.completion}</p>
-                {!!lesson.value.exercise.samples?.length && <details>
-                  <summary>Sample inputs and outputs</summary>
-                  {lesson.value.exercise.samples.map(({ input, expectedOutput }, index) => <div key={index}>
-                    <p>Input {index + 1}</p><pre>{input || '(empty)'}</pre><p>Output</p><pre>{expectedOutput || '(empty)'}</pre>
-                  </div>)}
-                </details>}
-                {diagnosticPackIds.some((id) => id === packId) && <button className="button" type="button"
-                  data-testid="learning-start-exercise" disabled={starting} onClick={() => {
-                    setStarting(true)
-                    setStartError(undefined)
-                    void packs.startExercise(packId, topicId).then(
-                      (result) => { if (mounted.current) onExercise(result) },
-                      (reason: unknown) => { if (mounted.current) setStartError(errorMessage(reason)) },
-                    ).finally(() => { if (mounted.current) setStarting(false) })
-                  }}>{starting ? 'Opening Practice…' : 'Open in Practice'}</button>}
-                {startError && <p role="alert" className="learning-error">{startError}</p>}
-              </>}
-            </div>
+            <PracticalExercise packId={packId} topicId={topicId} lesson={lesson.value} learning={bridge} packs={packs}
+              practice={practice} onExercise={onExercise} onPrepareRun={onPrepareRun} onStopRun={onStopRun}/>
             {!!lesson.value.related?.length && <><h4>Related lessons</h4><div className="learning-related">
               {lesson.value.related.map((id) => <button className="button" key={id} onClick={() => onTopic(id)}>{showTopic(id)}</button>)}
             </div></>}
@@ -267,7 +256,13 @@ function PackLessonReader({ packs, pack, topicId, topics, onBack, onTopic, onExe
   )
 }
 
-function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
+function PackTopics({ packs, pack, topicId, onTopic, onExercise, bridge, practice, onPrepareRun, onStopRun, canAskTutor, onTutor }: {
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
+  bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   packs: LearningPacksBridge
   pack: PackSummary
   topicId: string | null
@@ -294,7 +289,8 @@ function PackTopics({ packs, pack, topicId, onTopic, onExercise }: {
   if ('error' in details) return <p className="learning-error" role="alert">{details.error}</p>
   const { topics, prerequisites, references, miniProject } = details.value
   if (topicId) return <PackLessonReader key={topicId} packs={packs} pack={pack} topicId={topicId} topics={topics}
-    onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise}/>
+    onBack={() => onTopic(null)} onTopic={onTopic} onExercise={onExercise} bridge={bridge} practice={practice}
+    onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
 
   const sections = new Map<string, PackTopic[]>()
   for (const topic of topics) {
@@ -557,8 +553,14 @@ function LearningNav({ view = 'topics', diagnostics = false, lens = false, hasFe
   </nav>
 }
 
-function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise }: {
+function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelection, sourceCurrent, canRevealDiagnostic, onRevealDiagnostic, onExercise, practice, onPrepareRun, onStopRun, canAskTutor, onTutor, lessonSelection }: {
+  lessonSelection?: Props['lessonSelection']
+  canAskTutor?: boolean
+  onTutor?: Props['onTutor']
   bridge: LearningBridge
+  practice: PracticeBridge
+  onPrepareRun: Props['onPrepareRun']
+  onStopRun: Props['onStopRun']
   feedback?: LearningFeedback
   packs: LearningPacksBridge
   pack: PackSummary
@@ -571,6 +573,7 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }) {
   const [view, setView] = useState<View>('topics')
   const [topicId, setTopicId] = useState<string | null>(null)
+  useEffect(() => { if (lessonSelection?.packId === pack.id) { setTopicId(lessonSelection.lessonId); setView('topics') } }, [lessonSelection, pack.id])
   const seenFeedback = useRef(feedback)
   const openedSelection = useRef<number | undefined>(undefined)
   const scroll = useRef<HTMLDivElement>(null)
@@ -599,7 +602,8 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
       setView(next)
     }}/>
     <div ref={scroll} className="learning-scroll">
-      {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}/>
+      {shownView === 'topics' ? <PackTopics packs={packs} pack={pack} topicId={topicId} onTopic={setTopicId} onExercise={onExercise}
+        bridge={bridge} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
         : shownView === 'result' ? <DiagnosticResults bridge={bridge} feedback={feedback} pack={pack} lensSelection={selected}
           openedSelection={openedSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
           onRevealDiagnostic={onRevealDiagnostic} onLesson={(id) => {
@@ -612,21 +616,32 @@ function LanguageContent({ bridge, feedback, packs, pack, lensEnabled, lensSelec
 }
 
 export function LearningPane({ bridge, feedback, packs, library, includeCatalog, loadError, lensEnabled, lensSelection, sourceCurrent = true,
-  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onMarketplace, onClose, onExercise }: Props) {
+  canRevealDiagnostic, onRevealDiagnostic, onRetry, onLibraryChange, onManageContent, onPractice, onClose, onExercise, practice, onPrepareRun, onStopRun, canAskTutor, onTutor, lessonSelection }: Props) {
   const [changing, setChanging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = library?.installed.find(({ id }) => id === library.selected)
-  const installed = library?.installed ?? []
+  // Only compact summaries are combined; lesson payloads stay on disk until opened.
+  const available = [...new Map([...(library?.catalog ?? []), ...(library?.installed ?? [])].map(pack => [pack.id, pack])).values()]
+  const mounted = useRef(false)
+  const selecting = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   async function selectLanguage(id: string) {
+    if (selecting.current) return
+    selecting.current = true
     setError(null)
     setChanging(true)
     try {
-      onLibraryChange(await packs.select(id || null, includeCatalog))
+      const next = await packs.select(id || null, includeCatalog)
+      if (mounted.current) onLibraryChange(next)
     } catch (reason) {
-      setError(errorMessage(reason))
+      if (mounted.current) setError(errorMessage(reason))
     } finally {
-      setChanging(false)
+      selecting.current = false
+      if (mounted.current) setChanging(false)
     }
   }
 
@@ -634,39 +649,48 @@ export function LearningPane({ bridge, feedback, packs, library, includeCatalog,
     <aside className="learning-pane" aria-label="Learn" data-testid="learning-pane">
       <header className="pane-title">
         <h2><Icon name="book" size={14}/> Learn</h2>
+        <button type="button" className="button learning-practice" data-testid="learning-practice" onClick={onPractice}><Icon name="flask" size={13}/> Practice Lab</button>
         <button type="button" className="icon-button" aria-label="Hide learning panel" onClick={onClose}><Icon name="x" size={15}/></button>
       </header>
-      {library && installed.length > 0 && <div className="learning-language-row">
+      {library && available.length > 0 && <div className="learning-language-row">
         <label className="learning-language">
           <span>Language</span>
           <select data-testid="learning-language" value={selected?.id ?? ''} disabled={changing}
             onChange={(event) => void selectLanguage(event.currentTarget.value)}>
-            <option value="">Choose an installed language</option>
-            {installed.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+            <option value="">Choose a language or topic</option>
+            {available.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <button type="button" className="icon-button" title="Open Marketplace" aria-label="Open Marketplace"
-          data-testid="learning-open-marketplace" onClick={onMarketplace}><Icon name="marketplace" size={16}/></button>
+        <button type="button" className="icon-button" title="Manage Learning Content" aria-label="Manage Learning Content"
+          data-testid="learning-manage-content" onClick={onManageContent}><Icon name="settings" size={16}/></button>
+      </div>}
+      {onTutor && <div className="learning-ai-actions">
+        <button type="button" className="button" data-testid="learning-ask-tutor" disabled={!canAskTutor}
+          title={canAskTutor ? 'Optional online explanations with context review' : 'Online explanations are optional in the Full resource profile'}
+          onClick={() => onTutor({})}>Ask Tutor</button>
+        {feedback?.diagnostics.length ? <button type="button" className="button" data-testid="learning-explain-online"
+          disabled={!canAskTutor || !sourceCurrent} title="Review the current diagnostic before sending it to your provider"
+          onClick={() => onTutor({ diagnostic: feedback.diagnostics[0].raw })}>Explain run with AI</button> : null}
       </div>}
       {error && <p className="learning-error learning-language-error" role="alert">{error}</p>}
-      {selected ? <LanguageContent key={selected.id + ':' + selected.version} pack={selected} packs={packs}
+      {selected ? <LanguageContent lessonSelection={lessonSelection} key={selected.id + ':' + selected.version} pack={selected} packs={packs}
         bridge={bridge} feedback={selected.id === feedback?.language ? feedback : undefined} lensEnabled={lensEnabled}
         lensSelection={lensSelection} sourceCurrent={sourceCurrent} canRevealDiagnostic={canRevealDiagnostic}
-        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise}/>
+        onRevealDiagnostic={onRevealDiagnostic} onExercise={onExercise} practice={practice} onPrepareRun={onPrepareRun} onStopRun={onStopRun} canAskTutor={canAskTutor} onTutor={onTutor}/>
         : <>
           <LearningNav/>
           <div className="learning-scroll">
             {!library ? (loadError
               ? <><p className="learning-error" role="alert">{loadError}</p>
                 {onRetry && <button type="button" className="button" onClick={onRetry}>Retry</button>}</>
-              : <p className="learning-copy" role="status">Opening learning packs…</p>)
+              : <p className="learning-copy" role="status">Opening lessons…</p>)
               : <section className="learning-empty">
                 <div className="learning-empty-icon"><Icon name="book" size={20}/></div>
-                <h3>{installed.length ? 'Choose what to learn' : 'Start with a language pack'}</h3>
-                <p className="learning-copy">{installed.length ? 'Pick an installed language above to see its topics.'
-                  : 'Install a pack from Marketplace to get syntax guides, code examples, key APIs, and practice exercises.'}</p>
-                {!installed.length && <button type="button" className="button" data-testid="learning-open-marketplace"
-                  onClick={onMarketplace}><Icon name="marketplace" size={15}/> Open Marketplace</button>}
+                <h3>Choose what to learn</h3>
+                <p className="learning-copy">{available.length ? 'Choose a language above. Read a concept, write your own code, and try an exercise. Built-in lessons work offline.'
+                  : 'No learning content is available. You can import a validated JSON lesson collection in Preferences.'}</p>
+                <p className="learning-copy learning-evidence-note">Opening a topic is exploration. Passing sample tests is evidence for those examples, not proof of mastery.</p>
+                {!available.length && <button type="button" className="button" onClick={onManageContent}>Manage Content</button>}
               </section>}
           </div>
         </>}

@@ -1,0 +1,160 @@
+name: Phase 2 build tasks matched unused-cost acceptance (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Native platform set to verify
+        type: choice
+        options: [all, windows]
+        default: all
+      gate:
+        description: Acceptance gate (do not repeat an already verified measurement)
+        type: choice
+        options: [functional, matched]
+        default: functional
+permissions:
+  contents: read
+concurrency:
+  group: phase2-tasks-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  tasks:
+    name: Native ${{ matrix.os }} build tasks ${{ inputs.gate }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    env:
+      ION_TASKS_APPLICATION_SHA: 036781e7fe99be4480e5f0803fb6b22124be72a8
+      ION_TASKS_BASELINE_SHA: 99acaaa4bac7239d3f2b8dff672b51ea777cb4d3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Verify immutable application source and native host
+        run: |
+          mkdir -p performance-results/phase2-tasks
+          git cat-file -e "$ION_TASKS_APPLICATION_SHA^{commit}"
+          git diff --exit-code "$ION_TASKS_APPLICATION_SHA" HEAD -- src package.json package-lock.json scripts/build.mjs test/tasks.test.ts
+          {
+            printf 'application_sha=%s\nverification_sha=%s\n' "$ION_TASKS_APPLICATION_SHA" "$(git rev-parse HEAD)"
+            node -e 'const expected=process.platform==="darwin"?"arm64":"x64";if(process.arch!==expected)throw Error(`Expected ${expected}, got ${process.arch}`);console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))'
+            node --version
+            npm --version
+          } > performance-results/phase2-tasks/identity.log 2>&1
+      - name: Prepare exact baseline checkout
+        if: inputs.gate == 'matched'
+        run: |
+          git worktree add --detach ../ion-tasks-baseline "$ION_TASKS_BASELINE_SHA"
+          git -C ../ion-tasks-baseline diff --exit-code
+          git -C ../ion-tasks-baseline rev-parse HEAD
+      - name: Install candidate dependencies
+        run: |
+          npm ci
+          node node_modules/electron/install.js
+      - name: Install baseline dependencies
+        if: inputs.gate == 'matched'
+        run: |
+          npm --prefix ../ion-tasks-baseline ci
+          node ../ion-tasks-baseline/node_modules/electron/install.js
+      - name: Record exact task tool versions
+        run: |
+          {
+            node --version
+            npm --version
+            node -p 'process.execPath'
+            npm root -g
+          } > performance-results/phase2-tasks/tools.log 2>&1
+      - name: Build exact production candidate
+        run: |
+          npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
+          npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          const [main, tasks] = await Promise.all([
+            readFile('dist/main/index.cjs', 'utf8'),
+            readFile('dist/main/tasks/service.cjs', 'utf8'),
+          ]);
+          assert.match(tasks, /ion-task-/);
+          assert.doesNotMatch(main, /ion-task-/);
+          NODE
+      - name: Build baseline
+        if: inputs.gate == 'matched'
+        run: npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
+      - name: Full unit and security suite
+        if: inputs.gate == 'functional'
+        id: unit_tasks
+        continue-on-error: true
+        run: npm test 2>&1 | tee performance-results/phase2-tasks/unit.log
+      - name: Production Electron task journey and resource cleanup
+        if: inputs.gate == 'functional'
+        id: desktop_tasks
+        continue-on-error: true
+        run: node scripts/test-tasks-desktop.mjs 2>&1 | tee performance-results/phase2-tasks/desktop-tasks.log
+      - name: Matched unused-task startup, editor and resource comparison
+        if: inputs.gate == 'matched'
+        id: matched_tasks
+        continue-on-error: true
+        run: node scripts/benchmark-tasks-unused-native.mjs ../ion-tasks-baseline/dist dist 2>&1 | tee performance-results/phase2-tasks/matched-unused.log
+      - name: Record acceptance result
+        if: always()
+        env:
+          MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
+          UNIT_RESULT: ${{ steps.unit_tasks.outcome }}
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+        run: printf 'matched_result=%s\nunit_result=%s\ndesktop_result=%s\n' "$MATCHED_RESULT" "$UNIT_RESULT" "$DESKTOP_RESULT" > performance-results/phase2-tasks/acceptance-result.log
+      - name: Prove immutable source and collect bounded evidence
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --exit-code
+          node --input-type=module <<'NODE'
+          import { mkdir, open, readdir, writeFile } from 'node:fs/promises';
+          import { homedir, tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          const source='performance-results/phase2-tasks', destination='performance-results/phase2-tasks-safe';
+          await mkdir(destination,{recursive:true});
+          for(const name of await readdir(source).catch(()=>[])) {
+            let handle; try { handle=await open(join(source,name),'r'); } catch { continue; }
+            try {
+              const size=(await handle.stat()).size; if(size>16*1024*1024) throw Error(`${name} exceeded 16 MiB`);
+              const bytes=Buffer.alloc(size); await handle.read(bytes,0,size,0); let text=bytes.toString('utf8');
+              for(const [value,label] of [[process.cwd(),'<checkout>'],[tmpdir(),'<tmp>'],[homedir(),'<home>']])
+                for(const spelling of new Set([value,value.replaceAll('\\','/')])) text=text.split(spelling).join(label);
+              await writeFile(join(destination,name),text);
+            } finally { await handle.close(); }
+          }
+          if(!(await readdir(destination)).length) throw Error('No build-task evidence was collected.');
+          NODE
+      - name: Enforce task acceptance result
+        if: always()
+        env:
+          MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
+          UNIT_RESULT: ${{ steps.unit_tasks.outcome }}
+          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
+          SELECTED_GATE: ${{ inputs.gate }}
+        run: |
+          if [ "$SELECTED_GATE" = matched ]; then
+            test "$MATCHED_RESULT" = success
+          else
+            test "$UNIT_RESULT" = success
+            test "$DESKTOP_RESULT" = success
+          fi
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: phase2-tasks-${{ matrix.os }}-${{ github.sha }}
+          path: performance-results/phase2-tasks-safe/*
+          if-no-files-found: error
+          retention-days: 7

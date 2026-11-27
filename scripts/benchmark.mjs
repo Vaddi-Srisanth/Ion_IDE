@@ -67,6 +67,7 @@ const report = {
   protocol: {
     trials, scenarios, idleSeconds, executions, tabCycles, openFiles, idleSettleSeconds: 3,
     rendererProfilingEnabled: Boolean(options['renderer-profile']),
+    startupPhaseDiagnostics: process.env.ION_STARTUP_PHASE_DIAGNOSTICS === '1',
     startup: 'Process launch under Playwright to visible Welcome in DOM. New disposable profile, then same-profile relaunch. OS caches untouched.',
     ram: 'Summed RSS from macOS ps, including app descendants and profile-marked helpers. Shared pages may be counted in multiple processes.',
     cpu: 'Process CPU-time deltas; 100% = one logical CPU. Subprocesses that exit between samples can be missed.',
@@ -278,6 +279,7 @@ try {
         await mkdir(profile)
         const fresh = await launch(candidate.build, profile)
         const sample = { trial: trial + 1, freshStartupMs: fresh.startupMs }
+        if (fresh.startupPhases) sample.freshStartupPhases = fresh.startupPhases
         try {
           const versions = await fresh.app.evaluate(() => ({ electron: process.versions.electron, chromium: process.versions.chrome }))
           Object.assign(report.artifacts[candidate.label], versions)
@@ -293,6 +295,7 @@ try {
         let completed = false
         try {
           sample.warmStartupMs = warm.startupMs
+          if (warm.startupPhases) sample.warmStartupPhases = warm.startupPhases
           if (project) {
             const profilePath = options['renderer-profile']
               ? join(out, `${candidate.label}-${trial + 1}-${generatedAt.replaceAll(':', '-')}.cpuprofile`)

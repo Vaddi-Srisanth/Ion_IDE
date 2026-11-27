@@ -73,6 +73,22 @@ test('unnamed drafts retain the generated sequence and disk files read their own
   await documents.discard(second)
 })
 
+test('tabs can be reordered without changing the active document or buffer identity', async () => {
+  const { documents, setValue } = setup({})
+  const first = documents.open(undefined, { name: 'first.c', text: 'first' })!
+  const second = documents.open(undefined, { name: 'second.c', text: 'second' })!
+  const third = documents.open(undefined, { name: 'third.c', text: 'third' })!
+  setValue('third edited')
+  documents.changed(third)
+  assert.equal(documents.move(third, -1), true)
+  assert.deepEqual(documents.getSnapshot().tabs.map(({ id }) => id), [first, third, second])
+  assert.equal(documents.getSnapshot().activeId, third)
+  assert.equal(await documents.loadText(third), 'third edited')
+  assert.equal(documents.move(first, -1), false)
+  assert.equal(documents.move(second, 1), false)
+  assert.deepEqual(documents.getSnapshot().tabs.map(({ id }) => id), [first, third, second])
+})
+
 test('a save completed after more editing leaves the newer edits dirty', async () => {
   let finishFirst!: (result: { revision: string; contentHash: string }) => void
   const firstSave = new Promise<{ revision: string; contentHash: string }>((resolve) => { finishFirst = resolve })
@@ -86,6 +102,7 @@ test('a save completed after more editing leaves the newer edits dirty', async (
   })
   const id = documents.open(file)!
   await documents.loadText(id)
+  assert.equal(documents.savedContentHash(id), 'h1')
   setValue('first edit')
   documents.changed(id)
   const saving = documents.save(id)
@@ -94,6 +111,7 @@ test('a save completed after more editing leaves the newer edits dirty', async (
   documents.changed(id)
   finishFirst({ revision: 'r2', contentHash: 'h2' })
   assert.equal(await saving, true)
+  assert.equal(documents.savedContentHash(id), 'h2')
   assert.equal(documents.getSnapshot().tabs[0].dirty, true)
   assert.equal(await documents.save(id), true)
   assert.deepEqual(writes, [

@@ -3,6 +3,7 @@ import type { EditorViewState } from '../shared/editor-session';
 import { documentFormat, type DocumentFormat } from '../shared/viewers';
 import { isNotebookName } from '../shared/notebook-path';
 import { isWithin } from './paths';
+import { fileLanguage } from '../shared/languages';
 
 export interface Tab {
   id: string;
@@ -141,6 +142,10 @@ export class Documents {
     return this.records.get(id)?.revision ?? undefined;
   }
 
+  savedContentHash(id: string): string | undefined {
+    return this.records.get(id)?.baseHash;
+  }
+
   async holdAutosaveForFormat(id: string) {
     const record = this.records.get(id);
     if (!record) return () => {};
@@ -214,6 +219,17 @@ export class Documents {
       this.activeId = id;
       this.publish();
     }
+  };
+
+  move = (id: string, offset: -1 | 1) => {
+    const entries = Array.from(this.records.entries());
+    const index = entries.findIndex(([key]) => key === id);
+    const target = index + offset;
+    if (index < 0 || target < 0 || target >= entries.length) return false;
+    [entries[index], entries[target]] = [entries[target], entries[index]];
+    this.records = new Map(entries);
+    this.publish();
+    return true;
   };
 
   open = (entry?: Entry, draft?: InitialDraft) => {
@@ -311,6 +327,14 @@ export class Documents {
       if (record.load === pending) record.load = undefined;
     }
   };
+
+  /** Explicit context capture uses an existing active buffer only; never reads a file or creates a model. */
+  activeTextPrefix(id: string, length: number): string | undefined {
+    if (this.activeId !== id || !Number.isSafeInteger(length) || length < 0 || length > 8192) return;
+    return this.modelAccess?.getTextPrefix?.(id, length) ?? this.records.get(id)?.stagedText?.slice(0, length);
+  }
+
+  textVersion(id: string): number | undefined { return this.records.get(id)?.version; }
 
   async loadTextPrefix(id: string, length: number): Promise<string> {
     return this.modelAccess?.getTextPrefix?.(id, length) ?? (await this.loadText(id)).slice(0, length);
@@ -566,6 +590,12 @@ export class Documents {
         this.scheduleRecovery(record);
       }
       if (mode !== 'auto') this.notify(`Saved ${record.tab.name}`);
+      if (record.tab.path) {
+        const language = fileLanguage(record.tab.name);
+        if (language.semantic) {
+          void this.bridge.languageTools?.saved?.({ language: language.id, path: record.tab.path }).catch(() => {});
+        }
+      }
       return true;
     } catch (reason) {
       if (record.tab.path !== path) return false;

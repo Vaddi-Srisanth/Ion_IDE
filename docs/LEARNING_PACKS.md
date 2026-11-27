@@ -1,6 +1,6 @@
 # Learning packs
 
-Open the storefront icon to browse Marketplace, search for a topic, filter by category or difficulty, and install a bundled pack. Select an installed pack in Learn to open its topic index. Use **Update** for a newer bundled pack and **Export** to save a portable copy. Import a local JSON file, review its author, license, version, and topic list, then confirm the installation. Lessons, examples, exercises, and saved Practice attempts work offline. The **Online references** section opens the system browser only when you select a reference.
+Open **Learn** and choose a built-in language directly; only that selected collection is materialized locally. Existing imported/installed versions take precedence and are not silently upgraded. The internal pack format remains for compatibility. Manage imported lessons and saved copies in **Preferences → Learning Content → Manage Content**. Import JSON requires review and confirmation; updates and removal are explicit, and export keeps a portable copy. Lessons, examples, exercises and saved Practice attempts work offline. Online references open the system browser only after a click. Current material is reference/introductory content, not a claim of complete courses or measured learning mastery.
 
 A pack’s **Diagnostics** badge means Ion recognizes a reviewed subset of output from a matching toolchain. Ion supports specific patterns from GCC or Clang for C and C++, javac and the Java runtime, CPython, and Node.js. It shows the original output and abstains when it cannot reliably map a message. Diagnostic guidance appears when Learn is open and the selected pack matches the program’s language.
 
@@ -46,4 +46,7 @@ New installations keep a separate topic index and one file per lesson in the loc
 
 ## Catalog roadmap
 
-The six core packs have 15 lessons each. Go, Rust, HTML, and CSS still use the shorter original packs. Kotlin, PHP, GraphQL, PowerShell, Lua, R, Julia, MATLAB/Octave, Zig, Dart, Scala, Haskell, Elixir, and assembly fundamentals remain candidates for future batches. The Marketplace lists packs when their material is ready for use.
+The six core collections have 15 lessons each; several other languages still have shorter introductory material. Prioritize reviewing small practical Python, Java and C paths before expanding language count. Broader language catalogs are future work, not shipped courses.
+
+
+On the next-generation feature branch, Python/Java/C `flow` lessons include optional objective, starter (maximum8,000 UTF-8 bytes), up to three hints and an unverified follow-up. Existing pack schemas/IDs and exercise tests remain unchanged. These are introductory practical lessons; no complete-course or mastery claim. Older strict readers may reject enriched exports; keep original exports for interoperability until a future release declares its minimum supported version.

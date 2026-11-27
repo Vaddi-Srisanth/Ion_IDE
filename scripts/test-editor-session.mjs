@@ -209,3 +209,95 @@ await withScratch('editor-session', async (scratch) => {
     await terminateIfRunning(thirdProcess)
   }
 })
+
+await withScratch('editor-group-session', async (scratch) => {
+  const project = await createProject(join(scratch, 'workspace'), { fileCount: 0 })
+  const profile = join(scratch, 'profile')
+  const extraRoot = join(scratch, 'extra-workspace')
+  const workspaceConfiguration = join(scratch, 'course.ion-workspace')
+  const firstPath = join(project.directory, 'first.c')
+  const secondPath = join(project.directory, 'second.c')
+  await Promise.all([mkdir(profile), mkdir(extraRoot)])
+  await Promise.all([
+    writeFile(join(profile, 'preferences.json'), JSON.stringify({ version: 1, settings: { autoSave: false } })),
+    writeFile(firstPath, 'int first(void) { return 1; }\n'),
+    writeFile(secondPath, 'int second(void) { return 2; }\n'),
+  ])
+  const first = await launchSession(profile)
+  const firstProcess = first.app.process()
+  try {
+    await first.page.context().setOffline(true)
+    await stubDialogs(first.app, { folder: project.directory })
+    await openFolder(first.page, project)
+    await stubDialogs(first.app, { folder: extraRoot })
+    await first.page.getByRole('button', { name: 'Add folder to workspace' }).click()
+    await eventually(async () => await first.page.getByTestId('workspace-root').count() === 2,
+      'The second workspace root was not added.')
+    await stubDialogs(first.app, { save: workspaceConfiguration })
+    await first.page.getByRole('button', { name: 'Save workspace configuration' }).click()
+    await eventually(async () => {
+      const stored = await readFile(workspaceConfiguration, 'utf8').catch((error) => {
+        if (error?.code === 'ENOENT') return null
+        throw error
+      })
+      return stored !== null && JSON.parse(stored).roots.length === 2
+    },
+      'The reviewed workspace configuration was not saved.')
+    await openFromExplorer(first.page, firstPath, 'int first')
+    await atPath(first.page, 'explorer-entry', firstPath).dblclick()
+    await openFromExplorer(first.page, secondPath, 'int second')
+    await first.page.getByTestId('editor-group-split-right').click()
+    await eventually(async () => await first.page.getByTestId('editor-group').count() === 2,
+      'The editor group fixture did not split.')
+    const groupOne = first.page.locator('[data-testid="editor-group"][data-group-id="group-1"]')
+    await groupOne.locator('[data-testid="group-tab"]').filter({ hasText: 'first.c' }).locator('.tab-name').click()
+    const divider = first.page.getByRole('separator', { name: 'Resize horizontal editor groups' })
+    await divider.focus()
+    await first.page.keyboard.press('ArrowRight')
+    await first.page.keyboard.press('ArrowRight')
+    assert.equal(await divider.getAttribute('aria-valuenow'), '56')
+    await close(first)
+    assert.equal(firstProcess.exitCode, 0)
+  } finally { await terminateIfRunning(firstProcess) }
+
+  const stored = JSON.parse(await readFile(join(profile, 'editor-session.json'), 'utf8'))
+  assert.equal(stored.editorGroups.layout.percent, 56)
+  assert.equal(stored.editorGroups.groups.length, 2)
+  assert.deepEqual(stored.rootPaths, [project.directory, extraRoot])
+
+  const second = await launchSession(profile)
+  const secondProcess = second.app.process()
+  try {
+    await second.page.context().setOffline(true)
+    await second.page.getByTestId('resume-session').click()
+    const groups = second.page.getByTestId('editor-group')
+    await eventually(async () => await groups.count() === 2, 'The saved editor groups were not restored.')
+    assert.equal(await second.page.getByTestId('workspace-root').count(), 2)
+    assert.equal(await second.page.getByRole('separator', { name: 'Resize horizontal editor groups' }).getAttribute('aria-valuenow'), '56')
+    assert.equal(await second.page.locator('[data-testid="editor-group"][data-group-id="group-1"] [data-testid="group-tab"].active .tab-name').textContent(), 'first.c')
+    assert.equal(await second.page.locator('[data-testid="editor-group"][data-group-id="group-2"] [data-testid="group-tab"].active .tab-name').textContent(), 'second.c')
+    assert.deepEqual(second.errors, [])
+    await close(second)
+    assert.equal(secondProcess.exitCode, 0)
+    console.log('PASS editor group layout, resize ratio, membership, and active files survive a production relaunch.')
+  } finally { await terminateIfRunning(secondProcess) }
+
+  const cleanProfile = join(scratch, 'clean-profile')
+  await mkdir(cleanProfile)
+  await writeFile(join(cleanProfile, 'preferences.json'), JSON.stringify({ version: 1, settings: { autoSave: false } }))
+  const third = await launchSession(cleanProfile)
+  const thirdProcess = third.app.process()
+  try {
+    await third.page.context().setOffline(true)
+    await stubDialogs(third.app, { folder: project.directory })
+    await openFolder(third.page, project)
+    await stubDialogs(third.app, { file: workspaceConfiguration, allowWorkspace: true })
+    await third.page.getByRole('button', { name: 'Open workspace configuration', exact: true }).click()
+    await eventually(async () => await third.page.getByTestId('workspace-root').count() === 2,
+      'The reviewed workspace configuration did not grant both roots.')
+    assert.deepEqual(third.errors, [])
+    await close(third)
+    assert.equal(thirdProcess.exitCode, 0)
+    console.log('PASS reviewed workspace files restore bounded settings and explicit roots without restoring execution trust.')
+  } finally { await terminateIfRunning(thirdProcess) }
+})

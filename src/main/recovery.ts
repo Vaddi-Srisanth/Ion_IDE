@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, opendir, rename, rm, type FileHandle } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, win32, posix } from 'node:path'
 import type { RecoveryDraft } from '../shared/contracts'
 import { isNotebookName, maxNotebookBytes } from '../shared/notebook-path'
 import { maxTextCopyBytes } from '../shared/large-text'
@@ -32,14 +32,14 @@ function boundedString(value: unknown, maxLength: number, maxBytes: number): val
     && !/[\uD800-\uDFFF]/u.test(value)
 }
 
-function draftMetadata(value: Record<string, unknown>): RecoveryDraft {
+function draftMetadata(value: Record<string, unknown>, portable = false): RecoveryDraft {
   const id = validateId(value.id)
   const { name, originalPath } = value
   if (!boundedString(name, 1024, 1024) || !name || /[/\0]/.test(name) || name === '.' || name === '..') {
     throw new Error('Invalid recovery draft name.')
   }
   if (originalPath === undefined) return { id, name }
-  if (!boundedString(originalPath, 4096, 16 * 1024) || !isAbsolute(originalPath) || originalPath.includes('\0')) {
+  if (!boundedString(originalPath, 4096, 16 * 1024) || !(isAbsolute(originalPath) || (portable && (win32.isAbsolute(originalPath) || posix.isAbsolute(originalPath)))) || originalPath.includes('\0')) {
     throw new Error('Invalid recovery draft original path.')
   }
   return { id, name, originalPath }
@@ -61,7 +61,7 @@ async function readExact(handle: FileHandle, length: number, position: number): 
   return data
 }
 
-async function readHeader(handle: FileHandle, id: string) {
+async function readHeader(handle: FileHandle, id: string, portable = false) {
   const stats = await handle.stat()
   if (!stats.isFile() || stats.size > prefixSize + headerLimit + maxNotebookBytes) throw new Error('Invalid recovery draft size.')
   const prefix = await readExact(handle, prefixSize, 0)
@@ -72,7 +72,7 @@ async function readHeader(handle: FileHandle, id: string) {
     throw new Error('Invalid recovery draft size.')
   }
   const header = asRecord(JSON.parse(textDecoder.decode(await readExact(handle, headerBytes, prefixSize))))
-  const metadata = draftMetadata(header)
+  const metadata = draftMetadata(header, portable)
   if (header.version !== 1 || metadata.id !== id || textBytes > draftTextLimit(metadata.name)) throw new Error('Invalid recovery draft header.')
   return { metadata, textBytes, textOffset }
 }
@@ -146,14 +146,19 @@ export class RecoveryStore {
     })
   }
 
-  async read(value: unknown): Promise<string> {
+  async inspect(value: unknown, portable = false): Promise<RecoveryDraft> {
+    const id = validateId(value), handle = await this.open(id)
+    try { return (await readHeader(handle, id, portable)).metadata } finally { await handle.close() }
+  }
+
+  async read(value: unknown, portable = false): Promise<string> {
     const id = validateId(value)
     return this.serialize(async () => {
       if (!await this.hasDirectory()) throw new Error('Recovery draft is unavailable.')
       try {
         const handle = await this.open(id)
         try {
-          const { textBytes, textOffset } = await readHeader(handle, id)
+          const { textBytes, textOffset } = await readHeader(handle, id, portable)
           return textDecoder.decode(await readExact(handle, textBytes, textOffset))
         } finally {
           await handle.close()

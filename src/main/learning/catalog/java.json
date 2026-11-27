@@ -3,7 +3,7 @@
   "id": "java",
   "name": "Java",
   "summary": "Learn Java program structure, classes, collections, exceptions, streams, and file APIs.",
-  "version": 2,
+  "version": 3,
   "lessons": [
     {
       "id": "entry",
@@ -52,7 +52,7 @@
       "id": "flow",
       "title": "Control flow and arrays",
       "section": "Syntax",
-      "explanation": "Use if and else to choose branches. Use for-each to traverse every element or an index-based for loop when positions matter. Arrays have a fixed length and start at index zero.",
+      "explanation": "Use if and else to choose branches. Use for-each to traverse every element or an index-based for loop when positions matter. Arrays have a fixed length and start at index zero.\n\nFor practice, import java.util.Scanner and construct new Scanner(System.in). Each nextInt() reads the next whitespace-separated integer, including across lines. The first token is the positive count N; the next N tokens are the readings. The supplied starter reads only N, leaving the comparisons and remaining input to you. Do not print prompts.",
       "example": "public class Main {\n    public static void main(String[] args) {\n        int[] readings = {5, 8, 12};\n        int high = 0;\n        for (int reading : readings) {\n            if (reading >= 8) {\n                high++;\n            }\n        }\n        System.out.println(high);\n    }\n}",
       "api": [
         {
@@ -66,6 +66,10 @@
         {
           "name": "break / continue",
           "description": "Exit a loop or skip the remainder of its current iteration."
+        },
+        {
+          "name": "Scanner.nextInt()",
+          "description": "With java.util.Scanner and new Scanner(System.in), read the next whitespace-separated int. The exercise supplies a positive count followed by that many valid integers."
         }
       ],
       "practice": "Read a positive integer N and then N integers from stdin. Whitespace separates the values.",
@@ -107,7 +111,15 @@
         "entry",
         "classes",
         "collections"
-      ]
+      ],
+      "objective": "Read a count and that many integers, then use comparisons inside a loop to find the largest value, including all-negative input.",
+      "starter": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int count = input.nextInt();\n\n        // TODO: Read count integers and determine their largest value.\n        // TODO: Print that value on one line, without an input prompt.\n    }\n}\n",
+      "hints": [
+        "The first integer is the count, not one of the values to compare. The task guarantees that this count is positive.",
+        "Choose the first actual reading as your initial candidate rather than zero, so an all-negative set still works.",
+        "For each remaining reading, compare it with your candidate and keep the larger value. Print the candidate once after every reading has been considered."
+      ],
+      "followUp": "Optional challenge, not checked by these samples: report how many times the largest value occurs. Use a separate attempt because this adds output beyond the original largest-value contract."
     },
     {
       "id": "classes",

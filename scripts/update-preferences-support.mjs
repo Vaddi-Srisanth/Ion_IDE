@@ -84,19 +84,46 @@ export async function nativeShutdownSnapshot(session) {
 
 // Opt-in for this fixture only; normal desktop launches/benchmarks do not
 // attach a stderr listener or query the native process table.
-export function observeUpdateShutdown(session, save) {
+export function observeUpdateShutdown(session, save, nativeProbe = nativeShutdownSnapshot) {
   let tail = Buffer.alloc(0)
-  const stderr = session.appProcess?.stderr
+  const processHandle = session.appProcess, stderr = processHandle?.stderr
+  const began = performance.now(), exits = []
+  const stamp = () => performance.now() - began
+  const exited = (code, signal) => {
+    if (exits.length < 8) exits.push({ ms: stamp(), exitCode: code, signal })
+  }
+  processHandle?.on?.('exit', exited)
   const collect = bytes => { tail = appendShutdownTail(tail, bytes) }
   stderr?.on('data', collect)
   const previous = session.onShutdownFailure
-  const observed = async (diagnostic) => save({ ...diagnostic,
-    wrapper: { pid: session.appProcess?.pid, exitCode: session.appProcess?.exitCode, signalCode: session.appProcess?.signalCode },
-    electron: { pid: session.pid, creationTime: session.mainCreationTime },
-    stderrTail: tail.toString('utf8'), native: await nativeShutdownSnapshot(session) })
+  const liveness = () => {
+    try { return { ms: stamp(), state: 'available', ...knownShutdownLiveness(session) } }
+    catch (error) { return { ms: stamp(), state: 'error', error: {
+      name: error.name, code: error.code ?? null, message: String(error.message).slice(0, 1000),
+    } } }
+  }
+  const observed = async (diagnostic) => {
+    // Record native known-PID liveness before the potentially slow CIM query.
+    // A query timeout is not evidence that either owned process is alive/dead.
+    const before = liveness()
+    let native
+    try { native = await nativeProbe(session) }
+    catch (error) { native = { state: 'error', error: {
+      name: error.name, code: error.code ?? null, message: String(error.message).slice(0, 1000),
+    } } }
+    const after = liveness()
+    await save({ ...diagnostic,
+      wrapper: { pid: processHandle?.pid, exitCode: processHandle?.exitCode, signalCode: processHandle?.signalCode },
+      electron: { pid: session.pid, creationTime: session.mainCreationTime },
+      stderrTail: tail.toString('utf8'), native,
+      liveness: { clock: 'performance.now relative to observer installation, milliseconds', before, after },
+      wrapperExitEvents: exits.map(event => ({ ...event })),
+    })
+  }
   session.onShutdownFailure = observed
   return () => {
     stderr?.removeListener('data', collect)
+    processHandle?.removeListener?.('exit', exited)
     if (session.onShutdownFailure === observed) {
       if (previous === undefined) delete session.onShutdownFailure
       else session.onShutdownFailure = previous

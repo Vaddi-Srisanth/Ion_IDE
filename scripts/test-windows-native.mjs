@@ -177,11 +177,9 @@ await withScratch('windows-native', async (scratch) => {
     step = 'Learn and Projects workspace switching'
     await workspace(page, 'learn')
     const learn = page.getByTestId('learning-pane')
-    await learn.getByTestId('learning-open-marketplace').click()
-    const marketplace = page.getByTestId('marketplace-pane')
-    await marketplace.getByTestId('marketplace-search').fill('javascript')
-    await marketplace.locator('[data-testid="marketplace-install"][data-pack="javascript"]').click()
-    await marketplace.locator('[data-testid="marketplace-use"][data-pack="javascript"]').click()
+    await learn.getByTestId('learning-language').selectOption('javascript')
+    await (await page.waitForFunction(async () =>
+      (await window.ion.learningPacks.getLibrary(false)).selected === 'javascript')).dispose()
     await learn.getByRole('combobox', { name: 'Language' }).locator('option:checked').filter({ hasText: 'JavaScript' }).waitFor({ state: 'attached' })
     await learn.getByTestId('learning-topic').first().click()
     await learn.getByTestId('learning-pack-lesson').waitFor()

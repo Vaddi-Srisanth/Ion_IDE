@@ -1,5 +1,24 @@
 # Changelog
 
+## Accepted development through Phase 2.5 — 27 November 2026 (unreleased)
+
+- Promote the accepted development checkpoint `23dff68d29b07fd519d5b7b83857857bfe6ef20c`, whose application/build source is identical to native-tested `036781e7fe99be4480e5f0803fb6b22124be72a8`.
+- Include Phase 1 backup/restore and safety, editor groups, multi-root workspaces, shared LSP services, Editor Essentials, C/C++ DAP and the accepted Build/Tasks adapter foundation. Exact scope, native runs, preserved failures and remaining debt are in the [checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md).
+- Corrected eager task-backend bundling after a real macOS warm-start regression. The eager bundle fell from 303,441 to 291,846 bytes; matched resource checks and final functional/full-suite jobs passed on macOS ARM64 and Windows x64. Measured memory increases and sample limits remain disclosed.
+- Pause unfinished Phase 2.6 Test Explorer on `codex/ion-core-excellence-phase-2-tests`; exclude its implementation from this main checkpoint. Phase 2 overall remains incomplete.
+- This is source and documentation delivery only. No public release, installer, update-feed change or installed-app replacement.
+
+## Earlier next-generation development checkpoint (included in accepted source)
+
+- Code-first Welcome/workbench, theme-compatible design tokens and guarded navigation.
+- Direct offline language lessons; imported content managed in Preferences, preserving saved progress and attempts.
+- Three introductory practical Python/Java/C lessons with editable scaffolds, graduated hints, honest local activity/manual/sample evidence and saved-sample execution beside Learn.
+- Explicit offline Project Lens foundation with bounded metadata/manifest inspection, evidence links, cancellation and validated source navigation. No source/docs scanning, project execution or AI upload during analysis.
+- Retained failed native fixtures, corrected test input/cleanup boundaries and benchmark process ownership; performance comparisons include remaining regressions.
+- Added lazy, explicitly reviewed Tutor/Lens explanation actions using the existing encrypted provider settings, exact bounded context review, one-use revision-bound send/citation capabilities and cancellation/shutdown draining. No live-provider or model-quality claim.
+- Added editable, unselected-by-default roadmap proposals through existing revision-aware Projects saves; manual/test evidence and approvals remain distinct and preserved. No automatic code edits or test execution.
+- Native E/F13checks/platform and20repeated-use cycles pass on Mac/Windows with measured20/60s recovery and process cleanup. All13selected exact-candidate native jobs pass, with2optional diagnostic lanes unselected. Matched measurements retain an observed Mac renderer footprint increase; no blanket optimization claim. No published version, installer/update feed, main merge or installed-app change.
+
 ## 0.9.8 stabilization candidate — 15 November 2026
 
 - Collects completed metadata-only notebook interpreter discovery and approval checks, durable recovery checkpoints, macOS file-metadata preservation, and pre-save content-hash conflict checks.

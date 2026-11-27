@@ -1,3 +1,4 @@
+import type { BackupBridge } from './backup'
 import type { CompilerProblem, LearningBridge, LearningFeedback } from './learning'
 import type { LearningPacksBridge } from './learning-packs'
 import type { PracticeBridge } from './practice'
@@ -12,8 +13,11 @@ import type { UpdatesBridge } from './updates'
 import type { MenuCommand, ShortcutOverrides } from './shortcuts'
 import type { WorkspaceSearchResult } from './workspace-search'
 import type { EditorSessionBridge } from './editor-session'
+import type { OpenedWorkspaceConfiguration } from './workspace-configuration'
 import type { LanguageToolsBridge } from './language-tools'
+import type { DebugBridge } from './debug'
 import type { SourceControlBridge } from './source-control'
+import type { TasksBridge } from './tasks'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
 
@@ -156,8 +160,10 @@ export interface RunResult {
 }
 
 export interface IonBridge {
+  backup: BackupBridge
   readonly firstLaunch: boolean
   languageTools: LanguageToolsBridge
+  debug: DebugBridge
   formatting: FormatBridge
   editorSession: EditorSessionBridge
   recovery: {
@@ -167,6 +173,7 @@ export interface IonBridge {
     remove(ids: string[]): Promise<void>
   }
   runConsole: RunConsoleBridge
+  tasks: TasksBridge
   terminal: TerminalBridge
   notebooks: NotebookKernelBridge
   viewers: ViewerBridge
@@ -185,6 +192,8 @@ export interface IonBridge {
   learningPacks: LearningPacksBridge
   practice: PracticeBridge
   projects: ProjectsBridge
+  projectLens: import('./project-lens').ProjectLensBridge
+  explanations: import('./explanations').ExplanationBridge
   sourceControl: {
     status(root: string): ReturnType<SourceControlBridge['status']>
     trust(root: string): Promise<boolean>
@@ -201,6 +210,11 @@ export interface IonBridge {
   updates: UpdatesBridge
   exportLocalProfile(): Promise<string | null>
   openFolder(): Promise<Entry | null>
+  addFolder(): Promise<Entry | null>
+  removeFolder(path: string): Promise<boolean>
+  reorderFolder(path: string, offset: -1 | 1): Promise<boolean>
+  saveWorkspace(roots: string[], settings: Settings): Promise<boolean>
+  openWorkspace(): Promise<OpenedWorkspaceConfiguration | null>
   openFile(): Promise<Entry | null>
   saveFileAs(name: string, text: string, mode?: 'notebook'): Promise<(Entry & FileRevision) | null>
   openRecent(path: string): Promise<Entry>
@@ -211,6 +225,8 @@ export interface IonBridge {
   workspaceSearch: {
     search(id: string, query: string): Promise<WorkspaceSearchResult>
     cancel(id: string): Promise<void>
+    review(query: string, replacement: string): Promise<import('./workspace-search').WorkspaceReplacePreview>
+    apply(token: string, paths: string[]): Promise<import('./workspace-search').WorkspaceReplaceResult>
   }
   listDirectory(path: string): Promise<Entry[]>
   readFile(path: string, mode?: 'notebook'): Promise<FileContents>
@@ -219,6 +235,8 @@ export interface IonBridge {
   createEntry(parent: string, name: string, kind: EntryKind, initialText?: string): Promise<Entry>
   renameEntry(path: string, name: string): Promise<Entry>
   trashEntry(path: string): Promise<boolean>
+  copyPath(path: string): Promise<void>
+  revealInFolder(path: string): Promise<void>
   stopRun(): Promise<void>
   onCommand(callback: (command: MenuCommand) => void): () => void
   onOpenEntry(callback: (entry: Entry) => void): () => void

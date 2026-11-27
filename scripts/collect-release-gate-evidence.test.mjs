@@ -79,6 +79,41 @@ test('missing performance folder still writes a failed collection index, not fak
   assert.ok(result.gaps.includes('performance-folder-missing-or-redirected'))
   assert.equal(result.receipts.length, 0)
 })
+
+test('only the exact approved nested Git LFS receipt is sanitized, including preflight failures', async t => {
+  const f = await fixture(t)
+  await mkdir(join(f.input, 'stabilization'))
+  await writeFile(join(f.input, 'stabilization/git-lfs.json'), JSON.stringify({ complete: false,
+    preflight: { state: 'failed', elapsedMs: 5001, killed: true, signal: 'SIGTERM', message: secret } }))
+  await writeFile(join(f.input, 'stabilization/private.json'), secret)
+  await mkdir(join(f.input, 'stabilization/profile'))
+  await writeFile(join(f.input, 'stabilization/profile/private.json'), secret)
+  const result = await run(f)
+  assert.equal(result.containsReportedFailures, true)
+  assert.deepEqual((await readdir(f.out)).sort(), ['index.json', 'performance-stabilization-git-lfs.json'])
+  const receipt = JSON.parse(await readFile(join(f.out, 'performance-stabilization-git-lfs.json'), 'utf8'))
+  assert.equal(receipt.reportedFailure, true)
+  assert.ok(!(await allText(f.out)).includes(secret))
+})
+
+test('the approved nested Git LFS receipt rejects invalid JSON and redirected directories', async t => {
+  const malformed = await fixture(t)
+  await mkdir(join(malformed.input, 'stabilization'))
+  await writeFile(join(malformed.input, 'stabilization/git-lfs.json'), '{invalid ' + secret)
+  const result = await run(malformed)
+  assert.equal(result.collectionStatus, 'incomplete')
+  assert.ok(result.gaps.includes('receipt-invalid-redirected-or-over-budget'))
+  assert.deepEqual(await readdir(malformed.out), ['index.json'])
+  const redirected = await fixture(t)
+  const outside = join(redirected.root, 'outside')
+  await mkdir(outside)
+  await writeFile(join(outside, 'git-lfs.json'), JSON.stringify({ message: secret }))
+  try { await symlink(outside, join(redirected.input, 'stabilization'), process.platform === 'win32' ? 'junction' : 'dir') }
+  catch (error) { if (process.platform === 'win32' && error.code === 'EPERM') return; throw error }
+  const rejected = await run(redirected)
+  assert.ok(rejected.gaps.includes('approved-stabilization-folder-invalid-or-redirected'))
+  assert.deepEqual(await readdir(redirected.out), ['index.json'])
+})
 test('depth and entry limits are visible; no unbounded traversal', async t => {
   let deep = { status: 'failed' }
   for (let i = 0; i < 30; i++) deep = { summary: deep }
@@ -120,4 +155,31 @@ test('matched build identities and named terminal metrics survive without export
   assert.equal(result.value.members[0].workingSet, 456)
   assert.equal(result.value.terminalWorkload, true)
   assert.equal(result.value.candidate.redacted, true)
+})
+
+
+test('startup phase numbers and fixed labels survive while arbitrary renderer resource names stay private', () => {
+  const raw = { startupPhases: { phases: [{ name: 'electron-launch-resolved', ms: 22 }],
+    fileOpens: [{ phases: [{ name: 'text-observed', ms: 31 }], durationMs: 31 }],
+    renderer: { resources: [{ route: secret, startTime: 10, responseEnd: 15 }] } } }
+  const result = sanitizeReleaseJson(raw)
+  assert.equal(result.value.startupPhases.phases[0].name, 'electron-launch-resolved')
+  assert.equal(result.value.startupPhases.fileOpens[0].phases[0].name, 'text-observed')
+  assert.equal(result.value.startupPhases.renderer.resources[0].responseEnd, 15)
+  assert.ok(!JSON.stringify(result).includes(secret))
+})
+
+test('bounded explanation resource checkpoints survive without publishing source or provider data', () => {
+  const result = sanitizeReleaseJson({ resources: { complete: false, cycles: 5, maximumDurationMs: 300000,
+    samples: [{ label: 'cycles-5-dialog-closed', ui: { editorCount: 1, modelCount: 1 },
+      first: { rssMiB: 312, footprintMiB: 180 }, intervalMs: 1400, cpuPercent: 0.2 }],
+    postShutdownMembers: [], processCleanupVerified: true }, question: secret, content: secret,
+    label: secret })
+  assert.equal(result.reportedFailure, true)
+  assert.equal(result.value.resources.samples[0].label, 'cycles-5-dialog-closed')
+  assert.equal(result.value.resources.samples[0].ui.modelCount, 1)
+  assert.equal(result.value.resources.samples[0].first.footprintMiB, 180)
+  assert.equal(result.value.resources.cycles, 5)
+  assert.deepEqual(result.value.resources.postShutdownMembers, [])
+  assert.ok(!JSON.stringify(result).includes(secret))
 })

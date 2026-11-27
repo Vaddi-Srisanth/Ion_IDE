@@ -6,6 +6,22 @@
   min-height: 0;
   background: var(--panel);
 }
+.learning-pane .pane-title { min-height: 35px; }
+.learning-pane .pane-title h2 { letter-spacing: .08em; }
+.learning-pane .learning-practice { margin-inline-start: auto; min-height: 24px; font-size: 10px; padding-inline: 6px; }
+.learning-pane .learning-evidence-note { margin-top: 16px; color: var(--muted); font-size: 11px; }
+.learning-pane .learning-language-row { padding: 12px; background: var(--surface); }
+.learning-pane .learning-language > span { color: var(--muted); letter-spacing: .08em; }
+.learning-pane .learning-scroll { padding: 16px; }
+.learning-pane .learning-nav { gap: 4px; padding-inline: 10px; }
+.learning-pane .learning-nav-item { min-height: 37px; }
+.learning-pane .learning-topic-section + .learning-topic-section { margin-top: 20px; }
+.learning-pane .learning-topic-list { gap: 0; }
+.learning-pane .learning-topic-list .button { border: 0; border-bottom: 1px solid var(--subtle-border); border-radius: 0; background: transparent; min-height: 37px; padding: 8px 2px; font-size: 12px; }
+.learning-pane .learning-topic-list .button:hover { background: var(--surface); color: var(--accent); }
+.learning-pane .learning-pack-lesson > h3 { font-size: 17px; line-height: 1.35; letter-spacing: -.02em; margin: 7px 0 13px; }
+.learning-pane .learning-pack-lesson > p { font-size: 12px; line-height: 1.65; }
+.learning-pane .learning-pack-lesson h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin-top: 20px; }
 .learning-pane .pane-title h2 { display: flex; align-items: center; gap: 7px; }
 .learning-pane .pane-title h2 svg { color: var(--accent); }
 .learning-nav { display: flex; padding: 0 5px; border-bottom: 1px solid var(--border); }
@@ -172,7 +188,7 @@ button.lens-location:hover { border-color: var(--accent); }
   letter-spacing: .06em;
   text-transform: uppercase;
 }
-.learning-language select, .marketplace-search {
+.learning-language select {
   width: 100%;
   min-height: 29px;
   color: var(--ink);
@@ -215,37 +231,19 @@ button.lens-location:hover { border-color: var(--accent); }
 .learning-pitfall { border-inline-start: 2px solid var(--amber); }
 .learning-exercise { border-inline-start: 2px solid var(--accent); }
 .learning-pack-lesson :is(.learning-pitfall, .learning-exercise) h4 { margin: 0 0 4px; color: var(--ink); }
+.learning-exercise > :is(section, details, button) { margin-top: 12px; }
+.learning-exercise > h4:not(:first-child) { margin-top: 15px; }
+.learning-hints ol { padding-left: 20px; margin: 8px 0; }
+.learning-hints li + li { margin-top: 8px; }
+.learning-saved-evidence, .learning-follow-up { border-top: 1px solid var(--border); padding-top: 12px; }
+.learning-pane .practice-section { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.learning-pane .practice-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.learning-pane .practice-section-heading > span, .learning-pane .practice-muted { color: var(--muted); font-size: 11px; }
+.learning-pane .practice-sample { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px; }
+.learning-pane .practice-sample summary b { margin-left: 7px; font-size: 10px; color: var(--muted); }
+.learning-pane .practice-sample[data-status="passed"] summary b { color: var(--mint); }
+.learning-pane .practice-sample[data-status="failed"] summary b { color: var(--danger); }
+.learning-pane .practice-sample[data-status="unavailable"] summary b { color: var(--amber); }
+.learning-pane .practice-sample p { margin-top: 6px; }
 
-.marketplace-controls { display: grid; justify-items: start; gap: 6px; padding: 9px 8px; border-bottom: 1px solid var(--border); }
-.marketplace-search { display: flex; align-items: center; gap: 5px; padding-inline: 7px; }
-.marketplace-search > svg { color: var(--muted); }
-.marketplace-search:focus-within { border-color: var(--accent); }
-.marketplace-search input { min-width: 0; width: 100%; padding: 4px 0; color: var(--ink); background: transparent; border: 0; }
-.marketplace-search input:focus-visible { outline: none; }
-.marketplace-search input::placeholder { color: var(--muted); }
-.marketplace-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
-.marketplace-section + .marketplace-section { margin-top: 13px; }
-.marketplace-section > h3 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--muted);
-  font: 650 10px var(--mono);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  margin: 0 0 5px;
-}
-.marketplace-section > h3 span { color: var(--dim); font-weight: 400; }
-.marketplace-section ul { display: grid; gap: 5px; list-style: none; padding: 0; margin: 0; }
-.marketplace-pack { min-width: 0; padding: 7px 8px; border: 1px solid var(--subtle-border); background: var(--surface); border-radius: 5px; overflow-wrap: anywhere; }
-.marketplace-pack-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; justify-content: space-between; }
-.marketplace-pack-title h4 { color: var(--ink); font-size: 12px; font-weight: 650; margin: 0; }
-.marketplace-current { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-size: 10px; }
-.marketplace-pack-summary { font-size: 11px; line-height: 1.4; color: var(--text); margin-top: 3px; }
-.marketplace-pack-size { color: var(--muted); font-size: 10px; margin-top: 4px; }
-.marketplace-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; }
-.marketplace-button { min-height: 25px; padding: 0 6px; font-size: 11px; gap: 4px; }
-.marketplace-remove { width: 24px; height: 24px; }
-.marketplace-remove:hover:not(:disabled) { color: var(--danger); }
-.marketplace-notice { color: var(--mint); font-size: 11px; line-height: 1.4; margin: 0 0 8px; }
-.marketplace-footer { color: var(--muted); font-size: 10px; padding: 7px 8px; border-top: 1px solid var(--subtle-border); }
+.learning-ai-actions { display:flex; flex-wrap:wrap; gap:6px; padding:7px 10px; border-bottom:1px solid var(--border); }

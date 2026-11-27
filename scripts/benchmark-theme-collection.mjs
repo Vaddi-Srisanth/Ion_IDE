@@ -89,10 +89,9 @@ await withScratch('theme-collection', async (scratch) => {
       if (values.context === 'lens') {
         await page.getByTestId('workspace-learn').click()
         await page.getByTestId('learning-pane').waitFor()
-        await page.getByTestId('toggle-marketplace').click()
-        await page.locator('[data-testid="marketplace-install"][data-pack="c"]').click()
-        await page.locator('[data-testid="marketplace-use"][data-pack="c"]').click()
-        await page.getByTestId('marketplace-pane').waitFor({ state: 'detached' })
+        // New direct-Learn setup, before measured theme switching; not the historical Marketplace workload.
+        await page.getByTestId('learning-language').selectOption('c')
+        await page.getByTestId('learning-topic').first().waitFor()
         await page.getByTestId('open-folder').first().click()
       } else await openFolder(page, project)
       await openFromExplorer(page, project.files[0], 'Ion fixture')

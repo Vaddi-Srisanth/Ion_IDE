@@ -97,6 +97,20 @@ test('an old rendered result cannot finish the new run before correlated IPC com
   assert.equal((await f.context.window.ionBenchmarkRunCompletion).status, 'compile-error')
 })
 
+test('an old runtime-error cannot satisfy the next Python run before its own completion', async () => {
+  const f = fixture()
+  f.change('finished', 'runtime-error', 'old NameError')
+  f.ipc('run-1', { kind: 'phase', phase: 'preparing' })
+  f.change('finished', 'runtime-error', 'old NameError')
+  assert.equal(f.disconnected, false)
+  f.ipc('previous-run', { kind: 'complete' })
+  f.change('finished', 'runtime-error', 'old NameError')
+  assert.equal(f.disconnected, false)
+  f.complete('runtime-error', 'new Python diagnostic')
+  assert.equal((await f.context.window.ionBenchmarkRunCompletion).status, 'runtime-error')
+  assert.equal(f.unsubscribed, true)
+})
+
 test('finished status waits for real terminal paint after correlated output, ignoring style text', async () => {
   const f = fixture()
   f.ipc('run-1', { kind: 'phase', phase: 'preparing' })

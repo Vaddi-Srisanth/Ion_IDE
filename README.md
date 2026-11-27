@@ -1,12 +1,24 @@
 # Ion IDE
 
+> **Accepted development through Phase 2.5:** `main` contains the verified editor/workspace, backup/restore, language-services, C/C++ debugger and Build/Tasks checkpoint. Phase 2.6 Test Explorer is paused on a separate development branch and is excluded from `main`. Phase 2 overall remains incomplete. The latest public installer is still **v0.9.6**; source version `0.9.8` does not mean a new public update. [Engineering checkpoint and report index](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
+
 **An offline-first desktop IDE for learning by coding.**
 
 *Write code. Understand errors. Learn offline.*
 
-Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes, and progress stay local. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
+Ion is a personal project by Vaddi Srisanth for students and developers who want to run their own code and understand what went wrong. Free Coding is a regular editor. Learn, Projects, and Practice open beside it when you need them. Your source files, lessons, notes and progress are stored locally. Optional AI sends only the context you explicitly review and approve. The Electron workbench loads the editor and optional tools on demand. You can use the IDE without an account or API key. [Architecture](ARCHITECTURE.md)
 
-The 0.9.8 source candidate collects the completed notebook-trust, recovery, file-integrity, terminal, Windows process/updater and diagnostic-verification fixes. It retains **Install and Restart** and optional remembered Run-folder approvals from 0.9.7. The rare historical Windows GCC delay remains unexplained; later successful tests do not prove it fixed. [Candidate notes](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Verified scope and limits](diagnostics/windows-gcc/RELEASE_VERIFICATION.md) · [Measured performance](diagnostics/windows-gcc/FINAL_PERFORMANCE.md)
+The older 0.9.8 stabilization candidate collects notebook-trust, recovery, file-integrity, terminal, Windows process/updater and diagnostic-verification fixes. Current `main` includes newer accepted development; it is intentionally separate from that release checkpoint. The rare historical Windows GCC delay remains unexplained; later successful tests do not prove it fixed. [Candidate notes](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Historical verification](diagnostics/windows-gcc/RELEASE_VERIFICATION.md)
+
+### Current accepted source capabilities
+
+- Validated local backup archives, reviewed restore, detached drafts and durable rollback/restart recovery.
+- Persistent editor groups with shared Monaco models and undo history, multi-root workspaces, safe search/replace, navigation and context-menu/keyboard essentials.
+- On-demand Java, clangd, Pyright and TypeScript intelligence, with reviewed rename/workspace edits and scoped filesystem authority.
+- An opt-in C/C++ debugger with breakpoints, stepping, call stacks, variables, watches and owned-process cleanup. Python/Java debugging is not claimed by this acceptance.
+- A lazy **Run Task** picker with reviewed adapter plans and sequential task execution. Native npm discovery/run/Stop is verified; saved workspace task definitions, problem matching and remaining adapter-native journeys remain technical debt.
+
+These extend the existing offline editor, Run Console, terminal, learning, practice, Git, notebooks and document features. Optional tools do not start until requested. See [exact native tests and limitations](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md); earlier performance numbers are not reused as measurements of this checkpoint.
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -18,7 +30,7 @@ Get publicly published installers and SHA-256 checksums from the [latest GitHub 
 
 The Windows x64 0.9.8 setup candidate was packaged from source commit `a108a01` on 25 November 2026. Its filename is `Ion-IDE-0.9.8-windows-x64-setup.exe`, its size is 119,928,329 bytes, and its SHA-256 is `b06789e7ffa3ef840bdc28eb3293deb1ce9659d1f77178b6a87ea34b860a3aa6`. It remains unsigned and is not part of the public update feed until it is attached to an authorized GitHub release. [Windows candidate build record](docs/releases/0.9.8-windows-x64.md)
 
-**Updating from 0.9.6 or earlier:** those versions only download an installer. Install 0.9.7 once into the same Applications location as your existing Mac copy, or run Windows Setup. In-place updates are available from 0.9.7 onward. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
+**Updating from 0.9.6 or earlier:** those versions only download an installer. When a 0.9.7-or-later installer is publicly published, install it once into the same Applications location as your existing Mac copy, or run Windows Setup. Later versions support in-place updates. Keep one installed copy; moving a new app to `/Applications` does not replace an older app in `~/Applications`. [Details and recovery](docs/UPDATES.md)
 
 | Platform | Installer | Install |
 | --- | --- | --- |
@@ -27,7 +39,7 @@ The Windows x64 0.9.8 setup candidate was packaged from source commit `a108a01` 
 
 The macOS disk image is ad-hoc signed and unnotarized. Gatekeeper may block it on first open. Windows setup is unsigned and can trigger SmartScreen or organizational policy. Compare the installer’s SHA-256 with `SHA256SUMS` from the same release before opening it. Windows x64 automation runs on Windows Server 2025. Manual Windows 10/11 coverage remains open. [Apple Gatekeeper guidance](https://support.apple.com/en-us/102445) · [Windows readiness](WINDOWS_RELEASE_READINESS.md)
 
-Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional online planner and update checks use the network.
+Editing, previews, bundled lessons, local plans, and practice work offline. Install the language toolchain you want to run separately. The optional planner, reviewed Tutor/Lens explanations and update checks use the network.
 
 | To run | Install separately |
 | --- | --- |
@@ -77,7 +89,7 @@ npm start
 4. Click **Run** or press **F5**. Review the local execution prompt.
 5. In **Run Console**, type your name and press **Enter**. Look for the greeting and the exit status.
 6. Remove the semicolon after `fflush(stdout)`, save, and run again. Read the compiler message in Run Console.
-7. Install the C pack from **Marketplace** and select it in **Learn**. Rerun the broken file. Choose **Explain** in **Problems** for a recognized compiler error. Restore the semicolon and run again.
+7. Open **Learn** and choose **C** directly. Rerun the broken file. Choose **Explain** in **Problems** for a recognized compiler error. Restore the semicolon and run again. No Marketplace or installation step is required.
 
 [Run Console guide](docs/USAGE.md#write-and-run-code) · [Keyboard shortcuts](docs/USAGE.md#keyboard-navigation)
 
@@ -89,11 +101,11 @@ For supported C compiler errors, Ion connects the source location, the original 
 
 ### Run, learn, and verify
 
-| Capability | Coverage in 0.9.7 |
+| Capability | Coverage on this source branch |
 | --- | --- |
 | **One-click Run** | C, C++, Java, Python, and JavaScript via Node.js. Run Console handles live output and stdin, compiler messages, Stop, Rerun, and exit status. |
 | **Smart Java** | Local Java snippets and optional JDK-backed semantic completion, live diagnostics, signatures, and navigation. [Java editing guide](docs/USAGE.md#java-suggestions-and-diagnostics) |
-| **Bundled learning packs** | 162 lessons across 19 packs. Core syntax, common APIs, examples, exercises, and selected mini-projects. Install or import packs offline. |
+| **Offline learning** | 162 reference/introductory lessons across 19 collections, not 19 complete courses. Choose built-in languages directly in Learn; only selected content is materialized. Import/export/manage content in Preferences. Existing lessons and Practice records are preserved. |
 | **Diagnostic explanations** | C with GCC or Clang has the Learning Lens workflow. Reviewed subsets for C++, Java, Python, and JavaScript also link to relevant installed lessons. |
 | **Run Tests** | Save C behavior tests in Projects, approve their local compiler and program commands, then run a selected case or the approved suite from the toolbar. See expected and actual output, exit codes, timing, compiler locations, and saved evidence. [Run Tests guide](docs/USAGE.md#saved-run-tests) |
 | **Practice** | Pick a topic, language, and difficulty for 27 built-in challenges with sample tests. Save notes, results, and multiple attempts. Run samples in the five languages listed above. |
@@ -111,6 +123,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
 - **Make it yours.** Sixteen built-in palettes include two high-contrast options. Open **Preferences → Appearance → Browse Themes** or **Color Theme** in the command palette. Search, preview, favorite, and apply themes offline. Cancel restores the current selection. Automatic appearance, local JSON import/export, and Minimal and Full Mode remain available.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
+- **Ask for an explanation.** In this unreleased branch, Tutor and Project Lens offer optional provider-based explanations. Choose context, inspect exact excerpts/provider/model/size, then explicitly send. No background AI, automatic code edits or test execution. Suggestions can be edited and selected into the existing roadmap as Not Started milestones. [Scope and verification](ION_AI_PROVIDER_INTEGRATION.md)
 - **Update when you choose.** Opt-in GitHub checks, streamed checksum-verified downloads, a single local installer cache, and **Install and Restart** at the existing app location. Unsaved-change protection and local profiles remain intact. Operating-system security approval can still be required.
 - **Remember Run approval optionally.** In a single-file Run confirmation, choose **Trust this folder for future single-file Runs** to avoid repeated prompts in your own workspace. Revoke it in Preferences → Run Console. Project builds, tests, notebooks and Git retain separate approval.
 
@@ -123,15 +136,15 @@ Screenshots use disposable sample workspaces. The core-workflow images were capt
 ![Learning Lens links an actual C compiler diagnostic to the highlighted line and the relevant offline concept](docs/screenshots/learning-lens.webp)
 
 <details>
-<summary>Run Console, Marketplace, Projects, Markdown, and Practice</summary>
+<summary>Run Console, Learning Content, Projects, Markdown, and Practice</summary>
 
 **Run Console** with input and output from a locally compiled C program.
 
 ![Run Console showing three entered readings and the calculated average](docs/screenshots/run-console.webp)
 
-**Marketplace** with an installed Python learning pack.
+**Learning Content** in Preferences (real compiled renderer with a deterministic test transport; not a native screenshot).
 
-![Offline Learning Marketplace showing the Python pack, lesson count, and topic filters](docs/screenshots/marketplace.webp)
+![Learning Content settings with reviewed import and saved-content actions](docs/screenshots/next-generation/milestone-b-content-dark.png)
 
 **Projects** with a locally verified C test.
 

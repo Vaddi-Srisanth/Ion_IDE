@@ -59,6 +59,7 @@ function publisher(emit: (update: RunUpdate) => void, trace?: RunTrace) {
 
 interface ActiveRun {
   terminal?: PtySession
+  trace?: RunTrace
 }
 
 export class InteractiveRunner {
@@ -74,7 +75,7 @@ export class InteractiveRunner {
     trace?: RunTrace,
   ): Promise<RunResult> {
     if (this.active) return Promise.resolve(rejectedRun('A program is already compiling or running.'))
-    const active: ActiveRun = {}
+    const active: ActiveRun = { trace }
     this.active = active
     trace?.('engine', 'start')
     return this.executePlan(plan, active, signal, emit, sourceStillCurrent, trace).finally(() => {
@@ -83,8 +84,16 @@ export class InteractiveRunner {
     })
   }
 
-  input(data: string): void {
-    this.active?.terminal?.input(data)
+  input(data: string): boolean {
+    const active = this.active
+    active?.trace?.('stdin', 'engine-requested-bytes', Buffer.byteLength(data))
+    if (!active?.terminal) {
+      active?.trace?.('stdin', 'engine-rejected-no-terminal')
+      return false
+    }
+    const accepted = active.terminal.input(data)
+    active.trace?.('stdin', accepted ? 'engine-forwarded' : 'engine-rejected-not-ready')
+    return accepted
   }
 
   resize(columns: number, rows: number): void {

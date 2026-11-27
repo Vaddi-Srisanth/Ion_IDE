@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  inputShortcut, normalizeShortcut, parseShortcutOverrides, resolveShortcuts, shortcutIssue,
+  commandLabel, displayShortcut, inputShortcut, menuAccelerator, normalizeShortcut, parseShortcutOverrides, resolveShortcuts,
+  shortcutIssue,
 } from '../src/shared/shortcuts'
 
 test('workbench shortcuts preserve defaults and allow validated portable overrides', () => {
@@ -12,6 +13,23 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+F'), 'workspace-search')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+J'), 'toggle-terminal')
   assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Alt+J'), 'focus-terminal')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Alt+ARROWUP'), 'add-cursor-above')
+  assert.equal(resolveShortcuts({}, 'win32').get('Mod+Alt+ARROWDOWN'), 'add-cursor-below')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+D'), 'select-next-occurrence')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+L'), 'select-all-occurrences')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+BACKSLASH'), 'toggle-editor-split')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Ctrl+TAB'), 'cycle-next-tab')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Ctrl+Shift+TAB'), 'cycle-previous-tab')
+  assert.equal(resolveShortcuts({}, 'win32').get('Mod+TAB'), 'cycle-next-tab')
+  assert.equal(resolveShortcuts({}, 'win32').get('Mod+Shift+TAB'), 'cycle-previous-tab')
+  assert.equal(resolveShortcuts({}, 'linux').get('Mod+TAB'), 'cycle-next-tab')
+  assert.equal(commandLabel('save-all'), 'Save All')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+T'), 'reopen-closed-tab')
+  assert.equal(resolveShortcuts({}, 'darwin').get('Mod+Shift+E'), 'focus-explorer')
+  assert.equal(commandLabel('close-other-tabs'), 'Close Other Tabs')
+  assert.equal(commandLabel('close-tabs-to-right'), 'Close Tabs to the Right')
+  assert.equal(commandLabel('close-saved-tabs'), 'Close Saved Tabs')
+  assert.equal(commandLabel('close-all-tabs'), 'Close All Tabs')
   for (const platform of ['darwin', 'win32', 'linux'] as const) {
     assert.equal(resolveShortcuts({}, platform).get('Alt+Shift+F'), 'format-document')
     assert.deepEqual(parseShortcutOverrides({ 'format-document': 'Mod+Shift+G' }, platform), { 'format-document': 'Mod+Shift+G' })
@@ -24,6 +42,17 @@ test('workbench shortcuts preserve defaults and allow validated portable overrid
   assert.deepEqual(parseShortcutOverrides({ 'command-palette': ' shift + cmd + e ' }, 'darwin'),
     { 'command-palette': 'Mod+Shift+E' })
   assert.deepEqual(parseShortcutOverrides({ run: 'ctrl+enter' }, 'linux'), { run: 'Mod+Enter' })
+  assert.deepEqual(parseShortcutOverrides({ 'add-cursor-above': 'cmd+option+arrowup' }, 'darwin'),
+    { 'add-cursor-above': 'Mod+Alt+ARROWUP' })
+  assert.equal(displayShortcut('add-cursor-above', {}, 'darwin'), '⌘⌥↑')
+  assert.equal(displayShortcut('add-cursor-above', {}, 'win32'), 'Ctrl+Alt+↑')
+  assert.equal(menuAccelerator('Mod+Alt+ARROWUP'), 'CmdOrCtrl+Alt+Up')
+  assert.equal(menuAccelerator('Mod+Shift+TAB'), 'CmdOrCtrl+Shift+Tab')
+  assert.equal(normalizeShortcut('cmd+\\', 'darwin'), 'Mod+BACKSLASH')
+  assert.equal(normalizeShortcut('ctrl+tab', 'darwin'), 'Ctrl+TAB')
+  assert.equal(normalizeShortcut('ctrl+shift+tab', 'win32'), 'Mod+Shift+TAB')
+  assert.equal(displayShortcut('cycle-next-tab', {}, 'darwin'), '⌃Tab')
+  assert.equal(displayShortcut('cycle-previous-tab', {}, 'win32'), 'Ctrl+Shift+Tab')
 })
 
 test('shortcut validation protects native roles, normal typing, and conflicting bindings', () => {
@@ -33,6 +62,8 @@ test('shortcut validation protects native roles, normal typing, and conflicting 
   assert.equal(normalizeShortcut('Mod+Command+P', 'darwin'), null)
   assert.equal(parseShortcutOverrides({ unknown: 'F6' }, 'darwin'), null)
   assert.equal(parseShortcutOverrides({ run: 'Mod+Q' }, 'darwin'), null)
+  assert.equal(parseShortcutOverrides({ 'cycle-next-tab': 'Cmd+Tab' }, 'darwin'), null)
+  assert.deepEqual(parseShortcutOverrides({ 'cycle-next-tab': 'Ctrl+Tab' }, 'darwin'), { 'cycle-next-tab': 'Ctrl+TAB' })
   assert.equal(parseShortcutOverrides({ 'close-tab': 'Mod+C' }, 'darwin'), null)
   assert.equal(parseShortcutOverrides({ 'close-tab': 'Mod+Enter' }, 'darwin'), null)
   assert.match(shortcutIssue({ stop: 'F5' }, 'darwin') ?? '', /Run Active File/)
@@ -47,5 +78,9 @@ test('physical keys recover shifted punctuation and option-modified shortcuts', 
   assert.equal(inputShortcut({ ...input, key: 'ƒ', code: 'KeyF', meta: true, alt: true }, 'darwin'), 'Mod+Alt+F')
   assert.equal(inputShortcut({ ...input, key: 'Ï', code: 'KeyF', shift: true, alt: true }, 'darwin'), 'Alt+Shift+F')
   assert.equal(inputShortcut({ ...input, key: 'g', code: 'KeyG', control: true }, 'darwin'), 'Ctrl+G')
+  assert.equal(inputShortcut({ ...input, key: 'Tab', code: 'Tab', control: true }, 'darwin'), 'Ctrl+TAB')
+  assert.equal(inputShortcut({ ...input, key: 'Tab', code: 'Tab', control: true, shift: true }, 'win32'), 'Mod+Shift+TAB')
   assert.equal(inputShortcut({ ...input, control: true }, 'linux'), 'Mod+P')
+  assert.equal(inputShortcut({ ...input, key: 'ArrowUp', code: 'ArrowUp', meta: true, alt: true }, 'darwin'), 'Mod+Alt+ARROWUP')
+  assert.equal(inputShortcut({ ...input, key: '\\', code: 'Backslash', meta: true }, 'darwin'), 'Mod+BACKSLASH')
 })

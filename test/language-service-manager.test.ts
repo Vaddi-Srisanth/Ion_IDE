@@ -1,0 +1,150 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import type { ToolSnapshot } from '../src/shared/language-tools'
+import { LanguageServiceManager, type LanguageServiceDescriptor, type ManagedLanguageService } from '../src/main/language-tools/manager'
+
+const snapshot = (version = 1): ToolSnapshot => ({
+  language: 'c', path: '/work/a.c', version, text: 'int main() {}', operation: 'definition', offset: 4,
+})
+const descriptor = (root = '/work'): LanguageServiceDescriptor => ({ adapter: 'fake', language: 'c', root, path: root + '/a.c' })
+
+test('language manager is inert until the first request and isolates workspace roots', async () => {
+  let starts = 0
+  let stops = 0
+  const manager = new LanguageServiceManager(async (): Promise<ManagedLanguageService> => {
+    starts++
+    return { closed: false, query: async item => ({ version: item.version, rows: [] }), stop: async () => { stops++ } }
+  })
+  assert.equal(starts, 0)
+  await manager.query(descriptor('/one'), snapshot())
+  await manager.query(descriptor('/one'), snapshot(2))
+  await manager.query(descriptor('/two'), { ...snapshot(), path: '/two/a.c' })
+  assert.equal(starts, 2)
+  assert.equal(manager.statuses().length, 2)
+  await manager.release(true)
+  assert.equal(stops, 2)
+  assert.equal(manager.statuses().filter(status => status.state === 'stopped').length, 2)
+})
+
+test('language manager rejects stale adapter versions', async () => {
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: async item => ({ version: item.version - 1, rows: [['stale']] }),
+    stop: async () => {},
+  }))
+  assert.equal(await manager.query(descriptor(), snapshot(7)), null)
+  await manager.stopAll()
+})
+
+test('language manager rate-limits repeatedly crashing services', async () => {
+  let now = 1_000
+  const manager = new LanguageServiceManager(async () => { throw new Error('crashed') }, () => now)
+  await assert.rejects(() => manager.query(descriptor(), snapshot()), /crashed/)
+  now++
+  await assert.rejects(() => manager.query(descriptor(), snapshot()), /crashed/)
+  now++
+  await assert.rejects(() => manager.query(descriptor(), snapshot()), /restart limit/)
+})
+
+test('language manager cancels a renderer-owned request without stopping the reusable service', async () => {
+  let complete!: (value: { version: number; rows: string[][] }) => void
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: item => new Promise(resolve => { complete = value => resolve({ ...value, version: item.version }) }),
+    stop: async () => {},
+  }))
+  const requestId = '12345678-abcd-4321-abcd-123456789abc'
+  const pending = manager.query(descriptor(), { ...snapshot(), requestId })
+  await new Promise(resolve => setImmediate(resolve))
+  manager.cancel(requestId)
+  assert.equal(await pending, null)
+  complete({ version: 1, rows: [] })
+  assert.equal(manager.statuses().at(-1)?.state, 'ready')
+  await manager.stopAll()
+})
+
+test('language manager stops an inactive service without an editor disposal event', async () => {
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    executable: '/trusted/fake',
+    version: '1.0',
+    capabilities: ['definition'],
+    query: async item => ({ version: item.version, rows: [] }),
+    stop: async () => { stops++ },
+  }), Date.now, 10)
+  await manager.query(descriptor(), snapshot())
+  await new Promise(resolve => setImmediate(resolve))
+  const ready = manager.statuses().at(-1)
+  assert.equal(ready?.state, 'ready')
+  assert.equal(ready?.executable, '/trusted/fake')
+  assert.equal(ready?.version, '1.0')
+  assert.deepEqual(ready?.capabilities, ['definition'])
+  await new Promise(resolve => setTimeout(resolve, 30))
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})
+
+test('workspace removal cancels an active request and drains its owned service', async () => {
+  let complete!: (value: { version: number; rows: string[][] }) => void
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: item => new Promise(resolve => { complete = value => resolve({ ...value, version: item.version }) }),
+    stop: async () => { stops++ },
+  }))
+  const pending = manager.query(descriptor('/removed'), { ...snapshot(), path: '/removed/a.c' })
+  await new Promise(resolve => setImmediate(resolve))
+  const releasing = manager.release(true)
+  complete({ version: 1, rows: [['must-not-escape']] })
+  assert.equal(await pending, null)
+  await releasing
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})
+
+test('closing a document clears its service state without multiplying group releases', async () => {
+  const closed: string[] = []
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: async item => ({ version: item.version, rows: [] }),
+    close: async path => { closed.push(path) },
+    stop: async () => { stops++ },
+  }), Date.now, 60_000)
+  await manager.query(descriptor(), snapshot())
+  await manager.release(false, 'c', '/work/a.c')
+  assert.deepEqual(closed, ['/work/a.c'])
+  assert.equal(stops, 0)
+  await manager.release(true, 'c')
+  assert.equal(stops, 1)
+})
+
+test('shared language adapters release one owned service through their adapter identity', async () => {
+  let stops = 0
+  const manager = new LanguageServiceManager(async () => ({
+    closed: false,
+    query: async item => ({ version: item.version, rows: [] }),
+    stop: async () => { stops++ },
+  }))
+  const shared = { adapter: 'typescript-lsp', language: 'typescript', root: '/work', path: '/work/a.ts' }
+  await manager.query(shared, { ...snapshot(), language: 'typescript', path: '/work/a.ts' })
+  await manager.release(true, 'typescript-lsp')
+  assert.equal(stops, 1)
+  assert.equal(manager.statuses().at(-1)?.state, 'stopped')
+})
+
+test('repeated start and stop cycles retain no active service', async () => {
+  let starts = 0, stops = 0
+  const manager = new LanguageServiceManager(async () => {
+    starts++
+    return { closed: false, query: async item => ({ version: item.version, rows: [] }), stop: async () => { stops++ } }
+  })
+  for (let cycle = 1; cycle <= 5; cycle++) {
+    await manager.query(descriptor(), snapshot(cycle))
+    await manager.release(true)
+  }
+  assert.equal(starts, 5)
+  assert.equal(stops, 5)
+  assert.equal(manager.statuses().filter(({ state }) => state !== 'stopped').length, 0)
+})

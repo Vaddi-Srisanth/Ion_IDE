@@ -38,7 +38,7 @@ export function Modal({ title, className = '', children, onClose, busy = false, 
 const accents: Accent[] = ['cyan', 'violet', 'lime', 'amber'];
 
 export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThemePreview, onThemeFavorite, startBrowsing, onLanguageSupport, onChange, onUpdateLaunchChange,
-  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onReplayIntro, onClose }: {
+  preferencesReady, updates, onInstallUpdate, onShortcutChange, onExportProfile, onBackup, onReplayIntro, onLearningContent, onClose }: {
   settings: Settings;
   activeTheme: ThemeData | null;
   onThemeChange(id: string, loaded?: ThemeData): Promise<void>;
@@ -53,7 +53,9 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
   onInstallUpdate(): void;
   onShortcutChange(overrides: ShortcutOverrides): Promise<void>;
   onExportProfile(): Promise<string | null>;
+  onBackup(mode: 'backup' | 'restore'): void;
   onReplayIntro(): void;
+  onLearningContent(): void;
   onClose(): void;
 }) {
   // The preview changes the workbench while the picker controls keep a stable
@@ -114,7 +116,7 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
         {themeSupportsAccent && <div className="setting">
           <div><b>Accent</b><p>Color for controls and active panes.</p></div>
           <div className="swatches" aria-label="Accent color">
-            {accents.map((accent) => <button className={`swatch ${accent}`} key={accent} aria-label={accent}
+            {accents.map((accent) => <button className={`swatch ${accent}`} key={accent} aria-label={accent === 'cyan' ? 'Theme default accent' : accent}
               aria-pressed={settings.accent === accent} onClick={() => onChange({ accent })}>
               {settings.accent === accent && <Icon name="check" size={13}/>}
             </button>)}
@@ -122,6 +124,12 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
         </div>}
       </div>
 
+      <div className="settings-group">
+        <h3>Learning</h3>
+        <div className="setting"><div><b>Learning content</b><p>Built-in languages are ready in Learn. Import, export or manage saved content.</p></div>
+          <button className="button" type="button" data-testid="manage-learning-content" onClick={onLearningContent}>Manage Content</button>
+        </div>
+      </div>
       <div className="settings-group">
         <h3>Resources</h3>
         <div className="setting">
@@ -174,6 +182,19 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
           <span><b>Smart Java</b><small>Use a local JDK (17+) for semantic suggestions and live diagnostics in saved Java files.</small></span>
           <input type="checkbox" checked={settings.smartLanguages.includes('java')}
             onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'java'] : settings.smartLanguages.filter((id) => id !== 'java') })}/>
+        </label>
+        <label className="setting">
+          <span><b>Smart Python</b><small>Use an installed Pyright or Python LSP Server. Ion never downloads or starts it until a Python semantic action is requested.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('python')}
+            onChange={(event) => onChange({ smartLanguages: event.target.checked ? [...settings.smartLanguages, 'python'] : settings.smartLanguages.filter((id) => id !== 'python') })}/>
+        </label>
+        <label className="setting">
+          <span><b>Smart JS/TypeScript</b><small>Use an installed TypeScript Language Server on demand. JavaScript and TypeScript share one project service.</small></span>
+          <input type="checkbox" checked={settings.smartLanguages.includes('javascript') && settings.smartLanguages.includes('typescript')}
+            onChange={(event) => {
+              const others = settings.smartLanguages.filter((id) => id !== 'javascript' && id !== 'typescript');
+              onChange({ smartLanguages: event.target.checked ? [...others, 'javascript', 'typescript'] : others });
+            }}/>
         </label>
         <label className="setting">
           <span><b>Automatic suggestions</b><small>Show language suggestions as you type. Press Ctrl+Space for manual suggestions.</small></span>
@@ -240,6 +261,9 @@ export function PreferencesDialog({ settings, activeTheme, onThemeChange, onThem
       <ShortcutSettings overrides={settings.shortcuts} platform={window.ion.platform} onSave={onShortcutChange}/>
       <div className="settings-group">
         <h3>Local Data</h3>
+        <div className="setting"><div><b>Protect and restore your work</b><p>Back up notes, practice, roadmaps, custom content and unsaved drafts. Review every restore before replacing data.</p></div></div>
+        <div className="setting"><button className="button" data-testid="backup-data" onClick={() => onBackup('backup')}>Back Up My Ion Data</button>
+          <button className="button" data-testid="restore-data" onClick={() => onBackup('restore')}>Restore From Backup</button></div>
         <div className="setting">
           <div>
             <b>Portable profile</b>

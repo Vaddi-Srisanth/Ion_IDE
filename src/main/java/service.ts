@@ -26,7 +26,7 @@ export class JavaService {
   private stopped = false
   readonly done: Promise<void>
 
-  private constructor(private readonly child: ChildProcessWithoutNullStreams, directory: string) {
+  private constructor(private readonly child: ChildProcessWithoutNullStreams, directory: string, readonly executable: string) {
     this.done = new Promise((resolve) => {
       child.once('close', () => {
         this.fail(new Error('The local Java service exited.'))
@@ -51,7 +51,7 @@ export class JavaService {
       ], {
         cwd: directory, env: environment, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
       })
-      return new JavaService(child, directory)
+      return new JavaService(child, directory, java)
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
       throw error
@@ -59,6 +59,7 @@ export class JavaService {
   }
 
   get closed() { return this.stopped }
+  get capabilities() { return ['diagnostics', 'complete', 'signature', 'definition', 'references'] }
 
   query(snapshot: ToolSnapshot): Promise<ToolReply | null> {
     if (this.stopped) return Promise.reject(new Error('The local Java service has stopped.'))

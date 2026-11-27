@@ -1,3 +1,15 @@
+# Current next-generation baseline and capability scope
+
+The active work is `feature/ion-next-generation`, based on reviewed0.9.8sourcea108a01; the original0.6.2assessment below is historical and must not be used as the current inventory or release verdict.
+
+Current source reuses Monaco/file integrity/recovery, local execution and xterm, Git, approved C project tests, document/notebook viewers, themes, direct lesson collections and saved Practice attempts. A–F add compact Code-first navigation, direct offline learning, three introductory Python/Java/C practical lessons, bounded on-demand offline Project Lens, explicitly consent-reviewed Tutor/Lens explanations and editable roadmap suggestions. There is no new framework, dependency, editor engine, extension host, indexer, background AI service or automatic code-writing feature.
+
+Local tests/build and focused native Mac/Windows E/F journeys pass at8c0ae1b, including13checks/platform,20repeated cycles, cancellation, exact-source/Undo preservation and normal shutdown. All13selected native jobs now pass with2optional lanes unselected; measured renderer footprint cost and human/hardware/live-provider acceptance remain open. Evidence does not establish complete academies, universal semantic project understanding, live-provider answer quality, mastery, long-session leak freedom or physical low-memory hardware performance. Earlier intermittent Windows failures remain recorded despite subsequent successful runs.
+
+[Actual implementation](ION_IMPLEMENTATION_REPORT.md) · [Tests and skips](ION_TEST_RESULTS.md) · [Matched and active resources](ION_PERFORMANCE_COMPARISON.md) · [AI consent/security](ION_AI_PROVIDER_INTEGRATION.md).
+
+---
+
 # Ion IDE 0.6.2 analysis
 
 ## Bottom line

@@ -1,0 +1,142 @@
+# Ion Core Excellence — Milestone 1 checkpoint
+
+## Current source delivery through Phase 2.5
+
+This report retains Phase 1's durable backup/restore and save-safety evidence. Subsequent accepted editor/workspace, LSP, interaction, C/C++ DAP and Build/Tasks checks are linked in the [current checkpoint report](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md). Final tasks application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8` passed both native functional/full-unit-security jobs and matched resource checks with owned cleanup. No new broad qualification cycle was run for the documentation/main promotion. Historical GCC latency, physical power-loss/8 GB/endurance coverage and macOS development-registration limitations remain disclosed. Test Explorer is paused outside main; installed Ion, live profiles and the public update feed remain unchanged.
+
+## Phase 1 acceptance checkpoint — 2026-11-24
+
+**PASS for the defined hosted macOS/Windows Phase 1 scope.** The immutable application source is `c5306449445e16090c81d8396003b9885b710fd0`; the final verification harness checkpoint is `43969bcf2b7de3d8ebcd06d7892a46b69cbcdcee`. The later commits do not alter production `src` or dependencies.
+
+The apparent macOS cold-start and first-file regressions were caused by asymmetric benchmark artifact roots, not Ion's backup, recovery or filesystem hot paths. [Corrected matched run 45213098671](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45213098671) placed exact baseline `d67613a` and candidate `c530644` artifacts together and retained every AB/BA sample. Candidate medians improved cold startup 10.99%, warm startup 14.51% and first-file request-to-visible 13.01%. One-file attributed footprint changed +0.49%, summed RSS +0.11% and idle CPU -0.02 percentage points. Windows stayed within the 10% gate: cold -6.47%, warm +1.42%, first-file -0.63%, private bytes +1.01% and working set -0.47%.
+
+Stage evidence showed candidate pending-restore checks of 13.21–28.52 ms and low-single-digit normal file IPC/filesystem durations. Main start-to-ready, window creation, load, UI readiness and CDP attachment were all faster in candidate medians. No production safety check, recovery write, backup validation or file-integrity behavior was removed or relaxed.
+
+[Release gate 45215470028](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45215470028) passed macOS regression/package/update checks, Windows installer migration/rollback, dependency security, the native Windows unit suite and all three cold C diagnostics. The initial Windows application/process lanes failed for retained CI-only reasons: GitHub Actions reordered PATH after the shell check, selecting incompatible hosted LLVM, and the old-build process observer used a generic 8-second window before Ion's documented compiler boundary. The narrow MinGW pin and lifecycle-aligned observer were verified in [final Windows recheck 45334910491](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45334910491); both complete jobs passed and all eight paired development samples cleaned up.
+
+The installed application, live profile, real projects, `main`, releases, installers and update feed remain untouched. The macOS package is ad-hoc signed; Developer ID/notarization, physical power interruption, maximum-size archives, external filesystems, four-hour endurance and consumer 8 GB hardware remain explicitly unverified. Phase 2 has not started.
+
+---
+
+## Historical final Phase 0 / Core native checkpoint — 2026-11-23
+
+**Phase 0 is complete. Core backup/restore native acceptance is PASS. Overall Phase 1 remains CONDITIONAL and is not release-ready.** The exact candidate `c5306449445e16090c81d8396003b9885b710fd0` passed [run 45205283873](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45205283873) on hosted macOS 15 arm64 and Windows Server 2025 x64. Both jobs completed actual Settings backup, current unsaved editor/Undo checks, fresh and populated restore/relaunch, normal-store access, trust/credential/approval exclusions, two real startup-kill recovery boundaries, populated rollback and four serialized candidate/baseline resource pairs. All owned application families cleaned up.
+
+The successful evidence closes the previously open native backup lifecycle gate. It does not close the whole release gate: macOS cold startup measured 1,441.56 ms versus 1,061.12 ms (+35.85%), and first-file opening measured 1,401.06 ms versus 678.52 ms (+106.49%). Windows cold startup, first-file memory and first-file latency stayed within approximately 2% of baseline. One-file memory on both platforms stayed within approximately 1% by the primary counters, and no backup code or calls were active before first use.
+
+Three earlier failed runs are retained in the verification report with root causes and minimal harness corrections. None was hidden or converted into a production defect. The final run had zero failed lifecycle cases and no skipped job step other than the inapplicable Windows-GCC-selection step on macOS.
+
+`main`, releases, installers, update feed, installed Ion, live profile, real projects and user files remained untouched. No Milestone 2 work started. The next permissible work is a focused, stage-instrumented macOS regression investigation plus exact packaged migration/rollback verification; it is not new feature development.
+
+---
+
+## Remaining-gates run completed — 2026-11-17
+
+**CONDITIONAL — native acceptance is incomplete.** [Run 43937220557](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43937220557) tested the approved `2590f99` in exactly two hosted jobs. Both confirmed production identity, passed the four new Node-only controls and built the candidate. Mac also built the exact ancestor and created a real Settings backup, then failed an added Undo assertion. Windows stopped at a drive-letter path/tar mismatch in baseline extraction. Restore/relaunch and paired RAM/CPU measurements did not complete.
+
+The local corrections affect tests only: run extraction inside the chosen directory instead of giving its Windows path to tar; create one explicitly bounded Monaco edit before expecting one Undo; retain intermediate backup and editor-state evidence. A local archive extraction control and three safe headless-renderer controls passed. The latter reproduced the same insertText Undo grouping before/after backup, then verified the corrected single-edit Undo/Redo control. No production Undo defect or production fix is claimed; native confirmation remains pending.
+
+Both original failures, run links, artifact digests, decoded logs, skips and the exact Mac structured report are preserved in the verification report. The Mac main artifact hash matches the local production artifact; source tree remains `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`. No RAM/CPU improvement or successful native relaunch is claimed from skipped steps.
+
+The two-job approval is consumed. A reviewed follow-up needs fresh permission before upload to the same verification branch. Its unchanged controls will not be repeated. Installed Ion, live profile, user projects, main, installers, releases and update feed remain untouched. No local Electron launch or Milestone 2 work occurred. Stop at the local correction checkpoint pending authorization.
+
+---
+
+## Remaining native gates prepared — authorization pending
+
+**CONDITIONAL.** Continued from clean `c22e625`. Production source and dependencies remain unchanged: the current `src` tree, Windows-tested `ce035cb` and implemented `881ef00` all resolve to `5a87e1591bb0dcdf80aa94bdd0d71ca1a671234e`.
+
+Prepared only the missing acceptance cases: actual Settings restore and `app.relaunch()`, fresh/populated store access, detached collisions, exclusion of real source trust/synthetic credentials/test approvals, actual Electron startup interruption/reopen, and populated pre-restore rollback. A separate bounded harness compares ordinary production builds against exact pre-feature ancestor `d67613a1e9b77c7d677bd304628d57c58542fa71`, using four serialized pairs per OS with one C file and editor/Settings/backup open/closed phases. The old artificial eager-editor baseline mode is excluded.
+
+Four new Node-only controls, script syntax and workflow lint pass. The first path-alias fixture failure remains preserved; review found and corrected harness cleanup/evidence/shadowing issues before upload. No local Electron launch, successful regression-suite repetition or native measurement occurred. RAM, startup, CPU, full desktop restore/relaunch and lifecycle rollback remain **unverified**, not passing. Prior successful Mac/Windows links and all documented skips remain below.
+
+The CI-only observer/fault entry imports unchanged production files; it is not shipped. It requires an owned disposable root/token and GitHub Actions. Process identities are retained before readiness; failure evidence is saved independently of cleanup. Source/notes/credentials from the real user profile are never accessed.
+
+The revised existing workflow is prepared for exactly two bounded hosted jobs on the same verification branch. A new explicit upload authorization is required before running it. No changes to main, installed Ion, releases, installers, update feed or Milestone 2 are included. See the verification report for the concrete cases, exact comparison protocol, current unavailable measurements and upload boundary. Stop at this local preparation checkpoint pending approval; do not issue PASS before native execution.
+
+---
+
+## Windows recheck verified — 2026-11-16
+
+**CONDITIONAL — LIMITATIONS REMAIN.** [The single authorized Windows recheck passed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43925166585) at `ce035cb8bfb009196f88c04d69cf0e824b9155f8`. It ran on hosted Windows Server 2025 x64 / Node 24.22.2: type checking, 54 focused passes (zero failures, nine documented skips), production build, native backup smoke, five Windows path/sharing tests and nine native Undo cases passed.
+
+All four previously failing transaction interruption cases now pass with the exact child PID/boundary receipt; the real rollback interruption and rejection controls pass too. This verifies the fixture correction and exercised Windows recovery behavior. No production-code change, timeout increase, arbitrary retry or failure suppression was needed. The original failed run `43922635358` remains preserved. Prior successful Mac evidence applies to `97890af`, which has the same production source `881ef00`.
+
+Full Settings restore followed by automatic relaunch into fresh/populated profiles, native application-kill repair, packaged upgrade/update compatibility and native memory/CPU measurements remain unverified. The Windows build and smoke do not satisfy these separate gates. No RAM improvement or full acceptance is claimed.
+
+Only the approved verification branch was fast-forwarded to `ce035cb`; main remained `a108a01bad53a6008761049c28a86e90bdd0374e`. The installed application, live profile, real projects, releases, installers and update feed were untouched. No local Electron launch or Milestone 2 work occurred. This evidence update stays in a local commit; no further push or CI run is authorized by the completed one-job approval.
+
+See `ION_BACKUP_RESTORE_VERIFICATION.md` for exact counts, hosts, receipt evidence, timings, artifact digest/expiry, all skips and remaining gates. The section below records the original preflight before the successful recheck, rather than the current pending state.
+
+---
+
+## Authorized hosted results and local fixture correction — 2026-11-16
+
+**CONDITIONAL — LIMITATIONS REMAIN.** Production source remains `881ef00982649b9a26a547b7fab16851e4e04871`. The explicitly approved candidate `97890af677d939b7cdfcc0db0a863018f820ad2d` was pushed only to `codex/ion-core-native-acceptance`. [The two hosted jobs completed](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/43922635358): Mac passed; Windows failed. This is not full native acceptance or a release-readiness declaration.
+
+- **Hosted Mac arm64:** macOS 15.8.2, Node 24.22.2; type check, 62 focused tests (zero failures/skips), production build, limited native backup IPC smoke and all nine native Undo controls passed.
+- **Hosted Windows x64:** Windows Server 2025 10.0.26100, Node 24.22.2; type check passed; focused tests reported 49 passes, four interruption failures and nine skips. Production build, desktop smoke, dedicated path/sharing lane and Undo did not run after the failure. Original failure logs were preserved and uploaded.
+- **Confirmed test defect:** the four interruption fixtures rejected exit code 1 before checking their intended Windows nonzero-termination rule. The local correction requires a private child PID/boundary receipt immediately before intentional termination, empty stderr and an expected termination status. This preserves real kill/replay tests and prevents arbitrary restore errors being accepted. A real-child exit-status control covers rejection paths. No production restore bug was established and no production code changed.
+- **Local correction:** 25 backup tests passed, including five real interruptions; type check and workflow lint passed. Combined focused results and exact logs are in the verification report. Windows confirmation of the new receipt is pending.
+
+Full Settings restore/relaunch into fresh/populated profiles, desktop startup interruption/repair, native resource accounting, Windows filesystem follow-up and installer/update compatibility remain open. The current bridge smoke covers create/preview/prepare/cancel, not complete restore/relaunch. Do not convert the passing Mac smoke into a claim of complete acceptance.
+
+No native before/after performance claim is possible from this run. The previous 139 ms service backup is not a native full-app RAM/CPU measurement or an equivalent comparison with the old limited export. The correction adds no production dependency or module and does not change startup work. No local Electron GUI launch was attempted; the registration-crash precaution remains in force.
+
+**Permission boundary:** the approved upload and two jobs are finished. The local Windows-only follow-up workflow and fixture correction require fresh upload authorization. If approved, push only the reviewed follow-up to the same verification branch for one Windows job; do not rerun unchanged Mac CI or merge main. The installed application, live profile, projects, releases, tags and update feed remain untouched. No Milestone 2 work started.
+
+See `ION_BACKUP_RESTORE_VERIFICATION.md` for exact hosts, failed test names and source location, artifact links/digests, all nine Windows skips and their coverage impact, performance limits, remaining gates and the follow-up action. Historical implementation evidence below retains its original revision/scope; earlier statements about an unrun workflow describe the pre-authorization checkpoint, not the current hosted state.
+
+---
+
+Local feature delivery based on `d67613a`, on `feature/ion-core-excellence`. Application version stays 0.9.8: this is a source checkpoint, not a new public release. Installed Ion, its live profile, user projects, main, releases and the update feed were not modified. No push, installer, application launch or Milestone 2 work is part of this checkpoint.
+
+## Implemented
+
+- Lazy Settings backup/restore actions, a small versioned checksummed ZIP format and existing legacy-folder compatibility.
+- Validated authoritative data across preferences, themes, learning/content, practice/source/reports, roadmaps/history, session references and recovery.
+- Explicit folder policies, visible exclusions, exclusive archive publication, cancellation and bounded streaming.
+- Reviewed category replacement, detached imported drafts, explicit roadmap mapping and new workspace-copy destinations.
+- Independent historical test evidence, cleared approvals and stale practice results.
+- Verified pre-restore backup, accepted-write/process-owner draining, startup apply/rollback and failure instructions.
+
+The original source/save/undo/runner systems remain in place. Changes to existing stores expose their validators/drains and preserve new restored metadata; they are not architectural replacements.
+
+## Reproduced defects addressed while building this feature
+
+These are implementation defects found in the new backup path, not claims of previously observed user-data loss:
+
+| Finding | Evidence and correction |
+| --- | --- |
+| Archive handle ownership | The first round-trip cohort exposed EBADF on archive close. The reader now owns one handle and supplies bounded ranges through a non-owning reader; archive close/cancel paths pass. |
+| Incomplete marker / post-arm failure | Injected publication errors and post-arm cleanup failures previously allowed an orphaned transaction or editing after pending intent. A flushed exclusive marker, durable stage directory tree and restart-required state preserve the journal and force startup repair. |
+| Ancestor-folder self-inclusion | A disposable ancestor-folder fixture copied active profile/staging records during snapshot construction. The canonical active-profile subtree is now pruned. No published credential leak was established. |
+| Invalid folder token cleanup | Folder capabilities validate before staging allocation; repeated reviews and expired/unknown folder inputs leave no owned stage. |
+| Interrupted multi-category rollback | Real child-process kills at journal/publication/rollback boundaries verify replay from filesystem state and preservation of prior bytes. |
+| Accepted-write ownership | New restore needs more than existing store-queue snapshots. Accepted mutating calls are tracked, lifecycle-dependent updater promises are excluded, automatic-test execution can settle through its final evidence publication, and stores drain before finalization. A deferred real evidence write verifies the barrier. |
+| Active cancellation and ENOSPC | Streaming cancellation waits for input-handle closure; transaction-stage failures clean their exclusively owned directory before any pending marker. Fault-injection tests preserve current data. |
+
+No broad save algorithm, compiler, Git, notebook execution or updater rewrite was made.
+
+## Verification verdict
+
+See `ION_BACKUP_RESTORE_VERIFICATION.md` for exact commands, results, timings, resource counters, all skipped cases and measurement limits. Tests use synthetic data under uniquely owned disposable directories. No local Electron GUI was launched because the registration-crash precaution remains active. The production renderer was exercised in headless Chrome with an explicit fixture bridge; it is not a substitute for native IPC/relaunch verification.
+
+This is a locally tested Milestone 1 implementation, **not a release-readiness declaration**. Native Mac/Windows dialog/close/relaunch, real restart interruption and Windows directory/locking semantics still require the prepared isolated-host checks. The manual-only workflow and native script are prepared but neither uploaded nor run.
+
+## Known limitations and retained historical evidence
+
+- No encryption, record-level merge, automatic secret detector guarantee, perfect cross-volume atomicity or power-loss guarantee beyond available flush/journal primitives.
+- Backup/restore is bounded, but the full 2 GiB / 10,000-entry limit and 8 GB hardware were not exercised end-to-end. Strict schema validation can require repair of malformed current data before a complete rollback backup can be created.
+- Rollback archives and previous categories stay local for safety. No automatic retention sweeper is added. After a process crash before arming, leftover private staging/new workspace destinations may need manual inspection; they cannot overwrite original projects.
+- Saved-file session paths are inert references after import; only explicitly recovered drafts reopen through the restored session. Relink roadmaps by reviewing the same backup and choosing a folder. Prior binaries with strict record readers are not guaranteed to understand the new restored-history fields.
+- Historical Windows GCC 12.67-second / READY-to-CLEAN 12.62-second outlier remains unexplained. Existing hosted results are retained in `diagnostics/windows-gcc/REMAINING_WINDOWS_TASKS.md`; this milestone does not label it fixed.
+- Historical notebook, Learning Lens and macOS Electron registration incidents remain in the audit record. Later passing cohorts are not proof that every original intermittent condition was resolved.
+
+## Repair and rollback instructions
+
+If startup repair cannot safely complete, Ion stops before stores/editor initialization. Do not delete either version. With Ion quit, copy the entire affected profile first. Inspect `.ion-restores/<transaction-id>/journal.json`, `previous/`, `incoming/` and `unapplied/`, and the verified archive recorded under `.ion-backups/`. Recovery drafts are separate from source files. Manual repair must preserve both versions and remove pending intent only after the intended profile is verified. Do not test repair against the live profile.
+
+Source rollback is a normal reviewed revert of this local milestone. Profile rollback after an actual restore is a separate operation using the retained pre-restore material; reverting source alone does not reverse data. Neither rollback was applied to the user's installed application.
+
+The next authorized action is local review of this checkpoint. No push, release, installation or next milestone follows automatically.

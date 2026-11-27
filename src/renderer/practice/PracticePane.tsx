@@ -4,12 +4,13 @@ import type { RunLanguage } from '../../shared/run-console'
 import {
   catalogDifficulties, maxPracticeSamples, practiceCompletion, practiceDifficulties, practiceLanguages, practiceTopics,
   type CatalogDifficulty, type PracticeChallenge, type PracticeChallengeSummary, type PracticeTopic,
-  type PracticeAttempt, type PracticeBridge, type PracticeDraft, type PracticeFields,
+  type PracticeBridge, type PracticeDraft, type PracticeFields,
   type PracticeLibrary, type PracticeProblem, type PracticeSample,
 } from '../../shared/practice'
 import { EntryDialog, Modal } from '../Dialogs'
 import { errorMessage } from '../documents'
 import { Icon } from '../icons'
+import { PracticeResults } from './PracticeResults'
 import './practice.css'
 
 export interface PracticePaneProps {
@@ -18,6 +19,7 @@ export interface PracticePaneProps {
   onOpenEntry(entry: Entry): void
   onPrepareRun(path: string): Promise<boolean>
   onClose(): void
+  onLearn?(): void
   onDirtyChange?(dirty: boolean): void
   onStopRun?(): void
 }
@@ -273,34 +275,8 @@ function ProblemForm({ value, busy, error, onChange, onSubmit, onClose, onDiscar
   )
 }
 
-const statusLabel = {
-  passed: 'Passed', failed: 'Failed', unavailable: 'Unable to verify', skipped: 'Skipped',
-}
 
-function AttemptResults({ attempt }: { attempt?: PracticeAttempt }) {
-  const report = attempt?.lastRun
-  if (!report) return null
-  const passed = report.results.filter(({ status }) => status === 'passed').length
-  return (
-    <section className="practice-section" aria-label="Sample results" data-testid="practice-results">
-      <div className="practice-section-heading"><h3>Last sample run</h3><span>{passed} of {report.results.length} passed</span></div>
-      <p className="practice-muted">
-        {report.current ? 'Results refer to the saved file at the time of this run.' : 'Saved source or samples changed since this run.'}
-      </p>
-      {report.results.map((result) => (
-        <details key={result.id} className="practice-sample" data-status={result.status}>
-          <summary><span>{result.label}</span><b>{statusLabel[result.status]}</b></summary>
-          <p>{result.message}</p>
-          <h4>Expected stdout</h4><pre>{result.expected || '∅'}</pre>
-          <h4>Captured stdout</h4><pre>{result.stdout || '∅'}</pre>
-          {result.stderr && <><h4>Captured diagnostics or stderr</h4><pre>{result.stderr}</pre></>}
-        </details>
-      ))}
-    </section>
-  )
-}
-
-export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun }: PracticePaneProps) {
+export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun, onClose, onDirtyChange, onStopRun, onLearn }: PracticePaneProps) {
   const [view, setView] = useState<'browse' | 'saved'>(initialProblem ? 'saved' : 'browse')
   const [library, setLibrary] = useState<PracticeLibrary>()
   const [problem, setProblem] = useState<PracticeProblem>()
@@ -469,6 +445,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
     <aside className="practice-pane" data-testid="practice-pane" aria-label="Coding practice">
       <div className="practice-heading">
         <h2><Icon name="flask" size={16} /> Practice</h2>
+        {onLearn && <button type="button" className="button" data-testid="practice-return-learn" onClick={onLearn}><Icon name="book" size={13}/> Learn</button>}
         <button className="icon-button" onClick={onClose} aria-label="Hide Practice" title="Hide Practice"><Icon name="x" size={15} /></button>
       </div>
       <nav className="practice-nav" aria-label="Practice views">
@@ -538,7 +515,7 @@ export function PracticePane({ bridge, initialProblem, onOpenEntry, onPrepareRun
                   </div>
                 )}
               </section>
-              <AttemptResults attempt={attempt} />
+              <PracticeResults attempt={attempt} />
             </>
           ) : pending !== 'load' && <p className="practice-muted">Start a challenge from Browse to save its problem and first attempt here.</p>}
         </>}

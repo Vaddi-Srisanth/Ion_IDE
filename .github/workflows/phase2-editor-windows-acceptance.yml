@@ -1,0 +1,78 @@
+name: Phase 2 editor Windows acceptance (no publication)
+on:
+  push:
+    branches: [codex/ion-core-excellence-phase-2]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: phase2-editor-windows-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  editor-windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - name: Record immutable candidate and native host
+        run: |
+          mkdir -p performance-results/phase2-editor-windows
+          git rev-parse HEAD > performance-results/phase2-editor-windows/revision.log
+          node -e 'if(process.platform!=="win32"||process.arch!=="x64")throw Error("Native Windows x64 required");console.log(JSON.stringify({node:process.version,platform:process.platform,arch:process.arch,release:require("os").release()}))' >> performance-results/phase2-editor-windows/revision.log
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Build and type-check exact production candidate
+        run: |
+          npm run typecheck 2>&1 | tee performance-results/phase2-editor-windows/typecheck.log
+          npm run build 2>&1 | tee performance-results/phase2-editor-windows/build.log
+      - name: Full native Windows unit, security, recovery and backup regression
+        run: npm test 2>&1 | tee performance-results/phase2-editor-windows/unit.log
+      - name: Native Windows production editor workflow
+        run: npm run test:keyboard 2>&1 | tee performance-results/phase2-editor-windows/keyboard.log
+      - name: Editor Essentials menus, MRU and Explorer keyboard workflow
+        run: npm run test:editor-essentials 2>&1 | tee performance-results/phase2-editor-windows/editor-essentials.log
+      - name: Session, recovery and model-retention regression
+        run: npm run test:editor-session 2>&1 | tee performance-results/phase2-editor-windows/session.log
+      - name: Ten split lifecycle cycles with native process-tree resources
+        run: node scripts/benchmark-editor-split.mjs --target dist --label windows-native --rounds 10 --settle 700 2>&1 | tee performance-results/phase2-editor-windows/metrics.log
+      - name: Multi-root, tabs, groups, search, replace and restore resources
+        run: node scripts/benchmark-editor-foundations.mjs --target dist --label windows-native --cycles 5 --settle 700 2>&1 | tee performance-results/phase2-editor-windows/foundations.log
+      - name: Collect bounded sanitized evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $source = Join-Path $PWD 'performance-results\phase2-editor-windows'
+          $safe = Join-Path $env:RUNNER_TEMP 'phase2-editor-safe'
+          New-Item -ItemType Directory -Force -Path $safe | Out-Null
+          $roots = @($PWD.Path, $env:RUNNER_TEMP, $env:USERPROFILE)
+          Get-ChildItem -LiteralPath $source -File -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Length -gt 16777216) { throw "Evidence file exceeded 16 MiB: $($_.Name)" }
+            $text = [IO.File]::ReadAllText($_.FullName)
+            foreach ($root in $roots) { if ($root) { $text = $text.Replace($root, '<redacted-root>').Replace($root.Replace('\','/'), '<redacted-root>') } }
+            [IO.File]::WriteAllText((Join-Path $safe $_.Name), $text, [Text.UTF8Encoding]::new($false))
+          }
+          Get-ChildItem -LiteralPath (Join-Path $PWD 'performance-results') -Filter 'editor-split-windows-native-*.json' -File | ForEach-Object {
+            if ($_.Length -gt 16777216) { throw "Metrics exceeded 16 MiB" }
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $safe $_.Name)
+          }
+          Get-ChildItem -LiteralPath (Join-Path $PWD 'performance-results') -Filter 'editor-foundations-windows-native-*.json' -File | ForEach-Object {
+            if ($_.Length -gt 16777216) { throw "Foundation metrics exceeded 16 MiB" }
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $safe $_.Name)
+          }
+          if (!(Get-ChildItem -LiteralPath $safe -File)) { throw 'No evidence was collected.' }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: phase2-editor-windows-${{ github.sha }}
+          path: ${{ runner.temp }}/phase2-editor-safe/*
+          if-no-files-found: error
+          retention-days: 7
