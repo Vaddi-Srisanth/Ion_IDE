@@ -95,6 +95,29 @@ async function rerun(page, marker) {
   await finished(page, 'success', marker)
 }
 
+async function lastRunId(page) {
+  return page.evaluate(() => globalThis.ionRunTestEvents.findLast(({ update }) =>
+    update.kind === 'phase' && update.phase === 'preparing')?.id ?? null)
+}
+
+async function waitForNewRun(page, previousId, expectedOutput) {
+  await page.waitForFunction(({ previousId, expectedOutput }) => {
+    const events = globalThis.ionRunTestEvents
+    const current = events.findLast(({ id, update }) => update.kind === 'phase' && update.phase === 'preparing'
+      && id !== previousId)
+    if (!current) return false
+    return events.some(({ id, update }) => id === current.id && update.kind === 'data' && update.text.includes(expectedOutput))
+      && events.some(({ id, update }) => id === current.id && update.kind === 'complete')
+  }, { previousId, expectedOutput }, { timeout })
+}
+
+async function scrollTerminalTo(page, edge) {
+  await page.getByTestId('run-console-terminal').locator('.xterm-viewport').evaluate((viewport, edge) => {
+    viewport.scrollTop = edge === 'top' ? 0 : viewport.scrollHeight
+    viewport.dispatchEvent(new Event('scroll'))
+  }, edge)
+}
+
 async function stopRunning(page, pidMarker, rerun = false) {
   const previous = await page.evaluate(() => globalThis.ionRunTestEvents.at(-1)?.id)
   await page.getByTestId(rerun ? 'run-console-rerun' : 'run').click()
@@ -317,15 +340,23 @@ int main(void) {
     const version = path('saved version.js')
     await run(page, version, 'ION-DISK-V1', 'ION-DISK-V1')
     await replaceSource(page, 'console.log("ION-EDITOR-V2");', 'ION-EDITOR-V2')
+    const previousRunId = await lastRunId(page)
     await page.getByTestId('run').click()
+    await waitForNewRun(page, previousRunId, 'ION-DISK-V1')
+    await page.locator('[data-testid="output"][data-status="success"]').waitFor()
+    await scrollTerminalTo(page, 'top')
     await terminalText(page, 'Running the last saved version.')
-    await finished(page, 'success', 'ION-DISK-V1')
+    await scrollTerminalTo(page, 'bottom')
     assert.match(await readFile(version, 'utf8'), /ION-DISK-V1/)
     assert.doesNotMatch(await page.getByTestId('run-console-terminal').innerText(), /ION-EDITOR-V2/)
     await runPreferences(page, true)
+    const diskRunId = await lastRunId(page)
     await page.getByTestId('run').click()
-    await finished(page, 'success', 'ION-EDITOR-V2')
+    await waitForNewRun(page, diskRunId, 'ION-EDITOR-V2')
+    await page.locator('[data-testid="output"][data-status="success"]').waitFor()
+    await scrollTerminalTo(page, 'top')
     await terminalText(page, 'ION-DISK-V1')
+    await scrollTerminalTo(page, 'bottom')
     assert.match(await readFile(version, 'utf8'), /ION-EDITOR-V2/)
     console.log('PASS Save before Run off and on, and retained prior output in the same terminal')
 

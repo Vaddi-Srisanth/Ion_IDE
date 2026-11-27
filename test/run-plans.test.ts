@@ -120,9 +120,11 @@ class Actual {
     assert.equal(plan.compile?.cwd, build)
     const argumentFile = await readFile(join(build, 'ion-javac-arguments.txt'), 'utf8')
     assert.ok(argumentFile.includes(javaCompilerArgumentFile([path])))
-    assert.ok(argumentFile.includes(javaCompilerArgumentFile(['-proc:none'])))
-  } else assert.equal(plan.compile?.args.at(-1), path)
-  assert.ok(plan.compile?.args.includes('-proc:none'))
+    assert.match(argumentFile, /"-proc:none"/)
+  } else {
+    assert.equal(plan.compile?.args.at(-1), path)
+    assert.ok(plan.compile?.args.includes('-proc:none'))
+  }
   await invoke(plan.compile!, root)
   const program = await plan.resolveRun!()
   assert.equal(program.args.at(-1), 'lesson.demo.Actual')
