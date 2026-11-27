@@ -3,7 +3,8 @@ import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { githubOverview, githubPullRequest } from '../src/main/source-control/github'
+import { createGitHubPullRequest, githubOverview, githubPullRequest } from '../src/main/source-control/github'
+import { checkCreatePullRequestRequest } from '../src/main/source-control/github-repository'
 import type { execute } from '../src/main/runner'
 
 type Run = typeof execute
@@ -24,7 +25,10 @@ async function fixture() {
     githubOverview(root, [root], name, signal, { run, findGh: async () => binary })
   const detail = (run: Run, request: unknown = pullRequest, signal = new AbortController().signal) =>
     githubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
-  return { directory, root, binary, call, detail, clean: () => rm(directory, { recursive: true, force: true }) }
+  const create = (run: Run, request: unknown = { repository: fixtureRepository, title: 'Add feature', head: 'octo-user:feature/one',
+    base: 'main', body: 'Reviewed description', draft: true }, signal = new AbortController().signal) =>
+    createGitHubPullRequest(root, [root], request, signal, { run, findGh: async () => binary })
+  return { directory, root, binary, call, detail, create, clean: () => rm(directory, { recursive: true, force: true }) }
 }
 
 test('GitHub reads only the selected repository via fixed GitHub.com GETs in one private directory', async t => {
@@ -185,6 +189,68 @@ test('PR details reject unreviewable requests and mismatched or oversized respon
   const closed = await f.detail(async () => ok({ ...pullDetails, state: 'closed', merged: true, author: null }))
   assert.equal(closed.state, 'merged')
   assert.equal(closed.author, null)
+})
+
+test('pull request creation uses one isolated authenticated POST with reviewed fields on stdin', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const keys = ['GH_TOKEN', 'GH_CONFIG_DIR', 'GH_DEBUG', 'GIT_SSH_COMMAND', 'HTTPS_PROXY', 'GITHUB_TOKEN']
+  const saved = keys.map(key => process.env[key])
+  keys.forEach(key => { process.env[key] = 'injected-setting' })
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i] }))
+  let scratch = '', calls = 0
+  const result = await f.create(async (binary, args, options) => {
+    calls++
+    assert.equal(binary, f.binary)
+    assert.deepEqual(args, ['api', '--hostname', 'github.com', '--method', 'POST', '--jq',
+      '{number,title,url:.html_url,head:.head.label,base:.base.ref,draft,state}', '--input', '-',
+      'repos/' + fixtureRepository + '/pulls'])
+    assert.equal(options.timeoutMs, 12_000)
+    assert.equal(options.cwd, options.environment.GH_CONFIG_DIR)
+    scratch = options.cwd
+    assert.notEqual(scratch, f.root)
+    assert.deepEqual(JSON.parse(options.input), { title: 'Add feature', head: 'octo-user:feature/one', base: 'main',
+      body: 'Reviewed description', draft: true })
+    for (const key of keys) assert.equal(options.environment[key], key === 'GH_CONFIG_DIR' ? scratch : undefined)
+    assert.equal(options.environment.GH_PROMPT_DISABLED, '1')
+    assert.equal(options.environment.GH_HOST, 'github.com')
+    return ok({ number: 19, title: 'Add feature', url: 'https://github.com/' + fixtureRepository + '/pull/19',
+      head: 'octo-user:feature/one', base: 'main', draft: true, state: 'open' })
+  })
+  assert.equal(calls, 1)
+  assert.deepEqual(result, { number: 19, title: 'Add feature', url: 'https://github.com/' + fixtureRepository + '/pull/19',
+    head: 'octo-user:feature/one', base: 'main', draft: true })
+  assert.equal(optionsHasNoCredential(result), true)
+  await assert.rejects(access(scratch), { code: 'ENOENT' })
+})
+
+function optionsHasNoCredential(value: unknown) {
+  return !/GH_TOKEN|GITHUB_TOKEN|gh[pousr]_|github_pat_/.test(JSON.stringify(value))
+}
+
+test('pull request creation validates reviewed fields, rejects malformed API results, and never retries uncertain writes', async t => {
+  const f = await fixture(); t.after(f.clean)
+  const forbidden = async () => { throw new Error('Unexpected CLI launch') }
+  const valid = { repository: fixtureRepository, title: 'Add feature', head: 'octo-user:feature/one', base: 'main', body: '', draft: false }
+  for (const invalid of [null, { ...valid, extra: true }, { ...valid, title: '  ' }, { ...valid, title: 'a\nb' },
+    { ...valid, title: 'x'.repeat(257) }, { ...valid, head: '../outside' }, { ...valid, head: 'owner:../../topic' },
+    { ...valid, head: 'x'.repeat(256) }, { ...valid, draft: 'false' },
+    { ...valid, body: 'x'.repeat(8193) }, { ...valid, body: 'x\0y' }]) {
+    assert.throws(() => checkCreatePullRequestRequest(invalid))
+    await assert.rejects(f.create(forbidden, invalid), /pull request|title|branch|description|owner\/name/i)
+  }
+  for (const invalid of [{ number: 0 }, { state: 'closed' }, { draft: false }, { head: 'attacker:branch' },
+    { url: 'https://outside.invalid/pull/19' }]) {
+    await assert.rejects(f.create(async () => ok({ number: 19, title: 'Add feature', head: 'octo-user:feature/one',
+      base: 'main', draft: false, state: 'open', url: 'https://github.com/' + fixtureRepository + '/pull/19', ...invalid })),
+    /invalid pull request result/)
+  }
+  let calls = 0
+  await assert.rejects(f.create(async () => { calls++; return { ...ok({}), state: 'timeout' } }), /timed out.*before retrying/)
+  assert.equal(calls, 1)
+  await assert.rejects(f.create(async (_tool, _args, options) => {
+    assert.doesNotMatch(options.input, /GH_TOKEN|GITHUB_TOKEN/)
+    return { ...ok({}), exitCode: 1, stderr: 'HTTP 422 private diagnostic detail' }
+  }), /did not create.*branches, permissions/)
 })
 
 test('live authenticated GitHub read for the official Ion repository', { skip: process.env.ION_TEST_GITHUB_LIVE !== '1', timeout: 50_000 }, async t => {

@@ -60,6 +60,11 @@ const fixture = `
         window.finishPullRequest.push(() => resolve({number:9, title:'Read the changes', url:'https://github.com/Team/Demo/pull/9',
           state:'open', draft:true, author:'author', base:'main', head:'author:fix', body:'<em>Inert description</em>', bodyTruncated:true}))
       }),
+      createGitHubPullRequest: request => {
+        window.githubCalls.push(['create-pull',root,request])
+        return Promise.resolve({number:10,title:request.title,url:'https://github.com/Team/Demo/pull/10',
+          head:request.head,base:request.base,draft:request.draft})
+      },
       openGitHubPage: async url => { window.githubCalls.push(['open',root,url]) },
       cloneGitHub: async repository => { window.githubCalls.push(['clone',root,repository]); return null },
       closeGitHub: async () => { window.githubCalls.push(['close',root]) },
@@ -216,8 +221,26 @@ try {
   await pullDetail.waitFor({ state: 'detached' })
   assert.equal(await pull.evaluate(node => node === document.activeElement), true)
   await hosted.getByRole('button', { name: '#7 Reviewed issue' }).click()
+  const title = 'Add reviewed endpoint'
+  await hosted.getByRole('button', { name: 'Create pull request…' }).click()
+  await hosted.getByLabel('Pull request title').fill(title)
+  await hosted.getByLabel('Head branch').fill('octo:feature/endpoint')
+  await hosted.getByLabel('Base branch').fill('main')
+  await hosted.getByLabel('Description').fill('Adds a small reviewed API endpoint.')
+  await hosted.getByRole('button', { name: 'Review pull request…' }).click()
+  const createReview = hosted.getByRole('group', { name: 'Review pull request' })
+  await createReview.getByText('octo:feature/endpoint → main · Draft').waitFor()
+  assert.deepEqual(await page.evaluate(() => window.githubCalls), [anonymous, ['load', 'second', 'team/demo'],
+    ['pull', 'second', {repository:'Team/Demo', number:9}], ['open', 'second', 'https://github.com/Team/Demo/pull/9'],
+    ['open', 'second', 'https://github.com/Team/Demo/issues/7']])
+  await createReview.getByRole('button', { name: 'Create pull request' }).click()
+  await hosted.getByText('Created #10: Add reviewed endpoint · Draft').waitFor()
   const reviewed = [anonymous, ['load', 'second', 'team/demo'], ['pull', 'second', {repository:'Team/Demo', number:9}],
     ['open', 'second', 'https://github.com/Team/Demo/pull/9'], ['open', 'second', 'https://github.com/Team/Demo/issues/7']]
+  reviewed.push(['create-pull', 'second', {repository:'Team/Demo', title, head:'octo:feature/endpoint', base:'main',
+    body:'Adds a small reviewed API endpoint.', draft:true}])
+  await hosted.getByRole('status', { name: 'Created pull request' }).getByRole('button', { name: 'Open pull request on GitHub' }).click()
+  reviewed.push(['open', 'second', 'https://github.com/Team/Demo/pull/10'])
   assert.deepEqual(await page.evaluate(() => window.githubCalls), reviewed)
   await hosted.getByRole('button', { name: 'Clone public repository…' }).click()
   assert.deepEqual(await page.evaluate(() => window.githubCalls), [...reviewed, ['clone', 'second', 'Team/Demo']])

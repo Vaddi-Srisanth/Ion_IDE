@@ -101,6 +101,24 @@ export interface SourceControlGitHubPullRequestRequest {
   number: number
 }
 
+export interface SourceControlGitHubCreatePullRequestRequest {
+  repository: string
+  title: string
+  head: string
+  base: string
+  body: string
+  draft: boolean
+}
+
+export interface SourceControlGitHubCreatedPullRequest {
+  number: number
+  title: string
+  url: string
+  head: string
+  base: string
+  draft: boolean
+}
+
 export interface SourceControlGitHubPullRequest {
   number: number
   title: string
@@ -126,6 +144,7 @@ export interface SourceControlBridge {
   browse(): Promise<SourceControlBrowse>
   github(repository: string): Promise<SourceControlGitHub>
   githubPullRequest(request: SourceControlGitHubPullRequestRequest): Promise<SourceControlGitHubPullRequest>
+  createGitHubPullRequest(request: SourceControlGitHubCreatePullRequestRequest): Promise<SourceControlGitHubCreatedPullRequest | null>
   cloneGitHub(repository: string): Promise<string | null>
   closeGitHub(): Promise<void>
   openGitHubPage(url: string): Promise<void>

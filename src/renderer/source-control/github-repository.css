@@ -2,6 +2,17 @@
 .git-hosted form, .git-hosted label, .git-hosted-results { display: grid; gap: 6px; min-width: 0; }
 .git-hosted form, .git-hosted-results { margin-block-start: 8px; }
 .git-hosted form .button { justify-self: start; }
+.git-create-pull-request { display: grid; gap: 7px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.git-create-pull-request > p { margin: 0; }
+.git-create-pull-request textarea { min-width: 0; width: 100%; resize: vertical; padding: 5px; color: var(--ink); background: var(--background); border: 1px solid var(--border); }
+.git-create-pull-request button { justify-self: start; }
+.git-create-draft { display: flex !important; align-items: center; gap: 6px; }
+.git-create-draft input { width: auto; }
+.git-create-pull-review { display: grid; gap: 6px; padding-block-start: 8px; border-block-start: 1px solid var(--border); }
+.git-create-pull-review p { margin: 0; }
+.git-create-pull-review pre { max-block-size: 120px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.git-created-pull-request { padding: 6px 0; }
+.git-created-pull-request p { margin: 0 0 4px; }
 .git-hosted label, .git-hosted p, .git-hosted small { font-size: 12px; color: var(--muted); }
 .git-hosted input { min-width: 0; width: 100%; padding: 4px; color: var(--ink); background: var(--background); border: 1px solid var(--border); }
 .git-hosted [role=alert] { color: var(--danger); overflow-wrap: anywhere; }

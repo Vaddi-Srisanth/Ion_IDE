@@ -1794,6 +1794,25 @@ function registerIpc(): void {
     if (!isReviewed() || result.url !== url) throw new Error('The reviewed GitHub list changed.')
     return result
   }))
+  handle('source-control-github-create-pull-request', (target, root, value) => useSourceControl(target, root, async (service, path) => {
+    const session = sourceControl!
+    const pages = session.gitHubPages
+    const { checkCreatePullRequestRequest } = await import('./source-control/github-repository')
+    const request = checkCreatePullRequestRequest(value)
+    const repositoryUrl = 'https://github.com/' + request.repository
+    const isReviewed = () => session === sourceControl && session.gitHubPages === pages && Boolean(pages?.has(repositoryUrl))
+    if (!isReviewed()) throw new Error('Load this GitHub repository before creating a pull request.')
+    const answer = await dialog.showMessageBox(target, {
+      type: 'question', buttons: ['Cancel', 'Create Pull Request'], cancelId: 0, defaultId: 0,
+      message: 'Create “' + request.title + '” in ' + request.repository + '?',
+      detail: 'Compare ' + request.head + ' into ' + request.base + '. ' + (request.draft ? 'Draft pull request. ' : 'Ready for review. ')
+        + 'Ion will submit the description reviewed in the GitHub panel through your signed-in GitHub CLI. It will not push commits or change local files.',
+    })
+    if (answer.response !== 1 || !isReviewed() || sourceControlRoot(target, path) !== trustedGitRoot) return null
+    const result = await service.createGitHubPullRequest(path, request, [...files.rootPaths])
+    if (session === sourceControl && session.gitHubPages === pages && pages && pages.size < 100) pages.add(result.url)
+    return result
+  }))
   handle('source-control-github-clone', (target, root, repository) => useSourceControl(target, root, async (service, path) => {
     const session = sourceControl!
     if (session.cloneReview) throw new Error('A clone is already being reviewed or downloaded.')

@@ -1,12 +1,12 @@
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
-import type { SourceControlGitHub, SourceControlGitHubPullRequest } from '../../shared/source-control'
+import type { SourceControlGitHub, SourceControlGitHubCreatedPullRequest, SourceControlGitHubPullRequest } from '../../shared/source-control'
 import { isWithin } from '../files'
 import { commandPaths, envFor, executable, onPath } from '../run-console/plans'
 import { execute } from '../runner'
 import { windowsSystemDirectory } from '../windows-process'
-import { accountName, checkPullRequestRequest, checkRepository, pullRequestUrl } from './github-repository'
+import { accountName, checkCreatePullRequestRequest, checkPullRequestRequest, checkRepository, pullRequestUrl } from './github-repository'
 export { checkRepository } from './github-repository'
 
 const pageSize = 20
@@ -74,11 +74,11 @@ interface Dependencies {
   findGh?: typeof trustedGh
 }
 
-type Reader = (endpoint: string, filter: string, textBody?: boolean) => Promise<unknown>
+type ApiRequest = (endpoint: string, filter: string, options?: { textBody?: boolean; method?: 'GET' | 'POST'; input?: string }) => Promise<unknown>
 
-/** Explicit read only. GH_CONFIG_DIR isolates the endpoint, socket, aliases and pager. gh obtains its own credential from the OS keyring. */
-async function withGitHubReader<T>(root: string, workspaceRoots: readonly string[], repository: string, signal: AbortSignal,
-  dependencies: Dependencies, read: (get: Reader) => Promise<T>): Promise<T> {
+/** GH_CONFIG_DIR isolates endpoints, sockets, aliases and pagers. gh obtains credentials through its configured OS credential flow. */
+async function withGitHubClient<T>(root: string, workspaceRoots: readonly string[], repository: string, signal: AbortSignal,
+  dependencies: Dependencies, read: (get: ApiRequest) => Promise<T>): Promise<T> {
   signal.throwIfAborted()
   if (!isAbsolute(root) || !workspaceRoots.includes(root)) throw new Error('Choose an open workspace root.')
   const tool = await (dependencies.findGh ?? trustedGh)(root, workspaceRoots, signal)
@@ -96,28 +96,46 @@ async function withGitHubReader<T>(root: string, workspaceRoots: readonly string
       GH_CONFIG_DIR: scratch, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', GH_NO_EXTENSION_UPDATE_NOTIFIER: '1',
       GH_TELEMETRY: '0', DO_NOT_TRACK: '1', NO_COLOR: '1', GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: join(scratch, 'empty-gitconfig'), GIT_TERMINAL_PROMPT: '0', GIT_CEILING_DIRECTORIES: temp }
-    async function get(endpoint: string, filter: string, textBody = false): Promise<unknown> {
+    async function get(endpoint: string, filter: string, options: { textBody?: boolean; method?: 'GET' | 'POST'; input?: string } = {}): Promise<unknown> {
       signal.throwIfAborted()
       if (!isAbsolute(tool) || await realpath(tool) !== tool || !await executable(tool, root) || workspaceRoots.some(other => isWithin(other, tool))) {
         throw new Error('The installed GitHub CLI changed. Review the repository again.')
       }
-      const headers = textBody ? ['--header', 'Accept: application/vnd.github.text+json'] : []
-      const result = await (dependencies.run ?? execute)(tool, ['api', '--hostname', 'github.com', '--method', 'GET', '--jq', filter, ...headers, endpoint],
-        { cwd: scratch, input: '', signal, timeoutMs: requestMs, budget: { remaining: outputLimit }, environment, splitOutput: true, collectOutput: false })
+      if (typeof options.input !== 'undefined' && Buffer.byteLength(options.input) > 10 * 1024) throw new Error('The GitHub request exceeded its limit.')
+      const method = options.method ?? 'GET'
+      const headers = options.textBody ? ['--header', 'Accept: application/vnd.github.text+json'] : []
+      const body = method === 'POST' ? ['--input', '-'] : []
+      const result = await (dependencies.run ?? execute)(tool,
+        ['api', '--hostname', 'github.com', '--method', method, '--jq', filter, ...headers, ...body, endpoint],
+        { cwd: scratch, input: options.input ?? '', signal, timeoutMs: requestMs, budget: { remaining: outputLimit }, environment, splitOutput: true, collectOutput: false })
       signal.throwIfAborted()
-      if (result.state === 'timeout') throw new Error('The GitHub read timed out.')
+      if (result.state === 'timeout') throw new Error(method === 'POST'
+        ? 'The GitHub request timed out. Load the pull request list before retrying.'
+        : 'The GitHub read timed out.')
       if (result.state === 'output-limit' || result.outputComplete === false || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > outputLimit) {
-        throw new Error('The GitHub CLI response exceeded its limit or could not be fully read.')
+        throw new Error(method === 'POST'
+          ? 'GitHub could not confirm the pull request result. Load the pull request list before retrying.'
+          : 'The GitHub CLI response exceeded its limit or could not be fully read.')
       }
       if (result.state !== 'exited' || result.exitCode !== 0) {
         // CLI diagnostics can contain request URLs, settings or account details. Return only fixed messages.
         const stderr = result.stderr ?? ''
         if (result.exitCode === 4 || /HTTP 401|auth login/i.test(stderr)) throw new Error('Sign in to github.com with gh auth login using your OS credential store.')
-        if (/rate limit|HTTP 429/i.test(stderr)) throw new Error('GitHub rate-limited this read. Try again later.')
-        if (/HTTP (403|404|422)/i.test(stderr)) throw new Error('The repository is unavailable to the current GitHub account.')
-        throw new Error('The GitHub read failed. Check connectivity and your GitHub CLI sign-in.')
+        if (/rate limit|HTTP 429/i.test(stderr)) throw new Error(method === 'POST'
+          ? 'GitHub rate-limited the request. Load the pull request list before retrying.'
+          : 'GitHub rate-limited this read. Try again later.')
+        if (/HTTP (403|404|422)/i.test(stderr)) {
+          if (method === 'POST') throw new Error('GitHub did not create the pull request. Check the branches, permissions, or whether one already exists.')
+          throw new Error('The repository is unavailable to the current GitHub account.')
+        }
+        throw new Error(method === 'POST' ? 'GitHub could not confirm the pull request result. Load the repository again before retrying.'
+          : 'The GitHub read failed. Check connectivity and your GitHub CLI sign-in.')
       }
-      try { return JSON.parse(result.stdout) as unknown } catch { throw new Error('GitHub returned an invalid response.') }
+      try { return JSON.parse(result.stdout) as unknown } catch {
+        throw new Error(method === 'POST'
+          ? 'GitHub returned an invalid result. Load the pull request list before retrying.'
+          : 'GitHub returned an invalid response.')
+      }
     }
     return await read(get)
   } finally {
@@ -128,7 +146,7 @@ async function withGitHubReader<T>(root: string, workspaceRoots: readonly string
 export async function githubOverview(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
   dependencies: Dependencies = {}): Promise<SourceControlGitHub> {
   const repository = checkRepository(input)
-  return withGitHubReader(root, workspaceRoots, repository, signal, dependencies, async get => {
+  return withGitHubClient(root, workspaceRoots, repository, signal, dependencies, async get => {
     const account = record(await get('user', '{login}'))
     if (typeof account.login !== 'string' || !accountName.test(account.login)) throw new Error('GitHub returned an invalid account.')
     const fields = '{number,title,url:.html_url,state}'
@@ -146,11 +164,12 @@ export async function githubOverview(root: string, workspaceRoots: readonly stri
 export async function githubPullRequest(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
   dependencies: Dependencies = {}): Promise<SourceControlGitHubPullRequest> {
   const request = checkPullRequestRequest(input)
-  return withGitHubReader(root, workspaceRoots, request.repository, signal, dependencies, async get => {
+  return withGitHubClient(root, workspaceRoots, request.repository, signal, dependencies, async get => {
     const description = '(.body_text // "")'
     const fields = '{number,title,url:.html_url,state,merged,draft,author:.user.login,base:.base.ref,head:.head.label'
       + ',body:' + description + '[:' + bodyLimit + '],bodyTruncated:(' + description + ' | length > ' + bodyLimit + ')}'
-    const result = record(await get('repos/' + request.repository + '/pulls/' + request.number, fields, true))
+    const result = record(await get('repos/' + request.repository + '/pulls/' + request.number, fields,
+      { textBody: true }))
     const { number, title, url, state, merged, draft, author, base, head, body, bodyTruncated } = result
     const expectedUrl = pullRequestUrl(request)
     if (number !== request.number || typeof url !== 'string' || url.toLowerCase() !== expectedUrl.toLowerCase()
@@ -164,5 +183,31 @@ export async function githubPullRequest(root: string, workspaceRoots: readonly s
     return { number: request.number, title: displayLine(title, 256), url: expectedUrl, state: merged ? 'merged' : state,
       draft, author, base: displayLine(base, 160), head: displayLine(head, 160), body: characters.slice(0, bodyLimit).join('').trim(),
       bodyTruncated: bodyTruncated || characters.length > bodyLimit }
+  })
+}
+
+export async function createGitHubPullRequest(root: string, workspaceRoots: readonly string[], input: unknown, signal: AbortSignal,
+  dependencies: Dependencies = {}): Promise<SourceControlGitHubCreatedPullRequest> {
+  const request = checkCreatePullRequestRequest(input)
+  return withGitHubClient(root, workspaceRoots, request.repository, signal, dependencies, async api => {
+    const fields = '{number,title,url:.html_url,head:.head.label,base:.base.ref,draft,state}'
+    const response = record(await api('repos/' + request.repository + '/pulls', fields, {
+      method: 'POST', input: JSON.stringify({ title: request.title, head: request.head, base: request.base,
+        body: request.body, draft: request.draft }),
+    }))
+    const expectedUrl = 'https://github.com/' + request.repository + '/pull/' + response.number
+    const responseHead = typeof response.head === 'string' ? response.head.split(':') : []
+    const requestedHead = request.head.split(':')
+    const selectedBranch = requestedHead.at(-1)
+    const headMatches = responseHead.length === 2 && responseHead[1] === selectedBranch
+      && (requestedHead.length === 1 || responseHead[0].toLowerCase() === requestedHead[0].toLowerCase())
+    if (!Number.isSafeInteger(response.number) || (response.number as number) < 1 || response.state !== 'open'
+      || response.draft !== request.draft || response.title !== request.title || response.base !== request.base || !headMatches
+      || typeof response.url !== 'string'
+      || response.url.toLowerCase() !== expectedUrl.toLowerCase()) {
+      throw new Error('GitHub returned an invalid pull request result. Load the repository to check whether it was created.')
+    }
+    return { number: response.number as number, title: displayLine(response.title, 256), url: expectedUrl,
+      head: displayLine(response.head, 256), base: displayLine(response.base, 160), draft: response.draft }
   })
 }

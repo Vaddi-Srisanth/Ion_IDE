@@ -1,8 +1,9 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff,
-  SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubPullRequest,
-  SourceControlGitHubPullRequestRequest, SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
+  SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubCreatedPullRequest,
+  SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubPullRequest, SourceControlGitHubPullRequestRequest,
+  SourceControlStatus, SourceControlSwitchRequest } from '../../shared/source-control'
 import type { FileMutations } from '../file-mutations'
 import { commitReviewedChanges, gitObjectId } from './commit'
 import { absent, browseRepository, compareRepository, git, gitDirectory, inside, readTextFile, resolveGit,
@@ -66,6 +67,7 @@ export class SourceControlService {
   private read?: AbortController
   private activeBlame?: { path: string; controller: AbortController }
   private githubRead?: AbortController
+  private githubCreate?: Promise<SourceControlGitHubCreatedPullRequest>
   private clone?: { controller: AbortController; done: Promise<string> }
   private write?: Promise<unknown>
   private writeController?: AbortController
@@ -166,7 +168,22 @@ export class SourceControlService {
     })
   }
 
+  createGitHubPullRequest(root: string, request: SourceControlGitHubCreatePullRequestRequest,
+    workspaceRoots: readonly string[]): Promise<SourceControlGitHubCreatedPullRequest> {
+    if (this.githubCreate) throw new Error('A GitHub pull request is already being created.')
+    const { repository } = this.requireSnapshot(root)
+    this.githubRead?.abort()
+    const controller = new AbortController()
+    const result = this.verifyRepository(repository, controller.signal).then(async () => {
+      const { createGitHubPullRequest } = await import('./github')
+      return createGitHubPullRequest(root, workspaceRoots, request, controller.signal)
+    }).finally(() => { this.githubCreate = undefined })
+    this.githubCreate = result
+    return result
+  }
+
   private async readGitHub<T>(root: string, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    if (this.githubCreate) throw new Error('Wait for the GitHub pull request request to finish.')
     const { repository } = this.requireSnapshot(root)
     this.githubRead?.abort()
     const controller = new AbortController()
