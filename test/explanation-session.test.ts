@@ -6,7 +6,8 @@ import { test, type TestContext } from 'node:test'
 import type { ExplanationCitation, ExplanationContent, ExplanationReview } from '../src/shared/explanations'
 import { ExplanationSession, type ExplanationContext } from '../src/main/explanations/session'
 import { WorkspaceFiles } from '../src/main/files'
-import { ProviderVault } from '../src/main/projects/provider'
+import { buildExplanationPayload, ProviderVault } from '../src/main/projects/provider'
+import { completionEvent, streamedCompletion } from './fixtures/explanation-sse'
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
@@ -66,6 +67,7 @@ async function fixture(t: TestContext) {
       if (latest.revision !== saved.revision || latest.text !== saved.text) throw new Error('Raw source changed: ' + key)
     }
     return {
+      ...(request && typeof request === 'object' && 'stream' in request && request.stream === true ? { stream: true } : {}),
       input: { purpose: 'tutor', action: 'hint', question: 'Explain this reviewed excerpt.', sources: [{
         id: 'file-1', label: basename(requested), origin: 'saved-file', revision: saved.revision,
         startLine: 1, endLine: 2, text: saved.text,
@@ -134,6 +136,84 @@ test('declined consent, forged tokens and ungranted source requests cannot send 
   await assert.rejects(session.send(review.token), /unavailable or expired/)
   assert.equal(state.requests, 0)
   assert.equal(state.decrypts, 0)
+})
+
+test('stream mode is frozen at review and only the single natively approved send unlocks the provider and issues a citation token', async t => {
+  const { session, state, path } = await fixture(t)
+  state.approved = false
+  const denied = await session.review({ stream: true })
+  assert.equal(await session.send(denied.token), null)
+  assert.equal(state.requests, 0)
+  assert.equal(state.decrypts, 0)
+  await assert.rejects(session.send(denied.token), /unavailable or expired/)
+
+  const request = { stream: true }
+  const review = await session.review(request)
+  request.stream = false
+  assert.equal(review.stream, true)
+  assert.equal(Object.isFrozen(review), true)
+  assert.equal(state.decrypts, 0)
+  const expected = buildExplanationPayload(settings, {
+    purpose: review.purpose, action: review.action, question: review.question, sources: review.sources,
+  }, true)
+  assert.equal(expected.bodyBytes, review.bodyBytes)
+  state.approved = true
+  state.requestHook = async () => streamedCompletion(content)
+  const reply = await session.send(review.token)
+  assert.ok(reply)
+  assert.equal(state.approvals[1], review)
+  assert.equal(state.approvals[1].stream, true)
+  assert.equal(state.decrypts, 1)
+  assert.equal(reply.summary, content.summary)
+  assert.notEqual(reply.token, review.token)
+  assert.equal((await session.openCitation(reply.token, 'file-1', { startLine: 1, endLine: 1 })).entry?.path, path)
+  await assert.rejects(session.openCitation(reply.token, 'file-1', { startLine: 1, endLine: 2 }), /citation is unavailable/)
+  await assert.rejects(session.send(review.token), /unavailable or expired/)
+  assert.deepEqual(state.bodies, [expected.body])
+})
+
+test('cancel after the first content delta aborts transport, closes a pending stream read and discards partial output', { timeout: 8000 }, async t => {
+  const { session, state } = await fixture(t)
+  const review = await session.review({ stream: true })
+  assert.equal(review.stream, true)
+  const blocked = deferred<void>(), release = deferred<void>()
+  let source!: ReadableStreamDefaultController<Uint8Array>, first = true, cancelled = false
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) { source = controller },
+    pull(controller) {
+      if (first) {
+        first = false
+        controller.enqueue(new TextEncoder().encode(completionEvent({ role: 'assistant' }) + completionEvent({ content: '{"summary":"partial' })))
+        return
+      }
+      blocked.resolve()
+      return release.promise
+    },
+    cancel() { cancelled = true; release.resolve() },
+  }, { highWaterMark: 0 })
+  state.requestHook = async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } })
+  const sending = session.send(review.token)
+  const result = assert.rejects(sending, /cancelled/)
+  void result.catch(() => undefined)
+  const watchdog = setTimeout(() => { source.error(new Error('fixture stream stalled')); release.resolve() }, 3500)
+  try {
+    await Promise.race([blocked.promise, sending.then(() => assert.fail('Incomplete reply was accepted'))])
+    await assert.rejects(session.openCitation(review.token, 'file-1', { startLine: 1, endLine: 1 }), /still finishing/)
+    session.cancel()
+    assert.equal(state.signals[0].aborted, true)
+    await result
+    await session.drain()
+    assert.equal(cancelled, true)
+    assert.equal(body.locked, false)
+    await assert.rejects(session.send(review.token), /unavailable or expired/)
+    assert.deepEqual(state.opened, [])
+    assert.equal(state.requests, 1)
+  } finally {
+    clearTimeout(watchdog)
+    source.error(new Error('fixture complete'))
+    release.resolve()
+    await sending.catch(() => undefined)
+  }
 })
 
 test('real source changes, root revocation and owner loss invalidate reviewed context', async t => {
@@ -236,14 +316,14 @@ test('source changes after consent or while transport is pending prevent stale e
   assert.equal(state.decrypts, 0)
   assert.equal(state.requests, 0)
   state.approveHook = undefined
-  review = await session.review({})
+  review = await session.review({ stream: true })
   const entered = deferred<void>(), release = deferred<Response>()
   state.requestHook = async () => { entered.resolve(); return release.promise }
   const pending = session.send(review.token)
   void pending.catch(() => undefined)
   await entered.promise
   await writeFile(path, 'changed during transport\nsecond line')
-  release.resolve(response())
+  release.resolve(streamedCompletion(content))
   await assert.rejects(pending, /could not be completed/)
 })
 

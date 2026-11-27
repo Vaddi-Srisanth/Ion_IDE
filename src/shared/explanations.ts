@@ -27,6 +27,7 @@ export interface ExplanationInput {
 
 /** Renderer requests identify context; main assembles and validates reviewed sources. */
 export interface ExplanationRequest {
+  stream?: boolean
   purpose: ExplanationPurpose
   action: ExplanationAction
   question: string
@@ -37,6 +38,7 @@ export interface ExplanationRequest {
 }
 
 export interface ExplanationReview {
+  stream?: boolean
   token: string
   provider: ProviderSettings
   bodyBytes: number

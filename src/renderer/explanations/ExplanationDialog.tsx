@@ -26,8 +26,8 @@ const projectActions: Array<[ExplanationAction, string]> = [['understand', 'Unde
 
 /** Only explicitly selected context crosses the review boundary. */
 export function selectedExplanationRequest(request: ExplanationRequest, selection: ExplanationSelection,
-  action: ExplanationAction, question: string): ExplanationRequest {
-  return { purpose: request.purpose, action, question,
+  action: ExplanationAction, question: string, stream = false): ExplanationRequest {
+  return { purpose: request.purpose, action, question, ...(stream && { stream: true }),
     ...(selection.lesson && request.lesson ? { lesson: request.lesson } : {}),
     ...(selection.code && request.code ? { code: request.code } : {}),
     ...(selection.diagnostic && request.diagnostic ? { diagnostic: request.diagnostic } : {}),
@@ -42,6 +42,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
   const [provider, setProvider] = useState<ProviderSettings | null>(null)
   const [action, setAction] = useState(initialRequest.action)
   const [question, setQuestion] = useState(initialRequest.question)
+  const [stream, setStream] = useState(false)
   const [selection, setSelection] = useState<ExplanationSelection>({ lesson: false, code: false, diagnostic: false, structure: false, refs: [] })
   const [review, setReview] = useState<ExplanationReview | null>(null)
   const [reply, setReply] = useState<ExplanationReply | null>(null)
@@ -59,7 +60,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
     void owned.finally(() => { if (operation.current === owned) operation.current = null }).catch(() => {})
   }
   function cancel(message = 'Request cancelled. Review again before sending.') {
-    setReview(null); setReply(null); setReplyReview(null); setFeedback(message)
+    setStream(false); setReview(null); setReply(null); setReplyReview(null); setFeedback(message)
     if (stopping.current) return
     const epoch = ++generation.current
     pending.current = true; setBusy(true)
@@ -107,7 +108,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
       if (!alive()) return
       setProvider(settings)
       if (!settings.hasKey || !settings.model) { setFeedback('Configure a provider and API key before sending an optional online request.'); return }
-      const selected = selectedExplanationRequest(initialRequest, selection, action, question)
+      const selected = selectedExplanationRequest(initialRequest, selection, action, question, stream)
       const request = refreshContext ? await refreshContext(selected) : selected
       if (!alive()) return
       const prepared = await bridge.review(request)
@@ -126,7 +127,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
       setFeedback(result ? 'AI explanation received. Verify it against your source and offline lessons.' : 'Sending was declined. Nothing was sent.')
     } catch {
       if (mounted.current && generation.current === epoch) { setReview(null); setReplyReview(null); setFeedback('The request failed or its context changed. Your files were not modified. Review again to retry.') }
-    } finally { if (mounted.current && generation.current === epoch) { pending.current = false; setBusy(false) } }
+    } finally { if (mounted.current && generation.current === epoch) { pending.current = false; setBusy(false); setStream(false) } }
   }
   async function openCitation(citation: ExplanationCitation) {
     if (!reply || pending.current) return
@@ -166,6 +167,11 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
         </>}
         {!initialRequest.lesson && !initialRequest.code && !initialRequest.diagnostic && !initialRequest.project && <p>Only your question will be included.</p>}
       </fieldset>
+      <fieldset disabled={busy} className="explanation-inclusions"><legend>Provider response</legend>
+        <label><input type="checkbox" checked={stream} aria-describedby="explanation-stream-help"
+          onChange={event => { changed(); setStream(event.target.checked) }}/>Stream provider response</label>
+        <p id="explanation-stream-help" className="explanation-note">Ion shows the answer after validating the complete response and its citations.</p>
+      </fieldset>
       <div className="explanation-actions"><button className="button" data-testid="explanation-review" onClick={() => start(reviewRequest)} disabled={busy || !question.trim() || questionBytes > 2048}><Icon name="eye"/>Review request</button>
         {busy && <button className="button" onClick={() => cancel()}>Cancel request</button>}</div>
       <p role="status" className="explanation-status">{feedback}</p>
@@ -184,7 +190,8 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
 export function ExplanationReviewView({ review, disabled, onSend }: { review: ExplanationReview; disabled: boolean; onSend(): void }) {
   return <section className="explanation-review" aria-label="Exact request review" data-testid="explanation-review-content">
     <h3>Review before sending</h3>
-    <dl><dt>Provider</dt><dd>{review.provider.endpoint}</dd><dt>Model</dt><dd>{review.provider.model}</dd><dt>Request size</dt><dd>{review.bodyBytes.toLocaleString()} bytes</dd></dl>
+    <dl><dt>Provider</dt><dd>{review.provider.endpoint}</dd><dt>Model</dt><dd>{review.provider.model}</dd><dt>Request size</dt><dd>{review.bodyBytes.toLocaleString()} bytes</dd>
+      <dt>Response mode</dt><dd>{review.stream ? 'Streaming' : 'Single response'}</dd></dl>
     <h4>Question</h4><p className="explanation-prewrap">{review.question}</p>
     {review.sources.map(source => <details key={source.id}><summary>{source.label} · {source.origin} · lines {source.startLine}–{source.endLine}</summary>
       <p className="explanation-note">Revision: {source.revision}</p><pre>{source.text}</pre></details>)}

@@ -71,10 +71,14 @@ function referenceKey(value: ProjectLensReference) {
     range ? [range.startLine, range.startColumn, range.endLine, range.endColumn] : null])
 }
 function parse(value: unknown): ExplanationContextRequest {
-  const data = object(value, ['purpose', 'action', 'question'], ['lesson', 'code', 'diagnostic', 'project'])
+  const data = object(value, ['purpose', 'action', 'question'], ['lesson', 'code', 'diagnostic', 'project', 'stream'])
   if (data.purpose !== 'tutor' && data.purpose !== 'project-lens'
     || !(data.purpose === 'tutor' ? tutorActions : projectActions).includes(data.action as string)) invalid()
   const result = { purpose: data.purpose, action: data.action, question: text(data.question, 2048, true) } as ExplanationContextRequest
+  if (data.stream !== undefined) {
+    if (typeof data.stream !== 'boolean') invalid()
+    result.stream = data.stream as boolean
+  }
   if (data.lesson !== undefined) {
     const selected = object(data.lesson, ['packId', 'lessonId'])
     if (!isId(selected.packId) || !isTopicId(selected.lessonId)) invalid()
@@ -343,5 +347,5 @@ async function prepare(request: ExplanationContextRequest, signal: AbortSignal, 
   }
   await validate()
   Object.freeze(sources)
-  return { input: Object.freeze({ purpose: request.purpose, action: request.action, question: request.question, sources }), exclusions, validate, openCitation }
+  return { stream: request.stream === true, input: Object.freeze({ purpose: request.purpose, action: request.action, question: request.question, sources }), exclusions, validate, openCitation }
 }

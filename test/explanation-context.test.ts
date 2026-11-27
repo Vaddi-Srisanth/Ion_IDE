@@ -279,3 +279,17 @@ test('long UTF-8 metadata paths share one 8 KiB budget, omit whole items and rep
   assert.doesNotMatch(excerpt, /UNSELECTED_CONTENT|\.\.\./)
   assert.equal((await prepareContext(f.project([]), signal(), f.options)).input.sources[0].text, excerpt)
 })
+
+test('streaming consent selects only the transport and never enters the source context', async t => {
+  const f = await fixture(t)
+  for (const selected of [undefined, false, true]) {
+    const context = await prepareContext(tutor({ stream: selected }), signal(), f.options)
+    assert.equal(context.stream, selected === true)
+    assert.equal(Object.hasOwn(context.input, 'stream'), false)
+    assert.deepEqual(context.input.sources, [])
+  }
+  for (const invalid of ['yes', 1, null, {}]) {
+    await assert.rejects(prepareContext(tutor({ stream: invalid }), signal(), f.options), safe)
+  }
+  assert.equal(f.state.lessonCalls + f.state.lensCalls, 0)
+})

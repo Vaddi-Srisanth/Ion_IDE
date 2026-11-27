@@ -73,6 +73,7 @@ const { ipcMain, safeStorage } = require('electron');
 const Module = require('node:module');
 const state = globalThis.ionExplanationFixture = { calls: 0, active: 0, aborted: 0, approvals: 0, unexpected: 0,
   mode: 'success', waiting: false, release: null, lastBody: null, lastReview: null, lastReply: null,
+  streams: 0, streamPending: false, finishStream: null,
   sendsActive: 0, reviews: 0, projectActions: 0, modules: [], crypto: 'not-observed', encrypted: 0, decrypted: 0 };
 const endpoint = ${JSON.stringify(endpoint)};
 const originalLoad = Module._load;
@@ -136,7 +137,9 @@ globalThis.fetch = async function(input, init) {
       });
     }
     if (state.mode === 'http-error') return new Response('{"private":"provider-body-must-not-be-rendered"}', { status: 503 });
-    const inputData = JSON.parse(JSON.parse(init.body).messages[1].content);
+    const envelope = JSON.parse(init.body);
+    if ((envelope.stream === true) !== (state.lastReview?.stream === true)) throw new Error('Transport differs from review.');
+    const inputData = JSON.parse(envelope.messages[1].content);
     const source = inputData.sources.find(item => item.origin === 'saved-file') || inputData.sources[0];
     const citations = source ? [{ sourceId: state.mode === 'invalid-citation' ? 'invented-source' : source.id,
       startLine: source.startLine, endLine: source.startLine }] : [];
@@ -146,6 +149,29 @@ globalThis.fetch = async function(input, init) {
       questions: ['Which independent evidence would strengthen this explanation?'],
       recommendations: [{ id: 'inspect', title: 'Inspect a representative input', description: 'Explain the behavior using your own observations.',
         acceptance: ['Describe one input and its expected behavior.'], dependsOn: [], citations }] };
+    if (envelope.stream === true) {
+      state.streams++;
+      answer.summary = 'The streamed fixture received the reviewed evidence.';
+      const frame = (delta, finish = null) => 'data: ' + JSON.stringify({
+        id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 1700000000, model: envelope.model,
+        choices: [{ index: 0, delta, finish_reason: finish, logprobs: null }],
+      }) + '\\n\\n';
+      const encoder = new TextEncoder(), text = JSON.stringify(answer), split = Math.floor(text.length / 2);
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(frame({ role: 'assistant', content: '' }) + frame({ content: text.slice(0, split) })));
+          const finish = () => {
+            state.streamPending = false; state.finishStream = null;
+            controller.enqueue(encoder.encode(frame({ content: text.slice(split) }) + frame({}, 'stop') + 'data: [DONE]\\n\\n'));
+            controller.close();
+          };
+          if (state.mode === 'hold-stream') { state.streamPending = true; state.finishStream = finish; }
+          else finish();
+        },
+        cancel() { state.streamPending = false; state.finishStream = null; },
+      });
+      return new Response(body, { headers: { 'content-type': 'text/event-stream; charset=utf-8' } });
+    }
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }] }));
   } finally { state.active--; state.waiting = false; state.release = null; }
 };
@@ -234,7 +260,7 @@ require(${JSON.stringify(target.args[0])});\n`)
       const state = globalThis.ionExplanationFixture
       return { calls: state.calls, active: state.active, aborted: state.aborted, approvals: state.approvals, unexpected: state.unexpected,
         sendsActive: state.sendsActive, reviews: state.reviews, projectActions: state.projectActions, modules: [...state.modules], crypto: state.crypto,
-        encrypted: state.encrypted, decrypted: state.decrypted, waiting: state.waiting }
+        encrypted: state.encrypted, decrypted: state.decrypted, waiting: state.waiting, streams: state.streams, streamPending: state.streamPending }
     })
     const reviewed = () => session.app.evaluate(() => globalThis.ionExplanationFixture.lastReview)
     const reply = () => session.app.evaluate(() => globalThis.ionExplanationFixture.lastReply)
@@ -348,6 +374,7 @@ require(${JSON.stringify(target.args[0])});\n`)
       assert.equal((await stats()).approvals, 1)
       const questionPayload = await app.evaluate(() => globalThis.ionExplanationFixture.lastBody)
       assert.equal(Buffer.byteLength(questionPayload), questionReview.bodyBytes)
+      assert.equal(Object.hasOwn(JSON.parse(questionPayload), 'stream'), false)
       assert.deepEqual(JSON.parse(JSON.parse(questionPayload).messages[1].content).sources, [])
       assert.equal(questionPayload.includes(credential), false)
       await assert.rejects(page.evaluate(token => window.ion.explanations.send(token), questionReview.token))
@@ -358,6 +385,43 @@ require(${JSON.stringify(target.args[0])});\n`)
       report.checks.explicitReviewExactBytesSingleUseConsent = 'passed'
       report.checks.forgedTokenAndCitationRejected = 'passed'
       await closeDialog()
+
+      phase = 'opt-in-streamed-lesson-and-validated-answer'
+      await openTutor()
+      const transport = dialog().getByRole('checkbox', { name: 'Stream provider response', exact: true })
+      assert.equal(await transport.isChecked(), false)
+      await dialog().getByRole('checkbox', { name: /^Installed lesson:/ }).check()
+      await transport.check()
+      const beforeStream = await stats(), streamReview = await review()
+      assert.equal(streamReview.stream, true)
+      assert.deepEqual(streamReview.sources.map(item => item.origin), ['lesson'])
+      await dialog().getByTestId('explanation-review-content').getByText('Streaming', { exact: true }).waitFor()
+      assert.equal((await stats()).calls, beforeStream.calls)
+      await mode('hold-stream')
+      await dialog().getByTestId('explanation-send').click()
+      await eventually(async () => (await stats()).streamPending, 'The synthetic provider did not open its reviewed event stream.')
+      assert.equal(await dialog().getByTestId('explanation-answer').count(), 0)
+      assert.ok(!(await dialog().textContent()).includes('The streamed fixture received the reviewed evidence.'))
+      assert.equal((await stats()).approvals, beforeStream.approvals + 1)
+      await app.evaluate(() => globalThis.ionExplanationFixture.finishStream())
+      const answer = dialog().getByTestId('explanation-answer')
+      await answer.getByText('The streamed fixture received the reviewed evidence.', { exact: true }).waitFor()
+      const streamReply = await reply(), afterStream = await stats()
+      assert.equal(streamReply.sections[0].citations[0].sourceId, streamReview.sources[0].id)
+      assert.notEqual(streamReply.token, streamReview.token)
+      const streamedBody = await app.evaluate(() => globalThis.ionExplanationFixture.lastBody)
+      assert.equal(Buffer.byteLength(streamedBody), streamReview.bodyBytes)
+      const streamEnvelope = JSON.parse(streamedBody)
+      assert.equal(streamEnvelope.stream, true)
+      assert.equal(streamEnvelope.store, false)
+      assert.deepEqual(JSON.parse(streamEnvelope.messages[1].content).sources, streamReview.sources)
+      assert.ok(!streamedBody.includes(credential) && !streamedBody.includes('PRIVATE_SYNTHETIC_NOT_SELECTED'))
+      await assert.rejects(page.evaluate(token => window.ion.explanations.send(token), streamReview.token))
+      assert.equal(afterStream.streams, beforeStream.streams + 1)
+      assert.equal((await stats()).calls, beforeStream.calls + 1)
+      await mode('success')
+      await closeDialog()
+      report.checks.optInStreamedLessonConsentPrivacyAndValidatedAnswer = 'passed'
 
       phase = 'explicit-lesson-buffer-and-revision-invalidation'
       await editor('append')

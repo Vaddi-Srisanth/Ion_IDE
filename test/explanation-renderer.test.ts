@@ -29,11 +29,13 @@ test('opening renderer is dormant until effects and context is opt-in with six a
   assert.equal(calls, 0)
   assert.equal((html.match(/<option /g) ?? []).length, 6)
   assert.doesNotMatch(html, / checked=""/)
+  assert.ok(html.includes('Stream provider response') && html.includes('validating the complete response and its citations'))
   assert.ok(html.includes('Current unsaved code: unsaved.py (off by default)'))
   assert.ok(!html.includes('secret source') && !html.includes('NameError: fixture'))
   assert.ok(html.includes('Review request') && !html.includes('Send reviewed request'))
   const project = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, purpose: 'project-lens', action: 'understand' }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.ok(project.includes('Explain architecture') && !project.includes('Review my attempt'))
+  assert.ok(project.includes('Stream provider response'))
   const oversized = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, question: '\u754c'.repeat(800) }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.ok(oversized.includes('2400/2,048 UTF-8 bytes') && oversized.includes('Shorten your question before reviewing.'))
   assert.match(oversized, /<button[^>]*data-testid="explanation-review"[^>]*disabled=""/)
@@ -49,6 +51,9 @@ test('exact review escapes excerpts and identifies provider, model, size, revisi
   assert.ok(html.includes('&lt;script&gt;bad()&lt;/script&gt;') && !html.includes('<script>'))
   assert.ok(html.includes('&lt;img src=x onerror=bad()&gt;') && !html.includes('<img '))
   assert.ok(!html.includes('never-show-token') && html.includes('Send reviewed request'))
+  assert.ok(html.includes('Single response'))
+  const streamed = renderToStaticMarkup(createElement(ExplanationReviewView, { review: { ...review, stream: true }, disabled: false, onSend() {} }))
+  assert.ok(streamed.includes('Streaming') && !streamed.includes('Single response'))
 })
 
 test('AI answer is escaped read-only text with uncertainty and optional milestone review disabled', () => {

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { buildExplanationPayload, ProviderVault, requestExplanation, sendExplanationPayload } from '../src/main/projects/provider'
 import type { ExplanationContent, ExplanationInput, ReviewedSource } from '../src/shared/explanations'
+import { streamedCompletion } from './fixtures/explanation-sse'
 
 const key = 'synthetic-explanation-key-not-a-real-credential'
 const options = { endpoint: 'https://example.invalid/v1', model: 'fixture-model', apiKey: key }
@@ -81,6 +82,61 @@ test('explanation context is bounded by UTF-8 bytes and validated identities and
   const atLimit = { ...input(), question: 'é'.repeat(1024), sources: Array.from({ length: 4 }, (_, i) =>
     ({ ...source(), id: 's-' + i, startLine: 1, endLine: 1, text: 'é'.repeat(4096) })) }
   assert.equal(buildExplanationPayload(options, atLimit).sources.length, 4)
+})
+
+test('streaming is an explicit immutable option on the exact reviewed Chat Completions request', async () => {
+  const original = input()
+  const ordinary = buildExplanationPayload(options, original)
+  assert.equal(buildExplanationPayload(options, original, false).body, ordinary.body)
+  assert.equal(Object.hasOwn(JSON.parse(ordinary.body), 'stream'), false)
+  const reviewed = buildExplanationPayload(options, original, true)
+  const body = JSON.parse(reviewed.body)
+  assert.equal(body.stream, true)
+  assert.equal(body.store, false)
+  assert.equal(body.response_format.json_schema.strict, true)
+  assert.ok(!Object.hasOwn(body, 'tools') && !Object.hasOwn(body, 'functions'))
+  assert.deepEqual(JSON.parse(body.messages[1].content), original)
+  assert.equal(Object.hasOwn(JSON.parse(body.messages[1].content), 'stream'), false)
+  assert.equal(reviewed.bodyBytes, Buffer.byteLength(reviewed.body))
+  original.question = 'Changed after review.'
+  original.sources[0].text = 'Changed after review.'
+  const received: string[] = []
+  const request: typeof fetch = async (url, init) => {
+    assert.equal(url, options.endpoint + '/chat/completions')
+    assert.equal(init?.method, 'POST')
+    assert.equal(init.redirect, 'error')
+    assert.equal(new Headers(init.headers).get('authorization'), 'Bearer ' + key)
+    received.push(String(init.body))
+    return streamedCompletion(content())
+  }
+  await assert.rejects(sendExplanationPayload(options, { ...reviewed, body: ordinary.body }, new AbortController().signal, request), /reviewed payload/)
+  assert.equal(received.length, 0)
+  const reply = await sendExplanationPayload(options, reviewed, new AbortController().signal, request)
+  assert.deepEqual(reply, content())
+  assert.deepEqual(received, [reviewed.body])
+  assert.ok(!received[0].includes('Changed after review.') && !received[0].includes(key))
+})
+
+test('a streamed response must pass the same citation, strict schema and key-echo validation before returning content', async () => {
+  const normal = content()
+  for (const invalid of [
+    { ...normal, sections: [{ ...normal.sections[0], citations: [{ sourceId: 'unreviewed', startLine: 8, endLine: 8 }] }] },
+    { ...normal, token: 'synthetic-forged-token' },
+    { ...normal, recommendations: [{ ...normal.recommendations[0], dependsOn: ['unknown'] }] },
+    { ...normal, summary: 'Private provider text ' + key },
+  ]) {
+    const reviewed = buildExplanationPayload(options, input(), true)
+    let requests = 0
+    await assert.rejects(sendExplanationPayload(options, reviewed, new AbortController().signal, async () => {
+      requests++
+      return streamedCompletion(invalid, invalid.summary.includes(key) ? key : undefined)
+    }), (error: Error) => {
+      assert.doesNotMatch(error.message, /synthetic-|Private provider text|unreviewed/)
+      assert.equal(Object.hasOwn(error, 'cause'), false)
+      return true
+    })
+    assert.equal(requests, 1)
+  }
 })
 
 test('only a minted, unchanged provider payload can be sent and unsafe endpoints never receive a request', async () => {

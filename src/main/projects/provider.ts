@@ -318,6 +318,7 @@ const explanationPrompt = [
 ].join(' ')
 
 export interface PreparedExplanation extends Readonly<ExplanationInput> {
+  readonly stream: boolean
   readonly endpoint: string
   readonly model: string
   readonly body: string
@@ -325,17 +326,18 @@ export interface PreparedExplanation extends Readonly<ExplanationInput> {
 }
 
 /** Build once during review; this immutable main-owned object is required again at Send. */
-export function buildExplanationPayload(settings: Pick<ProviderSettings, 'endpoint' | 'model'>, value: unknown): PreparedExplanation {
+export function buildExplanationPayload(settings: Pick<ProviderSettings, 'endpoint' | 'model'>, value: unknown, stream = false): PreparedExplanation {
+  if (typeof stream !== 'boolean') throw new Error('Invalid explanation response mode.')
   const endpoint = endpointURL(settings.endpoint), model = modelId(settings.model)
   if (!model) throw new Error('Configure a provider and model before requesting an online explanation.')
   const input = explanationInput(value)
   for (const source of input.sources) Object.freeze(source)
   Object.freeze(input.sources)
-  const body = JSON.stringify({ model, max_completion_tokens: 2400, store: false,
+  const body = JSON.stringify({ model, max_completion_tokens: 2400, store: false, ...(stream ? { stream: true } : {}),
     messages: [{ role: 'system', content: explanationPrompt }, { role: 'user', content: JSON.stringify(input) }],
     response_format: { type: 'json_schema', json_schema: { name: 'ion_explanation_v1', strict: true, schema: explanationSchema } },
   })
-  const prepared = Object.freeze({ ...input, endpoint, model, body, bodyBytes: Buffer.byteLength(body) })
+  const prepared = Object.freeze({ ...input, endpoint, model, stream, body, bodyBytes: Buffer.byteLength(body) })
   preparedPayloads.add(prepared)
   return prepared
 }
@@ -385,6 +387,17 @@ function explanationContent(value: unknown, sources: readonly ReviewedSource[]):
     questions: explanationList(data.questions, 5).map(item => explanationText(item, 512)), recommendations }
 }
 
+async function readExplanationMessage(response: Response): Promise<string> {
+  const envelope = JSON.parse(await boundedResponse(response)) as {
+    choices?: { finish_reason?: unknown; message?: { content?: unknown; refusal?: unknown; tool_calls?: unknown; function_call?: unknown } }[]
+  }
+  const choice = envelope?.choices?.[0]
+  const message = choice?.message
+  if (choice?.finish_reason !== 'stop' || message?.refusal || message?.tool_calls || message?.function_call
+    || typeof message?.content !== 'string') throw new Error('Incomplete response')
+  return message.content
+}
+
 /** Send only an unchanged payload created by buildExplanationPayload; it carries no execution capabilities. */
 export async function sendExplanationPayload(options: ProviderOptions, prepared: PreparedExplanation, signal: AbortSignal,
   request: typeof fetch = fetch): Promise<ExplanationContent> {
@@ -394,16 +407,17 @@ export async function sendExplanationPayload(options: ProviderOptions, prepared:
   if (typeof options.apiKey !== 'string' || !apiKeyPattern.test(options.apiKey)) throw new Error('Configure a valid provider key before requesting an explanation.')
   if (prepared.body.includes(options.apiKey)) throw new Error('Remove the configured API key from the reviewed context before sending it.')
   signal.throwIfAborted()
+  const transport = AbortSignal.any([signal, AbortSignal.timeout(45_000)])
   let response: Response
   try {
     response = await request(prepared.endpoint + '/chat/completions', {
-      method: 'POST', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]),
+      method: 'POST', redirect: 'error', signal: transport,
       headers: { authorization: 'Bearer ' + options.apiKey, 'content-type': 'application/json' }, body: prepared.body,
     })
   } catch {
     throw new Error('The explanation request could not reach the configured HTTPS provider, timed out, or was cancelled.')
   }
-  if (signal.aborted) {
+  if (transport.aborted) {
     await response.body?.cancel().catch(() => undefined)
     throw new Error('The explanation request was cancelled.')
   }
@@ -412,13 +426,11 @@ export async function sendExplanationPayload(options: ProviderOptions, prepared:
     throw new Error('The explanation provider returned HTTP ' + response.status + '.')
   }
   try {
-    const body = JSON.parse(await boundedResponse(response)) as {
-      choices?: { finish_reason?: unknown; message?: { content?: unknown; refusal?: unknown } }[]
-    }
-    const choice = body?.choices?.[0]
-    if (choice?.finish_reason !== 'stop' || choice.message?.refusal || typeof choice.message?.content !== 'string') throw new Error('Incomplete response')
-    const content = explanationContent(JSON.parse(choice.message.content), prepared.sources)
-    if (signal.aborted) throw new Error('Cancelled')
+    const message = prepared.stream
+      ? await (await import('../explanations/stream')).readExplanationStream(response, transport)
+      : await readExplanationMessage(response)
+    transport.throwIfAborted()
+    const content = explanationContent(JSON.parse(message), prepared.sources)
     if (JSON.stringify(content).includes(options.apiKey)) throw new Error('Credential echoed')
     return content
   } catch {

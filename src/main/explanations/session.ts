@@ -18,6 +18,7 @@ function fail(kind: keyof typeof messages): never { throw new SessionError(messa
 
 export interface ExplanationContext {
   input: ExplanationInput
+  stream?: boolean
   exclusions: string[]
   validate(): Promise<void>
   openCitation(citation: ExplanationCitation): Promise<ExplanationOpenResult>
@@ -123,10 +124,11 @@ export class ExplanationSession {
       const { settings, fingerprint } = await vault.reviewedIdentity()
       this.check(operation)
       if (!settings.hasKey || !settings.model) fail('review')
-      const prepared = buildExplanationPayload(settings, context.input)
+      const prepared = buildExplanationPayload(settings, context.input, context.stream)
       if (!Array.isArray(context.exclusions) || context.exclusions.length > 32
         || context.exclusions.some(item => typeof item !== 'string' || !item.trim() || item.length > 256 || /[\x00-\x1f\x7f]/.test(item))) fail('review')
       const review = freeze<ExplanationReview>({ token: randomUUID(), provider: { ...settings }, bodyBytes: prepared.bodyBytes,
+        ...(prepared.stream ? { stream: true } : {}),
         expiresAt: Date.now() + lifetimeMs, sources: prepared.sources.map(source => ({ ...source })),
         exclusions: [...context.exclusions], question: prepared.question, purpose: prepared.purpose, action: prepared.action })
       this.check(operation)
