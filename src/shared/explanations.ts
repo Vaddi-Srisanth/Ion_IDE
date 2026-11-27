@@ -4,6 +4,7 @@ import type { ProjectLensReference } from './project-lens'
 
 export const explanationPurposes = ['tutor', 'project-lens', 'ask'] as const
 export const explanationActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity',
+  'explain-file', 'find-bug', 'design-tests',
   'understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase', 'ask-question'] as const
 export type ExplanationPurpose = typeof explanationPurposes[number]
 export type ExplanationAction = typeof explanationActions[number]

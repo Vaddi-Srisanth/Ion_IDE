@@ -423,6 +423,34 @@ require(${JSON.stringify(target.args[0])});\n`)
       await closeDialog()
       report.checks.optInStreamedLessonConsentPrivacyAndValidatedAnswer = 'passed'
 
+      phase = 'read-only-code-actions-require-selected-excerpt'
+      for (const [action, prompt] of [
+        ['explain-file', 'control/data flow'], ['find-bug', 'likely bugs'], ['design-tests', 'test cases'],
+      ]) {
+        const before = await stats()
+        await openTutor()
+        await dialog().getByLabel('Action').selectOption(action)
+        const codeContext = dialog().getByRole('checkbox', { name: /^Current unsaved code:/ })
+        assert.equal(await codeContext.isChecked(), false, 'Code remains unchecked until the user opts in for each action.')
+        assert.equal(await dialog().getByTestId('explanation-review').isDisabled(), true,
+          'The request cannot be reviewed until a nonempty code excerpt is selected.')
+        await codeContext.check()
+        const actionReview = await review()
+        assert.equal(actionReview.action, action)
+        assert.deepEqual(actionReview.sources.map(item => item.origin), ['editor-buffer'])
+        assert.equal(before.calls, (await stats()).calls, 'Review never sends source to the provider.')
+        await send()
+        const body = await app.evaluate(() => globalThis.ionExplanationFixture.lastBody)
+        const envelope = JSON.parse(body), input = JSON.parse(envelope.messages[1].content)
+        assert.equal(input.action, action)
+        assert.deepEqual(input.sources, actionReview.sources)
+        assert.ok(envelope.messages[0].content.includes(prompt), 'The selected action must use its dedicated evidence-bound guidance.')
+        assert.ok(!body.includes(credential))
+        assert.equal(await readFile(source, 'utf8'), original)
+        await closeDialog()
+      }
+      report.checks.readOnlyCodeActionsRequireSelectedExcerpt = 'passed'
+
       phase = 'explicit-lesson-buffer-and-revision-invalidation'
       await editor('append')
       const userBuffer = await editor('read')

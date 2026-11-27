@@ -327,6 +327,12 @@ const complexityGuidance = [
   'Put complexity conclusions in inferred sections with citations to reviewed code. State assumptions and mark missing behavior or omitted code as unknown; do not invent benchmarks or claim measured performance.',
 ].join(' ')
 
+const codeActionGuidance: Partial<Record<ExplanationInput['action'], string>> = {
+  'explain-file': 'Explain the purpose and control/data flow of the explicitly reviewed file excerpt. Cite claims, identify what the excerpt cannot establish, and teach relevant concepts without replacing the implementation.',
+  'find-bug': 'Investigate likely bugs using only the explicitly reviewed code and diagnostics. Separate evidence from hypotheses, describe a small way to distinguish hypotheses, and identify missing context. Do not claim a bug is confirmed or propose a patch.',
+  'design-tests': 'Design concrete test cases for the explicitly reviewed code. Include input and expected output only when derivable from the excerpt, explain each boundary or edge case, and mark unspecified behavior as an open question. Do not claim a test was run or generate a replacement implementation.',
+}
+
 export interface PreparedExplanation extends Readonly<ExplanationInput> {
   readonly stream: boolean
   readonly endpoint: string
@@ -344,7 +350,8 @@ export function buildExplanationPayload(settings: Pick<ProviderSettings, 'endpoi
   for (const source of input.sources) Object.freeze(source)
   Object.freeze(input.sources)
   const body = JSON.stringify({ model, max_completion_tokens: 2400, store: false, ...(stream ? { stream: true } : {}),
-    messages: [{ role: 'system', content: input.action === 'complexity' ? explanationPrompt + ' ' + complexityGuidance : explanationPrompt },
+    messages: [{ role: 'system', content: explanationPrompt + ' '
+      + (input.action === 'complexity' ? complexityGuidance : codeActionGuidance[input.action] ?? '') },
       { role: 'user', content: JSON.stringify(input) }],
     response_format: { type: 'json_schema', json_schema: { name: 'ion_explanation_v1', strict: true, schema: explanationSchema } },
   })

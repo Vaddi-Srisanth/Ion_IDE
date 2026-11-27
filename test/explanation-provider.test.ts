@@ -70,6 +70,22 @@ test('complexity prompt requires cited estimates, explicit assumptions and no fa
   assert.match(body.messages[0].content, /inferred sections with citations/)
 })
 
+test('file explanation, bug investigation and test design stay evidence-bound and read-only', () => {
+  const cases = [
+    ['explain-file', /control\/data flow/, /without replacing the implementation/],
+    ['find-bug', /Separate evidence from hypotheses/, /Do not claim a bug is confirmed or propose a patch/],
+    ['design-tests', /concrete test cases/, /Do not claim a test was run or generate a replacement implementation/],
+  ] as const
+  for (const [action, first, second] of cases) {
+    const prepared = buildExplanationPayload(options, { ...input(), action })
+    const body = JSON.parse(prepared.body)
+    assert.equal(JSON.parse(body.messages[1].content).action, action)
+    assert.match(body.messages[0].content, first)
+    assert.match(body.messages[0].content, second)
+    assert.equal('tools' in body, false)
+  }
+})
+
 test('explanation context is bounded by UTF-8 bytes and validated identities and ranges', () => {
   for (const invalid of [
     { ...input(), question: 'é'.repeat(1025) },

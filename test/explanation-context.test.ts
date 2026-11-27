@@ -87,6 +87,19 @@ test('complexity guidance requires and includes only a nonempty explicitly revie
   assert.ok(context.exclusions.some(row => row.includes('renderer-provided, unverified')))
 })
 
+test('file explanation, bug investigation and test design require explicit nonempty code context', async t => {
+  const f = await fixture(t)
+  for (const action of ['explain-file', 'find-bug', 'design-tests'] as const) {
+    await assert.rejects(prepareContext(tutor({ action }), signal(), f.options), safe)
+    const code = { path: f.path, label: 'main.py', text: '  \n', version: 1 }
+    await assert.rejects(prepareContext(tutor({ action, code }), signal(), f.options), safe)
+    const selected = { path: f.path, label: 'main.py', text: 'print("reviewed")\n', version: 1 }
+    const context = await prepareContext(tutor({ action, code: selected }), signal(), f.options)
+    assert.equal(context.input.action, action)
+    assert.deepEqual(context.input.sources.map(source => source.text), [selected.text])
+  }
+})
+
 test('Ask Ion context can include only a question and one optional editor excerpt', async t => {
   const f = await fixture(t)
   const request: ExplanationRequest = { purpose: 'ask', action: 'ask-question', question: 'What is a pure function?' }
