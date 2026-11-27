@@ -21,6 +21,7 @@ function caseButton(page, label) {
 }
 
 async function waitForStatus(page, expected, timeout = 65_000) {
+  console.log('DESKTOP waiting for status:', expected)
   const status = page.locator('.test-explorer-status').filter({ hasText: expected })
   const error = page.locator('.test-explorer-error')
   await status.or(error).waitFor({ timeout })
@@ -188,6 +189,8 @@ await withScratch('test-explorer-native', async scratch => {
     assert.deepEqual(stopped.cases.map(item => ({ id: item.id, outcome: item.outcome })), [{ id: waitingId, outcome: 'cancelled' }])
     await waitForRenderedHistory(page, record.history)
     await eventually(() => pids.every(exited), 'Stop left a pytest fixture process alive.', 8_000)
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Test Explorer' }).waitFor({ state: 'hidden' })
     await close(session)
     assert.equal(await readFile(numbers, 'utf8'), source)
     assert.equal(await readFile(slow, 'utf8'), slowSource)
@@ -195,5 +198,19 @@ await withScratch('test-explorer-native', async scratch => {
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
     console.log('PASS production Test Explorer: real pytest discovery and runs, source navigation, preserved edits, history backup, fresh approval after restart, Stop and child cleanup')
-  } finally { await close(session) }
+  } catch (failure) {
+    // Preserve the failed product assertion even if a still-open dialog also
+    // refuses the later quit. The disposable fixture contains no user files.
+    console.error('Desktop journey failed before cleanup:', failure)
+    try {
+      const modal = session.page.getByRole('dialog', { name: 'Test Explorer' })
+      if (await modal.isVisible()) {
+        console.error('Test Explorer status at failure:', (await modal.locator('[role=status], [role=alert]').allTextContents()).map(text => text.slice(0, 400)))
+        await modal.getByRole('button', { name: 'Close dialog' }).click()
+      }
+    } catch (detail) { console.error('Dialog cleanup:', detail.message) }
+    try { await close(session) }
+    catch (cleanup) { throw new AggregateError([failure, cleanup], 'Test Explorer journey and cleanup both failed.') }
+    throw failure
+  }
 })

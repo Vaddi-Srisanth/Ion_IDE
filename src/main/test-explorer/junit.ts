@@ -100,5 +100,5 @@ export async function prepareJunit(root: string, roots: readonly string[], scrat
     '--source', '17', helper, operation, sources, classes, jar.staged, request, report], cwd: root, environment: envFor(paths, scratch),
     stageSources: reviewed => stageJavaSources(root, sources, reviewed),
     timeoutMs: operation === 'discover' ? testLimits.discoveryMs : testLimits.runMs, operation, report,
-    warning: 'JUnit Jupiter 5.13.4 uses ' + jar.installed + '. Ion compiles saved Java sources in src/main/java and src/test/java (or .java files at the workspace root) in a private directory. Discovery loads project classes. Tests and extensions run with your account permissions, including file and network access. Parameterized tests and factories run as a whole method.' }
+    warning: 'JUnit Jupiter 5.13.4 uses ' + jar.installed + '. Ion compiles saved Java sources in src/main/java and src/test/java (or .java files at the workspace root) in a private directory using the JDK and standalone JUnit classpath. Discovery loads project classes. Tests and extensions run with your account permissions, including file and network access. Parameterized tests and factories run as a whole method.' }
 }

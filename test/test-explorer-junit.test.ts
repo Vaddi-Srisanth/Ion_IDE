@@ -65,7 +65,7 @@ test('real JUnit discovery, unique-ID execution, source links, outcomes, cancell
   let allow = false
   const service = new TestExplorerService({ profile: () => profile, files: () => files, approve: async review => {
     assert.match(review.warning, /JUnit Jupiter/)
-    assert.match(review.warning, /1\.13\.4/)
+    assert.match(review.warning, /5\.13\.4/)
     assert.ok(review.args.includes('--class-path'))
     const helper = review.args.find(arg => arg.endsWith('IonJUnit.java'))!
     scratches.push(dirname(helper))
