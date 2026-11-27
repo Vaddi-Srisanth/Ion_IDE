@@ -199,7 +199,10 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
     }
     if (args[0] === 'stash' && !(args.length === 2 && args[1] === 'create'
       || args.length === 5 && args[1] === 'store' && args[2] === '-m' && args[3] === 'Ion local snapshot'
-        && objectId.test(args[4]))) throw new Error('This Git stash operation is outside Ion Source Control.')
+        && objectId.test(args[4])
+      || args.length === 3 && args[1] === 'pop' && args[2] === 'stash@{0}')) {
+      throw new Error('This Git stash operation is outside Ion Source Control.')
+    }
     return withProjectedRepository(repository, signal, (projected, environment, verifyMetadata) => {
       if (args[0] === 'stash') return invokeGit(projected, signal, args, options, environment)
       if (args[0] === 'add') return withIndexTransaction(repository.directory, signal, async indexFile => {
@@ -208,7 +211,8 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
         return result
       })
       return invokeGit(projected, signal, args, options, environment)
-    }, args[0] === 'stash' ? 'stash' : 'workspace')
+    }, args[0] === 'stash' ? 'stash' : 'workspace',
+    args[0] === 'stash' && args[1] === 'pop' ? ['ORIG_HEAD', 'AUTO_MERGE'] : [])
   }
   if (args[0] === 'blame') {
     const flags = ['--incremental', '--root', '--no-progress', '--no-ext-diff', '--no-textconv', '--ignore-revs-file', '']
@@ -228,11 +232,11 @@ export async function git(repository: Repository, signal: AbortSignal, args: str
 
 async function withProjectedRepository<T>(repository: Repository, signal: AbortSignal,
   run: (projected: Repository, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>, configuration: string) => Promise<T>,
-  view: 'workspace' | 'committed-history' | 'stash' = 'workspace') {
+  view: 'workspace' | 'committed-history' | 'stash' = 'workspace', allowedGitMetadata: readonly string[] = []) {
   const captured = await invokeGit(repository, signal, ['config', '--includes', '--show-scope', '--null', '--list'], { limit: 256 * 1024 })
   if (!captured.complete) throw new Error('Git returned incomplete configuration.')
   return withFrozenConfiguration(repository, captured.text, signal, (directory, environment, verifyMetadata) =>
-    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view)
+    run({ ...repository, directory }, environment, verifyMetadata, captured.text), view, allowedGitMetadata)
 }
 
 export function browseRepository(repository: Repository, signal: AbortSignal) {

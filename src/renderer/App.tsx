@@ -211,6 +211,7 @@ export function App() {
       switchBranch: (request) => bridge.sourceControl.switchBranch(sourceControlRoot, request),
       fetchGitHub: (request) => bridge.sourceControl.fetchGitHub(sourceControlRoot, request),
       saveStashSnapshot: () => bridge.sourceControl.saveStashSnapshot(sourceControlRoot),
+      popStash: (request) => bridge.sourceControl.popStash(sourceControlRoot, request),
       conflict: (request) => bridge.sourceControl.conflict(sourceControlRoot, request),
       cancelBlame: (path) => bridge.sourceControl.cancelBlame(sourceControlRoot, path),
       blame: (request) => bridge.sourceControl.blame(sourceControlRoot, request),
@@ -1706,7 +1707,9 @@ export function App() {
     return <Suspense fallback={<p className="tree-message" role="status">Opening Source Control…</p>}>
       <SourceControlPanel key={sourceControlRoot} bridge={sourceControlBridge} onClose={closeSourceControl}
         activePath={!sourceControlDiff && active && !active.viewer && !active.error && active.notebookMode !== 'notebook' ? active.path ?? undefined : undefined}
-        onEntries={setSourceControlEntries} onDiff={setSourceControlDiff} isDirty={hasUnsavedSource} revision={treeRevision + sourceWrites}/>
+        onEntries={setSourceControlEntries} onDiff={setSourceControlDiff} isDirty={hasUnsavedSource}
+        dirtyPaths={sourceControlRoot ? tabs.filter(tab => tab.path && (tab.dirty || tab.conflict) && isWithin(tab.path, sourceControlRoot)).map(tab => tab.path!) : []}
+        revision={treeRevision + sourceWrites}/>
     </Suspense>;
   }
 

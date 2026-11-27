@@ -1,4 +1,5 @@
-import { lstat, mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { readTextFile, type Repository } from './repository'
@@ -87,7 +88,8 @@ export function commonGitDirectory(repository: Repository): string {
 
 /** Status, staging and browsing use this view. Ref-changing plumbing uses the original refs. */
 export async function withFrozenConfiguration<T>(repository: Repository, text: string, signal: AbortSignal,
-  run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>, view: View = 'workspace'): Promise<T> {
+  run: (directory: string, environment: NodeJS.ProcessEnv, verifyMetadata: () => Promise<void>) => Promise<T>, view: View = 'workspace',
+  allowedGitMetadata: readonly string[] = []): Promise<T> {
   const originalCommon = commonGitDirectory(repository)
   const linked = originalCommon !== repository.directory
   const config = freezeConfiguration(text, originalCommon, view)
@@ -139,10 +141,31 @@ export async function withFrozenConfiguration<T>(repository: Repository, text: s
       ({ directory, names: new Set(await readdir(directory)) })))
     const verifyMetadata = async () => {
       for (const view of views) {
-        if ((await readdir(view.directory)).some(name => !view.names.has(name))) {
-          retained = true
-          throw new Error('A Git filter created additional metadata. Configure its permanent storage before staging. '
-            + 'Ion preserved the metadata at ' + scratch)
+        for (const name of (await readdir(view.directory)).filter(name => !view.names.has(name))) {
+          if (!allowedGitMetadata.includes(name)) {
+            retained = true
+            throw new Error('A Git filter created additional metadata. Configure its permanent storage before staging. '
+              + 'Ion preserved the metadata at ' + scratch)
+          }
+          const source = join(view.directory, name)
+          const info = await lstat(source)
+          if (!info.isFile() || info.isSymbolicLink() || info.size > 1024) {
+            retained = true
+            throw new Error('Git created unexpected ' + name + ' metadata. Ion preserved it at ' + scratch)
+          }
+          const target = join(originalCommon, name)
+          const existing = await lstat(target).catch((error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return undefined
+            throw error
+          })
+          if (existing) {
+            const [current, generated] = await Promise.all([readFile(target), readFile(source)])
+            if (!existing.isFile() || existing.isSymbolicLink() || !current.equals(generated)) {
+              retained = true
+              throw new Error('Git needs to update existing ' + name + ' metadata. Ion preserved the new metadata at ' + scratch)
+            }
+          } else await copyFile(source, target, constants.COPYFILE_EXCL)
+          view.names.add(name)
         }
       }
     }

@@ -15,13 +15,15 @@ const empty: Record<View, string> = {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; data: SourceControlBrowse; revision: number }
 
-export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash }: {
+export default function RepositoryBrowser({ bridge, busy, perform, currentBranch, refreshStatus, canSnapshotStash, canPopStash, dirtyPaths }: {
   bridge: SourceControlBridge
   busy: boolean
   perform(task: () => Promise<void>): Promise<void>
   currentBranch?: string
   refreshStatus(): Promise<void>
   canSnapshotStash: boolean
+  canPopStash: boolean
+  dirtyPaths: string[]
 }) {
   const [state, setState] = useState<State>()
   const [view, setView] = useState<View>('commits')
@@ -108,6 +110,25 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
     })
   }
 
+  function popStash(oid: string) {
+    void perform(async () => {
+      const id = ++request.current
+      setFeedback(undefined)
+      try {
+        const result = await bridge.popStash({ oid, dirtyPaths })
+        if (request.current !== id) return
+        if (!result) { await read(); return }
+        await refreshStatus()
+        if (request.current !== id) return
+        await read()
+        if (result.conflicts) setFeedback({ message: 'Stash application conflicted. Git kept the stash; resolve the conflicts before continuing.', error: true })
+        else setFeedback({ message: 'Applied the stash and removed it from the stash list.' })
+      } catch (reason) {
+        if (request.current === id) setFeedback({ message: errorMessage(reason), error: true })
+      }
+    })
+  }
+
   function toggle() {
     if (!state) { load(); return }
     request.current++
@@ -134,7 +155,7 @@ export default function RepositoryBrowser({ bridge, busy, perform, currentBranch
       {state?.kind === 'ready' && <>
         {view === 'tags' && <RefForm key={state.revision} kind="tag" busy={busy} from={state.data.commits[0]?.oid} create={createRef}/>}
         {view === 'branches' || view === 'cachedRemoteBranches' || view === 'stash'
-          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchGitHub, canSnapshotStash, saveStashSnapshot }} data={state.data}/>
+          ? <ComparisonView key={view + state.revision} {...{ view, bridge, busy, perform, currentBranch, createRef, switchBranch, fetchGitHub, canSnapshotStash, canPopStash, saveStashSnapshot, popStash }} data={state.data}/>
           : !state.data[view].length ? <p className="source-control-empty" role="status">{empty[view]}</p>
           : view === 'commits' ? <CommitList commits={state.data.commits}/>
             : <ul className="git-browser-list" aria-label={views[view]} tabIndex={0}>
@@ -160,11 +181,13 @@ type ComparisonProps = {
   switchBranch(selection: SourceControlSwitchRequest): void
   fetchGitHub(selection: SourceControlFetchRequest): void
   canSnapshotStash: boolean
+  canPopStash: boolean
   saveStashSnapshot(): void
+  popStash(oid: string): void
 }
 
 function ComparisonView({ view, bridge, data, busy, currentBranch, perform, createRef, switchBranch, fetchGitHub,
-  canSnapshotStash, saveStashSnapshot }: ComparisonProps) {
+  canSnapshotStash, canPopStash, saveStashSnapshot, popStash }: ComparisonProps) {
   const [preview, setPreview] = useState<Preview>()
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [bridge])
@@ -227,7 +250,10 @@ function ComparisonView({ view, bridge, data, busy, currentBranch, perform, crea
       <button className="button" type="button" disabled={!head || busy} onClick={() => compare('stash', 'refs/stash', stash.oid)}>
         Preview latest stash
       </button></> : <p className="source-control-empty" role="status">{empty.stash}</p>}
-    <p className="source-control-empty">Save a snapshot of tracked staged and working changes. Files stay in place; untracked files are excluded.</p>
+    {stash && <button className="button" type="button" disabled={!canPopStash || busy} onClick={() => popStash(stash.oid)}>
+      Apply and pop latest stash…
+    </button>}
+    <p className="source-control-empty">Save a snapshot of tracked staged and working changes. Files stay in place; untracked files are excluded. Applying a stash restores file changes to the working tree.</p>
     <button className="button" type="button" disabled={!canSnapshotStash || busy} onClick={saveStashSnapshot}>
       Save tracked changes to stash…
     </button>

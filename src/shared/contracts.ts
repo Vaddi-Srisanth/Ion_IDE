@@ -202,6 +202,7 @@ export interface IonBridge {
     switchBranch(root: string, request: Parameters<SourceControlBridge['switchBranch']>[0]): ReturnType<SourceControlBridge['switchBranch']>
     fetchGitHub(root: string, request: Parameters<SourceControlBridge['fetchGitHub']>[0]): ReturnType<SourceControlBridge['fetchGitHub']>
     saveStashSnapshot(root: string): ReturnType<SourceControlBridge['saveStashSnapshot']>
+    popStash(root: string, request: Parameters<SourceControlBridge['popStash']>[0]): ReturnType<SourceControlBridge['popStash']>
     conflict(root: string, request: { path: string }): ReturnType<SourceControlBridge['conflict']>
     cancelBlame(root: string, path: string): Promise<void>
     blame(root: string, request: { path: string }): ReturnType<SourceControlBridge['blame']>

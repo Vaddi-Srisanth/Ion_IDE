@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { lstat, readFile, realpath } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, isAbsolute, join, relative } from 'node:path'
 import type { SourceControlBlame, SourceControlBrowse, SourceControlComparison, SourceControlConflict, SourceControlDiff,
   SourceControlEntry, SourceControlFetchRequest, SourceControlFetchResult, SourceControlGitHub, SourceControlGitHubCreatedPullRequest,
   SourceControlGitHubCreatePullRequestRequest, SourceControlGitHubIssue, SourceControlGitHubIssueRequest,
@@ -345,6 +345,47 @@ export class SourceControlService {
       await this.runGit(repository, signal, ['stash', 'store', '-m', 'Ion local snapshot', oid], { limit: 256 })
       this.reviewedRefs = undefined
       return oid
+    })
+  }
+
+  popStash(root: string, value: unknown, dirtyPaths: unknown,
+    approve: (review: { branch: string; oid: string }, signal: AbortSignal) => Promise<boolean>): Promise<{ applied: boolean; conflicts: boolean } | null> {
+    const request = requestObject(value)
+    if (Array.isArray(value) || Object.keys(request).length !== 1 || !Object.hasOwn(request, 'oid')) {
+      throw new Error('Choose the reviewed stash snapshot.')
+    }
+    const oid = request.oid
+    const { repository, status } = this.requireSnapshot(root)
+    const reviewed = this.reviewedRefs
+    if (!reviewed || reviewed.root !== root || reviewed.stash !== oid || typeof oid !== 'string' || !gitObjectId.test(oid)
+      || status.detached || status.unborn || status.truncated || status.entries.size || reviewed.head !== status.head) {
+      throw new Error('Refresh and choose a reviewed stash in a clean repository.')
+    }
+    if (!Array.isArray(dirtyPaths) || dirtyPaths.length > 512
+      || dirtyPaths.some(path => typeof path !== 'string' || !isAbsolute(path) || !inside(repository.root, path))) {
+      throw new Error('The open editor state could not be verified. Save or close modified files and refresh.')
+    }
+    if (dirtyPaths.length) throw new Error('Save or close modified editor files before applying a stash.')
+    const review = { branch: status.branch, oid }
+    return this.mutate(async signal => {
+      await this.verifyRepository(repository, signal)
+      const before = await statusOf(repository, signal)
+      const stashBefore = await browseRepository(repository, signal)
+      if (before.head !== status.head || before.branch !== status.branch || before.truncated || before.entries.size
+        || stashBefore.stash?.oid !== oid) throw new Error('The repository or selected stash changed. Refresh and review again.')
+      if (!await approve(review, signal)) return null
+      await this.verifyRepository(repository, signal)
+      const current = await statusOf(repository, signal)
+      const currentStash = await browseRepository(repository, signal)
+      if (current.head !== status.head || current.branch !== status.branch || current.truncated || current.entries.size
+        || currentStash.stash?.oid !== oid) throw new Error('The repository or selected stash changed during review. Refresh and try again.')
+      await git(repository, signal, ['stash', 'pop', 'stash@{0}'], { allowNotFound: true })
+      const after = await statusOf(repository, signal)
+      const remaining = await browseRepository(repository, signal)
+      this.reviewedRefs = undefined
+      if ([...after.entries.values()].some(entry => entry.unmerged)) return { applied: false, conflicts: true }
+      if (remaining.stash?.oid === oid) throw new Error('Git kept the stash without reporting merge conflicts. Refresh and inspect the repository.')
+      return { applied: true, conflicts: false }
     })
   }
 

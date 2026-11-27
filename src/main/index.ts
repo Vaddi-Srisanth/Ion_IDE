@@ -1773,6 +1773,19 @@ function registerIpc(): void {
       })
       return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
     })))
+  handle('source-control-stash-pop', (target, root, request) =>
+    useSourceControl(target, root, (service, path) => service.popStash(path, request,
+      request && typeof request === 'object' && !Array.isArray(request) ? (request as { dirtyPaths?: unknown }).dirtyPaths : undefined,
+      async (review, signal) => {
+      const answer = await dialog.showMessageBox(target, {
+        signal, type: 'warning', buttons: ['Cancel', 'Apply and Pop Stash'], cancelId: 0, defaultId: 0,
+        message: 'Apply and remove the latest stash?',
+        detail: 'The reviewed stash ' + review.oid.slice(0, 12) + ' will be applied to ' + review.branch
+          + '. Stashed file changes are restored as working-tree changes. Git may report conflicts; in that case Git keeps the stash for recovery. '
+          + 'No remote is contacted.',
+      })
+      return answer.response === 1 && !signal.aborted && sourceControlRoot(target, path) === trustedGitRoot
+    })))
   handle('source-control-conflict', (target, root, request) =>
     useSourceControl(target, root, (service, path) => service.conflict(path, request)))
   handle('source-control-cancel-blame', async (target, root, path) => {

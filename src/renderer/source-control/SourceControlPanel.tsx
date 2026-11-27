@@ -16,6 +16,7 @@ interface Props {
   onEntries(entries: SourceControlEntry[]): void
   onDiff(diff: SourceControlDiff): void
   isDirty(path: string): boolean
+  dirtyPaths?: string[]
   revision?: number
 }
 
@@ -37,7 +38,7 @@ function relativeSourcePath(root: string, path: string | undefined) {
   return relative.join('/')
 }
 
-export default function SourceControlPanel({ bridge, activePath, onClose, onEntries, onDiff, isDirty, revision }: Props) {
+export default function SourceControlPanel({ bridge, activePath, onClose, onEntries, onDiff, isDirty, dirtyPaths = [], revision }: Props) {
   const [status, setStatus] = useState<SourceControlStatus>()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -159,6 +160,9 @@ export default function SourceControlPanel({ bridge, activePath, onClose, onEntr
         </div>
         <RepositoryBrowser key={'browse:' + repository.root} bridge={bridge} busy={busy} perform={act}
           currentBranch={repository.detached ? undefined : repository.branch} refreshStatus={loadStatus}
+          dirtyPaths={dirtyPaths}
+          canPopStash={!repository.detached && !repository.unborn && !repository.truncated && !conflict
+            && !repository.entries.length && !dirtyPaths.length}
           canSnapshotStash={!repository.detached && !repository.unborn && !repository.truncated && !conflict
             && repository.entries.some(entry => Boolean(entry.index || entry.worktree && entry.worktree !== '?'))}/>
         {historyPath && activePath && !repository.unborn && <LineHistoryAction key={historyPath} path={historyPath}

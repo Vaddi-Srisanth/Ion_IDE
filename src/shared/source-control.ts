@@ -104,6 +104,9 @@ export interface SourceControlFetchResult {
   changed: boolean
 }
 
+export interface SourceControlStashPopResult { applied: boolean; conflicts: boolean }
+export interface SourceControlStashPopRequest { oid: string; dirtyPaths: string[] }
+
 export interface SourceControlGitHubPullRequestRequest {
   repository: string
   number: number
@@ -161,6 +164,7 @@ export interface SourceControlBridge {
   switchBranch(request: SourceControlSwitchRequest): Promise<boolean>
   fetchGitHub(request: SourceControlFetchRequest): Promise<SourceControlFetchResult | null>
   saveStashSnapshot(): Promise<string | null>
+  popStash(request: SourceControlStashPopRequest): Promise<SourceControlStashPopResult | null>
   conflict(request: { path: string }): Promise<SourceControlConflict>
   cancelBlame(path: string): Promise<void>
   blame(request: { path: string }): Promise<SourceControlBlame>

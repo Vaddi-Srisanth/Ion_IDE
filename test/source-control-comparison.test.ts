@@ -93,6 +93,55 @@ test('reviewed stash snapshot keeps staged, working and untracked filesystem sta
   assert.equal(parents.length, 3, 'snapshot contains the working tree and index commits, not an untracked-files parent')
 })
 
+test('reviewed stash pop applies index and worktree, cancel preserves the stash, and conflicts retain it', async t => {
+  const { root, service, git } = await fixture(t)
+  const source = join(root, 'source.txt')
+  await writeFile(source, 'stashed change\n')
+  git('add', '--', 'source.txt')
+  await writeFile(source, 'stashed staged and worktree\n')
+  git('stash', 'push', '-qm', 'Pop fixture')
+  const oid = git('rev-parse', 'refs/stash')
+  git('reset', '--hard', '-q', 'HEAD')
+  assert.equal((await service.status(root)).kind, 'repository')
+  assert.deepEqual((await service.browse(root)).stash, { oid })
+  assert.equal(await service.popStash(root, { oid }, [], async () => false), null)
+  assert.equal(git('rev-parse', 'refs/stash'), oid)
+  assert.equal(await readFile(source, 'utf8'), 'base\n')
+  await service.status(root); await service.browse(root)
+  let prompted = false
+  try { await service.popStash(root, { oid }, [source], async () => { prompted = true; return true }) }
+  catch (error) { assert.equal((error as Error).message, 'Save or close modified editor files before applying a stash.') }
+  assert.equal(prompted, false)
+  const result = await service.popStash(root, { oid }, [], async review => {
+    assert.deepEqual(review, { branch: 'main', oid })
+    return true
+  })
+  assert.deepEqual(result, { applied: true, conflicts: false })
+  assert.equal(await readFile(source, 'utf8'), 'stashed staged and worktree\n')
+  assert.equal(git('show', ':source.txt'), 'base')
+  assert.equal(git('diff', '--', 'source.txt').includes('+stashed staged and worktree'), true)
+  assert.equal(git('stash', 'list'), '')
+
+  await writeFile(source, 'conflicting stashed edit\n')
+  git('stash', 'push', '-qm', 'Conflict fixture')
+  const conflictOid = git('rev-parse', 'refs/stash')
+  git('reset', '--hard', '-q', 'HEAD')
+  await writeFile(source, 'committed competing edit\n')
+  git('add', '--', 'source.txt'); git('commit', '-qm', 'Competing edit')
+  const conflictBase = git('rev-parse', 'HEAD')
+  await writeFile(source, 'conflicting stashed edit\n'); git('stash', 'push', '-qm', 'Conflict fixture two')
+  // Restore the first stash as the selected, reviewed stash, then create a divergent clean HEAD.
+  git('stash', 'drop', '-q', 'stash@{0}')
+  git('update-ref', 'refs/stash', conflictOid)
+  git('reset', '--hard', '-q', conflictBase)
+  await service.status(root)
+  await service.browse(root)
+  const conflict = await service.popStash(root, { oid: conflictOid }, [], async () => true)
+  assert.deepEqual(conflict, { applied: false, conflicts: true })
+  assert.equal(git('rev-parse', 'refs/stash'), conflictOid)
+  assert.match(await readFile(source, 'utf8'), /^(<<<<<<<|committed competing edit)/m)
+})
+
 test('a ref removed during a preview of packed refs invalidates the result, including in a linked worktree', async t => {
   const { root, service, git, base } = await fixture(t)
   git('branch', 'old-tip'); git('commit', '--allow-empty', '-qm', 'New head')
