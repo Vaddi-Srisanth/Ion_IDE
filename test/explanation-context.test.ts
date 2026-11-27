@@ -76,6 +76,18 @@ test('question-only and explicit lesson/buffer context preserve authoritative an
     { packId: 'python', lessonId: 'values' })
 })
 
+test('explain-selection accepts only the bounded, explicitly supplied editor excerpt', async t => {
+  const f = await fixture(t)
+  const context = await prepareContext(tutor({ action: 'explain-selection', code: {
+    path: f.path, label: 'main.py', text: 'print("selected")', version: 12,
+  } }), signal(), f.options)
+  assert.equal(context.input.action, 'explain-selection')
+  assert.equal(context.input.sources.length, 1)
+  assert.equal(context.input.sources[0].origin, 'editor-buffer')
+  assert.equal(context.input.sources[0].text, 'print("selected")')
+  assert.ok(context.exclusions.some(item => item.includes('renderer-provided, unverified')))
+})
+
 test('complexity guidance requires and includes only a nonempty explicitly reviewed code excerpt', async t => {
   const f = await fixture(t)
   await assert.rejects(prepareContext(tutor({ action: 'complexity' }), signal(), f.options), safe)

@@ -21,6 +21,10 @@ test('context selection excludes source by default, caps explicit references and
   assert.equal(request.project?.refs.length, 6)
   assert.equal(selectedExplanationRequest(request, { lesson: false, code: true, diagnostic: false, structure: false, refs: [] },
     'complexity', 'Estimate the complexity.').code?.text, request.code?.text)
+  assert.equal(selectedExplanationRequest(request, { lesson: false, code: false, diagnostic: false, structure: false, refs: [] },
+    'explain-selection', 'Explain the selection.').code, undefined)
+  assert.equal(selectedExplanationRequest(request, { lesson: false, code: true, diagnostic: false, structure: false, refs: [] },
+    'explain-selection', 'Explain the selection.').code?.text, request.code?.text)
 })
 
 test('opening renderer is dormant until effects and context is opt-in with code-review actions', () => {
@@ -29,9 +33,9 @@ test('opening renderer is dormant until effects and context is opt-in with code-
   const bridge: ExplanationBridge = { provider: forbidden, configure: forbidden, review: forbidden, send: forbidden, cancel: forbidden, openCitation: forbidden }
   const html = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, action: 'explain-file' }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.equal(calls, 0)
-  assert.equal((html.match(/<option /g) ?? []).length, 10)
+  assert.equal((html.match(/<option /g) ?? []).length, 11)
   assert.ok(html.includes('Analyze time and space complexity'))
-  assert.ok(html.includes('Explain this file') && html.includes('Find a likely bug') && html.includes('Design test cases'))
+  assert.ok(html.includes('Explain this file') && html.includes('Explain selected code') && html.includes('Find a likely bug') && html.includes('Design test cases'))
   assert.match(html, /This action requires the selected code excerpt/)
   assert.doesNotMatch(html, / checked=""/)
   assert.ok(html.includes('Stream provider response') && html.includes('validating the complete response and its citations'))
@@ -44,6 +48,7 @@ test('opening renderer is dormant until effects and context is opt-in with code-
   const noCode = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, code: undefined }, bridge, onClose() {}, onOpenCitation() {} }))
   assert.match(noCode, /<option value="complexity" disabled="">Analyze time and space complexity<\/option>/)
   assert.match(noCode, /<option value="explain-file" disabled="">Explain this file<\/option>/)
+  assert.match(noCode, /<option value="explain-selection" disabled="">Explain selected code<\/option>/)
   assert.match(noCode, /<option value="find-bug" disabled="">Find a likely bug<\/option>/)
   assert.match(noCode, /<option value="design-tests" disabled="">Design test cases<\/option>/)
   const oversized = renderToStaticMarkup(createElement(ExplanationDialog, { initialRequest: { ...request, question: '\u754c'.repeat(800) }, bridge, onClose() {}, onOpenCitation() {} }))

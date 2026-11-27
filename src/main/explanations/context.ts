@@ -26,7 +26,7 @@ const invalid = (): never => { throw new Error(unsafe) }
 const bytes = (text: string) => Buffer.byteLength(text)
 const digest = (text: string) => createHash('sha256').update(text).digest('hex')
 const identity = (a: BigIntStats, b: BigIntStats) => a.dev === b.dev && a.ino === b.ino
-const tutorActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity', 'explain-file', 'find-bug', 'design-tests']
+const tutorActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity', 'explain-file', 'explain-selection', 'find-bug', 'design-tests']
 const projectActions = ['understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase']
 const excludedDirectories = /^(?:node_modules|vendors?|target|dist|build|out|coverage|generated|gen|bin|obj|__pycache__|venv|env|pods|carthage|secrets?|credentials?|private[-_]?keys?)$/i
 const secretName = /(?:^\.|(?:^|[._-])(?:secrets?|credentials?|id_rsa|id_ed25519)(?:[._-]|$)|\.(?:pem|key|p12|pfx|keystore)$|(?:lock$)|^go\.sum$)/i

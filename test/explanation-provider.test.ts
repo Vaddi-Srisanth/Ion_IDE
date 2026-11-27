@@ -73,6 +73,7 @@ test('complexity prompt requires cited estimates, explicit assumptions and no fa
 test('file explanation, bug investigation and test design stay evidence-bound and read-only', () => {
   const cases = [
     ['explain-file', /control\/data flow/, /without replacing the implementation/],
+    ['explain-selection', /explicitly selected code excerpt/, /without replacing the implementation/],
     ['find-bug', /Separate evidence from hypotheses/, /Do not claim a bug is confirmed or propose a patch/],
     ['design-tests', /concrete test cases/, /Do not claim a test was run or generate a replacement implementation/],
   ] as const

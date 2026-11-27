@@ -21,9 +21,9 @@ export interface ExplanationSelection {
 }
 const tutorActions: Array<[ExplanationAction, string]> = [['hint', 'Hint'], ['concept', 'Explain a concept'], ['debug', 'Understand an error'],
   ['walkthrough', 'Walk through code'], ['review-attempt', 'Review my attempt'], ['quiz', 'Ask me a question'],
-  ['complexity', 'Analyze time and space complexity'], ['explain-file', 'Explain this file'], ['find-bug', 'Find a likely bug'],
+  ['complexity', 'Analyze time and space complexity'], ['explain-file', 'Explain this file'], ['explain-selection', 'Explain selected code'], ['find-bug', 'Find a likely bug'],
   ['design-tests', 'Design test cases']]
-const codeActions = new Set<ExplanationAction>(['complexity', 'explain-file', 'find-bug', 'design-tests'])
+const codeActions = new Set<ExplanationAction>(['complexity', 'explain-file', 'explain-selection', 'find-bug', 'design-tests'])
 const projectActions: Array<[ExplanationAction, string]> = [['understand', 'Understand this project'], ['architecture', 'Explain architecture'],
   ['health', 'Review project health'], ['teach-project', 'Teach through this project'], ['next-steps', 'Suggest next steps'], ['ask-codebase', 'Ask about the codebase']]
 

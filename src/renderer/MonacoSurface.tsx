@@ -65,6 +65,7 @@ export interface EditorActions {
   focus(): void;
   focusSecondary(): void;
   lineCount(): number;
+  selectedText(): string | undefined;
   goToDefinition(): void;
   multiCursor(action: 'above' | 'below' | 'next' | 'all'): void;
   findReferences(): Promise<SourceReference[]>;
@@ -295,6 +296,14 @@ export default function MonacoSurface({
       focus: () => instance.focus(),
       focusSecondary: () => secondaryRef.current?.focus(),
       lineCount: () => instance.getModel()?.getLineCount() ?? 0,
+      selectedText() {
+        const target = commandEditor.current ?? instance;
+        const model = target.getModel(), selection = target.getSelection();
+        if (!model || !selection || selection.isEmpty()) return;
+        const value = model.getValueInRange(selection);
+        if (!value.trim() || new TextEncoder().encode(value).byteLength > 8192) return;
+        return value;
+      },
       goToDefinition() {
         if (!instance.getModel() || sourceHiddenRef.current) return;
         instance.focus();

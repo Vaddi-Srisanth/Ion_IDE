@@ -84,6 +84,7 @@ const commands = {
   'run-tests': { label: 'Run Tests' },
   'test-explorer': { label: 'Test Explorer…' },
   'ask-ion': { label: 'Ask Ion…' },
+  'explain-selection': { label: 'Explain Selected Code…' },
   'enable-copilot': { label: 'Enable GitHub Copilot…' },
   'sign-in-copilot': { label: 'Sign in to GitHub Copilot…' },
   'sign-out-copilot': { label: 'Sign out of GitHub Copilot' },

@@ -410,7 +410,10 @@ export function App() {
   const refreshExplanationContext = useCallback(async (request: ExplanationRequest): Promise<ExplanationRequest> => {
     if (!request.code) return request;
     const { captureEditorContext } = await import('./explanations/editor-context');
-    const code = captureEditorContext(documents);
+    const captured = captureEditorContext(documents);
+    const selection = request.action === 'explain-selection' ? editor.current?.selectedText() : undefined;
+    const code = captured && (request.action !== 'explain-selection' || selection)
+      ? { ...captured, text: selection ?? captured.text } : undefined;
     if (!code || code.path !== request.code.path || code.label !== request.code.label) throw new Error('The active source changed. Reopen explanations.');
     return { ...request, code };
   }, [documents]);
@@ -421,7 +424,7 @@ export function App() {
       || current.mode === 'learn' && current.learningPack !== (packLibrary?.selected ?? null)) ? null : current);
   }, [root?.path, mode, activeId, active?.epoch, active?.conflict, settings.resourceProfile, screen, packLibrary?.selected]);
 
-  async function openExplanation(request: ExplanationRequest) {
+  async function openExplanation(request: ExplanationRequest, selectedCode?: string) {
     if (explanationOpening.current || settingsRef.current.resourceProfile !== 'full') return;
     explanationOpening.current = true;
     const ownerRoot = sessionRoot.current?.path ?? null;
@@ -429,7 +432,9 @@ export function App() {
     const before = documents.getSnapshot();
     try {
       const { captureEditorContext, diagnosticContext } = await import('./explanations/editor-context');
-      const code = captureEditorContext(documents);
+      const captured = captureEditorContext(documents);
+      const code = captured && (request.action !== 'explain-selection' || selectedCode)
+        ? { ...captured, text: selectedCode ?? captured.text } : undefined;
       const current = documents.getSnapshot();
       if (ownerRoot !== (sessionRoot.current?.path ?? null) || ownerMode !== explanationMode.current || before.activeId !== current.activeId) return;
       const tab = current.tabs.find(item => item.id === current.activeId);
@@ -1674,6 +1679,11 @@ export function App() {
         case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
         case 'test-explorer': if (availableCommand(value)) setDialog({ kind: 'test-explorer' }); break;
         case 'ask-ion': if (availableCommand(value)) void openExplanation({ purpose: 'ask', action: 'ask-question', question: '' }); break;
+        case 'explain-selection': {
+          const selected = availableCommand(value) ? editor.current?.selectedText() : undefined;
+          if (selected) void openExplanation({ purpose: 'tutor', action: 'explain-selection', question: 'Explain the selected code and its control flow.' }, selected);
+          break;
+        }
         case 'enable-copilot': void enableCopilot(); break;
         case 'sign-in-copilot': void signInCopilot(); break;
         case 'sign-out-copilot': void signOutCopilot(); break;
@@ -1834,6 +1844,7 @@ export function App() {
     if (id === 'navigate-back') return screen === 'editor' && navigationState.back;
     if (id === 'navigate-forward') return screen === 'editor' && navigationState.forward;
     if (id === 'workspace-search') return Boolean(root);
+    if (id === 'explain-selection') return screen === 'editor' && settings.resourceProfile === 'full' && Boolean(editor.current?.selectedText());
     if (id === 'enable-copilot') return Boolean(root) && !copilotActive && bridge.platform !== 'linux';
     if (id === 'sign-in-copilot' || id === 'sign-out-copilot' || id === 'disable-copilot') return copilotActive;
     if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal', 'toggle-debug'].includes(id)) return true;

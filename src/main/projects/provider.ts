@@ -329,6 +329,7 @@ const complexityGuidance = [
 
 const codeActionGuidance: Partial<Record<ExplanationInput['action'], string>> = {
   'explain-file': 'Explain the purpose and control/data flow of the explicitly reviewed file excerpt. Cite claims, identify what the excerpt cannot establish, and teach relevant concepts without replacing the implementation.',
+  'explain-selection': 'Explain only the explicitly selected code excerpt and how its statements relate to one another. Cite the reviewed selection, identify missing surrounding context, and teach relevant concepts without replacing the implementation.',
   'find-bug': 'Investigate likely bugs using only the explicitly reviewed code and diagnostics. Separate evidence from hypotheses, describe a small way to distinguish hypotheses, and identify missing context. Do not claim a bug is confirmed or propose a patch.',
   'design-tests': 'Design concrete test cases for the explicitly reviewed code. Include input and expected output only when derivable from the excerpt, explain each boundary or edge case, and mark unspecified behavior as an open question. Do not claim a test was run or generate a replacement implementation.',
 }
