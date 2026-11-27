@@ -539,15 +539,22 @@ export class PracticeStore {
     return this.view(await this.readProblem(identifier(value)))
   }
 
-  browse(value: unknown): PracticeChallengeSummary[] {
+  async browse(value: unknown): Promise<PracticeChallengeSummary[]> {
     const filters = record(value)
     if (filters.language !== undefined) choice(filters.language, supportedLanguages, 'practice language')
     const topic = filters.topic === undefined ? undefined : choice(filters.topic, practiceTopics, 'practice topic')
     const search = filters.search === undefined ? '' : text(filters.search, 'Search', 100, false, true).toLowerCase()
-    const difficulty = filters.difficulty === undefined && search ? undefined : choice(filters.difficulty, catalogDifficulties, 'practice difficulty')
-    return practiceChallenges.filter(item => (!difficulty || item.difficulty === difficulty) && (!topic || item.topic === topic)
+    const difficulty = filters.difficulty === undefined ? undefined : choice(filters.difficulty, catalogDifficulties, 'practice difficulty')
+    const solved = filters.solved === undefined ? undefined : choice(filters.solved, ['solved', 'unsolved'] as const, 'solved filter')
+    let matches = practiceChallenges.filter(item => (!difficulty || item.difficulty === difficulty) && (!topic || item.topic === topic)
       && (!search || item.title.toLowerCase().includes(search) || item.topic.toLowerCase().includes(search)))
-      .map(({ id, title, topic, difficulty }) => ({ id, title, topic, difficulty }))
+    if (solved) {
+      const progress = await this.progress(new AbortController().signal)
+      if (progress.unavailable) throw new Error('Solved status could not be verified because some local practice records are unreadable.')
+      const accepted = new Set(progress.challenges.filter(item => item.state === 'accepted').map(item => item.id))
+      matches = matches.filter(item => solved === 'solved' ? accepted.has(item.id) : !accepted.has(item.id))
+    }
+    return matches.map(({ id, title, topic, difficulty }) => ({ id, title, topic, difficulty }))
   }
 
   getChallenge(value: unknown): PracticeChallenge {

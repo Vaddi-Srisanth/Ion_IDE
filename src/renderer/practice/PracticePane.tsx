@@ -153,20 +153,22 @@ function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEn
   const [language, setLanguage] = useState<RunLanguage | ''>('')
   const [topic, setTopic] = useState<PracticeTopic | ''>('')
   const [difficulty, setDifficulty] = useState<CatalogDifficulty | ''>('')
+  const [solved, setSolved] = useState<'solved' | 'unsolved' | ''>('')
   const [searchText, setSearchText] = useState('')
   const [search, setSearch] = useState('')
   const [previewId, setPreviewId] = useState('')
   const [retry, setRetry] = useState(0)
   const [loaded, setLoaded] = useState<{ key: string; matches: PracticeChallengeSummary[]; error?: string }>()
   const section = useRef<HTMLElement>(null)
-  const query = search || (difficulty && (language || topic)) ? JSON.stringify([language, topic, difficulty, search, retry]) : ''
+  const query = search || solved || (difficulty && (language || topic))
+    ? JSON.stringify([language, topic, difficulty, search, solved, retry]) : ''
   const result = query && loaded?.key === query ? loaded : undefined
 
   useEffect(() => {
     if (hidden || !query || loaded?.key === query) return
     let active = true
     void bridge.browse({ language: language || undefined, topic: topic || undefined,
-      difficulty: difficulty || undefined, search: search || undefined }).then(
+      difficulty: difficulty || undefined, search: search || undefined, solved: solved || undefined }).then(
       (matches) => { if (active) setLoaded({ key: query, matches }) },
       (reason) => { if (active) setLoaded({ key: query, matches: [], error: errorMessage(reason) }) },
     )
@@ -245,6 +247,14 @@ function BrowsePractice({ bridge, hidden, busy, walkthroughEntry, breadthFirstEn
             onChange={(event) => { setDifficulty(event.target.value as CatalogDifficulty | ''); setPreviewId('') }}>
             <option value="">Choose difficulty</option>
             {catalogDifficulties.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </label>
+        <label className="practice-label">Solved status
+          <select data-testid="practice-solved" value={solved}
+            onChange={(event) => { setSolved(event.target.value as 'solved' | 'unsolved' | ''); setPreviewId('') }}>
+            <option value="">Any status</option>
+            <option value="solved">Solved</option>
+            <option value="unsolved">Not solved</option>
           </select>
         </label>
       </div>

@@ -23,6 +23,7 @@ export interface PracticeFilters {
   topic?: PracticeTopic
   difficulty?: CatalogDifficulty
   search?: string
+  solved?: 'solved' | 'unsolved'
 }
 
 export interface PracticeChallengeSummary {

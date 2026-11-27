@@ -92,14 +92,16 @@ test('practice IPC inputs reject path traversal, cross-problem attempts, and sym
 }))
 
 test('filtered catalog challenges open prepared, independent language attempts without replacing saved work', () => scratch(async (directory, store) => {
-  const easy = store.browse({ difficulty: 'Easy', topic: 'Basics', language: 'python' })
-  assert.deepEqual(store.browse({ search: '  ClOcK ' }).map(item => item.id), ['minutes-to-clock'])
-  assert.ok(store.browse({ search: 'graphs' }).every(item => item.topic === 'Graphs'))
-  assert.equal(store.browse({ search: 'clock', difficulty: 'Hard' }).length, 0)
-  assert.throws(() => store.browse({ search: 'a'.repeat(101) }), /Search/)
+  const easy = await store.browse({ difficulty: 'Easy', topic: 'Basics', language: 'python' })
+  assert.deepEqual((await store.browse({ search: '  ClOcK ' })).map(item => item.id), ['minutes-to-clock'])
+  assert.ok((await store.browse({ search: 'graphs' })).every(item => item.topic === 'Graphs'))
+  assert.equal((await store.browse({ search: 'clock', difficulty: 'Hard' })).length, 0)
+  assert.deepEqual(await store.browse({ solved: 'solved' }), [])
+  assert.equal((await store.browse({ solved: 'unsolved' })).length, 27)
+  await assert.rejects(store.browse({ search: 'a'.repeat(101) }), /Search/)
   assert.ok(easy.length > 0)
   assert.ok(easy.every(({ difficulty, topic }) => difficulty === 'Easy' && topic === 'Basics'))
-  assert.throws(() => store.browse({ difficulty: 'Easy', language: 'unknown' }), /practice language/)
+  await assert.rejects(store.browse({ difficulty: 'Easy', language: 'unknown' }), /practice language/)
   await assert.rejects(store.start('../outside', 'python'), /Invalid practice challenge/)
   await assert.rejects(store.start(easy[0].id, 'unknown'), /practice language/)
 
@@ -122,6 +124,24 @@ test('filtered catalog challenges open prepared, independent language attempts w
   assert.match(java, /attempt-[\w-]+[/\\]Main\.java$/)
   assert.match(await readFile(java, 'utf8'), /public class Main/)
   assert.equal((await reopened.list()).problems.length, 2)
+}))
+
+test('solved and unsolved catalog filters follow retained local accepted verdicts', () => scratch(async (_directory, store) => {
+  const { problem, attempt } = await store.start('minutes-to-clock', 'python')
+  const source = await store.openAttempt(problem.id, attempt.id)
+  await writeFile(source, 'import sys\nm = int(sys.stdin.read())\nprint(m // 60, m % 60)\n')
+  await store.submit(problem.id, attempt.id, async (_path, inputs) => inputs.map(input => {
+    const minutes = Number(input)
+    return { ...success(`${Math.floor(minutes / 60)} ${minutes % 60}\n`), outputComplete: true, programMs: 1 }
+  }), new AbortController().signal)
+  assert.deepEqual((await store.browse({ solved: 'solved' })).map(item => item.id), ['minutes-to-clock'])
+  assert.ok(!(await store.browse({ solved: 'unsolved' })).some(item => item.id === 'minutes-to-clock'))
+}))
+
+test('solved status filters fail closed when local progress evidence is unreadable', () => scratch(async (directory, store) => {
+  const { problem, attempt } = await store.start('minutes-to-clock', 'python')
+  await writeFile(join(directory, 'practice', problem.id, `attempt-${attempt.id}.submissions.json`), '{broken')
+  await assert.rejects(store.browse({ solved: 'unsolved' }), /status could not be verified.*unreadable/)
 }))
 
 test('sample results distinguish exact stdout, stderr, compilation errors, and stale source', () => scratch(async (_directory, store) => {

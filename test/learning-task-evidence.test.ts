@@ -109,7 +109,7 @@ test('lesson-specific starter initializes only new attempts and cannot overwrite
     assert.equal(await readFile(join(path, saved.id, 'problem.json'), 'utf8'), before)
     const empty = await store.startLearningExercise('python', 'empty-starter', 'python', exercise, '')
     assert.equal(await readFile(await store.openAttempt(empty.problem.id, empty.attempt.id), 'utf8'), '')
-    const catalog = store.browse({ difficulty: 'Easy', language: 'python' })[0]
+    const catalog = (await store.browse({ difficulty: 'Easy', language: 'python' }))[0]
     const normal = await store.start(catalog.id, 'python')
     assert.equal(await readFile(await store.openAttempt(normal.problem.id, normal.attempt.id), 'utf8'), '# Write your solution here.\n')
   })
