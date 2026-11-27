@@ -289,7 +289,7 @@ test('public clone awaits cancellation, cleans verified staging and retains unve
 })
 
 test('live authenticated clone of the public Ion repository with the official GitHub keyring',
-  { skip: process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 150_000 }, async t => {
+  { skip: process.env.ION_TEST_GITHUB_AUTH_CLONE_LIVE !== '1' && process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 150_000 }, async t => {
     const f = await fixture(); t.after(f.clean)
     const signal = new AbortController().signal
     const gh = await resolveGitHubCli(f.root, [f.root], signal)
@@ -303,7 +303,9 @@ test('live authenticated clone of the public Ion repository with the official Gi
     assert.ok((await readdir(destination)).includes('package.json'))
   })
 
-test('anonymous public GitHub shallow clone of octocat/Hello-World', { skip: process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 140_000 }, async t => {
+test('anonymous public GitHub shallow clone of octocat/Hello-World', {
+  skip: process.env.ION_TEST_GITHUB_PUBLIC_CLONE_LIVE !== '1' && process.env.ION_TEST_GITHUB_CLONE_LIVE !== '1', timeout: 140_000,
+}, async t => {
   const f = await fixture(); t.after(f.clean)
   const checkout = await clonePublicGitHub('octocat/Hello-World', f.parent, f.root, [f.root], new AbortController().signal)
   assert.ok((await readFile(join(checkout, '.git', 'shallow'), 'utf8')).trim())

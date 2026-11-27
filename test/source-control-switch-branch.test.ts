@@ -6,6 +6,12 @@ import { join } from 'node:path'
 import test, { type TestContext } from 'node:test'
 import { SourceControlService } from '../src/main/source-control'
 import { git, resolveGit } from '../src/main/source-control/repository'
+import { sameWorktreePath } from '../src/main/source-control/worktree-branches'
+
+test('Windows Git worktree locations compare across slash and case spelling', () => {
+  assert.equal(sameWorktreePath('D:\\a\\Ion_IDE\\repo', 'd:/a/ion_ide/repo', 'win32'), true)
+  assert.equal(sameWorktreePath('D:\\a\\Ion_IDE\\repo', 'D:/a/other', 'win32'), false)
+})
 
 async function fixture(t: TestContext, service = new SourceControlService()) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'ion-switch-git-')))

@@ -14,6 +14,10 @@ The Staged list now offers **Restore** for one tracked regular file that exists 
 
 Targeted macOS verification passed **25/25 Source Control backend tests**, including cancel, successful restoration, unrelated staged/untracked preservation, stale state and file checks, staged additions, and a local smudge-filter side-effect guard. Type checking and the production build passed. The disposable production Electron journey passed with the cancel-by-default warning and approved restore, followed by the existing stage/commit/branch/fetch and cleanup checks. The first UI attempt overlapped a production build and failed to launch; the clean serial rerun passed. Native Windows confirmation and file behavior remain unverified. Multi-file restore and different-tree branch checkout remain out of scope.
 
+## Native branch-switch follow-up — 28 November 2026
+
+The first manual macOS/Windows workflow run (`46065172247`) exposed two qualification issues. Both backend jobs incorrectly enabled the live authenticated-clone case on credential-free hosted runners; the anonymous public clone itself passed. The macOS production UI journey passed. Windows reached branch switching but the production handler rejected Git's forward-slash/case-normalized absolute worktree location because it compared raw path strings. The implementation now compares resolved Windows paths case-insensitively, and a focused fixture covers slash and case aliases. Live authenticated and anonymous public clone checks now have separate opt-in flags, so hosted qualification enables only the anonymous case. Local macOS verification passed **77 focused tests (74 passed, 3 opt-in skips)**, TypeScript checking, production build and the production Source Control journey. A rerun of the native matrix is pending; the initial Windows branch-switch failure remains preserved until that rerun resolves it.
+
 ## First checkpoint
 
 | Action in Source Control | Behavior |

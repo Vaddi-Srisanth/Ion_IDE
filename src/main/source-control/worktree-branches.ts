@@ -1,9 +1,16 @@
 import { lstat, opendir } from 'node:fs/promises'
-import { dirname, isAbsolute, join, relative } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, win32 } from 'node:path'
 import { git, type Repository } from './repository'
 
 const limit = 256
 const incomplete = 'Git could not verify the registered worktrees.'
+
+export function sameWorktreePath(left: string, right: string, platform = process.platform): boolean {
+  if (platform === 'win32') {
+    return win32.resolve(left).toLowerCase() === win32.resolve(right).toLowerCase()
+  }
+  return resolve(left) === resolve(right)
+}
 
 async function registeredCount(repository: Repository, signal: AbortSignal): Promise<number> {
   const primary = !relative(join(repository.root, '.git'), repository.directory)
@@ -88,7 +95,8 @@ export async function verifySingleWorktree(repository: Repository, signal: Abort
   const records = result.text.slice(0, -2).split('\0\0')
   if (records.length !== 1) throw new Error('Branch switching is unavailable while this repository has linked worktrees.')
   const [location, head, branch, ...extra] = records[0].split('\0')
-  if (location !== 'worktree ' + repository.root || !head?.startsWith('HEAD ')
+  if (!location?.startsWith('worktree ') || !sameWorktreePath(location.slice('worktree '.length), repository.root)
+    || !head?.startsWith('HEAD ')
     || head !== 'HEAD ' + oid || branch !== 'branch ' + ref || extra.length) {
     throw new Error(incomplete)
   }

@@ -48,7 +48,7 @@ jobs:
           node -e "Promise.all(['index','github','clone'].map(n=>import('./dist/main/source-control/'+n+'.cjs'))).then(([s,g,c])=>{if(!s.SourceControlService||!s.gitDirectory||!g.githubOverview||!c.clonePublicGitHub)throw Error('Missing bundled source-control export')})"
       - name: Verify trusted Git operations, conflicts and destination protection
         env:
-          ION_TEST_GITHUB_CLONE_LIVE: '1'
+          ION_TEST_GITHUB_PUBLIC_CLONE_LIVE: '1'
         run: node scripts/test.mjs source-control source-control-branch source-control-blame source-control-browse source-control-comparison source-control-conflict source-control-github source-control-clone
       - name: Drive the production Source Control interface
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
