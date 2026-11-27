@@ -1,5 +1,6 @@
 name: Copilot signed-out protocol check
 on:
+  workflow_dispatch:
   push:
     branches: [codex/ion-phase-6-copilot]
     paths: ['.github/workflows/phase6-copilot-probe.yml', 'scripts/test-copilot-availability.mjs', 'test/fixtures/copilot-availability.cjs']
