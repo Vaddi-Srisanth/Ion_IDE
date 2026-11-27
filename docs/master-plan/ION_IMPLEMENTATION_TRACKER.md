@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current development: `codex/ion-phase-6-copilot` — stacked checkpoints through Phase 9, with ongoing Phase 3 source-control and Phase 8 coaching increments<br>
-Latest local Phase 3 checkpoint: `8541b83` — authenticated GitHub clone retrieves its official CLI credential and keeps it out of renderer, argv and repository config (**macOS focused and live public-clone checks PASS; private-repository access and Windows journey open; not pushed**)<br>
+Latest local Phase 3 checkpoint: `8a10f63` — official GitHub CLI browser/device sign-in and account-specific local sign-out (**macOS targeted GitHub tests, renderer journey, typecheck and production build PASS; native Windows/device verification and private-repository transfer open; not pushed**)<br>
 Latest local Phase 8 checkpoint: `9b9192b` — lazy offline binary-tree traversal lesson (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
 Phase 2.5 accepted adapter-foundation milestone: **complete**, native functional/full-suite and matched resource gates passed; broader task capabilities remain documented technical debt<br>
