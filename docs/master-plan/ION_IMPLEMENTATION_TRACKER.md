@@ -1,7 +1,7 @@
 # Ion implementation tracker
 
 Current development: `codex/ion-phase-6-copilot` — stacked checkpoints through Phase 9, with ongoing Phase 3 source-control, Phase 4 Practice and Phase 8 coaching increments<br>
-Latest local Phase 3 checkpoint: pending — reviewed local merge and cached-branch pull apply reviewed commits without auto-advancing HEAD; conflict resolution creates a two-parent commit after staging (**Windows/native merge journey open; not pushed**)<br>
+Latest local Phase 3 checkpoint: `8cf4a2c` — reviewed local merge and cached-branch pull apply reviewed commits without auto-advancing HEAD; conflict resolution creates a two-parent commit after staging (**Windows/native merge journey open; not pushed**)<br>
 Latest local Phase 4 checkpoint: `ad71777` — offline solved/unsolved practice filters using retained local verdicts (**9/9 focused tests, typecheck and build PASS; production Electron assertions passed but final inspector shutdown timed out; not pushed**)<br>
 Latest local Phase 8 checkpoint: `9b9192b` — lazy offline binary-tree traversal lesson (**macOS targeted checks PASS; not pushed**)<br>
 Accepted Phase 2.5 checkpoint: `23dff68d29b07fd519d5b7b83857857bfe6ef20c`; application/build source `036781e7fe99be4480e5f0803fb6b22124be72a8`<br>
