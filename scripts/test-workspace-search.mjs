@@ -50,9 +50,29 @@ await withScratch('workspace-search', async (scratch) => {
     await editorShows(page, 'needle.search*')
     await page.getByText('Ln 3, Col 8', { exact: true }).waitFor()
     await openSearch.click()
+    // Arm the click inside the renderer before starting the request. This
+    // avoids a round trip through Playwright's locator action: a fast Windows
+    // search can finish and remove the transient button before that action lands.
+    await page.evaluate(() => {
+      const dialog = document.querySelector('dialog[open]')
+      if (!dialog) throw new Error('Search dialog is not open before cancellation check.')
+      window.__ionCancelSearchClicked = false
+      const clickWhenReady = () => {
+        const button = [...dialog.querySelectorAll('button')]
+          .find((candidate) => candidate.getAttribute('aria-label') === 'Cancel search' || candidate.textContent?.trim() === 'Cancel search')
+        if (!button) return false
+        button.click()
+        window.__ionCancelSearchClicked = true
+        observer.disconnect()
+        return true
+      }
+      const observer = new MutationObserver(clickWhenReady)
+      observer.observe(dialog, { childList: true, subtree: true, attributes: true })
+      clickWhenReady()
+    })
     await input.fill('unfinished search')
     const cancelStarted = performance.now()
-    await page.getByRole('button', { name: 'Cancel search' }).click()
+    await page.waitForFunction(() => window.__ionCancelSearchClicked === true)
     await page.getByText('Search cancelled.', { exact: true }).waitFor()
     const cancelResponseMs = performance.now() - cancelStarted
     await input.fill('needle.search*')
