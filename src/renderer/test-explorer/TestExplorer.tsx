@@ -144,16 +144,18 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
     return groups
   }, [nodes])
   const cases = nodes.filter(node => node.kind === 'test')
+  const liveCaseIds = new Set(cases.map(node => node.id))
   const selected = nodes.find(node => node.id === selectedId)
   const history = useMemo(() => [...(snapshot?.history ?? [])].sort((a, b) => b.checkedAt - a.checkedAt), [snapshot])
   const shownRun = history.find(item => item.id === historyId) ?? history[0]
   const historical = Boolean(shownRun && (snapshot?.stale || shownRun.stale || shownRun.restored || shownRun !== history[0]))
   const results = useMemo(() => new Map(shownRun?.cases.map(item => [item.id, item]) ?? []), [shownRun])
-  const historicalCase = !nodes.length ? shownRun?.cases.find(item => item.id === historicalCaseId) : undefined
+  const archivedCases = shownRun?.cases.filter(item => !liveCaseIds.has(item.id)) ?? []
+  const historicalCase = archivedCases.find(item => item.id === historicalCaseId)
   const result = selected ? results.get(selected.id) : historicalCase
   const latest = history[0]
   const failedIds = latest?.cases.filter(item => (item.outcome === 'failed' || item.outcome === 'error')
-    && cases.some(node => node.id === item.id)).map(item => item.id) ?? []
+    && liveCaseIds.has(item.id)).map(item => item.id) ?? []
   const canRun = !busy && !snapshot?.stale && snapshot?.adapter === adapter && cases.length > 0
   const running = busy === 'discover' || busy === 'run' || busy === 'stop'
   const location = result?.location ?? selected?.location
@@ -161,18 +163,23 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
     : busy === 'run' ? 'Reviewing or running selected tests…' : busy === 'stop' ? 'Stopping and cleaning up test processes…'
     : busy === 'close' ? 'Closing Test Explorer…' : message
 
+  function selectNode(id: string) {
+    setSelectedId(id)
+    setHistoricalCaseId('')
+  }
+
   function renderNodes(parent: string | null, depth = 0): ReactNode {
     if (depth > 32) return null
     return <ul className="test-explorer-nodes">
       {(byParent.get(parent) ?? []).map(node => <li key={node.id}>
         {node.kind === 'test' ? <button type="button" className="test-explorer-node" aria-pressed={selectedId === node.id}
-          onClick={() => setSelectedId(node.id)}>
+          onClick={() => selectNode(node.id)}>
           <span className="test-explorer-node-label">{node.label}</span>
           <ResultLabel result={results.get(node.id)} historical={historical}/>
         </button> : <details open>
           <summary><span>{node.kind === 'file' ? 'File' : 'Suite'}</span>
             <button type="button" className="test-explorer-node" aria-pressed={selectedId === node.id}
-              onClick={event => { event.preventDefault(); setSelectedId(node.id) }}>{node.label}</button>
+              onClick={event => { event.preventDefault(); selectNode(node.id) }}>{node.label}</button>
           </summary>
           {renderNodes(node.id, depth + 1)}
         </details>}
@@ -222,7 +229,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
       <section className="test-explorer-detail" aria-label="Test result details">
         <label className="test-explorer-history">Run history
           <select aria-label="Test run history" value={shownRun?.id ?? ''} disabled={!history.length}
-            onChange={event => setHistoryId(event.target.value)}>
+            onChange={event => { setHistoryId(event.target.value); setHistoricalCaseId('') }}>
             {!history.length && <option value="">No runs yet</option>}
             {history.map((item, index) => <option key={item.id} value={item.id}>
               {index === 0 ? 'Latest · ' : ''}{new Date(item.checkedAt).toLocaleString()} · {item.adapter ?? 'pytest'} · {item.status}{item.restored ? ' · restored' : ''}
@@ -240,7 +247,7 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
         <h3>{selected?.label ?? historicalCase?.label ?? historicalCase?.location?.path ?? 'Select a test or suite'}</h3>
         {selected?.kind !== 'test' && !historicalCase && <p className="test-explorer-note">Select a case to inspect its result, or select a suite or file and choose Run Selected.</p>}
         {(selected?.kind === 'test' || historicalCase) && <>
-          <div className="test-explorer-case-state"><ResultLabel result={result} historical={historical}/>
+          <div className="test-explorer-case-state"><ResultLabel result={result} historical={historical || Boolean(historicalCase)}/>
             {result && <span>{duration(result.durationMs)}</span>}</div>
           {result?.message && <pre className="test-explorer-output">{result.message.slice(0, 4096)}</pre>}
           {result?.output && <div><h4>Captured output</h4><pre className="test-explorer-output">{result.output.slice(0, 4096)}</pre></div>}
@@ -248,16 +255,19 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
         </>}
         {location && <button type="button" className="button" disabled={Boolean(busy)} title={location.path}
           onClick={() => onNavigate(rootPath, location.path, location.line)}>Open source · line {location.line}</button>}
-        {shownRun && !nodes.length && <ul className="test-explorer-restored-results">
-          {shownRun.cases.map(item => <li key={item.id}>
-            <button type="button" className="test-explorer-node" aria-pressed={historicalCaseId === item.id}
-              onClick={() => setHistoricalCaseId(item.id)}>
-              <span className="test-explorer-node-label">{item.label ?? item.location?.path ?? item.id}</span>
-              <ResultLabel result={item} historical/>
-            </button>
-            <span>{duration(item.durationMs)}</span>{item.location && <code>{item.location.path}:{item.location.line}</code>}
-          </li>)}
-        </ul>}
+        {archivedCases.length > 0 && <>
+          <h4 id="test-explorer-archived-cases">Cases outside current discovery</h4>
+          <ul className="test-explorer-archived-results" aria-labelledby="test-explorer-archived-cases">
+            {archivedCases.map(item => <li key={item.id}>
+              <button type="button" className="test-explorer-node" aria-pressed={historicalCaseId === item.id}
+                onClick={() => { setSelectedId(''); setHistoricalCaseId(item.id) }}>
+                <span className="test-explorer-node-label">{item.label ?? item.location?.path ?? item.id}</span>
+                <ResultLabel result={item} historical/>
+              </button>
+              <span>{duration(item.durationMs)}</span>{item.location && <code>{item.location.path}:{item.location.line}</code>}
+            </li>)}
+          </ul>
+        </>}
       </section>
     </div>
     <div className="modal-footer">

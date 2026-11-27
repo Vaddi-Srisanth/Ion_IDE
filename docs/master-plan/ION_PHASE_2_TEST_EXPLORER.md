@@ -55,6 +55,10 @@ Adapters start only after an explicit request. Each discovery and execution has 
 
 Source review now adds a bounded SHA-256 digest read from the inspected regular file. Java stages exactly the reviewed bytes. A deterministic test holds the metadata portion constant across different content. Test Explorer also uses the existing bounded Windows scratch-removal policy, still reports permanent cleanup failure and retains pending paths for drain. The desktop journey separately checks that Stop reaps an actual test and child process. On the final local candidate, 22 focused checks passed including the scratch cleanup policy test.
 
+## Retained results after rediscovery
+
+Cases removed from the current discovery remain inspectable in the selected historical run. Choosing one clears the live selection and disables Run Selected. A disposable macOS ARM64 desktop journey ran a failing pytest case, moved its test file outside the workspace, rediscovered a remaining test and opened the original assertion details. The original hosted Windows evidence above covers the adapter and lifecycle checkpoint; this follow-up changes the shared renderer.
+
 ## Verdict
 
 **PASS for pytest, JUnit Jupiter and Vitest within the documented scope.** Desktop interaction was driven with pytest. JUnit and Vitest used the production service with real frameworks on both native hosts. Jest, arbitrary Maven/Gradle dependency resolution, third-party pytest autoload and long-duration qualification are outside this checkpoint.

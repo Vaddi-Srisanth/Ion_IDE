@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { artifact, atPath, close, createProject, editorShows, eventually, launch, openFolder, stubDialogs, withScratch } from './desktop-harness.mjs'
 
@@ -189,15 +189,28 @@ await withScratch('test-explorer-native', async scratch => {
     assert.deepEqual(stopped.cases.map(item => ({ id: item.id, outcome: item.outcome })), [{ id: waitingId, outcome: 'cancelled' }])
     await waitForRenderedHistory(page, record.history)
     await eventually(() => pids.every(exited), 'Stop left a pytest fixture process alive.', 8_000)
+    const archivedSource = join(scratch, 'moved_test_numbers.py')
+    await rename(numbers, archivedSource)
+    await page.getByRole('button', { name: 'Refresh Discovery…', exact: true }).click()
+    await waitForStatus(page, '1 pytest case')
+    await page.getByRole('combobox', { name: 'Test run history', exact: true }).selectOption(newest.id)
+    await waitingCase.click()
+    const runSelected = page.getByRole('button', { name: 'Run Selected', exact: true })
+    assert.equal(await runSelected.isEnabled(), true)
+    const archivedCases = page.getByRole('list', { name: 'Cases outside current discovery', exact: true })
+    await archivedCases.getByRole('button', { name: /test_wrong.*Failed.*historical/ }).click()
+    await page.getByRole('heading', { name: 'test_wrong', exact: true }).waitFor()
+    await page.locator('.test-explorer-output').filter({ hasText: 'assert 2 == 3' }).waitFor()
+    assert.equal(await runSelected.isDisabled(), true, 'Selecting an archived case must clear the live execution selection.')
     await page.getByRole('button', { name: 'Done', exact: true }).click()
     await page.getByRole('dialog', { name: 'Test Explorer' }).waitFor({ state: 'hidden' })
     await close(session)
-    assert.equal(await readFile(numbers, 'utf8'), source)
+    assert.equal(await readFile(archivedSource, 'utf8'), source)
     assert.equal(await readFile(slow, 'utf8'), slowSource)
     assert.deepEqual(await readFile(project.program), savedProgram)
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
-    console.log('PASS production Test Explorer: real pytest discovery and runs, source navigation, preserved edits, history backup, fresh approval after restart, Stop and child cleanup')
+    console.log('PASS production Test Explorer: real pytest discovery and runs, source navigation, preserved edits, history backup, removed-case history, fresh approval after restart, Stop and child cleanup')
   } catch (failure) {
     // Preserve the failed product assertion even if a still-open dialog also
     // refuses the later quit. The disposable fixture contains no user files.

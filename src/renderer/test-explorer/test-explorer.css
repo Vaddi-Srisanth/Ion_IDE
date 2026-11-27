@@ -45,10 +45,10 @@
   overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--background); font: 11px/1.5 var(--mono); }
 .test-explorer-empty { padding: 18px 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .test-explorer-empty strong { color: var(--ink); }
-.test-explorer-restored-results { padding: 0; list-style: none; }
-.test-explorer-restored-results li { padding: 9px 0; border-bottom: 1px solid var(--border); }
-.test-explorer-restored-results li > span + span { margin-left: 8px; color: var(--muted); font: 10px var(--mono); }
-.test-explorer-restored-results code { display: block; margin-top: 5px; color: var(--muted); font: 10px var(--mono); overflow-wrap: anywhere; }
+.test-explorer-archived-results { padding: 0; list-style: none; }
+.test-explorer-archived-results li { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.test-explorer-archived-results li > span + span { margin-left: 8px; color: var(--muted); font: 10px var(--mono); }
+.test-explorer-archived-results code { display: block; margin-top: 5px; color: var(--muted); font: 10px var(--mono); overflow-wrap: anywhere; }
 .test-explorer .modal-footer { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .test-explorer .modal-footer > span { flex: 1; }
 @media (max-width: 680px) {
