@@ -167,13 +167,27 @@ try {
   await page.evaluate(() => window.progressReads[3].resolve({
     catalogSize:8, opened:0, submitted:0, accepted:0, unavailable:0, challenges:[],
     suggestion:{id:'minutes-to-clock',title:'Minutes to Clock',topic:'Basics',difficulty:'Easy',reason:'new'},
+    topicFocus:{topic:'Basics',unresolvedChallenges:2,
+      challenge:{id:'workshop-invoice',title:'Workshop Invoice',topic:'Basics',difficulty:'Medium'}},
   }))
   await progress.getByText('Open a catalog challenge to start tracking progress.').waitFor()
   assert.equal(await page.evaluate(() => window.progressStops), 1)
+  const topicFocus = progress.getByRole('region', { name: 'Topic to strengthen' })
+  await topicFocus.getByText(/2 different challenges have local wrong-answer results/).waitFor()
+  await topicFocus.getByText(/not a skill score/).waitFor()
+  const focusButton = topicFocus.getByRole('button', { name: 'View challenge Workshop Invoice' })
+  assert.deepEqual(await page.evaluate(() => window.challengeReads), [])
+  await focusButton.press('Enter')
+  const focusPreview = page.getByRole('region', { name: 'Suggested practice challenge' })
+  await focusPreview.getByText('Convert the minutes.').waitFor()
+  const focusBack = focusPreview.getByRole('button', { name: 'Back to progress' })
+  await focusBack.press('Enter')
+  await focusButton.waitFor()
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'View challenge Workshop Invoice')
   const suggestion = progress.getByRole('region', { name: 'Suggested next practice' })
   const viewChallenge = suggestion.getByRole('button', { name: 'View challenge Minutes to Clock' })
   await suggestion.getByText('Try a challenge with no saved attempt in your progress.').waitFor()
-  assert.deepEqual(await page.evaluate(() => window.challengeReads), [])
+  assert.deepEqual(await page.evaluate(() => window.challengeReads), ['workshop-invoice'])
   await viewChallenge.press('Enter')
   const preview = page.getByRole('region', { name: 'Suggested practice challenge' })
   await preview.getByText('Convert the minutes.').waitFor()
@@ -190,7 +204,7 @@ try {
   await preview.getByRole('combobox', { name: 'Language' }).selectOption('python')
   await preview.getByRole('button', { name: 'Start challenge' }).click()
   await page.getByRole('status').filter({ hasText: 'Attempt opened in the editor.' }).waitFor()
-  assert.deepEqual(await page.evaluate(() => window.challengeReads), ['minutes-to-clock','minutes-to-clock'])
+  assert.deepEqual(await page.evaluate(() => window.challengeReads), ['workshop-invoice','minutes-to-clock','minutes-to-clock'])
   assert.deepEqual(await page.evaluate(() => window.challengeStarts), [['minutes-to-clock','python']])
   assert.deepEqual(await page.evaluate(() => window.openedEntries), ['first.py'])
   assert.equal(await page.evaluate(() => window.searches.length), 4)

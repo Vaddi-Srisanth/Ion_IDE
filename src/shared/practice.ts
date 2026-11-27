@@ -130,6 +130,7 @@ export interface PracticeProgress {
   unavailable: number
   challenges: { id: string; title: string; state: 'opened' | 'submitted' | 'accepted'; importedOnly: boolean }[]
   suggestion?: PracticeSuggestion
+  topicFocus?: { topic: PracticeTopic; unresolvedChallenges: number; challenge: PracticeChallengeSummary }
 }
 
 export interface PracticeBridge {

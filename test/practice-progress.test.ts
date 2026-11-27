@@ -101,6 +101,38 @@ test('a retained local submission is suggested before an opened challenge', asyn
   assert.deepEqual((await store.progress(signal)).suggestion, { ...invoiceSummary, reason: 'submitted' })
 })
 
+test('topic focus counts distinct locally unresolved wrong-answer challenges and ignores restored verdicts', async t => {
+  const { store, ledger } = await fixture(t)
+  const clock = await store.start(clockSummary.id, 'python')
+  await store.submit(clock.problem.id, clock.attempt.id, async (_path, inputs) => inputs.map(() => success('wrong')), signal)
+  await store.submit(clock.problem.id, clock.attempt.id, async (_path, inputs) => inputs.map(() => success('wrong again')), signal)
+  assert.equal((await store.progress(signal)).topicFocus, undefined)
+
+  const invoice = await store.start(invoiceSummary.id, 'python')
+  await store.submit(invoice.problem.id, invoice.attempt.id, async (_path, inputs) => inputs.map(() => success('wrong')), signal)
+  assert.deepEqual((await store.progress(signal)).topicFocus, {
+    topic: 'Basics', unresolvedChallenges: 2,
+    challenge: { ...clockSummary },
+  })
+
+  await store.submit(clock.problem.id, clock.attempt.id, async (_path, inputs) => inputs.map(input => {
+    const minutes = Number(input)
+    return success(Math.floor(minutes / 60) + ' ' + minutes % 60)
+  }), signal)
+  assert.equal((await store.progress(signal)).topicFocus, undefined)
+  await store.submit(clock.problem.id, clock.attempt.id, async (_path, inputs) => inputs.map(() => success('wrong later')), signal)
+  assert.deepEqual((await store.progress(signal)).topicFocus, {
+    topic: 'Basics', unresolvedChallenges: 2,
+    challenge: { ...clockSummary },
+  })
+
+  const clockLedger = ledger(clock.problem.id, clock.attempt.id)
+  const imported = validatePracticeSubmissions(JSON.parse(await readFile(clockLedger, 'utf8')))
+  for (const item of imported.submissions) item.restored = true
+  await writeFile(clockLedger, JSON.stringify(imported))
+  assert.equal((await store.progress(signal)).topicFocus, undefined)
+})
+
 test('related challenges use local topic activity and imported results exclude only the recorded challenge', async t => {
   const { store, ledger } = await fixture(t)
   const clock = await store.start(clockSummary.id, 'python')

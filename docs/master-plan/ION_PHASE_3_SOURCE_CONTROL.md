@@ -46,6 +46,8 @@ On macOS ARM64, 38 focused Git tests passed, along with the headless renderer ch
 
 ## Same-tree switching, public fetch, and pull-request details — 27 November 2026
 
+Local implementation checkpoint: `fefb4a2` on `codex/ion-phase-6-copilot` (not pushed).
+
 Repository Browser now offers a reviewed local branch switch only when the current and target commits have identical file trees. The main process requires the primary checkout with no linked worktrees or in-progress merge/rebase operation. It atomically updates symbolic `HEAD` with commit-ID preconditions; it never checks files out. Tests verify staged index bytes, unstaged content and untracked files stay unchanged. A branch with a different tree remains unavailable for switching.
 
 Cached remote branches now offer **Review fetch** for a recognized public GitHub remote. The native confirmation is cancel-by-default. Only after approval does Ion recheck the configured remote identity and exact cached ref, then fetch one branch over isolated anonymous HTTPS into a private bare staging repository outside the workspace. Git credential helpers, global/system configuration, SSH, proxies and terminal prompts are excluded. The fetch is shallow to 256 commits and enables Git object checks. Ion monitors incoming staging files, cancels once their combined size exceeds 256 MiB, and checks the size again before publication. It also rejects a non-fast-forward result, a changed cached ref, or a changed remote. Verified pack files are published with no-replace moves and the remote-tracking ref is updated with its previous OID as a compare-and-swap precondition. The user index and worktree are never changed. This is a public fetch of one selected branch; pull and push are still unavailable.

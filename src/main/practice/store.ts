@@ -449,7 +449,8 @@ export class PracticeStore {
     const root = await this.existingDirectory()
     signal.throwIfAborted()
     if (!root) return withPracticeSuggestion(result)
-    const evidence = new Map<string, { submitted: boolean; accepted: boolean; judgedHere: boolean }>()
+    const evidence = new Map<string, { submitted: boolean; accepted: boolean; judgedHere: boolean;
+      localWrongAt?: number; localAcceptedAt?: number }>()
     const ids = await this.problemIds(root, signal)
     if (ids.length > maxProblems) throw new Error('Too many practice problems to summarize.')
     for (const id of ids) {
@@ -463,7 +464,9 @@ export class PracticeStore {
       }
       const suite = suiteVersion(problem.catalogId)
       if (!suite || !problem.catalogId || !problem.attempts.length) continue
-      const row = evidence.get(problem.catalogId) ?? { submitted: false, accepted: false, judgedHere: false }
+      const row = evidence.get(problem.catalogId) ?? {
+        submitted: false, accepted: false, judgedHere: false,
+      }
       evidence.set(problem.catalogId, row)
       // A stored attempt records that the challenge was opened. Progress measures
       // retained verdicts across all languages and never needs the attempt's source.
@@ -473,7 +476,13 @@ export class PracticeStore {
           const { file } = await this.submissionFile(join(root, id), attempt)
           for (const item of file.submissions) {
             row.submitted = true
-            if (!item.restored) row.judgedHere = true
+            if (!item.restored) {
+              row.judgedHere = true
+              if (item.suiteVersion === suite) {
+                if (item.verdict === 'wrong-answer') row.localWrongAt = Math.max(row.localWrongAt ?? 0, item.judgedAt)
+                if (item.verdict === 'accepted') row.localAcceptedAt = Math.max(row.localAcceptedAt ?? 0, item.judgedAt)
+              }
+            }
             if (item.verdict === 'accepted' && item.suiteVersion === suite) row.accepted = true
           }
         } catch {
@@ -490,6 +499,26 @@ export class PracticeStore {
       if (row.accepted) result.accepted++
       result.challenges.push({ id, title, state: row.accepted ? 'accepted' : row.submitted ? 'submitted' : 'opened',
         importedOnly: row.submitted && !row.judgedHere })
+    }
+    if (!result.unavailable) {
+      const topicFailures = practiceTopics.map(topic => ({ topic, unresolvedChallenges: practiceChallenges.filter(challenge => {
+        const row = evidence.get(challenge.id)
+        return challenge.topic === topic && row?.localWrongAt !== undefined
+          && (row.localAcceptedAt === undefined || row.localAcceptedAt < row.localWrongAt)
+      }).length })).filter(row => row.unresolvedChallenges >= 2)
+        .sort((left, right) => right.unresolvedChallenges - left.unresolvedChallenges
+          || practiceTopics.indexOf(left.topic) - practiceTopics.indexOf(right.topic))
+      const focus = topicFailures[0]
+      if (focus) {
+        // Link to one of the locally unresolved challenges so the learner can inspect or retry it.
+        const challenge = practiceChallenges.find(item => {
+          const row = evidence.get(item.id)
+          return item.topic === focus.topic && row?.localWrongAt !== undefined
+            && (row.localAcceptedAt === undefined || row.localAcceptedAt < row.localWrongAt)
+        })
+        if (challenge) result.topicFocus = { ...focus, challenge: { id: challenge.id, title: challenge.title,
+          topic: challenge.topic, difficulty: challenge.difficulty } }
+      }
     }
     return withPracticeSuggestion(result)
   }

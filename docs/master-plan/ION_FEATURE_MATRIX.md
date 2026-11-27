@@ -94,7 +94,7 @@ Status vocabulary is deliberately strict:
 | Offline practice judge | Verified at built-in catalog scope | Reviewed Local Submit, separate case data and saved verdicts for 27 built-in challenges. Competitive grading and stronger isolation remain open. [Evidence](ION_PHASE_4_PRACTICE.md) |
 | LeetCode account/submission integration | Unsupported | No official integration has been verified; premium login scraping is not acceptable. |
 | Algorithm visualizer | First offline walkthrough | Practice steps through binary search for found and absent targets. Other algorithms and a general trace protocol remain open. [Evidence](ION_PHASE_8_COACHING.md) |
-| Adaptive learning path | Incomplete | Offline Practice Progress suggests a next challenge using readable local records. Assessment and adaptive lesson paths remain open. [Evidence](ION_PHASE_8_COACHING.md) |
+| Adaptive learning path | Incomplete | Offline Practice Progress suggests a next challenge and a deterministic topic to strengthen from distinct unresolved local wrong-answer results. Wider assessment and adaptive lesson paths remain open. [Evidence](ION_PHASE_8_COACHING.md) |
 | Projects/roadmaps/test evidence | Verified at local scope | Versioned specifications, milestones, reviewed tests, historical evidence, manual/verified status. |
 | Project Lens planning | Incomplete | Optional reviewed provider workflow exists; authenticated live-provider breadth and multi-provider acceptance are incomplete. |
 | AI provider vault | Incomplete | OS-backed credential storage and explicit provider requests exist. Universal streaming/tool permission architecture is not complete. |
