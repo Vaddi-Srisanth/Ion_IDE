@@ -4,7 +4,7 @@ import { backupCategories, type BackupCategory, type BackupScope } from '../../s
 export const limits = { bytes: 2 * 1024 ** 3, files: 10_000, fileBytes: 128 * 1024 ** 2, manifestBytes: 8 * 1024 ** 2,
   folders: 16, exclusions: 250, pathBytes: 512, depth: 32, visits: 50_000 } as const
 export const categoryRoots: Record<BackupCategory, string> = { preferences: 'preferences.json', themes: 'themes', learning: 'learning.json',
-  content: 'learning-library', practice: 'practice', projects: 'projects-v1', session: 'editor-session.json', recovery: 'recovery' }
+  content: 'learning-library', practice: 'practice', projects: 'projects-v1', tests: 'test-explorer-v1', session: 'editor-session.json', recovery: 'recovery' }
 export interface BackupEntry { path: string; bytes: number; sha256: string; category?: BackupCategory; folder?: string }
 export interface FolderRecord { id: string; name: string; mode: 'reference' | 'copy'; originalPath: string }
 export interface BackupManifest { format: 'ion-backup'; version: 1; id: string; createdAt: string; appVersion: string

@@ -44,7 +44,8 @@ type Dialog =
   | { kind: 'source-references'; locations?: SourceReference[] }
   | { kind: 'symbol-rename'; initial: string }
   | { kind: 'symbol-rename-review'; preview: LanguageEditPreview }
-  | { kind: 'project-tests' }
+  | { kind: 'project-tests'; root?: Entry }
+  | { kind: 'test-explorer' }
   | { kind: 'tasks' }
   | { kind: 'commands' }
   | { kind: 'files' }
@@ -83,6 +84,7 @@ const SourceControlPanel = lazy(() => import('./source-control/SourceControlPane
 const SourceControlDiffView = lazy(() => import('./source-control/SourceControlDiffView'));
 const ProjectTestsDialog = lazy(() => import('./projects/ProjectTestsDialog'));
 const TaskPicker = lazy(() => import('./tasks/TaskPicker'));
+const TestExplorer = lazy(() => import('./test-explorer/TestExplorer'));
 const GoToLine = lazy(async () => ({ default: (await import('./CommandPicker')).GoToLine }));
 type DebugModule = typeof import('./debug');
 const idleDebugState: DebugUiState = {
@@ -1622,6 +1624,7 @@ export function App() {
         case 'run': void run(); break;
         case 'run-task': if (root) setDialog({ kind: 'tasks' }); break;
         case 'run-tests': if (availableCommand(value)) setDialog({ kind: 'project-tests' }); break;
+        case 'test-explorer': if (availableCommand(value)) setDialog({ kind: 'test-explorer' }); break;
         case 'preview-web': void previewWeb(); break;
         case 'stop': stop(); break;
         case 'toggle-explorer': toggleExplorer(); break;
@@ -1846,7 +1849,8 @@ export function App() {
       case 'debug-stop': return debugSessionActive;
       case 'toggle-breakpoint': return canDebugActive;
       case 'focus-debug-console': return Boolean(debugModule);
-      case 'run-tests': return Boolean(root) && !runBusy;
+      case 'run-tests':
+      case 'test-explorer': return Boolean(root) && !runBusy;
       case 'stop': return runBusy;
       case 'preview-web': return Boolean(active && !active.error && canPreviewWeb(active.name));
       case 'toggle-document-split': return splitActions.current?.canToggle ?? false;
@@ -2006,9 +2010,19 @@ export function App() {
           onOpen={(path, match) => void openSearchMatch(path, match)} onClose={() => setDialog(null)}/>}
         {dialog?.kind === 'language-support' && <LanguageSupport initial={fileLanguage(active?.name ?? '').id}
           onClose={() => setDialog(null)}/>}
-        {dialog?.kind === 'project-tests' && root && <ProjectTestsDialog key={root.path} root={root}
+        {dialog?.kind === 'test-explorer' && root && <TestExplorer api={bridge.testExplorer} roots={roots.length ? roots : [root]}
+          beforeRun={async selectedRoot => !documents.getSnapshot().tabs.some(({ path, dirty, conflict }) =>
+            path && isWithin(path, selectedRoot) && (dirty || conflict))}
+          onNavigate={(selectedRoot, path, line) => {
+            const separator = selectedRoot.includes('\\') ? '\\' : '/';
+            const absolute = selectedRoot.replace(/[\\/]$/, '') + separator + path.split('/').join(separator);
+            if (isWithin(absolute, selectedRoot)) { setDialog(null); void navigateSource({ path: absolute, line, column: 1 }); }
+          }}
+          onSavedTests={selectedRoot => setDialog({ kind: 'project-tests', root: selectedRoot })}
+          onClose={() => setDialog(null)}/>}
+        {dialog?.kind === 'project-tests' && root && <ProjectTestsDialog key={(dialog.root ?? root).path} root={dialog.root ?? root}
           beforeRun={async () => !documents.getSnapshot().tabs.some(({ path, dirty, conflict }) =>
-            path && isWithin(path, root.path) && (dirty || conflict))}
+            path && isWithin(path, (dialog.root ?? root).path) && (dirty || conflict))}
           onNavigate={(path, line, column) => { setDialog(null); void navigateSource({ path, line, column }); }}
           onConfigure={() => { setDialog(null); closeSourceControl(); selectWorkspace('projects'); }}
           onClose={() => setDialog(null)}/>}

@@ -56,7 +56,7 @@ export function installMenu(send: (command: MenuCommand) => void, shortcuts: Sho
     {
       label: 'Run',
       submenu: [
-        command('run'), command('run-tests'), command('stop'), command('preview-web'), { type: 'separator' },
+        command('run'), command('run-tests'), command('test-explorer'), command('stop'), command('preview-web'), { type: 'separator' },
         command('start-debugging'), command('debug-continue'), command('debug-pause'),
         command('debug-step-over'), command('debug-step-into'), command('debug-step-out'),
         command('debug-restart'), command('debug-stop'), command('toggle-breakpoint'),

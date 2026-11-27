@@ -1,8 +1,8 @@
-export const backupCategories = ['preferences', 'themes', 'learning', 'content', 'practice', 'projects', 'session', 'recovery'] as const
+export const backupCategories = ['preferences', 'themes', 'learning', 'content', 'practice', 'projects', 'tests', 'session', 'recovery'] as const
 export type BackupCategory = typeof backupCategories[number]
 export const backupLabels: Record<BackupCategory, string> = { preferences: 'Preferences and recent locations', themes: 'Custom themes',
   learning: 'Learning history and activity', content: 'Saved learning content', practice: 'Practice, notes, source and results',
-  projects: 'Roadmaps, tests and historical evidence', session: 'Editor session references', recovery: 'Recoverable unsaved drafts' }
+  projects: 'Roadmaps, tests and historical evidence', tests: 'Test Explorer history', session: 'Editor session references', recovery: 'Recoverable unsaved drafts' }
 export interface BackupFolder { id: string; name: string; mode: 'reference' | 'copy' | 'exclude' }
 export interface BackupScope { categories: BackupCategory[]; folders: BackupFolder[] }
 export interface BackupReview {

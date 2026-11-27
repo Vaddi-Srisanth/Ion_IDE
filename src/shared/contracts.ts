@@ -18,6 +18,7 @@ import type { LanguageToolsBridge } from './language-tools'
 import type { DebugBridge } from './debug'
 import type { SourceControlBridge } from './source-control'
 import type { TasksBridge } from './tasks'
+import type { TestExplorerBridge } from './test-explorer'
 import type { FormatBridge, JavaFormatter, PythonFormatter } from './format-code'
 export type { MenuCommand } from './shortcuts'
 
@@ -174,6 +175,7 @@ export interface IonBridge {
   }
   runConsole: RunConsoleBridge
   tasks: TasksBridge
+  testExplorer: TestExplorerBridge
   terminal: TerminalBridge
   notebooks: NotebookKernelBridge
   viewers: ViewerBridge

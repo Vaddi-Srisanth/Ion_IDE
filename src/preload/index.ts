@@ -127,6 +127,12 @@ const bridge: IonBridge = {
     run: (root, taskId, revision, runId) => ipcRenderer.invoke('ion:tasks-run', root, taskId, revision, runId),
     cancel: () => ipcRenderer.invoke('ion:tasks-cancel'),
   },
+  testExplorer: {
+    list: (root) => ipcRenderer.invoke('ion:test-explorer-list', root),
+    discover: (root) => ipcRenderer.invoke('ion:test-explorer-discover', root),
+    run: (root, revision, ids) => ipcRenderer.invoke('ion:test-explorer-run', root, revision, ids),
+    cancel: () => ipcRenderer.invoke('ion:test-explorer-cancel'),
+  },
   terminal: {
     create: (columns, rows, root) => ipcRenderer.invoke('ion:terminal-create', columns, rows, root),
     attach: (id) => ipcRenderer.invoke('ion:terminal-attach', id),

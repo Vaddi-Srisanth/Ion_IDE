@@ -82,6 +82,7 @@ const commands = {
   'toggle-breakpoint': { label: 'Debug: Toggle Breakpoint', key: 'F9' },
   'focus-debug-console': { label: 'Focus Debug Console' },
   'run-tests': { label: 'Run Tests' },
+  'test-explorer': { label: 'Test Explorer…' },
   stop: { label: 'Stop', key: 'Shift+F5' },
   'preview-web': { label: 'Preview Web Project', key: 'Mod+Alt+P' },
   settings: { label: 'Preferences…', key: 'Mod+,' },

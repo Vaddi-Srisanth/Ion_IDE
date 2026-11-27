@@ -44,6 +44,8 @@ import type { ProviderVault } from './projects/provider'
 import type { NotebookKernels } from './notebooks/kernel-service'
 import type { DebugService } from './debug/service'
 import type { TaskService } from './tasks/service'
+import type { TestExplorerService } from './test-explorer/service'
+import type { TestOperationResult } from '../shared/test-explorer'
 import { inputShortcut, resolveShortcuts, shortcutPlatform, type ShortcutOverrides } from '../shared/shortcuts'
 import { copyAuthorizedPath, revealAuthorizedPath } from './path-actions'
 
@@ -149,6 +151,8 @@ let notebookKernels: Promise<NotebookKernels> | undefined
 let debugService: Promise<DebugService> | undefined
 let debugCleanup = Promise.resolve()
 let taskService: Promise<TaskService> | undefined
+let testExplorerService: Promise<TestExplorerService> | undefined
+let activeTestExplorer: { owner: BrowserWindow; cancelled: boolean } | undefined
 let activeTask: { id: string; owner: BrowserWindow; engine?: InteractiveRunner; size?: [number, number] } | undefined
 let quickSearch: AbortController | undefined
 let workspaceSearch: { id: string; controller: AbortController } | undefined
@@ -240,7 +244,7 @@ const projects = () => import('./projects/ipc').then(({ createProjectHandlers })
   files: () => files,
   runner,
   isCurrent: (target) => target === window,
-  isBusy: () => restoreClosing || activeRun !== null || practiceRun !== null || activeTask !== undefined,
+  isBusy: () => restoreClosing || activeRun !== null || practiceRun !== null || activeTask !== undefined || activeTestExplorer !== undefined,
   isFull: () => resourceProfile === 'full',
 }))
 
@@ -275,6 +279,52 @@ function taskRunner(target: BrowserWindow): Promise<TaskService> {
         run: { executable: plan.executable, args: plan.args, cwd: plan.cwd, environment: plan.environment, timeoutMs: plan.timeoutMs } }, emit, signal)
     },
   })).catch((error: unknown) => { if (target === window) taskService = undefined; throw error })
+}
+
+function testExplorer(target: BrowserWindow): Promise<TestExplorerService> {
+  if (target !== window || target.isDestroyed()) return Promise.reject(new Error('The test window has closed.'))
+  return testExplorerService ??= import('./test-explorer/service').then(({ TestExplorerService }) => new TestExplorerService({
+    profile: () => app.getPath('userData'), files: () => files,
+    approve: async (review, signal) => {
+      if (target !== window || target.isDestroyed() || signal.aborted) return false
+      const choice = await dialog.showMessageBox(target, {
+        signal, type: 'warning', buttons: ['Cancel', review.operation === 'discover' ? 'Discover Tests' : 'Run Tests'],
+        defaultId: 0, cancelId: 0,
+        message: review.operation === 'discover' ? 'Allow pytest to collect tests?' : 'Run the selected pytest tests?',
+        detail: [`Workspace: ${review.root}`, `Tool: ${review.executable}`,
+          `Arguments: ${review.args.map(value => JSON.stringify(value)).join(' ')}`,
+          `Working directory: ${review.cwd}`, `Time limit: ${Math.round(review.timeoutMs / 1000)} seconds`,
+          `Selection: ${review.selectedLabels.slice(0, 20).join(', ')}${review.selectedLabels.length > 20 ? '…' : ''}`,
+          '', review.warning].join('\n'),
+      })
+      return choice.response === 1 && target === window && !target.isDestroyed() && !signal.aborted
+    },
+  })).catch((error: unknown) => { if (target === window) testExplorerService = undefined; throw error })
+}
+
+function cancelTestExplorer() {
+  if (activeTestExplorer) activeTestExplorer.cancelled = true
+  return testExplorerService?.then(service => service.cancel(), () => false)
+}
+
+async function performTestExplorer(target: BrowserWindow,
+  operation: (service: TestExplorerService) => Promise<TestOperationResult>): Promise<TestOperationResult> {
+  if (activeTestExplorer || activeTask || runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob) {
+    throw new Error('Stop the current program, task, test or formatter before using Test Explorer.')
+  }
+  const owner = { owner: target, cancelled: false }
+  activeTestExplorer = owner
+  try {
+    if (await debugService?.then(service => service.status(), () => null)) throw new Error('Stop the debugger before using Test Explorer.')
+    if (owner.cancelled || target !== window || target.isDestroyed()) {
+      return { status: 'cancelled', stage: 'review', snapshot: null, message: 'Test operation cancelled.' }
+    }
+    const service = await testExplorer(target)
+    if (owner.cancelled || target !== window || target.isDestroyed()) {
+      return { status: 'cancelled', stage: 'review', snapshot: null, message: 'Test operation cancelled.' }
+    }
+    return await operation(service)
+  } finally { if (activeTestExplorer === owner) activeTestExplorer = undefined }
 }
 
 async function activeProjects(target: BrowserWindow) {
@@ -787,6 +837,9 @@ function createWindow(): BrowserWindow {
     interactive?.controller.abort()
     const tasks = taskService
     taskService = undefined
+    if (activeTestExplorer) activeTestExplorer.cancelled = true
+    const tests = testExplorerService
+    testExplorerService = undefined
     const formatting = formatJob
     formatting?.controller.abort()
     const fileCleanup = files.drain()
@@ -814,7 +867,7 @@ function createWindow(): BrowserWindow {
     // recovery publication. Wait for every owner before choosing what follows.
     const cleanup = Promise.allSettled([runner.drain(), fileCleanup, drainAcceptedRequests().then(drainProfileWrites), previewCleanup, kernelCleanup, terminalCleanup, stopLanguageTools(), stopDebugTools(),
       closeSourceControl(), projectHandlers?.stopSuite(), interactive?.job,
-      practiceRun?.job?.catch(() => undefined), tasks?.then(service => service.close()), formatting?.done,
+      practiceRun?.job?.catch(() => undefined), tasks?.then(service => service.close()), tests?.then(service => service.close()), formatting?.done,
       updatePreparation?.catch(() => undefined), runTrust?.then((store) => store.drain()), explanationCleanup, pendingRestore ? undefined : closingBackup?.then(s => s.cancel())])
     void cleanup.then(async (results) => {
       await drainProfileWrites()
@@ -954,7 +1007,7 @@ function startInteractive(target: BrowserWindow, id: string, value: unknown, lea
     trace?.('request', 'rejected-before-engine', 'revision')
     return Promise.resolve(rejectedRun('Invalid source revision.'))
   }
-  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy) {
+  if (runner.busy || practiceRun || activeRun || activeTask || activeTestExplorer || projectHandlers?.busy) {
     trace?.('request', 'rejected-before-engine', 'busy')
     return Promise.resolve(rejectedRun('A program or test is already running.'))
   }
@@ -1140,11 +1193,11 @@ function backup(target: BrowserWindow) {
 }
 async function drainProfileWrites() {
   await Promise.all([preferences.drain(), recovery.drain(), editorSession.drain(), themeStore.drain(),
-    learningService?.drain(), packStore?.drain(), practiceStore?.drain(), projectHandlers?.drain()])
+    learningService?.drain(), packStore?.drain(), practiceStore?.drain(), projectHandlers?.drain(), testExplorerService?.then(service => service.drain())])
 }
 async function requireStoppedTools() {
   const debugging = await debugService?.then(service => service.status(), () => null)
-  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
+  if (runner.busy || practiceRun || activeRun || activeTask || activeTestExplorer || projectHandlers?.busy || formatJob || updatePreparation || pendingUpdate
     || debugging || await terminalService?.then(s => s.hasSessions) || await notebookKernels?.then(s => s.hasSessions)) {
     throw new Error('Stop running programs, tests, debugger sessions, notebook kernels and terminal sessions before restoring. Your work is unchanged.')
   }
@@ -1174,7 +1227,7 @@ async function startDebugSession(target: BrowserWindow, value: unknown): Promise
       throw new Error('Invalid debug breakpoint.')
     }
   }
-  if (runner.busy || practiceRun || activeRun || activeTask || projectHandlers?.busy) {
+  if (runner.busy || practiceRun || activeRun || activeTask || activeTestExplorer || projectHandlers?.busy) {
     throw new Error('Stop the current program or test before starting the debugger.')
   }
   if (await debugService?.then(service => service.status(), () => null)) throw new Error('A debugger session is already active.')
@@ -1219,7 +1272,7 @@ function registerIpc(): void {
         throw new Error('Restore is waiting for the save, keep-drafts or cancel decision.')
       }
       const request = Promise.resolve(operation(target, ...args))
-      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|workspace-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|tasks-discover|set-optional-panel)/.test(channel)
+      const writesProfile = /^(?:update-settings|editor-session-save|recovery-(?:write|remove)|themes-(?:import|create)|open-|workspace-|quick-open-file|markdown-open-link|save-file|rename-entry|trash-entry|learning-|practice-|projects-(?:save|approve|run|automatic)|tasks-discover|test-explorer-(?:discover|run)|set-optional-panel)/.test(channel)
       if (!writesProfile) return request
       acceptedRequests.add(request)
       void request.then(() => acceptedRequests.delete(request), () => acceptedRequests.delete(request))
@@ -1243,6 +1296,7 @@ function registerIpc(): void {
     void stopDebugTools()
     void projectLensService?.then(service => service.close(), () => undefined)
     void taskService?.then(service => service.cancel(), () => undefined)
+    void cancelTestExplorer()
     trustedGitRoot = undefined
     void closeSourceControl()
     void projectHandlers?.stopSuite()
@@ -1920,10 +1974,14 @@ function registerIpc(): void {
     return moved
   })
   handle('tasks-list', async (target, root) => (await taskRunner(target)).list(root))
+  handle('test-explorer-list', async (target, root) => (await testExplorer(target)).list(root))
+  handle('test-explorer-discover', (target, root) => performTestExplorer(target, service => service.discover(root)))
+  handle('test-explorer-run', (target, root, expected, ids) => performTestExplorer(target, service => service.run(root, expected, ids)))
+  handle('test-explorer-cancel', async (target) => activeTestExplorer?.owner === target && Boolean(await cancelTestExplorer()))
   handle('tasks-discover', async (target, root) => (await taskRunner(target)).discover(root))
   handle('tasks-run', async (target, root, taskId, expectedRevision, runId) => {
     if (typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) throw new Error('Invalid task run request.')
-    if (activeTask || runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob
+    if (activeTask || activeTestExplorer || runner.busy || practiceRun || activeRun || projectHandlers?.busy || formatJob
       || await debugService?.then(service => service.status(), () => null)) {
       throw new Error('Stop the current program, test, formatter or debugger before running a task.')
     }
@@ -2193,7 +2251,7 @@ function registerIpc(): void {
   })
   handle('practice-run-samples', async (target, id, attempt) => {
     if (target !== window || panel !== 'learn' && panel !== 'practice') throw new Error('Open Learn or Practice before running samples.')
-    if (practiceRun || runner.busy || activeRun || activeTask || projectHandlers?.busy) throw new Error('A program, task or test is already running.')
+    if (practiceRun || runner.busy || activeRun || activeTask || activeTestExplorer || projectHandlers?.busy) throw new Error('A program, task or test is already running.')
     const generation = panelGeneration
     const controller = new AbortController()
     const job = practice().then((library) => library.runSamples(id, attempt, async (path, inputs, sourceRevision) => {
@@ -2218,6 +2276,7 @@ function registerIpc(): void {
     practiceRun?.controller.abort()
     activeRun?.controller.abort()
     void taskService?.then(service => service.cancel())
+    void cancelTestExplorer()
     runner.stop()
   })
   handle('confirm-window-close', (target, allow) => {

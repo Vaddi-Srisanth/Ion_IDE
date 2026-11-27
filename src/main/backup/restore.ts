@@ -5,6 +5,7 @@ import { backupCategories, type BackupCategory, type RestoreChoices } from '../.
 import { validateBackupPreferences, isRecent } from '../preferences'
 import { validateEditorSnapshot } from '../editor-session'
 import { validateSavedProject } from '../projects/repository'
+import { restoreStoredTests, maxTestRecordBytes } from '../test-explorer/model'
 import { validatePracticeReport } from '../practice/store'
 import { RecoveryStore } from '../recovery'
 import { limits, plain, sha256, type BackupManifest } from './format'
@@ -72,6 +73,12 @@ export async function prepareProfile(profile: string, payload: string, target: s
     await rm(join(target, 'projects-v1'), { recursive: true, force: true })
     if (records.length) await mkdir(join(target, 'projects-v1'), { mode: 0o700 })
     for (const record of records) await durableJson(join(target, record.name), record.data)
+  }
+  if (selected.includes('tests')) {
+    for (const entry of manifest.entries.filter(e => e.category === 'tests')) {
+      const name = entry.path.slice(8)
+      await durableJson(join(target, name), restoreStoredTests(await readValue(target, name, maxTestRecordBytes)))
+    }
   }
   if (selected.includes('practice')) {
     for (const entry of manifest.entries.filter(e => e.category === 'practice' && e.path.endsWith('.report.json'))) {
