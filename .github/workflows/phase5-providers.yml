@@ -1,5 +1,6 @@
 name: Phase 5 reviewed provider transport
 on:
+  workflow_dispatch:
   push:
     branches: [codex/ion-phase-5-providers]
     paths:
