@@ -12,4 +12,4 @@ The focused fixtures use synthetic responses, explicit approval and disposable p
 
 ## Stop checkpoint
 
-Candidate `12c223b9c0d24017719bf826a1db480aef1c394e` passed 58 focused tests locally and on hosted macOS ARM64. The macOS disposable production Electron journey passed. Windows reached the desktop journey after the build and focused tests; cancellation was requested when development was paused. Windows desktop acceptance remains open. Provider fixtures stayed offline throughout. [Native run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45934837451)
+Candidate `12c223b9c0d24017719bf826a1db480aef1c394e` passed 58 focused tests locally and on hosted macOS ARM64. The macOS disposable production Electron journey passed. Windows x64 also passed all 58 tests, the production desktop journey and the tracked-files check. Cancellation at the requested pause reached the post-job Node cache step; GitHub records the overall Windows job as cancelled. Provider fixtures stayed offline throughout. [Native run](https://github.com/Vaddi-Srisanth/Ion_IDE/actions/runs/45934837451)
