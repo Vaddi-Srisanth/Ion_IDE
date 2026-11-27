@@ -8,6 +8,7 @@ import { artifact, atPath, close, createProject, editorShows, launch, openFolder
 
 const { values: { target: targetPath } } = parseArgs({ options: { target: { type: 'string', default: 'dist' } } })
 const target = await artifact(targetPath)
+const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 assert.ok(!target.path.endsWith('.app'), 'Use the production build directory for native dialog stubbing.')
 const execute = promisify(execFile)
 const word = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -185,7 +186,7 @@ await withScratch('word-viewer', async (scratch) => {
     await editor.locator('.codicon-folding-collapsed').first().waitFor({ state: 'visible' })
     await editorShows(page, 'preview-undo-marker')
     await selection.waitFor({ state: 'visible' })
-    await editor.getByRole('textbox', { name: /^Code editor\b/ }).press('Meta+z')
+    await editor.getByRole('textbox', { name: /^Code editor\b/ }).press(modifier + '+z')
     await page.waitForFunction(() => !document.querySelector('.monaco-editor .view-lines')?.textContent?.includes('preview-undo-marker'))
     await page.getByTestId('save-file').click()
     await page.getByRole('separator', { name: 'Resize document split' }).waitFor()

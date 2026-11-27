@@ -7,6 +7,8 @@ import {
   resourceSnapshot, sleep, stubDialogs, withScratch,
 } from './desktop-harness.mjs'
 
+const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
+
 async function selectProfile(page, profile) {
   await page.getByTestId('settings').click()
   await page.getByTestId('resource-profile').selectOption(profile)
@@ -16,7 +18,7 @@ async function selectProfile(page, profile) {
 
 async function replaceCode(page, source, marker) {
   await page.locator('.monaco-editor .view-line').first().click({ position: { x: 8, y: 7 } })
-  await page.keyboard.press('Meta+a')
+  await page.keyboard.press(modifier + '+a')
   await page.keyboard.insertText(source)
   await editorShows(page, marker)
 }

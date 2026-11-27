@@ -11,6 +11,7 @@ const { values } = parseArgs({ options: {
 } })
 const target = await artifact(values.target)
 assert.ok(!target.path.endsWith('.app'), 'Use production build files for native dialog stubbing.')
+const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 if (values.screenshots) await mkdir(values.screenshots, { recursive: true })
 
 const output = '[data-testid="output"]'
@@ -45,7 +46,7 @@ async function input(page, line) {
 
 async function replaceSource(page, source, marker) {
   await page.locator('.monaco-editor .view-lines').click()
-  await page.keyboard.press('Meta+a')
+  await page.keyboard.press(modifier + '+a')
   await page.keyboard.insertText(source)
   await editorShows(page, marker)
 }

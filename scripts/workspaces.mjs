@@ -19,12 +19,13 @@ const capture = (page, name) => screenshots
   ? page.screenshot({ path: join(screenshots, name + '.png') })
   : Promise.resolve()
 const target = await artifact(values.target)
+const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 const prepareTarget = values['prepare-target'] ? await artifact(values['prepare-target']) : target
 const output = (page, status) => page.locator(`[data-testid="output"][data-status="${status}"]`).waitFor()
 
 async function replaceCode(page, code, needle) {
   await page.locator('.monaco-editor .view-line').first().click({ position: { x: 8, y: 8 } })
-  await page.keyboard.press('Meta+a')
+  await page.keyboard.press(modifier + '+a')
   await page.keyboard.insertText(code)
   await editorShows(page, needle)
 }

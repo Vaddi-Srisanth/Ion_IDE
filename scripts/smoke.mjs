@@ -19,6 +19,7 @@ if (options.help) {
 
 const target = await artifact(options.target)
 const screenshots = options.screenshots ? resolve(options.screenshots) : null
+const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 if (screenshots) await mkdir(screenshots, { recursive: true })
 
 async function screenshot(page, name) {
@@ -27,7 +28,7 @@ async function screenshot(page, name) {
 
 async function replaceEditor(page, text) {
   await page.locator('.monaco-editor .view-line').first().click()
-  await page.keyboard.press('Meta+a')
+  await page.keyboard.press(modifier + '+a')
   await page.keyboard.insertText(text.endsWith('\n') ? text.slice(0, -1) : text)
   if (text.endsWith('\n')) await page.keyboard.press('Enter')
 }
@@ -87,7 +88,7 @@ await withScratch('smoke', async (scratch) => {
     await atPath(page, 'tab', project.files[0]).locator('.tab-name').click()
     await editorShows(page, content.trim())
     await page.locator('.monaco-editor .view-line').first().click()
-    await page.keyboard.press('Meta+f')
+    await page.keyboard.press(modifier + '+f')
     const find = page.locator('.monaco-editor .find-widget')
     await find.waitFor()
     await page.keyboard.insertText('autosave')
@@ -118,7 +119,7 @@ await withScratch('smoke', async (scratch) => {
     const draft = 'Created and saved through Ion.\n'
     await replaceEditor(page, draft)
     await editorShows(page, draft.trim())
-    await page.keyboard.press('Meta+s')
+    await page.keyboard.press(modifier + '+s')
     const shortcutSaved = await waitForFile(readFile, save, draft, 900).then(() => true, () => false)
     if (!shortcutSaved) await page.getByTestId('save-file').click()
     await waitForFile(readFile, save, draft)
