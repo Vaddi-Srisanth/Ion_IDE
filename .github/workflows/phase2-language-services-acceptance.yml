@@ -1,4 +1,4 @@
-name: Phase 2 build tasks native resource acceptance (no publication)
+name: Phase 2 build tasks matched unused-cost acceptance (no publication)
 on:
   workflow_dispatch:
     inputs:
@@ -14,23 +14,24 @@ concurrency:
   cancel-in-progress: false
 jobs:
   tasks:
-    name: Native ${{ matrix.os }} build tasks
+    name: Native ${{ matrix.os }} build tasks matched baseline
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-2025"]' || '["macos-15","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     defaults:
       run:
         shell: bash
     env:
       ION_TASKS_APPLICATION_SHA: d5d89e19b6a10b0727071c2283c6774baf1b842d
+      ION_TASKS_BASELINE_SHA: 99acaaa4bac7239d3f2b8dff672b51ea777cb4d3
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-          fetch-depth: 5
+          fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.22.2
@@ -46,8 +47,17 @@ jobs:
             node --version
             npm --version
           } > performance-results/phase2-tasks/identity.log 2>&1
-      - run: npm ci
-      - run: node node_modules/electron/install.js
+      - name: Prepare exact baseline checkout
+        run: |
+          git worktree add --detach ../ion-tasks-baseline "$ION_TASKS_BASELINE_SHA"
+          git -C ../ion-tasks-baseline diff --exit-code
+          git -C ../ion-tasks-baseline rev-parse HEAD
+      - name: Install candidate and baseline dependencies
+        run: |
+          npm ci
+          node node_modules/electron/install.js
+          npm --prefix ../ion-tasks-baseline ci
+          node ../ion-tasks-baseline/node_modules/electron/install.js
       - name: Record exact task tool versions
         run: |
           {
@@ -56,19 +66,20 @@ jobs:
             node -p 'process.execPath'
             npm root -g
           } > performance-results/phase2-tasks/tools.log 2>&1
-      - name: Type-check and build exact production candidate
+      - name: Build exact production candidate and baseline
         run: |
           npm run typecheck 2>&1 | tee performance-results/phase2-tasks/typecheck.log
           npm run build 2>&1 | tee performance-results/phase2-tasks/build.log
-      - name: Production Electron task journey and resource cleanup
-        id: desktop_tasks
+          npm --prefix ../ion-tasks-baseline run build 2>&1 | tee performance-results/phase2-tasks/baseline-build.log
+      - name: Matched unused-task startup, editor and resource comparison
+        id: matched_tasks
         continue-on-error: true
-        run: node scripts/test-tasks-desktop.mjs 2>&1 | tee performance-results/phase2-tasks/desktop-tasks.log
+        run: node scripts/benchmark-tasks-unused-native.mjs ../ion-tasks-baseline/dist dist 2>&1 | tee performance-results/phase2-tasks/matched-unused.log
       - name: Record acceptance result
         if: always()
         env:
-          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
-        run: printf 'desktop_result=%s\n' "$DESKTOP_RESULT" > performance-results/phase2-tasks/acceptance-result.log
+          MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
+        run: printf 'matched_result=%s\n' "$MATCHED_RESULT" > performance-results/phase2-tasks/acceptance-result.log
       - name: Prove immutable source and collect bounded evidence
         if: always()
         run: |
@@ -95,8 +106,8 @@ jobs:
       - name: Enforce task acceptance result
         if: always()
         env:
-          DESKTOP_RESULT: ${{ steps.desktop_tasks.outcome }}
-        run: test "$DESKTOP_RESULT" = success
+          MATCHED_RESULT: ${{ steps.matched_tasks.outcome }}
+        run: test "$MATCHED_RESULT" = success
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
