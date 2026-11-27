@@ -1,4 +1,4 @@
-export type TestAdapter = 'pytest' | 'vitest'
+export type TestAdapter = 'pytest' | 'vitest' | 'junit'
 export interface TestNode {
   id: string
   parentId: string | null

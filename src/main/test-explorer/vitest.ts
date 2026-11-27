@@ -1,11 +1,12 @@
 import { constants } from 'node:fs'
 import { lstat, open, realpath, writeFile } from 'node:fs/promises'
 import { delimiter, join, relative, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { isWithin } from '../files'
 import { commandPaths, envFor, onPath } from '../run-console/plans'
 import { testLimits, text, validateSelector } from './model'
 import { readFrameworkReport, safeTool, type TestPlan } from './pytest'
-import { vitestHelper } from './vitest-helper'
+import { vitestHelper, vitestSelectionGuard } from './vitest-helper'
 
 /** Discovery here reads metadata only. Importing project JavaScript requires the service's native review. */
 export async function trustedNode(roots: readonly string[]): Promise<string> {
@@ -64,9 +65,11 @@ export async function prepareVitest(root: string, roots: readonly string[], scra
   if (manifest.name !== 'vitest' || typeof manifest.version !== 'string' || !/^4\.1\.\d+$/.test(manifest.version)) {
     throw new Error('This adapter supports project-local Vitest 4.1.x. Other versions require separate compatibility verification.')
   }
+  const canonicalPackage = await realpath(packageRoot)
   const entry = await packageFile(join(packageRoot, 'dist', 'node.js'), root, 16 * 1024 * 1024)
-  if (!isWithin(await realpath(packageRoot), entry.path)) throw new Error('Vitest entry escapes its package.')
-  const trackedFiles = [metadata.path, entry.path]
+  const runtime = await packageFile(join(packageRoot, 'dist', 'index.js'), root, 16 * 1024 * 1024)
+  const trackedFiles = [metadata.path, entry.path, runtime.path]
+  if (trackedFiles.some(file => !isWithin(canonicalPackage, file))) throw new Error('Vitest entry escapes its package.')
   let config: string | false = false
   // Never inherit an ancestor's executable configuration. The selected root is the approval boundary.
   for (const name of ['vitest.config', 'vite.config']) {
@@ -83,13 +86,20 @@ export async function prepareVitest(root: string, roots: readonly string[], scra
   const checkedSelectors = selectors.map(vitestSelector)
   if (new Set(checkedSelectors).size !== checkedSelectors.length) throw new Error('Duplicate Vitest selection.')
   const helper = join(scratch, 'ion-vitest.mjs'), request = join(scratch, 'request.json'), report = join(scratch, 'report.json')
+  const guard = join(scratch, 'verify-selection.mjs'), selectionFile = join(scratch, 'selection.json')
+  if (operation === 'run') {
+    const imports = 'import { beforeAll } from ' + JSON.stringify(pathToFileURL(runtime.path).href)
+    const selection = 'const selectionFile = ' + JSON.stringify(selectionFile)
+    await writeFile(guard, [imports, selection, vitestSelectionGuard].join('\n'), { mode: 0o600, flag: 'wx' })
+  }
   await writeFile(helper, vitestHelper, { mode: 0o600, flag: 'wx' })
-  await writeFile(request, JSON.stringify({ root, entry: entry.path, config, operation, selectors: checkedSelectors }), { mode: 0o600, flag: 'wx' })
+  await writeFile(request, JSON.stringify({ root, entry: entry.path, config, operation, selectors: checkedSelectors, guard, selectionFile }), { mode: 0o600, flag: 'wx' })
   const paths = (await commandPaths(root)).filter(path => roots.every(other => !isWithin(other, path)))
   return { executable, args: [helper, request, report], cwd: root, environment: { ...envFor(paths, scratch), CI: '1', NO_COLOR: '1' },
     timeoutMs: operation === 'discover' ? testLimits.discoveryMs : testLimits.runMs, report, operation, trackedFiles,
-    warning: 'This executes project-local ' + relative(root, entry.path).split(sep).join('/') + ' (Vitest ' + manifest.version
-      + '), project configuration, plugins and test modules with your account permissions. Discovery executes collection code too. No packages are downloaded.' }
+    warning: 'This executes project-local ' + relative(root, entry.path).split(sep).join('/') + ' (Vitest ' + manifest.version + '), '
+      + (config ? relative(root, config).split(sep).join('/') + ', ' : '')
+      + 'plugins and test modules with your account permissions. Discovery executes collection code too. Ion does not download packages.' }
 }
 
 export const readVitestReport = readFrameworkReport

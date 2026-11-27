@@ -44,6 +44,7 @@ export function BackupDialog({ mode, checkpoint, onApply, onClose }: {
   })
   const toggle = <T,>(items: T[], value: T) => items.includes(value) ? items.filter(item => item !== value) : [...items, value]
   const close = () => { void task(async () => { await api.cancel(); onClose() }) }
+  const associations = review?.projects.filter(item => replace.includes(item.category)) ?? []
   return <Modal title={mode === 'backup' ? 'Back Up My Ion Data' : 'Restore From Backup'} className="preferences backup-dialog" onClose={close} busy={busy}>
     <p>Local, offline and unencrypted. Credentials, browser data and execution approvals are excluded. Notes, code and drafts may still contain sensitive text.</p>
     {mode === 'backup' && !review && <>
@@ -78,9 +79,9 @@ export function BackupDialog({ mode, checkpoint, onApply, onClose }: {
       {mode === 'restore' && review.folders.some(f => f.mode === 'copy') && <fieldset disabled={busy || Boolean(ready)}><legend>Optional copied workspaces · always a NEW destination</legend>
         {review.folders.filter(f => f.mode === 'copy').map(f => <label className="backup-check" key={f.id}><input type="checkbox" checked={copies.includes(f.id)} onChange={() => setCopies(previous => toggle(previous, f.id))}/>{f.name}</label>)}
       </fieldset>}
-      {mode === 'restore' && review.projects.length > 0 && replace.includes('projects') && <fieldset disabled={busy || Boolean(ready)}><legend>Explicitly relink roadmaps</legend>
+      {mode === 'restore' && associations.length > 0 && <fieldset disabled={busy || Boolean(ready)}><legend>Relink selected records to a workspace</legend>
         <p>Unmapped records stay preserved. Relinking does not approve tests or grant execution permission.</p>
-        {review.projects.map(p => <label className="backup-folder" key={p.id}><span>{p.title}<small>{p.originalPath || 'Original folder unknown'}</small></span>
+        {associations.map(p => <label className="backup-folder" key={p.id}><span>{p.title}<small>{p.originalPath || 'Original folder unknown'}</small></span>
           <select aria-label={'Relink ' + p.title} value={mappings[p.id] || ''} onChange={event => setMappings(previous => ({ ...previous, [p.id]: event.target.value }))}>
             <option value="">Keep unmapped</option>
             {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -104,7 +105,7 @@ export function BackupDialog({ mode, checkpoint, onApply, onClose }: {
           const path = await api.create(review.token); if (path && mounted.current) { setStatus('Backup created: ' + path); setReview(null) }
         })}>Create .ionbackup…</button>
       </div> : <button className="button primary" disabled={busy || !replace.length} onClick={() => void task(async () => {
-        const result = await api.prepareRestore(review.token, { replace, copyFolders: copies, mappings: Object.entries(mappings).filter(([, folderId]) => folderId).map(([id, folderId]) => ({ id, folderId })) })
+        const result = await api.prepareRestore(review.token, { replace, copyFolders: copies, mappings: Object.entries(mappings).filter(([id, folderId]) => folderId && associations.some(item => item.id === id)).map(([id, folderId]) => ({ id, folderId })) })
         if (mounted.current) setReady(result)
       })}>Review Restart and Rollback</button>}
     </>}

@@ -11,7 +11,7 @@ export interface BackupReview {
   folders: BackupFolder[]; exclusions: Array<{ name: string; reason: string }>; exclusionsOmitted: number
   legacy: boolean; warnings: string[]
   entries: Array<{ path: string; bytes: number }>
-  projects: Array<{ id: string; title: string; originalPath?: string }>
+  projects: Array<{ id: string; title: string; category: 'projects' | 'tests'; originalPath?: string }>
 }
 export interface RestoreChoices { replace: BackupCategory[]; mappings: Array<{ id: string; folderId: string }>; copyFolders: string[] }
 export interface BackupProgress { phase: 'reviewing' | 'copying' | 'validating' | 'writing' | 'preparing' | 'finished'; files: number; bytes: number }

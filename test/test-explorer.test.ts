@@ -184,3 +184,20 @@ test('unverified process cleanup remains sticky and blocks close, drain and subs
   const second = await service.discover(f.root)
   assert.equal(second.stage, 'cleanup')
 })
+
+test('a nonzero exit and all-passing rows cannot present a successful test run', async t => {
+  const f = await fixture(t)
+  const discovery = await f.service.discover(f.root)
+  const snapshot = discovery.snapshot!
+  const service = new TestExplorerService({ profile: () => f.profile, files: () => f.scope,
+    resolvePython: async () => process.execPath, approve: async () => true,
+    execute: async (_tool, args) => {
+      const rows = events(true).map(row => 'case' in row ? { ...row, case: { ...row.case, outcome: 'passed' } } : row)
+      await writeEvents(args.at(-1)!, rows)
+      return completed(1)
+    } })
+  t.after(() => service.close())
+  const result = await service.run(f.root, snapshot.revision, [snapshot.nodes[0].id])
+  assert.equal(result.status, 'failed')
+  assert.equal(result.snapshot?.history.at(-1)?.status, 'failed')
+})

@@ -7,7 +7,7 @@ import { validateLearningHistory } from '../learning'
 import { LearningPackStore, packProfileFiles, parseInstalledLibrary } from '../learning/catalog-store'
 import { validatePracticeProblem, validatePracticeReport } from '../practice/store'
 import { validateSavedProject } from '../projects/repository'
-import { validateStoredTests, maxTestRecordBytes } from '../test-explorer/model'
+import { testId, validateStoredTests, maxTestRecordBytes } from '../test-explorer/model'
 import { RecoveryStore } from '../recovery'
 import { ThemeStore } from '../themes'
 import { limits, categoryRoots, plain, portablePath } from './format'
@@ -69,7 +69,8 @@ export async function profileFiles(root: string, categories: readonly BackupCate
       if (records.length > 512) throw new Error('Too many Test Explorer records.')
       for (const file of records) {
         await add(category, name + '/' + file, maxTestRecordBytes)
-        validateStoredTests(await readValue(root, name + '/' + file, maxTestRecordBytes))
+        const record = validateStoredTests(await readValue(root, name + '/' + file, maxTestRecordBytes))
+        if (file !== testId(record.snapshot.root) + '.json') throw new Error('Test history belongs to a different workspace identity.')
       }
     } else if (category === 'recovery') {
       const records = (await children(root, name)).filter(n => uuid.test(n.replace(/\.draft$/, '')) && n.endsWith('.draft'))

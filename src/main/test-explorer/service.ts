@@ -7,7 +7,7 @@ import type { WorkspaceFiles } from '../files'
 import { isWithin } from '../files'
 import { execute } from '../runner'
 import { maxTestRecordBytes, relativeTestPath, selectedTestIds, testAdapter, testLimits, type StoredTests } from './model'
-import { preparePytest, readFrameworkReport, safeTool, sourceRevisions, testTree, type TestExecute } from './pytest'
+import { preparePytest, readFrameworkReport, safeTool, sourceRevisions, testTree, type TestExecute, type TestPlan } from './pytest'
 import { TestRepository } from './repository'
 
 export interface TestReview {
@@ -39,9 +39,13 @@ export class TestExplorerService {
   async list(value: unknown): Promise<TestSnapshot | null> {
     const { root, scope } = await this.root(value), record = await this.store().read(root)
     if (!record) return null
+    if (record.snapshot.stale) return { ...record.snapshot, history: record.snapshot.history.map(run => ({ ...run, stale: true })) }
     const tracked = Object.entries(record.sources).filter(([, value]) => value.startsWith('tool:')).map(([path]) => join(root, ...path.split('/')))
-    const sources = await reviewedSources(scope, root, record.snapshot.adapter, tracked)
-    const stale = record.snapshot.stale || !same(record.sources, sources)
+    // Users can still inspect earlier outcomes after removing a framework or a tracked source.
+    // Re-running independently verifies the current files and approval before launch.
+    const sources = await reviewedSources(scope, root, record.snapshot.adapter, tracked).catch(() => null)
+    if (scope !== this.options.files() || !scope.rootPaths.includes(root)) throw new Error('The workspace closed while reading test history.')
+    const stale = sources === null || !same(record.sources, sources)
     return { ...record.snapshot, stale, history: record.snapshot.history.map(run => ({ ...run, stale: run.stale || stale })) }
   }
   discover(root: unknown, adapter: unknown = 'pytest'): Promise<TestOperationResult> { return this.operate('discover', root, undefined, undefined, adapter) }
@@ -88,10 +92,15 @@ export class TestExplorerService {
       signal.throwIfAborted()
       scratch = await mkdtemp(join(await realpath(tmpdir()), 'ion-tests-run-'))
       const selectors = chosen.map(id => previous!.selectors[id])
-      const plan = adapter === 'pytest' ? await preparePytest(root, roots, scratch, operation, selectors, this.options.resolvePython)
-        : await (await import('./vitest')).prepareVitest(root, roots, scratch, operation, selectors)
+      let plan: TestPlan
+      switch (adapter) {
+        case 'pytest': plan = await preparePytest(root, roots, scratch, operation, selectors, this.options.resolvePython); break
+        case 'vitest': plan = await (await import('./vitest')).prepareVitest(root, roots, scratch, operation, selectors); break
+        case 'junit': plan = await (await import('./junit')).prepareJunit(root, roots, scratch, operation, selectors); break
+      }
       const inspectSources = (abort?: AbortSignal) => reviewedSources(scope, root, adapter, plan.trackedFiles ?? [], abort)
       const sources = await inspectSources(signal)
+      await plan.stageSources?.(sources)
       if (operation === 'run' && !same(previous!.sources, sources)) throw new Error('Tests or saved sources changed. Discover and review again.')
       const review: TestReview = { operation, root, adapter, executable: plan.executable, args: plan.args, cwd: plan.cwd,
         selectedLabels: chosen.map(id => previous!.snapshot.nodes.find(n => n.id === id)!.label), timeoutMs: plan.timeoutMs, outputBytes: testLimits.outputBytes,
@@ -141,8 +150,9 @@ export class TestExplorerService {
             return { id, label: node.label, outcome: cancelled ? 'cancelled' : 'error', durationMs: 0,
               message: cancelled ? 'Stopped before this case completed.' : `${adapter} did not provide a complete result for this selected case.`, output: '', location: node.location }
           })
+          const expectedExitCode = cases.some(c => c.outcome === 'failed' || c.outcome === 'error') ? 1 : 0
           const failed = !cancelled && (process.state !== 'exited' || !report?.complete || report.errors.length > 0
-            || ![0, 1].includes(report.exitCode) || process.exitCode !== report.exitCode || cases.some(c => c.outcome === 'error'))
+            || report.exitCode !== expectedExitCode || process.exitCode !== report.exitCode || cases.some(c => c.outcome === 'error'))
           const status = cancelled ? 'cancelled' : failed ? 'failed' : 'completed'
           const run: TestRun = { id: randomUUID(), adapter, checkedAt: Date.now(), durationMs: elapsed, status, selectedIds: chosen, cases, stale: changed }
           const next: StoredTests = { ...previous!, snapshot: { ...previous!.snapshot, stale: changed,

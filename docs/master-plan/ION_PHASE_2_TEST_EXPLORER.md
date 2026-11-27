@@ -26,21 +26,25 @@ Tests operate on saved files. Dirty/conflicted editor buffers block the UI reque
 
 The reporter records actual parameterized identities, setup/call/teardown outcomes, skipped tests, durations and bounded error/output excerpts. Exit zero alone is insufficient. Missing/truncated reports and incomplete cleanup cannot become passing results. Cancellation uses existing Unix process groups and Windows ownership helpers.
 
-History is bounded and stored under `test-explorer-v1`. The new backup category includes validated history. Restore clears runnable discovery, selectors and source snapshots, preserves results as restored/stale history, and grants no filesystem or execution authority. An original root association remains inert; relocated-root relinking is still a follow-up acceptance item.
+History is bounded and stored under `test-explorer-v1`. The new backup category includes validated history. Restore clears runnable discovery, selectors and source snapshots, preserves results as restored/stale history, and grants no filesystem or execution authority. Restore review can relink each history to a chosen folder. Two histories cannot target the same folder. Relinking grants neither execution nor file access.
 
-## Verification status
+## Adapter coverage
 
-- Backup integration: three local tests pass, including the actual archive/controlled startup restore path, pre-restore rollback contents, injected publication failure rollback, and malformed records with forged approvals/unsafe paths.
-- Local typecheck and production build pass. The full unit/security suite reports **500 total, 474 passed, zero failed, 26 skipped**. Skips are 25 Windows-only fixtures and one unavailable installed Maven/Gradle fixture. Logs are retained under `performance-results/test-explorer-local/2026-11-27T02-00-21-209Z/`.
-- Ten focused backend tests pass, including real Python 3.14 with pinned pytest 8.4.2 through production trusted-PATH discovery, parameterized/pass/fail/skip results, cancellation, stale source revisions, hostile reports and sticky incomplete-cleanup errors. No test approval or tool launch occurs on list.
-- A synthetic-browser UI check covers wide/narrow layout, empty/discovered/results views and interactions. This is not native Electron acceptance. Native acceptance and matched resource measurements remain pending.
-- Java/JUnit and Jest/Vitest: not implemented in this first slice.
-- Installed Ion, live user data, main, public installers and update feed: unchanged.
+| Adapter | Reviewed tool | Verified behavior and scope |
+| --- | --- | --- |
+| Python | pytest 8.4.2 | Real collection, parameter identities, individual and grouped execution, skip/failure evidence and cancellation. Third-party plugins are opt-in outside this adapter. |
+| Java | JDK 17+ and JUnit Platform Console Standalone 1.13.4 | Compiles reviewed, saved Java bytes into a private temporary directory. Jupiter executes by unique ID. Parameterized methods and factories are selected as complete methods. Root and conventional source folders are supported. The standalone classpath does not resolve Maven or Gradle dependencies. |
+| JavaScript/TypeScript | Project-installed Vitest 4, verified with 4.1.0 | Case, file and grouped selection, pass/fail/skip, source navigation, application-level cancellation with partial results, and rejection when a case identity changes before execution. Jest uses a different runner and has no adapter in this checkpoint. |
 
-## Framework references
+Adapters start only after an explicit request. Each discovery and execution has a separate review. A mismatched runner exit and case report prevents Ion from displaying an all-passing result.
 
-The pytest helper uses documented [collection and reporting hooks](https://docs.pytest.org/en/stable/reference/reference.html) and a fresh process for each [pytest invocation](https://docs.pytest.org/en/stable/how-to/usage.html). Collection can execute project code, including imports. Every future adapter must preserve the same approval boundary; [Vitest collection](https://main.vitest.dev/api/advanced/vitest) also evaluates test files.
+## Verification
+
+- 21 focused backend, framework and archive/restore tests passed locally on macOS ARM64 with zero skips. The combined run took 9.77 seconds in this environment. An initial invocation with the JUnit fixture but without JAVA_HOME failed two Java tests at JDK discovery. Setting JAVA_HOME to the installed JDK and retaining the same inputs produced the passing run.
+- Tests cover revoked workspace authority, changed saved files, incomplete reports, bounded cancellation, stale outcomes and rollback. Two restored histories targeting one folder fail before application. Relocated history opens read-only as historical evidence and requires fresh discovery and approval to execute.
+- Production TypeScript checks and Vite/Electron build passed. The focused hosted workflow provisions its own tools and drives discovery, selection, failure navigation, cancellation, backup and relaunch in the disposable production desktop application.
+- Earlier pytest checkpoint `329789c` passed 474 tests in the historical full suite with 26 skips. This is separate from the current 21-test run.
 
 ## Verdict
 
-**OPEN.** The pytest slice has local evidence; the subsequent Vitest/generalization edits are unverified. Native UI, framework completeness, resource gates, Java/JUnit, and relocated historical-result relinking remain unfinished. Phase 2 overall remains incomplete. The resumed development branch carries these gaps forward.
+Hosted macOS ARM64 and Windows x64 results are pending. No new public application build was published from this feature branch.

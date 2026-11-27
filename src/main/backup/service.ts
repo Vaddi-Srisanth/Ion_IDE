@@ -9,6 +9,7 @@ import { workspaceExclusion } from './profile'
 import { snapshot, validatePayload, verifySnapshot, type FolderSource, type Snapshot } from './snapshot'
 import { importLegacy, prepareProfile, validateChoices } from './restore'
 import { armTransaction, stageTransaction, treeHash } from './transaction'
+import { maxTestRecordBytes, validateStoredTests } from '../test-explorer/model'
 import { validateSavedProject } from '../projects/repository'
 
 const expiryMs = 10 * 60 * 1000
@@ -115,13 +116,26 @@ export class BackupService {
   }
   private async metadata(state: ReviewState): Promise<BackupReview> {
     const { manifest } = state
+    const profile = join(state.stage, 'profile')
+    const projects: BackupReview['projects'] = []
+    for (const p of manifest.projects) {
+      const data = validateSavedProject(await readValue(profile, 'projects-v1/' + p.file, 512 * 1024))
+      projects.push({ id: p.file, category: 'projects', title: data.spec.title, originalPath: p.originalPath })
+    }
+    if (state.kind === 'restore') {
+      for (const e of manifest.entries.filter(entry => entry.category === 'tests')) {
+        const id = e.path.slice('profile/'.length)
+        const { snapshot } = validateStoredTests(await readValue(profile, id, maxTestRecordBytes))
+        projects.push({ id, category: 'tests', title: 'Test history · ' + snapshot.adapter, originalPath: snapshot.root })
+      }
+    }
     return { token: state.token, kind: state.kind, expiresAt: state.expiresAt, name: 'Ion data · ' + manifest.createdAt.slice(0, 10),
       files: manifest.entries.length, bytes: manifest.entries.reduce((n, f) => n + f.bytes, 0), legacy: state.legacy,
       categories: manifest.categories.map(id => { const files = manifest.entries.filter(e => e.category === id); return {
         id, files: files.length, bytes: files.reduce((n, f) => n + f.bytes, 0), present: files.length > 0, conflict: state.hashes[id] !== undefined && state.hashes[id] !== null,
       } }), folders: manifest.folders.map(({ id, name, mode }) => ({ id, name, mode })), exclusions: manifest.exclusions, exclusionsOmitted: manifest.exclusionsOmitted,
       entries: manifest.entries.map(({ path, bytes }) => ({ path, bytes })),
-      projects: await Promise.all(manifest.projects.map(async p => ({ id: p.file, title: validateSavedProject(await readValue(join(state.stage, 'profile'), 'projects-v1/' + p.file, 512 * 1024)).spec.title, originalPath: p.originalPath }))),
+      projects,
       warnings: ['Unencrypted: code, notes and drafts can contain sensitive text. Secret detection cannot guarantee otherwise.',
         'SHA-256 checksums verify integrity, not who created this backup.',
         ...(state.legacy ? ['Legacy export: original checksums were not recorded; integrity is checked only from this review onward.'] : []),

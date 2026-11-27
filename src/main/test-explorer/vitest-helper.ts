@@ -1,6 +1,26 @@
+// Vitest collects a module again when running it. Its IDs depend on declaration order.
+// Check the worker's actual names and lines before any body in that file can execute.
+export const vitestSelectionGuard = String.raw`import { readFileSync, realpathSync } from 'node:fs'
+import { relative, sep } from 'node:path'
+const { root, approved } = JSON.parse(readFileSync(selectionFile, 'utf8'))
+const identities = new Set(approved)
+beforeAll(({}, file) => {
+  const path = relative(root, realpathSync(file.filepath)).split(sep).join('/')
+  function check(suite) {
+    for (const task of suite.tasks) {
+      if (task.mode === 'skip' || task.mode === 'todo') continue
+      if (task.type === 'suite') { check(task); continue }
+      const identity = [path, file.projectName || '', task.id, task.fullTestName, task.location?.line ?? 1]
+      if (!identities.has(JSON.stringify(identity))) throw new Error('Vitest test identity changed before execution. Discover the tests again.')
+    }
+  }
+  check(file)
+})
+`
+
 /** Runs only after native approval, in the existing owned/cancellable process tree. No Vitest runtime dependency in Ion. */
-export const vitestHelper = String.raw`import { openSync, readFileSync, writeSync, closeSync, realpathSync, statSync } from 'node:fs'
-import { dirname, isAbsolute, relative, resolve, sep, join } from 'node:path'
+export const vitestHelper = String.raw`import { openSync, readFileSync, writeFileSync, writeSync, closeSync, realpathSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, relative, sep, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
 
@@ -120,13 +140,18 @@ try {
   if (errors.length) throw new Error('Vitest collection failed. No test callbacks were run.')
   if (request.operation === 'run') {
     if (selected.size !== wanted.size) throw new Error('Selected Vitest identities changed. Discover the tests again.')
-    const groups = new Map()
+    const groups = new Map(), approved = []
     for (const test of cases) {
       const row = node(test)
       if (!selected.has(row.selector)) continue
+      approved.push(JSON.stringify([row.location.path, test.project.name, test.id, test.fullName, row.location.line]))
       const key = JSON.stringify([test.project.name, test.module.moduleId])
       if (!groups.has(key)) groups.set(key, { module: test.module, tests: [] })
       groups.get(key).tests.push(test)
+    }
+    writeFileSync(request.selectionFile, JSON.stringify({ root, approved }), { mode: 0o600, flag: 'wx' })
+    for (const project of new Set([...groups.values()].map(group => group.module.project))) {
+      project.config.setupFiles = [request.guard.split(sep).join('/'), ...project.config.setupFiles]
     }
     running = true
     const run = await context.runTestSpecifications([...groups.values()].map(group => group.module.toTestSpecification(group.tests)))

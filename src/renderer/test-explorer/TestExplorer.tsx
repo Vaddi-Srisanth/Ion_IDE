@@ -190,14 +190,16 @@ export default function TestExplorer({ api, roots, beforeRun, onNavigate, onSave
       </label>
       <label>Framework
         <select aria-label="Test framework" value={adapter} disabled={Boolean(busy)} onChange={event => setAdapter(event.target.value as TestAdapter)}>
-          <option value="pytest">Python · pytest</option><option value="vitest">JavaScript / TypeScript · Vitest</option>
+          <option value="pytest">Python · pytest</option>
+          <option value="vitest">JavaScript / TypeScript · Vitest</option>
+          <option value="junit">Java · JUnit</option>
         </select>
       </label>
       <button type="button" className="button" disabled={!root || Boolean(busy)} onClick={discover}>
         {snapshot ? 'Refresh Discovery…' : 'Discover Tests…'}
       </button>
     </div>
-    <p className="test-explorer-note">Discovery imports tests and project configuration. Ion asks you to review the command before discovery or execution. Tests use saved files and an installed {adapter === 'pytest' ? 'pytest' : 'Vitest 4.1.x'}; no packages are downloaded.</p>
+    <p className="test-explorer-note">Discovery imports tests and project configuration. Ion asks you to review the command before discovery or execution. Tests use saved files and local tools. {adapter === 'junit' ? 'Use a JDK and set ION_JUNIT_PLATFORM_JAR to your installed JUnit Platform Console Standalone 1.13.4 jar.' : adapter === 'vitest' ? 'Install Vitest 4.1.x in your project.' : 'Install pytest in your Python environment.'}</p>
     <div className="test-explorer-actions">
       <button type="button" className="button primary" disabled={!canRun || !selected} onClick={() => run([selectedId])}>Run Selected</button>
       <button type="button" className="button" disabled={!canRun} onClick={() => run(cases.map(node => node.id))}>Run All</button>

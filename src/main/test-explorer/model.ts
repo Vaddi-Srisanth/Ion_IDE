@@ -10,7 +10,7 @@ const uuid = /^[0-9a-f-]{36}$/i
 const idPattern = /^[0-9a-f]{64}$/
 export const testId = (value: string) => createHash('sha256').update(value).digest('hex')
 export function testAdapter(value: unknown): TestAdapter {
-  if (value !== 'pytest' && value !== 'vitest') throw new Error('Choose a supported test framework.')
+  if (value !== 'pytest' && value !== 'vitest' && value !== 'junit') throw new Error('Choose a supported test framework.')
   return value
 }
 

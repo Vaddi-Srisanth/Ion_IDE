@@ -26,12 +26,14 @@ export function validateChoices(value: unknown, manifest: BackupManifest): Resto
   const c = plain(value)
   if (!Array.isArray(c.replace) || !c.replace.length || c.replace.length > backupCategories.length
     || new Set(c.replace).size !== c.replace.length || c.replace.some(v => !manifest.categories.includes(v))
-    || !Array.isArray(c.mappings) || c.mappings.length > 512 || !Array.isArray(c.copyFolders) || c.copyFolders.length > limits.folders
+    || !Array.isArray(c.mappings) || c.mappings.length > 1024 || !Array.isArray(c.copyFolders) || c.copyFolders.length > limits.folders
     || new Set(c.copyFolders).size !== c.copyFolders.length || c.copyFolders.some(v => !manifest.folders.some(f => f.id === v && f.mode === 'copy'))) throw new Error('Invalid restore selection.')
   const seen = new Set<string>()
   for (const item of c.mappings) {
     const m = plain(item)
-    if (typeof m.id !== 'string' || !manifest.projects.some(p => p.file === m.id) || seen.has(m.id)
+    const allowed = (c.replace.includes('projects') && manifest.projects.some(p => p.file === m.id))
+      || (c.replace.includes('tests') && manifest.entries.some(e => e.category === 'tests' && e.path === 'profile/' + m.id))
+    if (typeof m.id !== 'string' || !allowed || seen.has(m.id)
       || typeof m.folderId !== 'string' || !/^[a-f0-9-]{36}$/.test(m.folderId)) throw new Error('Invalid project folder mapping.')
     seen.add(m.id)
   }
@@ -44,7 +46,7 @@ export async function prepareProfile(profile: string, payload: string, target: s
     throw new Error('Select detached drafts together with a restored editor session.')
   }
   await mkdir(target, { recursive: true, mode: 0o700 })
-  for (const entry of manifest.entries.filter(e => e.category && selected.includes(e.category))) {
+  for (const entry of manifest.entries.filter(e => e.category && e.category !== 'tests' && selected.includes(e.category))) {
     const name = entry.path.slice(8)
     await copyChecked(join(payload, 'profile'), name, join(target, name), limits.fileBytes, signal)
   }
@@ -75,9 +77,22 @@ export async function prepareProfile(profile: string, payload: string, target: s
     for (const record of records) await durableJson(join(target, record.name), record.data)
   }
   if (selected.includes('tests')) {
+    const outputs = new Set<string>()
     for (const entry of manifest.entries.filter(e => e.category === 'tests')) {
-      const name = entry.path.slice(8)
-      await durableJson(join(target, name), restoreStoredTests(await readValue(target, name, maxTestRecordBytes)))
+      aborted(signal)
+      const name = entry.path.slice('profile/'.length)
+      const record = restoreStoredTests(await readValue(join(payload, 'profile'), name, maxTestRecordBytes))
+      const mapping = choices.mappings.find(m => m.id === name)
+      if (mapping) {
+        const root = mappings.get(mapping.folderId)
+        if (!root) throw new Error('Choose the relocated test history folder again.')
+        record.snapshot.root = root
+      }
+      const output = sha256(record.snapshot.root) + '.json'
+      if (outputs.has(output)) throw new Error('Two test histories map to the same folder. Choose distinct folders.')
+      outputs.add(output)
+      await mkdir(join(target, 'test-explorer-v1'), { recursive: true, mode: 0o700 })
+      await durableJson(join(target, 'test-explorer-v1', output), record)
     }
   }
   if (selected.includes('practice')) {
