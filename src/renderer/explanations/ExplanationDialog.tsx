@@ -15,6 +15,8 @@ export interface ExplanationDialogProps {
   subscribeInvalidation?(callback: () => void): () => void
   refreshContext?(request: ExplanationRequest): Promise<ExplanationRequest>
   onRecommendations?(reply: ExplanationReply, review: ExplanationReview): void
+  onApplyEdit?(edit: NonNullable<ExplanationReply['edit']>): void
+  canEdit?: boolean
 }
 export interface ExplanationSelection {
   lesson: boolean; code: boolean; diagnostic: boolean; structure: boolean; refs: number[]
@@ -22,8 +24,8 @@ export interface ExplanationSelection {
 const tutorActions: Array<[ExplanationAction, string]> = [['hint', 'Hint'], ['concept', 'Explain a concept'], ['debug', 'Understand an error'],
   ['walkthrough', 'Walk through code'], ['review-attempt', 'Review my attempt'], ['quiz', 'Ask me a question'],
   ['complexity', 'Analyze time and space complexity'], ['explain-file', 'Explain this file'], ['explain-selection', 'Explain selected code'], ['find-bug', 'Find a likely bug'],
-  ['design-tests', 'Design test cases']]
-const codeActions = new Set<ExplanationAction>(['complexity', 'explain-file', 'explain-selection', 'find-bug', 'design-tests'])
+  ['design-tests', 'Design test cases'], ['edit-code', 'Edit selected code']]
+const codeActions = new Set<ExplanationAction>(['complexity', 'explain-file', 'explain-selection', 'find-bug', 'design-tests', 'edit-code'])
 const projectActions: Array<[ExplanationAction, string]> = [['understand', 'Understand this project'], ['architecture', 'Explain architecture'],
   ['health', 'Review project health'], ['teach-project', 'Teach through this project'], ['next-steps', 'Suggest next steps'], ['ask-codebase', 'Ask about the codebase']]
 
@@ -41,7 +43,7 @@ export function selectedExplanationRequest(request: ExplanationRequest, selectio
 }
 
 export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitation, subscribeInvalidation,
-  refreshContext, onRecommendations }: ExplanationDialogProps) {
+  refreshContext, onRecommendations, onApplyEdit, canEdit = false }: ExplanationDialogProps) {
   const purpose = initialRequest.purpose
   const ask = purpose === 'ask'
   const [provider, setProvider] = useState<ProviderSettings | null>(null)
@@ -122,7 +124,8 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
       if (!alive()) return
       const prepared = await bridge.review(request)
       if (alive()) { setReview(prepared); setFeedback('Nothing has been sent. Check every included excerpt, then choose Send.') }
-    } catch { if (alive()) setFeedback('Could not prepare this review. Context may have changed; review again or close and reopen.') }
+    } catch (reason) { if (alive()) setFeedback(reason instanceof Error && reason.message.startsWith('AI edit review unavailable')
+      ? reason.message : 'Could not prepare this review. Context may have changed; review again or close and reopen.') }
     finally { if (alive()) { pending.current = false; setBusy(false) } }
   }
   async function send() {
@@ -148,7 +151,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
     } catch { if (mounted.current && generation.current === epoch) setFeedback('This citation is no longer available. Review the current context again.') }
     finally { if (mounted.current && generation.current === epoch) { pending.current = false; setBusy(false) } }
   }
-  const actions = purpose === 'tutor' ? tutorActions : projectActions
+  const actions = purpose === 'tutor' ? tutorActions.filter(([value]) => value !== 'edit-code' || canEdit) : projectActions
   const questionBytes = new TextEncoder().encode(question).byteLength
   function check(field: 'lesson' | 'code' | 'diagnostic' | 'structure', value: boolean) {
     changed(); setSelection(previous => ({ ...previous, [field]: value, ...(field === 'structure' && !value ? { refs: [] } : {}) }))
@@ -190,6 +193,7 @@ export function ExplanationDialog({ initialRequest, bridge, onClose, onOpenCitat
       <p role="status" className="explanation-status">{feedback}</p>
       {review && <ExplanationReviewView review={review} disabled={busy} onSend={() => start(send)}/>}
       {reply && <ExplanationAnswer reply={reply} disabled={busy} onCitation={citation => start(() => openCitation(citation))}
+        onApplyEdit={action === 'edit-code' ? onApplyEdit : undefined}
         onRecommendations={onRecommendations && replyReview ? value => onRecommendations(value, replyReview) : undefined}/>}
       <details className="explanation-provider-details"><summary>Provider settings{provider && !provider.hasKey ? ' · API key required' : ''}</summary>
         {provider ? <ProviderConfiguration provider={provider} disabled={busy} onConfigure={configureProvider} onChange={settings => {
@@ -213,8 +217,25 @@ export function ExplanationReviewView({ review, disabled, onSend }: { review: Ex
   </section>
 }
 
-export function ExplanationAnswer({ reply, disabled, onCitation, onRecommendations }: { reply: ExplanationReply; disabled: boolean;
-  onCitation(citation: ExplanationCitation): void; onRecommendations?(reply: ExplanationReply): void }) {
+export function reviewedEditDiff(original: string, replacement: string) {
+  const before = original.match(/[^\n]*\n|[^\n]+$/g) ?? []
+  const after = replacement.match(/[^\n]*\n|[^\n]+$/g) ?? []
+  let prefix = 0
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix++
+  let suffix = 0
+  while (suffix < before.length - prefix && suffix < after.length - prefix
+    && before[before.length - suffix - 1] === after[after.length - suffix - 1]) suffix++
+  return [
+    ...before.slice(0, prefix).map(text => ({ kind: 'context' as const, text })),
+    ...before.slice(prefix, before.length - suffix).map(text => ({ kind: 'removed' as const, text })),
+    ...after.slice(prefix, after.length - suffix).map(text => ({ kind: 'added' as const, text })),
+    ...(suffix ? before.slice(before.length - suffix).map(text => ({ kind: 'context' as const, text })) : []),
+  ]
+}
+
+export function ExplanationAnswer({ reply, disabled, onCitation, onRecommendations, onApplyEdit }: { reply: ExplanationReply; disabled: boolean;
+  onCitation(citation: ExplanationCitation): void; onRecommendations?(reply: ExplanationReply): void;
+  onApplyEdit?(edit: NonNullable<ExplanationReply['edit']>): void }) {
   const labels = { observed: 'Observed · AI unverified', inferred: 'Inferred · AI unverified', unknown: 'Unknown', suggestion: 'Suggestion · AI unverified' }
   return <section className="explanation-answer" aria-label="Unverified AI explanation" data-testid="explanation-answer">
     <h3>AI explanation · verify before relying on it</h3><p className="explanation-prewrap">{reply.summary}</p>
@@ -224,6 +245,12 @@ export function ExplanationAnswer({ reply, disabled, onCitation, onRecommendatio
         onClick={() => onCitation(citation)}>Source {citation.sourceId} · {citation.startLine}–{citation.endLine}</button>)}</div>
     </section>)}
     {reply.questions.length > 0 && <><h4>Questions to consider</h4><ul>{reply.questions.map((question, index) => <li key={index}>{question}</li>)}</ul></>}
+    {reply.edit && <section className="explanation-edit-review" aria-label="Review proposed AI edit">
+      <h4>Proposed diff · review before applying</h4><p>This changes only the selected text in the unsaved editor buffer. Ion will not save or run it.</p>
+      <pre aria-label="AI edit diff">{reviewedEditDiff(reply.edit.original, reply.edit.replacement).map((line, index) =>
+        <span key={index} className={'explanation-diff-' + line.kind}>{line.kind === 'removed' ? '− ' : line.kind === 'added' ? '+ ' : '  '}{line.text}</span>)}</pre>
+      {onApplyEdit && <button className="button" type="button" disabled={disabled} onClick={() => onApplyEdit(reply.edit!)}>Apply reviewed change to buffer</button>}
+    </section>}
     {reply.recommendations.length > 0 && <><h4>Suggested next steps · unverified</h4><ul>{reply.recommendations.map(item => <li key={item.id}><strong>{item.title}</strong><p>{item.description}</p></li>)}</ul>
       <button className="button" disabled={disabled || !onRecommendations} onClick={() => onRecommendations?.(reply)}
         title={onRecommendations ? 'Review suggested milestones' : 'Milestone review is not available here'}>Review suggested milestones</button></>}

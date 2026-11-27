@@ -25,7 +25,7 @@ const fixture = `
       calls.sent.push(token)
       token = undefined
       return new Promise(resolve => {window.finish = () => resolve({
-        token:'validated-answer', summary:'Complete fixture answer', sections:[],questions:[],recommendations:[]
+        token:'validated-answer', summary:'Complete fixture answer', sections:[],questions:[],edit:null,recommendations:[]
       })})
     },
     cancel:async () => { if (token) calls.retired.push(token); token = undefined }

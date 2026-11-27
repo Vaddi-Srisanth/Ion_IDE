@@ -4,7 +4,7 @@ import type { ProjectLensReference } from './project-lens'
 
 export const explanationPurposes = ['tutor', 'project-lens', 'ask'] as const
 export const explanationActions = ['hint', 'concept', 'debug', 'walkthrough', 'review-attempt', 'quiz', 'complexity',
-  'explain-file', 'explain-selection', 'find-bug', 'design-tests',
+  'explain-file', 'explain-selection', 'find-bug', 'design-tests', 'edit-code',
   'understand', 'architecture', 'health', 'teach-project', 'next-steps', 'ask-codebase', 'ask-question'] as const
 export type ExplanationPurpose = typeof explanationPurposes[number]
 export type ExplanationAction = typeof explanationActions[number]
@@ -68,6 +68,8 @@ export interface ExplanationReply {
     citations: ExplanationCitation[]
   }>
   questions: string[]
+  /** One bounded replacement for the explicitly selected editor excerpt. */
+  edit: null | { sourceId: string; original: string; replacement: string }
   recommendations: Array<{
     id: string
     title: string

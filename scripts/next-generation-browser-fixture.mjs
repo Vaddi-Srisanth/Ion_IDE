@@ -281,7 +281,7 @@ export function installBrowserFixture({ theme, palette, pack, freshCatalog = fal
         const citations = source ? [{ sourceId: source.id, startLine: 1, endLine: 1 }] : [];
         explanationReply = { token: 'fixture-answer-' + explanationSequence, summary: 'TEST FIXTURE <script>unsafe_fixture()</script> — not a live AI response.',
           sections: [{ kind: 'observed', title: 'Fixture observation', text: '<img src=x onerror=unsafe_fixture()>', citations },
-            { kind: 'unknown', title: 'Unverified behavior', text: 'No program was executed.', citations: [] }], questions: ['What evidence would verify this?'],
+            { kind: 'unknown', title: 'Unverified behavior', text: 'No program was executed.', citations: [] }], questions: ['What evidence would verify this?'], edit: null,
           recommendations: [{ id: 'fixture-next', title: 'Verify the fixture behavior', description: 'A test-only unverified suggestion.',
             acceptance: ['Verify expected output'], dependsOn: [], citations }] };
         return holdExplanation('send', explanationCall('send', explanationReply));

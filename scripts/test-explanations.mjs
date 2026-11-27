@@ -42,7 +42,8 @@ const failureLocation = (error, failurePhase) => {
   return { phase: failurePhase, fixtureLine: location ? Number(location[1]) : null,
     fixtureColumn: location ? Number(location[2]) : null,
     kind: ['TimeoutError', 'AssertionError', 'Error', 'AggregateError'].includes(error?.name) ? error.name : 'unknown',
-    message: 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
+    message: error?.message?.startsWith('Explanation review did not appear:')
+      ? error.message.slice(0, 240) : 'Native explanation verification failed. Inspect the named phase with the disposable fixture.' }
 }
 let phase = 'fixture'
 await persist()
@@ -143,10 +144,13 @@ globalThis.fetch = async function(input, init) {
     const source = inputData.sources.find(item => item.origin === 'saved-file') || inputData.sources[0];
     const citations = source ? [{ sourceId: state.mode === 'invalid-citation' ? 'invented-source' : source.id,
       startLine: source.startLine, endLine: source.startLine }] : [];
+    const editable = inputData.sources.find(item => item.origin === 'editor-buffer');
     const answer = { summary: 'Synthetic fixture explanation; not a model quality test.',
       sections: [{ kind: source ? 'observed' : 'unknown', title: source ? 'Reviewed excerpt' : 'No evidence selected',
         text: source ? 'This assertion refers only to the selected excerpt.' : 'No code or project behavior can be established.', citations }],
       questions: ['Which independent evidence would strengthen this explanation?'],
+      edit: inputData.action === 'edit-code' && editable ? { sourceId: editable.id, original: editable.text,
+        replacement: editable.text.replace('saved fixture', 'reviewed fixture') } : null,
       recommendations: [{ id: 'inspect', title: 'Inspect a representative input', description: 'Explain the behavior using your own observations.',
         acceptance: ['Describe one input and its expected behavior.'], dependsOn: [], citations }] };
     if (envelope.stream === true) {
@@ -281,7 +285,8 @@ require(${JSON.stringify(target.args[0])});\n`)
     const review = async () => {
       await dialog().getByLabel('Your question').fill('Explain only the evidence I explicitly selected.')
       await dialog().getByTestId('explanation-review').click()
-      await dialog().getByTestId('explanation-review-content').waitFor()
+      try { await dialog().getByTestId('explanation-review-content').waitFor({ timeout: 8000 }) }
+      catch { throw new Error('Explanation review did not appear: ' + await dialog().locator('.explanation-status').textContent()) }
       return reviewed()
     }
     const send = async () => {
@@ -300,6 +305,10 @@ require(${JSON.stringify(target.args[0])});\n`)
         instance.executeEdits('native-explanation-fixture', [{ range: { startLineNumber: position.lineNumber,
           startColumn: position.column, endLineNumber: position.lineNumber, endColumn: position.column }, text: '# pending user edit\n' }])
         instance.pushUndoStop()
+      } else if (operation === 'select') {
+        const start = model.getPositionAt(0), end = model.getPositionAt(model.getValueLength())
+        instance.setSelection({ startLineNumber: start.lineNumber, startColumn: start.column,
+          endLineNumber: end.lineNumber, endColumn: end.column })
       }
       return model.getValue()
     }, { moduleName: editorModule, operation })
@@ -451,7 +460,40 @@ require(${JSON.stringify(target.args[0])});\n`)
       }
       report.checks.readOnlyCodeActionsRequireSelectedExcerpt = 'passed'
 
+      phase = 'reviewed-ai-edit-is-bound-to-exact-selection'
+      await page.getByRole('button', { name: 'Code', exact: true }).click()
+      await editor('select')
+      await page.getByTestId('command-palette').click()
+      await page.getByTestId('command-palette-input').fill('Edit Selected Code with Ion')
+      await page.getByRole('option', { name: 'Edit Selected Code with Ion…', exact: true }).click()
+      await dialog().waitFor()
+      await dialog().getByRole('checkbox', { name: /^Current unsaved code:/ }).check()
+      const editReview = await review()
+      assert.equal(editReview.action, 'edit-code')
+      assert.deepEqual(editReview.sources.map(item => item.origin), ['editor-buffer'])
+      assert.equal(editReview.sources[0].text, original)
+      const callsBeforeReviewedAiEdit = (await stats()).calls
+      assert.equal(await readFile(source, 'utf8'), original, 'The code is unchanged before the explicit provider approval.')
+      await send()
+      const proposed = dialog().getByLabel('AI edit diff')
+      await proposed.waitFor()
+      assert.ok((await proposed.textContent()).includes('− print("saved fixture")')
+        && (await proposed.textContent()).includes('+ print("reviewed fixture")'))
+      assert.equal((await stats()).calls, callsBeforeReviewedAiEdit + 1)
+      assert.equal(await readFile(source, 'utf8'), original, 'Receiving an AI proposal never writes the file.')
+      await dialog().getByRole('button', { name: 'Apply reviewed change to buffer', exact: true }).click()
+      await dialog().waitFor({ state: 'detached' })
+      assert.equal(await editor('read'), 'print("reviewed fixture")\n')
+      assert.equal(await readFile(source, 'utf8'), original, 'Applying changes only the editor buffer; it does not save.')
+      await page.getByTestId('editor').locator('.view-line').first().click()
+      await page.keyboard.press((process.platform === 'darwin' ? 'Meta' : 'Control') + '+z')
+      assert.equal(await editor('read'), original, 'The reviewed edit is undoable.')
+      report.checks.reviewedAiEditIsExactUnsavedUndoableSelection = 'passed'
+
       phase = 'explicit-lesson-buffer-and-revision-invalidation'
+      await page.getByTestId('navigate-learn').click()
+      await page.getByTestId('learning-language').selectOption('python')
+      await page.locator('.learning-topic-list button').filter({ hasText: 'Values, names, and output' }).click()
       await editor('append')
       const userBuffer = await editor('read')
       await openTutor()

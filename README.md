@@ -1,11 +1,12 @@
 # Ion IDE
 
-> **Available now.** Ion IDE **0.9.9 for macOS Apple Silicon and Windows x64** includes the accepted editor, workspace, backup/restore, language-services, C/C++ debugger and Build/Tasks work through Phase 2.5. The general Test Explorer is in development on a separate branch. [Engineering checkpoint](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
+> **Published release: 0.9.9.** The macOS Apple Silicon and Windows x64 installers include the accepted editor, workspace, backup/restore, language-services, C/C++ debugger, and Build/Tasks work through Phase 2.5. The repository also contains later development work; it is not included in those installers. [Engineering checkpoint](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md) · [Implementation tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md)
 
 **An offline-first desktop IDE for learning by coding.**
 
 *Write code. Understand errors. Learn offline.*
 
+<p align="center"><strong>Download the latest published release · 0.9.9</strong></p>
 <p align="center">
   <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-mac-arm64.dmg"><img alt="Download Ion 0.9.9 for macOS (Apple Silicon)" src="https://img.shields.io/badge/macOS_(Apple_Silicon)-v0.9.9-176B69"></a>
   <a href="https://github.com/Vaddi-Srisanth/Ion_IDE/releases/download/v0.9.9/Ion-IDE-0.9.9-windows-x64-setup.exe"><img alt="Download Ion 0.9.9 for Windows (x64 Preview)" src="https://img.shields.io/badge/Windows_(x64_Preview)-v0.9.9-305684"></a>
@@ -15,7 +16,7 @@ Ion is a personal project by Vaddi Srisanth for students and developers who want
 
 0.9.9 includes the notebook-trust, recovery, file-integrity, terminal and diagnostic work documented at the 0.9.8 checkpoint, followed by the accepted Phase 2.5 changes. The historical Windows GCC delay remains unexplained. [0.9.8 record](docs/releases/0.9.8.md) · [Update behavior](docs/UPDATES.md) · [Historical verification](diagnostics/windows-gcc/RELEASE_VERIFICATION.md)
 
-### Current accepted source capabilities
+### Capabilities in the published release
 
 - Validated local backup archives, reviewed restore, detached drafts and durable rollback/restart recovery.
 - Persistent editor groups with shared Monaco models and undo history, multi-root workspaces, safe search/replace, navigation and context-menu/keyboard essentials.
@@ -24,6 +25,17 @@ Ion is a personal project by Vaddi Srisanth for students and developers who want
 - A lazy **Run Task** picker with reviewed adapter plans and sequential task execution. Native npm discovery/run/Stop is verified; saved workspace task definitions, problem matching and remaining adapter-native journeys remain technical debt.
 
 These extend the existing offline editor, Run Console, terminal, learning, practice, Git, notebooks and document features. Optional tools do not start until requested. See [exact native tests and limitations](docs/master-plan/ION_ENGINEERING_HANDOFF_THROUGH_2_5.md); earlier performance numbers are not reused as measurements of this checkpoint.
+
+### Later development work in this repository
+
+These features are available in the development source and are **not included in the published 0.9.9 installers**:
+
+- Integrated Git and GitHub workflows with reviewed local and remote changes; native Windows qualification and some broader restore/checkout cases remain open.
+- An offline Practice Arena with original challenges, local sample/hidden tests, staged hints, saved attempts, progress, and next-problem recommendations.
+- Optional provider infrastructure, official opt-in Copilot Language Server completions, and Tutor actions. AI Edit previews one exact selected-code replacement and applies only to the current unsaved editor buffer after a separate review; it never saves or runs the change. Agent mode remains open.
+- Offline DSA coaching and lessons for binary search, BFS, DFS, Dijkstra, sorting, and binary-tree traversal.
+
+See the [roadmap tracker](docs/master-plan/ION_IMPLEMENTATION_TRACKER.md) for the current scope and verification limits.
 
 [Download](#download-and-install) · [Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Performance](#performance) · [Contributing](#contributing)
 
@@ -128,7 +140,7 @@ The catalog covers C, C++, Java, Python, JavaScript, TypeScript, Go, Rust, Swift
 - **Read beside code.** Live Markdown split preview, local web preview, editable Jupyter notebooks with optional local execution, and read-only PDF, DOCX, XLSX, CSV, and compatible macOS PowerPoint previews.
 - **Make it yours.** Sixteen built-in palettes include two high-contrast options. Open **Preferences → Appearance → Browse Themes** or **Color Theme** in the command palette. Search, preview, favorite, and apply themes offline. Cancel restores the current selection. Automatic appearance, local JSON import/export, and Minimal and Full Mode remain available.
 - **Plan locally or online.** Write a plan offline or request a reviewable specification through an optional HTTPS OpenAI-compatible provider with your own key. Ion asks before sending the project description. The planner proposes milestones and test definitions for review. You write the code.
-- **Ask for an explanation.** In this unreleased branch, Tutor and Project Lens offer optional provider-based explanations. Choose context, inspect exact excerpts/provider/model/size, then explicitly send. No background AI, automatic code edits or test execution. Suggestions can be edited and selected into the existing roadmap as Not Started milestones. [Scope and verification](ION_AI_PROVIDER_INTEGRATION.md)
+- **Ask, learn, and edit with review.** Optional Tutor and Project Lens requests show the selected context, provider, model, and payload size before native send approval. AI Edit displays a line diff and applies only an exact reviewed excerpt to the unsaved buffer; it does not save, run, or edit outside that selection. No background AI or agent execution. Suggestions can be edited and selected into the existing roadmap as Not Started milestones. [Scope and verification](ION_AI_PROVIDER_INTEGRATION.md)
 - **Update when you choose.** Opt-in GitHub checks, streamed checksum-verified downloads, a single local installer cache, and **Install and Restart** at the existing app location. Unsaved-change protection and local profiles remain intact. Operating-system security approval can still be required.
 - **Remember Run approval optionally.** In a single-file Run confirmation, choose **Trust this folder for future single-file Runs** to avoid repeated prompts in your own workspace. Revoke it in Preferences → Run Console. Project builds, tests, notebooks and Git retain separate approval.
 
@@ -191,9 +203,9 @@ Development workflow benchmarks cover the closed and open Git panel, large diffs
 
 ## Limitations
 
-- **Debugging and builds.** Ion has no integrated debugger. One-click multi-file C/C++ builds require an explicit source list for one executable and one language. Use a shell for Make, CMake, MSVC, and custom build pipelines. Java Maven and Gradle integration relies on supported local tools, cached dependencies, and standard project layouts.
+- **Debugging and builds.** The development source includes an opt-in C/C++ debugger; Python and Java debugging are not claimed. One-click multi-file C/C++ builds require an explicit source list for one executable and one language. Use a shell for Make, CMake, MSVC, and custom build pipelines. Java Maven and Gradle integration relies on supported local tools, cached dependencies, and standard project layouts.
 - **Learning and tests.** Diagnostic coverage is curated and depends on the compiler, language, and message. Project verification supports approved C console tests. Practice checks samples locally. Official submissions happen on the original practice site.
-- **Source Control.** Open a repository or linked worktree root and explicitly trust its Git configuration for this workspace session. Diffs cover saved UTF-8 text up to 256 KiB and 12,000 lines per side. Use a terminal for binary files, repository-local filters, hooks, signed commits, conflicts, and remote operations.
+- **Source Control.** Open a repository or linked worktree root and explicitly trust its Git configuration for this workspace session. Diffs cover saved UTF-8 text up to 256 KiB and 12,000 lines per side. The development source supports reviewed Git/GitHub operations; native Windows verification and some broader restore/checkout cases remain open. Use a terminal for binary files, repository-local filters, hooks, and signed commits.
 - **Notebooks and documents.** Notebook execution requires a local Python kernel. Preview supports static outputs, with limitations for widgets, rich math, and `input()`. Office previews have layout limits. macOS PowerPoint uses LibreOffice for static slides. Windows opens PowerPoint externally.
 - **Platforms and signing.** Packaged targets are Apple Silicon macOS and Windows x64 preview. Intel Mac and Linux installers are unavailable. On Windows, the source preview uses Command Prompt for its integrated Terminal. Use Windows Terminal for PowerShell. See the installer section for signing and OS coverage.
 - **Recovery.** Crash recovery restores the last saved checkpoint, which can miss recent keystrokes. If a recovery write fails, Ion warns; a newer checkpoint may require another edit or **Keep Drafts**. Undo history does not survive relaunch. A competing replacement detected during a save leaves the displaced version in an adjacent recovery file. Windows uses two safe moves and may retain the original under its backup name if the process is interrupted between them. Profile export excludes source workspaces, practice attempts, and recovery drafts. [File safety and recovery](docs/USAGE.md#file-safety-and-recovery)

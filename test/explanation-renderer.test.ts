@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { test } from 'node:test'
-import { ExplanationAnswer, ExplanationDialog, ExplanationReviewView, selectedExplanationRequest } from '../src/renderer/explanations/ExplanationDialog'
+import { ExplanationAnswer, ExplanationDialog, ExplanationReviewView, reviewedEditDiff, selectedExplanationRequest } from '../src/renderer/explanations/ExplanationDialog'
 import { ProviderConfiguration } from '../src/renderer/explanations/ProviderConfiguration'
 import type { ExplanationBridge, ExplanationReply, ExplanationRequest, ExplanationReview } from '../src/shared/explanations'
 
@@ -74,13 +74,23 @@ test('exact review escapes excerpts and identifies provider, model, size, revisi
 test('AI answer is escaped read-only text with uncertainty and optional milestone review disabled', () => {
   const reply: ExplanationReply = { token: 'session-owned', summary: '<iframe src=bad>', sections: ['observed', 'inferred', 'unknown', 'suggestion'].map(kind => ({
     kind: kind as 'observed' | 'inferred' | 'unknown' | 'suggestion', title: '<script>title</script>', text: '[execute](javascript:bad())', citations: [{ sourceId: 'source-1', startLine: 1, endLine: 2 }] })),
-    questions: ['<img src=x>'], recommendations: [{ id: 'proposal-1', title: 'Suggested task', description: 'Unverified description', acceptance: ['Confirm behavior'], dependsOn: [], citations: [] }] }
-  const html = renderToStaticMarkup(createElement(ExplanationAnswer, { reply, disabled: false, onCitation() {} }))
+    questions: ['<img src=x>'], edit: { sourceId: 'source-1', original: '<script>original</script>', replacement: '<img src=x>' },
+    recommendations: [{ id: 'proposal-1', title: 'Suggested task', description: 'Unverified description', acceptance: ['Confirm behavior'], dependsOn: [], citations: [] }] }
+  const html = renderToStaticMarkup(createElement(ExplanationAnswer, { reply, disabled: false, onCitation() {}, onApplyEdit() {} }))
   assert.ok(html.includes('Observed · AI unverified') && html.includes('Inferred · AI unverified') && html.includes('Unknown') && html.includes('Suggestion · AI unverified'))
   assert.ok(!html.includes('<script>') && !html.includes('<iframe ') && !html.includes('<img ') && !html.includes('<a '))
   assert.ok(html.includes('Source source-1 · 1–2') && !html.includes('session-owned'))
+  assert.ok(html.includes('Review proposed AI edit') && html.includes('Apply reviewed change to buffer')
+    && !html.includes('<script>original</script>') && !html.includes('<img src=x>'))
   assert.match(html, /<button[^>]*disabled=""[^>]*title="Milestone review is not available here"/)
   assert.ok(!html.includes('Run code') && !html.includes('Apply code'))
+})
+
+test('AI edit preview presents unchanged context and exact removed/added lines', () => {
+  assert.deepEqual(reviewedEditDiff('before\nold line\nafter\n', 'before\nnew line\nafter\n'), [
+    { kind: 'context', text: 'before\n' }, { kind: 'removed', text: 'old line\n' },
+    { kind: 'added', text: 'new line\n' }, { kind: 'context', text: 'after\n' },
+  ])
 })
 
 test('provider form uses existing metadata and keeps the key out of React markup', () => {

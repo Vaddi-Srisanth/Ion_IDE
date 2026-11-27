@@ -464,16 +464,16 @@ function requireExplanationPane(target: BrowserWindow): ExplanationPaneLease {
 }
 async function activateExplanationPane(target: BrowserWindow, requested?: unknown) {
   const purpose = panel === 'learn' ? 'tutor' : panel === 'projects' ? 'project-lens'
-    : panel === null && requested === 'ask' ? 'ask' : null
+    : panel === null && (requested === 'ask' || requested === 'tutor') ? requested : null
   if (target !== window || resourceProfile !== 'full' || !purpose || (requested !== undefined && requested !== purpose)) {
     throw new Error('Open the matching optional online explanation in Full mode.')
   }
   if (!explanationPane || explanationPane.purpose !== purpose || !currentExplanationPane(explanationPane)) {
     cancelExplanations()
-    explanationPane = { target, scope: files, root: files.rootPath, panel: purpose === 'tutor' ? 'learn'
+    explanationPane = { target, scope: files, root: files.rootPath, panel: purpose === 'tutor' ? panel === 'learn' ? 'learn' : null
       : purpose === 'project-lens' ? 'projects' : null, purpose, generation: panelGeneration, selection: learningSelectionGeneration }
   }
-  const lease = explanationPane
+  const lease = explanationPane!
   const vault = await providerVault()
   if (!currentExplanationPane(lease)) throw new Error('The AI explanation pane changed.')
   const settings = await vault.get()

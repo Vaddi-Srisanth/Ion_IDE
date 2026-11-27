@@ -88,6 +88,15 @@ test('explain-selection accepts only the bounded, explicitly supplied editor exc
   assert.ok(context.exclusions.some(item => item.includes('renderer-provided, unverified')))
 })
 
+test('edit-code reviews only one explicitly selected editor-buffer excerpt', async t => {
+  const f = await fixture(t)
+  const selected = 'print("selected")\n'
+  const context = await prepareContext(tutor({ action: 'edit-code', code: { path: f.path, label: 'main.py', text: selected, version: 12 } }), signal(), f.options)
+  assert.equal(context.input.action, 'edit-code')
+  assert.deepEqual(context.input.sources.map(({ origin, text }) => ({ origin, text })), [{ origin: 'editor-buffer', text: selected }])
+  await assert.rejects(prepareContext(tutor({ action: 'edit-code' }), signal(), f.options), safe)
+})
+
 test('complexity guidance requires and includes only a nonempty explicitly reviewed code excerpt', async t => {
   const f = await fixture(t)
   await assert.rejects(prepareContext(tutor({ action: 'complexity' }), signal(), f.options), safe)

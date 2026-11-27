@@ -66,6 +66,9 @@ export interface EditorActions {
   focusSecondary(): void;
   lineCount(): number;
   selectedText(): string | undefined;
+  selectionSnapshot(): ReviewedEditorSelection | undefined;
+  reviewedSelectionState(target: ReviewedEditorSelection): 'current' | 'missing-model' | 'inactive-tab' | 'changed-buffer' | 'changed-range';
+  applyReviewedSelection(target: ReviewedEditorSelection, original: string, replacement: string): boolean;
   goToDefinition(): void;
   multiCursor(action: 'above' | 'below' | 'next' | 'all'): void;
   findReferences(): Promise<SourceReference[]>;
@@ -77,6 +80,12 @@ export interface EditorActions {
   insertStarter(starter: { text: string; line: number; column: number }): boolean;
   format(tabId: string, controller: AbortController): Promise<FormatResult>;
   toggleBreakpoint(): void;
+}
+
+export interface ReviewedEditorSelection {
+  tabId: string; epoch: number; version: number;
+  startLine: number; startColumn: number; endLine: number; endColumn: number;
+  text: string;
 }
 
 interface Props {
@@ -303,6 +312,44 @@ export default function MonacoSurface({
         const value = model.getValueInRange(selection);
         if (!value.trim() || new TextEncoder().encode(value).byteLength > 8192) return;
         return value;
+      },
+      selectionSnapshot() {
+        const target = commandEditor.current ?? instance;
+        const model = target.getModel(), selection = target.getSelection();
+        const tab = documents.getSnapshot().tabs.find(({ id }) => id === displayed.current);
+        if (!model || !selection || selection.isEmpty() || !tab || model !== modelPool.get(tab.id)) return;
+        const text = model.getValueInRange(selection);
+        if (!text.trim() || new TextEncoder().encode(text).byteLength > 8192) return;
+        return { tabId: tab.id, epoch: tab.epoch, version: model.getVersionId(),
+          startLine: selection.startLineNumber, startColumn: selection.startColumn,
+          endLine: selection.endLineNumber, endColumn: selection.endColumn, text };
+      },
+      reviewedSelectionState(snapshot) {
+        const model = modelPool.get(snapshot.tabId);
+        const currentTab = documents.getSnapshot().tabs.find(({ id }) => id === snapshot.tabId);
+        if (!model || model.isDisposed()) return 'missing-model';
+        if (currentTab?.epoch !== snapshot.epoch || documents.getSnapshot().activeId !== snapshot.tabId) return 'inactive-tab';
+        if (model.getVersionId() !== snapshot.version) return 'changed-buffer';
+        if (model.getValueInRange({ startLineNumber: snapshot.startLine, startColumn: snapshot.startColumn,
+          endLineNumber: snapshot.endLine, endColumn: snapshot.endColumn }) !== snapshot.text) return 'changed-range';
+        return 'current';
+      },
+      applyReviewedSelection(snapshot, original, replacement) {
+        const target = commandEditor.current ?? instance;
+        const model = modelPool.get(snapshot.tabId);
+        const currentTab = documents.getSnapshot().tabs.find(({ id }) => id === snapshot.tabId);
+        if (!model || model.isDisposed() || target.getModel() !== model || currentTab?.epoch !== snapshot.epoch
+          || documents.getSnapshot().activeId !== snapshot.tabId || model.getVersionId() !== snapshot.version
+          || model.getValueInRange({ startLineNumber: snapshot.startLine, startColumn: snapshot.startColumn,
+            endLineNumber: snapshot.endLine, endColumn: snapshot.endColumn }) !== original || snapshot.text !== original
+          || !replacement || new TextEncoder().encode(replacement).byteLength > 8192) return false;
+        target.pushUndoStop();
+        const applied = target.executeEdits('ion-reviewed-ai-edit', [{ range: {
+          startLineNumber: snapshot.startLine, startColumn: snapshot.startColumn,
+          endLineNumber: snapshot.endLine, endColumn: snapshot.endColumn,
+        }, text: replacement, forceMoveMarkers: true }]);
+        if (applied) target.pushUndoStop();
+        return applied;
       },
       goToDefinition() {
         if (!instance.getModel() || sourceHiddenRef.current) return;

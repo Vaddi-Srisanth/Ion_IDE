@@ -19,7 +19,7 @@ const key = 'synthetic-session-key-not-a-live-credential'
 const settings = { endpoint: 'https://example.invalid/v1', model: 'fixture-model' }
 const content: ExplanationContent = {
   summary: 'A bounded explanation.', sections: [{ kind: 'observed', title: 'First line', text: 'The reviewed text has a first line.',
-    citations: [{ sourceId: 'file-1', startLine: 1, endLine: 1 }] }], questions: ['What happens next?'],
+    citations: [{ sourceId: 'file-1', startLine: 1, endLine: 1 }] }], questions: ['What happens next?'], edit: null,
   recommendations: [{ id: 'inspect', title: 'Inspect the second line', description: 'Review its behavior manually.',
     acceptance: ['Describe the second line.'], dependsOn: [], citations: [{ sourceId: 'file-1', startLine: 2, endLine: 2 }] }],
 }

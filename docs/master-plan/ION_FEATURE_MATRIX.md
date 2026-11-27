@@ -98,7 +98,7 @@ Status vocabulary is deliberately strict:
 | Projects/roadmaps/test evidence | Verified at local scope | Versioned specifications, milestones, reviewed tests, historical evidence, manual/verified status. |
 | Project Lens planning | Incomplete | Optional reviewed provider workflow exists; authenticated live-provider breadth and multi-provider acceptance are incomplete. |
 | AI provider vault | Incomplete | OS-backed credential storage and explicit provider requests exist. Universal streaming/tool permission architecture is not complete. |
-| Ask/Tutor/Edit/Agent modes | Partial | Ask Ion, Tutor and reviewed Project Lens explanations use one-use consent. Tutor includes complexity analysis, evidence-cited file explanation, likely-bug investigation and test-case design from explicitly selected code. These actions remain read-only. AI Edit and Agent modes remain open. [Ask Ion](ION_PHASE_7_ASK_ION.md) |
+| Ask/Tutor/Edit/Agent modes | Partial | Ask Ion and Tutor use one-use consent and evidence-bounded context. Tutor supports explanation, likely-bug investigation, complexity and test design. AI Edit produces one exact-selection replacement, displays a line diff, and applies only to the still-current editor buffer after separate approval; Agent remains open. Native Windows verification is deferred to Phase 10. [Ask Ion](ION_PHASE_7_ASK_ION.md) |
 | Offline local AI model | External | No model is bundled or downloaded; future support must be opt-in and measured. |
 | AI code completion by default | Deferred | Conflicts with Ion's learning-first principle. Any future completion must be explicit and separately scoped. |
 

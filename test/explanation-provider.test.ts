@@ -16,7 +16,7 @@ const content = (): ExplanationContent => ({ summary: 'The input expression conv
   sections: [{ kind: 'observed', title: 'Input', text: 'The reviewed excerpt reads and converts standard input.',
     citations: [{ sourceId: 'source-1', startLine: 8, endLine: 8 }] },
   { kind: 'unknown', title: 'Limits', text: 'The supplied evidence does not establish behavior for invalid input.', citations: [] }],
-  questions: ['What type does input() return?'],
+  questions: ['What type does input() return?'], edit: null,
   recommendations: [{ id: 'check-input', title: 'Explore input', description: 'Try representative valid input after writing your own code.',
     acceptance: ['Describe how one valid input is interpreted.'], dependsOn: [], citations: [{ sourceId: 'source-1', startLine: 8, endLine: 9 }] }],
 })
@@ -208,6 +208,19 @@ test('structured explanation validation rejects forged citations, raw reference 
     { ...original, summary: 'é'.repeat(1025) },
   ]
   for (const value of invalid) await assert.rejects(requestExplanation(options, input(), new AbortController().signal, async () => reply(value)), /invalid explanation/)
+})
+
+test('AI Edit accepts only one exact replacement for the selected editor excerpt', async () => {
+  const selected = { ...input(), action: 'edit-code' as const, question: 'Improve the selected code.' }
+  const proposal = { ...content(), edit: { sourceId: 'source-1', original: source().text, replacement: 'limit = int(input())\nprint(limit)\n' } }
+  const result = await requestExplanation(options, selected, new AbortController().signal, async () => reply(proposal))
+  assert.deepEqual(result.edit, proposal.edit)
+  for (const edit of [null, { ...proposal.edit, sourceId: 'outside' }, { ...proposal.edit, original: 'different text' },
+    { ...proposal.edit, replacement: proposal.edit.original }]) {
+    await assert.rejects(requestExplanation(options, selected, new AbortController().signal, async () => reply({ ...proposal, edit })), /invalid explanation/)
+  }
+  await assert.rejects(requestExplanation(options, input(), new AbortController().signal, async () => reply(proposal)), /invalid explanation/)
+  assert.throws(() => buildExplanationPayload(options, { ...selected, sources: [source(), { ...source(), id: 'source-2' }] }))
 })
 
 test('provider failures, refusal, incomplete content, body overflow and cancellation expose no sensitive payload', async () => {

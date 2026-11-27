@@ -3,7 +3,7 @@ import { defaultSettings, type Entry, type EntryKind, type MenuCommand, type Opt
 import { ConfirmDialog, EntryDialog, Modal, PreferencesDialog, StarterDialog } from './Dialogs';
 import { Documents, errorMessage, type InitialDraft, type Tab } from './documents';
 import { Icon } from './icons';
-import type { EditorActions } from './MonacoSurface';
+import type { EditorActions, ReviewedEditorSelection } from './MonacoSurface';
 import { RunConsoleStore } from './run-console/store';
 import { isWithin, sourceControlPathKey } from './paths';
 import { Welcome } from './Welcome';
@@ -38,7 +38,7 @@ type Dialog =
   | { kind: 'backup'; mode: 'backup' | 'restore' }
   | { kind: 'language-support' }
   | { kind: 'learning-content' }
-  | { kind: 'explanation'; request: ExplanationRequest; tabId: string | null; root: string | null; mode: WorkspaceMode; epoch?: number; learningPack: string | null }
+  | { kind: 'explanation'; request: ExplanationRequest; tabId: string | null; root: string | null; mode: WorkspaceMode; epoch?: number; learningPack: string | null; editTarget?: ReviewedEditorSelection }
   | { kind: 'explanation-excerpt'; label: string; text: string }
   | { kind: 'recommendations'; reply: ExplanationReply; review: ExplanationReview; root: Entry }
   | { kind: 'source-references'; locations?: SourceReference[] }
@@ -411,12 +411,18 @@ export function App() {
     if (!request.code) return request;
     const { captureEditorContext } = await import('./explanations/editor-context');
     const captured = captureEditorContext(documents);
-    const selection = request.action === 'explain-selection' ? editor.current?.selectedText() : undefined;
-    const code = captured && (request.action !== 'explain-selection' || selection)
+    const target = dialog?.kind === 'explanation' ? dialog.editTarget : undefined;
+    const selectionState = target ? editor.current?.reviewedSelectionState(target) : 'missing-model';
+    if (request.action === 'edit-code' && selectionState !== 'current') {
+      throw new Error('AI edit review unavailable (' + selectionState + '). Reselect the code and review again.');
+    }
+    const selection = request.action === 'explain-selection' ? editor.current?.selectedText()
+      : request.action === 'edit-code' ? target?.text : undefined;
+    const code = captured && (!['explain-selection', 'edit-code'].includes(request.action) || selection)
       ? { ...captured, text: selection ?? captured.text } : undefined;
     if (!code || code.path !== request.code.path || code.label !== request.code.label) throw new Error('The active source changed. Reopen explanations.');
     return { ...request, code };
-  }, [documents]);
+  }, [documents, dialog]);
   useEffect(() => {
     setDialog(current => current?.kind === 'explanation' && (current.root !== (root?.path ?? null)
       || current.mode !== mode || current.tabId !== activeId || current.epoch !== active?.epoch
@@ -430,16 +436,19 @@ export function App() {
     const ownerRoot = sessionRoot.current?.path ?? null;
     const ownerMode = explanationMode.current;
     const before = documents.getSnapshot();
+    const editTarget = request.action === 'edit-code' || selectedCode ? editor.current?.selectionSnapshot() : undefined;
     try {
       const { captureEditorContext, diagnosticContext } = await import('./explanations/editor-context');
       const captured = captureEditorContext(documents);
-      const code = captured && (request.action !== 'explain-selection' || selectedCode)
-        ? { ...captured, text: selectedCode ?? captured.text } : undefined;
+      const code = captured && (!['explain-selection', 'edit-code'].includes(request.action) || selectedCode || editTarget)
+        ? { ...captured, text: selectedCode ?? editTarget?.text ?? captured.text } : undefined;
+      if (request.action === 'edit-code' && !editTarget) { notify('Select code in the editor before asking Ion to edit it.', true); return; }
       const current = documents.getSnapshot();
       if (ownerRoot !== (sessionRoot.current?.path ?? null) || ownerMode !== explanationMode.current || before.activeId !== current.activeId) return;
       const tab = current.tabs.find(item => item.id === current.activeId);
       setDialog({ kind: 'explanation', request: { ...request, ...(code ? { code } : {}), ...(request.diagnostic ? { diagnostic: diagnosticContext(request.diagnostic) } : {}) },
-        tabId: current.activeId, root: ownerRoot, mode: ownerMode, epoch: tab?.epoch, learningPack: selectedLearningLanguage.current });
+        tabId: current.activeId, root: ownerRoot, mode: ownerMode, epoch: tab?.epoch,
+        learningPack: selectedLearningLanguage.current, ...(editTarget ? { editTarget } : {}) });
     } catch (reason) { notify(errorMessage(reason), true); }
     finally { explanationOpening.current = false; }
   }
@@ -1684,6 +1693,10 @@ export function App() {
           if (selected) void openExplanation({ purpose: 'tutor', action: 'explain-selection', question: 'Explain the selected code and its control flow.' }, selected);
           break;
         }
+        case 'edit-selection':
+          if (editor.current?.selectedText()) void openExplanation({ purpose: 'tutor', action: 'edit-code',
+            question: 'Improve the selected code while preserving its intended behavior.' });
+          break;
         case 'enable-copilot': void enableCopilot(); break;
         case 'sign-in-copilot': void signInCopilot(); break;
         case 'sign-out-copilot': void signOutCopilot(); break;
@@ -1844,7 +1857,8 @@ export function App() {
     if (id === 'navigate-back') return screen === 'editor' && navigationState.back;
     if (id === 'navigate-forward') return screen === 'editor' && navigationState.forward;
     if (id === 'workspace-search') return Boolean(root);
-    if (id === 'explain-selection') return screen === 'editor' && settings.resourceProfile === 'full' && Boolean(editor.current?.selectedText());
+    if (id === 'explain-selection' || id === 'edit-selection') return screen === 'editor'
+      && settings.resourceProfile === 'full' && Boolean(editor.current?.selectedText());
     if (id === 'enable-copilot') return Boolean(root) && !copilotActive && bridge.platform !== 'linux';
     if (id === 'sign-in-copilot' || id === 'sign-out-copilot' || id === 'disable-copilot') return copilotActive;
     if (['quick-open', 'new-file', 'new-starter', 'open-file', 'open-folder', 'settings', 'toggle-terminal', 'focus-terminal', 'toggle-debug'].includes(id)) return true;
@@ -2050,8 +2064,15 @@ export function App() {
         error={notice?.error ? notice.message : undefined}/>}
       <Suspense fallback={null}>
         {dialog?.kind === 'explanation' && <ExplanationDialog initialRequest={dialog.request} bridge={bridge.explanations}
-          subscribeInvalidation={subscribeExplanationInvalidation} refreshContext={refreshExplanationContext}
+          subscribeInvalidation={subscribeExplanationInvalidation} refreshContext={refreshExplanationContext} canEdit={Boolean(dialog.editTarget)}
           onOpenCitation={openExplanationCitation} onClose={() => setDialog(null)}
+          onApplyEdit={dialog.editTarget ? edit => {
+            const target = dialog.editTarget!;
+            if (edit.original !== target.text || !editor.current?.applyReviewedSelection(target, edit.original, edit.replacement)) {
+              notify('The editor buffer changed. Review the selected code again before applying this edit.', true); return;
+            }
+            setDialog(null); notify('Reviewed AI edit applied to the unsaved editor buffer. Check it and save when ready.');
+          } : undefined}
           onRecommendations={dialog.request.purpose === 'project-lens' && root ? (reply, review) => setDialog({ kind: 'recommendations', root, reply, review }) : undefined}/>}
         {dialog?.kind === 'recommendations' && <ReviewRecommendations root={dialog.root} reply={dialog.reply} review={dialog.review}
           bridge={bridge.projects} onDirtyChange={markProjectDraft} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notify('Reviewed milestones saved locally. No tests were approved or run.'); }}/>}
