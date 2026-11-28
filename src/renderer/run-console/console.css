@@ -21,6 +21,9 @@
 .run-console .run-terminal { display: flex; min-width: 0; min-height: 0; flex: 1; padding: 5px 8px; overflow: hidden; }
 .run-terminal-host { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 .run-terminal-host > .xterm { height: 100%; }
+.run-console-history { flex: none; max-height: min(30vh, 240px); overflow: auto; border-top: 1px solid var(--subtle-border); color: var(--muted); font: 11px var(--mono); }
+.run-console-history summary { padding: 5px 10px; cursor: pointer; }
+.run-console-history pre { margin: 0; padding: 0 10px 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .run-console-footer {
   display: flex;
   min-height: 24px;

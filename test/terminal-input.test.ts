@@ -42,3 +42,13 @@ test('Run Console retains a saved-version notice for the active run and resets i
   store.start('saved.js', false)
   assert.equal(store.getSnapshot().savedVersion, false)
 })
+
+test('kept Run Console output remains reviewable after a terminal clear', () => {
+  const store = new RunConsoleStore()
+  store.start('first.js', false)
+  store.update({ kind: 'data', stream: 'terminal', text: 'ION-FIRST-RUN' })
+  store.start('second.js', true)
+  assert.match(store.getSnapshot().previousOutput ?? '', /ION-FIRST-RUN/)
+  store.start('third.js', false)
+  assert.equal(store.getSnapshot().previousOutput, null)
+})

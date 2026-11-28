@@ -111,13 +111,6 @@ async function waitForNewRun(page, previousId, expectedOutput) {
   }, { previousId, expectedOutput }, { timeout })
 }
 
-async function scrollTerminalTo(page, edge) {
-  await page.getByTestId('run-console-terminal').locator('.xterm-viewport').evaluate((viewport, edge) => {
-    viewport.scrollTop = edge === 'top' ? 0 : viewport.scrollHeight
-    viewport.dispatchEvent(new Event('scroll'))
-  }, edge)
-}
-
 async function stopRunning(page, pidMarker, rerun = false) {
   const previous = await page.evaluate(() => globalThis.ionRunTestEvents.at(-1)?.id)
   await page.getByTestId(rerun ? 'run-console-rerun' : 'run').click()
@@ -353,11 +346,10 @@ int main(void) {
     await page.getByTestId('run').click()
     await waitForNewRun(page, diskRunId, 'ION-EDITOR-V2')
     await page.locator('[data-testid="output"][data-status="success"]').waitFor()
-    await scrollTerminalTo(page, 'top')
-    await terminalText(page, 'ION-DISK-V1')
-    await scrollTerminalTo(page, 'bottom')
+    await page.getByTestId('run-console-prior-output').locator('summary').click()
+    assert.match(await page.getByTestId('run-console-prior-output').innerText(), /ION-DISK-V1/)
     assert.match(await readFile(version, 'utf8'), /ION-EDITOR-V2/)
-    console.log('PASS Save before Run off and on, and retained prior output in the same terminal')
+    console.log('PASS Save before Run off and on, with prior output reviewable after terminal clear')
 
     await writeFile(version, 'console.log("ION-EXTERNAL-V3");')
     await page.getByTestId('run').click()

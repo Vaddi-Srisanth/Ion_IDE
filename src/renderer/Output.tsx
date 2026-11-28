@@ -30,7 +30,7 @@ const statusLabel: Record<RunStatus, string> = {
 };
 
 export function Output({ store, canRun, canRerun, tabs, onRun, onRerun, onStop, onInput, onResize, onClose }: OutputProps) {
-  const { phase, name, label, result, error, hasOutput, savedVersion } = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const { phase, name, label, result, error, hasOutput, savedVersion, previousOutput } = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [Surface, setSurface] = useState<ComponentType<TerminalSurfaceProps> | null>(null);
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
@@ -77,6 +77,10 @@ export function Output({ store, canRun, canRerun, tabs, onRun, onRerun, onStop, 
             {loadError ? 'The terminal could not load. Close and reopen the console to retry.' : 'Loading terminal…'}
           </p>
         )}
+        {previousOutput && <details className="run-console-history" data-testid="run-console-prior-output">
+          <summary>Previous run output</summary>
+          <pre>{previousOutput.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '')}</pre>
+        </details>}
         <div className="run-console-footer">
           <span className={bad && !savedVersion ? 'console-error' : undefined}
             title={savedVersion ? 'Running the last saved version. Editor changes are unsaved.' : error ?? result?.message ?? label ?? undefined}
