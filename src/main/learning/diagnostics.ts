@@ -317,6 +317,10 @@ function classifyPython(lines: string[], source: string): RuntimeClassification 
   if (!frame || !sameSource(frame[1], source)) return
   const location = { file: frame[1], line: Number(frame[2]) }
   if (traceback === -1) {
+    const name = /^NameError: name '([a-z_]\w*)' is not defined$/i.exec(message)
+    if (frame[3] && stack.some((line) => /^\s+\^+\s*$/.test(line)) && name) {
+      return { category: 'python-undefined-name', location, context: name[1] }
+    }
     if (frame[3] || !stack.some((line) => /^\s+\^+\s*$/.test(line))) return
     if (message === "SyntaxError: expected ':'") return { category: 'python-statement-colon', location }
     if (/^IndentationError: expected an indented block after .+ on line \d+$/.test(message)) {
@@ -373,6 +377,22 @@ function removeConptyPythonCursorEcho(output: string): string {
   return prefix + echo[1] + echo[3]
 }
 
+function normalizeConptyPythonNameErrorDecoration(output: string): string {
+  // Python 3.14 on Windows can render a NameError traceback with an ECH and
+  // cursor-forward sequence on its caret row. Accept only the exact observed
+  // shape: a module frame, its source line, a red caret row, and a red
+  // NameError message. Classification uses this copy; the original terminal
+  // bytes remain in the diagnostic evidence.
+  const decoration = /\r\n\x1b\[10X\x1b\[31m\x1b\[1m\x1b\[10C(\^+)\x1b\[35m\r\nNameError\x1b\[m:/
+  const match = decoration.exec(output)
+  if (!match) return output
+  const before = output.slice(0, match.index)
+  const after = output.slice(match.index + match[0].length)
+  if (!/\r\n  File \x1b\[35m"[^"\r\n]+"\x1b\[m, line \x1b\[35m\d+\x1b\[m, in \x1b\[35m<module>\x1b\[m\r\n {4}[^\r\n]+$/.test(before)
+    || !/^ \x1b\[35mname '[a-z_]\w*' is not defined\x1b\[7;1H/.test(after)) return output
+  return before + '\r\n          ' + match[1] + '\r\nNameError:' + after
+}
+
 function runtimeClassificationText(output: string): string | undefined {
   if (output.length > 64 * 1024) return
   const control = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\]0;[^\x00-\x1f\x7f-\x9f]*(?:\x07|\x1b\\))/y
@@ -410,14 +430,18 @@ function runtimeClassificationText(output: string): string | undefined {
 }
 
 function runtimeDiagnostic(result: RunResult, language: RunLanguage, compiler: CompilerFamily, source: string | undefined): ClassifiedDiagnostic {
-  const output = (result.programStderr?.trim() || result.programOutput).replace(/\x1b\[[0-9;]*m/g, '').trimEnd()
+  const rawOutput = (result.programStderr?.trim() || result.programOutput).trimEnd()
+  const output = rawOutput.replace(/\x1b\[[0-9;]*m/g, '')
   let known: RuntimeClassification | undefined
   if (result.programSignal === 'SIGSEGV' || result.programSignal === 'SIGBUS') {
     if (language === 'c') known = { category: 'runtime-memory-fault' }
     else if (language === 'cpp') known = { category: 'cpp-memory-access' }
   } else if (source && result.exitCode === 1 && result.outputComplete !== false && output
     && (compiler === 'javac' || compiler === 'python' || compiler === 'node')) {
-    const classifiedOutput = runtimeClassificationText(compiler === 'python' ? removeConptyPythonCursorEcho(output) : output)
+    const classifierInput = compiler === 'python'
+      ? normalizeConptyPythonNameErrorDecoration(removeConptyPythonCursorEcho(rawOutput)).replace(/\x1b\[[0-9;]*m/g, '')
+      : output
+    const classifiedOutput = runtimeClassificationText(classifierInput)
     if (classifiedOutput) {
       const lines = classifiedOutput.split(/\r?\n/)
       if (compiler === 'javac') known = classifyJavaRuntime(lines, source)

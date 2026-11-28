@@ -115,6 +115,22 @@ test('reviewed ConPTY framing is normalized only for classification, preserving 
   assert.equal(executed.programOutput, output)
 })
 
+test('Python 3.14 colored Windows NameError formatting is normalized only in the classifier copy', () => {
+  const colored = '\x1b[?9001h\x1b[?1004h\x1b[?25l\x1b[2J\x1b[m\x1b[H\r\n\r\n\x1b[H'
+    + '\x1b]0;C:\\Fixture\\python.exe\x07\r\n  File \x1b[35m"' + conptyPath
+    + '"\x1b[m, line \x1b[35m1\x1b[m, in \x1b[35m<module>\x1b[m\r\n'
+    + '    print(\x1b[31m\x1b[1mundefined_study_value\x1b[m)\r\n'
+    + '\x1b[10X\x1b[31m\x1b[1m\x1b[10C^^^^^^^^^^^^^^^^^^^^^\x1b[35m\r\n'
+    + "NameError\x1b[m: \x1b[35mname 'undefined_study_value' is not defined\x1b[7;1H"
+    + '\x1b[?9001l\x1b[?1004l\x1b[m\n'
+  const executed = conptyResult(colored)
+  const [diagnostic] = diagnose(executed, 'python', conptyPath)
+  assert.equal(diagnostic.category, 'python-undefined-name')
+  assert.equal(diagnostic.confidence, 'high')
+  assert.ok(diagnostic.raw.includes('\x1b[10X'), 'Original terminal evidence remains available for review.')
+  assert.equal(executed.programOutput, colored)
+})
+
 test('a final ConPTY cursor echo cannot hide or replace the Python diagnostic', () => {
   const output = conptyPrefix + pythonTrace + '\x1b[6;54Hd\r\n' + conptySuffix
   const executed = conptyResult(output)
