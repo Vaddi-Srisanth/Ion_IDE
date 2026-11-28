@@ -1,0 +1,3947 @@
+{
+  "schemaVersion": 1,
+  "label": "phase10-macos-arm64-2026-11-28",
+  "timestamp": "2026-11-28T01:44:52.752Z",
+  "protocol": {
+    "idleSeconds": 75,
+    "settleMs": 1500,
+    "launches": 5,
+    "optionalCycles": 12,
+    "executions": 6,
+    "idleIntervalMs": 5000,
+    "compilerIntervalMs": 25
+  },
+  "mode": "workload",
+  "artifact": {
+    "target": "dist",
+    "mainSha256": "37524083bfffa61933479f564b0393eadc7f84ab1f2238f88191a7d10b171db1",
+    "rendererHtmlSha256": "9969708a9e85a6bfaac9c5cdf7225abdbc71eb5109aeb160362904594d784970",
+    "runtime": "45.2.3 / 156.0.8078.80"
+  },
+  "host": {
+    "macOS": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131",
+    "processor": "Apple M3",
+    "ramBytes": 25769803776,
+    "arch": "arm64",
+    "node": "v26.13.1",
+    "power": "Now drawing from 'AC Power'",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded"
+  },
+  "notes": {
+    "startup": "Playwright process launch to visible Welcome. Fresh or reused disposable profile. OS caches untouched.",
+    "rss": "Sum of per-process resident sets, including Electron descendants and profile-marked helpers. Shared pages may be counted repeatedly.",
+    "footprint": "Sum of macOS kernel phys_footprint ledger charges for the same process family. Attributed process charges, not a de-duplicated measurement of physical RAM.",
+    "cpu": "Percent of one logical core. Delta of own-process kernel user and system CPU time, with ps CPU-time fallback. Short-lived compiler CPU is also read from main-process reaped child counters.",
+    "typing": "Chromium keydown to second animation callback, with visible content and autosave verified. Excludes OS input delivery and physical display presentation.",
+    "stages": "One 650-line plain-text fixture per note, one native C source, and 40 subfolders of 25 files each. Stages are cumulative within one process, and memory snapshots are post-settle.",
+    "targetUnits": "Provisional budgets use decimal MB. Raw measurements report bytes for footprint and MiB for RSS."
+  },
+  "launches": [
+    {
+      "freshMs": 347.76754099999994,
+      "warmMs": 314.417375
+    },
+    {
+      "freshMs": 298.44725000000017,
+      "warmMs": 327.7975000000001
+    },
+    {
+      "freshMs": 292.35745799999995,
+      "warmMs": 316.7360840000001
+    },
+    {
+      "freshMs": 312.590917,
+      "warmMs": 338.4137090000004
+    },
+    {
+      "freshMs": 313.77670900000066,
+      "warmMs": 312.26329199999964
+    }
+  ],
+  "stages": {
+    "oneCFile": {
+      "timeMs": 84395.8585,
+      "rssMiB": 515.84375,
+      "ideRssMiB": 515.84375,
+      "childRssMiB": 0,
+      "footprintBytes": 265819344,
+      "ideFootprintBytes": 265819344,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 179.28125,
+          "cpuSeconds": 0.39,
+          "footprintBytes": 49940232,
+          "cpuNs": 394924250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 92.71875,
+          "cpuSeconds": 0.24,
+          "footprintBytes": 116245584,
+          "cpuNs": 235812875,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66618666,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 196.90625,
+          "cpuSeconds": 0.46,
+          "footprintBytes": 92685800,
+          "cpuNs": 464700250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 14
+        }
+      ]
+    },
+    "tenTabs": {
+      "timeMs": 86387.490625,
+      "rssMiB": 535.015625,
+      "ideRssMiB": 535.015625,
+      "childRssMiB": 0,
+      "footprintBytes": 288527568,
+      "ideFootprintBytes": 288527568,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 180.15625,
+          "cpuSeconds": 0.44,
+          "footprintBytes": 47990536,
+          "cpuNs": 444838916,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 93.4375,
+          "cpuSeconds": 0.28,
+          "footprintBytes": 123733072,
+          "cpuNs": 283804625,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 21
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66687250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 214.484375,
+          "cpuSeconds": 0.71,
+          "footprintBytes": 109856232,
+          "cpuNs": 710422875,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 19
+        }
+      ]
+    },
+    "mediumProject": {
+      "timeMs": 89951.98475,
+      "rssMiB": 545.984375,
+      "ideRssMiB": 545.984375,
+      "childRssMiB": 0,
+      "footprintBytes": 248878288,
+      "ideFootprintBytes": 248878288,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 183.40625,
+          "cpuSeconds": 0.54,
+          "footprintBytes": 48826120,
+          "cpuNs": 543819708,
+          "reapedChildCpuNs": 8112791,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 89.3125,
+          "cpuSeconds": 0.45,
+          "footprintBytes": 82576464,
+          "cpuNs": 446961083,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 33
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66776791,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 226.328125,
+          "cpuSeconds": 1.24,
+          "footprintBytes": 110527976,
+          "cpuNs": 1239377625,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 37
+        }
+      ]
+    },
+    "beforeOptionalPanels": {
+      "timeMs": 94974.724917,
+      "rssMiB": 579.5625,
+      "ideRssMiB": 579.5625,
+      "childRssMiB": 0,
+      "footprintBytes": 329766120,
+      "ideFootprintBytes": 329766120,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 186.5,
+          "cpuSeconds": 0.67,
+          "footprintBytes": 49907464,
+          "cpuNs": 671143791,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 10
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 98.203125,
+          "cpuSeconds": 0.57,
+          "footprintBytes": 142066792,
+          "cpuNs": 568175250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 42
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66860000,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 247.921875,
+          "cpuSeconds": 1.83,
+          "footprintBytes": 130844136,
+          "cpuNs": 1832375000,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 52
+        }
+      ]
+    },
+    "learning-language-choice": {
+      "timeMs": 96641.526125,
+      "rssMiB": 583.28125,
+      "ideRssMiB": 583.28125,
+      "childRssMiB": 0,
+      "footprintBytes": 315708648,
+      "ideFootprintBytes": 315708648,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 186.921875,
+          "cpuSeconds": 0.69,
+          "footprintBytes": 51447560,
+          "cpuNs": 692745791,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 10
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 98.453125,
+          "cpuSeconds": 0.6,
+          "footprintBytes": 130253928,
+          "cpuNs": 600395666,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 55
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66860000,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 250.96875,
+          "cpuSeconds": 1.92,
+          "footprintBytes": 127059432,
+          "cpuNs": 1918241625,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 56
+        }
+      ]
+    },
+    "learn": {
+      "timeMs": 98345.149042,
+      "rssMiB": 581.21875,
+      "ideRssMiB": 581.21875,
+      "childRssMiB": 0,
+      "footprintBytes": 309990632,
+      "ideFootprintBytes": 309990632,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 187.5625,
+          "cpuSeconds": 0.73,
+          "footprintBytes": 50923272,
+          "cpuNs": 725345750,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 11
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 94.359375,
+          "cpuSeconds": 0.62,
+          "footprintBytes": 122979432,
+          "cpuNs": 622597916,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 63
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67010041,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 252.359375,
+          "cpuSeconds": 1.96,
+          "footprintBytes": 129140200,
+          "cpuNs": 1958128083,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 57
+        }
+      ]
+    },
+    "learnClosed": {
+      "timeMs": 102585.966209,
+      "rssMiB": 586.78125,
+      "ideRssMiB": 586.78125,
+      "childRssMiB": 0,
+      "footprintBytes": 290297064,
+      "ideFootprintBytes": 290297064,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 187.71875,
+          "cpuSeconds": 0.77,
+          "footprintBytes": 51136264,
+          "cpuNs": 766855125,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 11
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 93.9375,
+          "cpuSeconds": 0.69,
+          "footprintBytes": 95487080,
+          "cpuNs": 690891000,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 76
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67104833,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 258.1875,
+          "cpuSeconds": 2.23,
+          "footprintBytes": 136725992,
+          "cpuNs": 2234234333,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 71
+        }
+      ]
+    },
+    "projects": {
+      "timeMs": 104327.083709,
+      "rssMiB": 599.828125,
+      "ideRssMiB": 599.828125,
+      "childRssMiB": 0,
+      "footprintBytes": 319886592,
+      "ideFootprintBytes": 319886592,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 188.046875,
+          "cpuSeconds": 0.8,
+          "footprintBytes": 52856584,
+          "cpuNs": 796112541,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 12
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 99.484375,
+          "cpuSeconds": 0.72,
+          "footprintBytes": 115508328,
+          "cpuNs": 718533541,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 76
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67104833,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 265.359375,
+          "cpuSeconds": 2.38,
+          "footprintBytes": 144573952,
+          "cpuNs": 2376617541,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 74
+        }
+      ]
+    },
+    "projectsClosed": {
+      "timeMs": 108554.6295,
+      "rssMiB": 598.796875,
+      "ideRssMiB": 598.796875,
+      "childRssMiB": 0,
+      "footprintBytes": 308253952,
+      "ideFootprintBytes": 308253952,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 188.09375,
+          "cpuSeconds": 0.83,
+          "footprintBytes": 51562248,
+          "cpuNs": 830232958,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 13
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 98.640625,
+          "cpuSeconds": 0.78,
+          "footprintBytes": 107938920,
+          "cpuNs": 783594250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 91
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67176166,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 265.125,
+          "cpuSeconds": 2.56,
+          "footprintBytes": 141805056,
+          "cpuNs": 2563348500,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 93
+        }
+      ]
+    },
+    "practice": {
+      "timeMs": 110292.84625,
+      "rssMiB": 606.75,
+      "ideRssMiB": 606.75,
+      "childRssMiB": 0,
+      "footprintBytes": 319329536,
+      "ideFootprintBytes": 319329536,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 187.75,
+          "cpuSeconds": 0.86,
+          "footprintBytes": 50841352,
+          "cpuNs": 863309333,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 13
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 100.21875,
+          "cpuSeconds": 0.82,
+          "footprintBytes": 113198184,
+          "cpuNs": 822417250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 111
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67265500,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 1
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 271.84375,
+          "cpuSeconds": 2.74,
+          "footprintBytes": 148342272,
+          "cpuNs": 2736739916,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 98
+        }
+      ]
+    },
+    "practiceClosed": {
+      "timeMs": 114439.062667,
+      "rssMiB": 606.90625,
+      "ideRssMiB": 606.90625,
+      "childRssMiB": 0,
+      "footprintBytes": 325014808,
+      "ideFootprintBytes": 325014808,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 187.796875,
+          "cpuSeconds": 0.9,
+          "footprintBytes": 50890504,
+          "cpuNs": 901618416,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 14
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 100.03125,
+          "cpuSeconds": 0.88,
+          "footprintBytes": 123962496,
+          "cpuNs": 882760083,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 118
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67341250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 1
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 272.140625,
+          "cpuSeconds": 2.91,
+          "footprintBytes": 143214080,
+          "cpuNs": 2910153541,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 110
+        }
+      ]
+    },
+    "returnedToWelcome": {
+      "timeMs": 116037.224334,
+      "rssMiB": 601.640625,
+      "ideRssMiB": 601.640625,
+      "childRssMiB": 0,
+      "footprintBytes": 285742336,
+      "ideFootprintBytes": 285742336,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 187.796875,
+          "cpuSeconds": 0.9,
+          "footprintBytes": 50890504,
+          "cpuNs": 904440250,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 14
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 95.046875,
+          "cpuSeconds": 0.89,
+          "footprintBytes": 84591720,
+          "cpuNs": 894026791,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 118
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 67341250,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 1
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 271.859375,
+          "cpuSeconds": 2.93,
+          "footprintBytes": 143312384,
+          "cpuNs": 2926078416,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 110
+        }
+      ]
+    }
+  },
+  "panels": {
+    "learn": {
+      "firstMs": 63.28254200000083,
+      "cycles": [
+        {
+          "closed": {
+            "timeMs": 98938.063125,
+            "rssMiB": 585.28125,
+            "ideRssMiB": 585.28125,
+            "childRssMiB": 0,
+            "footprintBytes": 406426856,
+            "ideFootprintBytes": 406426856,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.5625,
+                "cpuSeconds": 0.73,
+                "footprintBytes": 50923272,
+                "cpuNs": 728083333,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 11
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 98.34375,
+                "cpuSeconds": 0.64,
+                "footprintBytes": 219350120,
+                "cpuNs": 635263041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 65
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67010041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 252.4375,
+                "cpuSeconds": 1.98,
+                "footprintBytes": 129205736,
+                "cpuNs": 1977840250,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 58
+              }
+            ]
+          },
+          "closeMs": 28.408792000001995,
+          "reopenMs": 59.65762499999255
+        },
+        {
+          "closed": {
+            "timeMs": 99600.688084,
+            "rssMiB": 587.828125,
+            "ideRssMiB": 587.828125,
+            "childRssMiB": 0,
+            "footprintBytes": 409359592,
+            "ideFootprintBytes": 409359592,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.5625,
+                "cpuSeconds": 0.74,
+                "footprintBytes": 51087112,
+                "cpuNs": 737181375,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 11
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 98.609375,
+                "cpuSeconds": 0.65,
+                "footprintBytes": 219333736,
+                "cpuNs": 649380375,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 68
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67010041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 254.71875,
+                "cpuSeconds": 2.03,
+                "footprintBytes": 131991016,
+                "cpuNs": 2031148583,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 62
+              }
+            ]
+          },
+          "closeMs": 41.98870899999747,
+          "reopenMs": 45.88675000000512
+        },
+        {
+          "closed": {
+            "timeMs": 100254.120084,
+            "rssMiB": 592.15625,
+            "ideRssMiB": 592.15625,
+            "childRssMiB": 0,
+            "footprintBytes": 415077608,
+            "ideFootprintBytes": 415077608,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.703125,
+                "cpuSeconds": 0.75,
+                "footprintBytes": 51234568,
+                "cpuNs": 746837750,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 11
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 98.84375,
+                "cpuSeconds": 0.66,
+                "footprintBytes": 219563112,
+                "cpuNs": 661499250,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 69
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67010041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 258.671875,
+                "cpuSeconds": 2.14,
+                "footprintBytes": 137332200,
+                "cpuNs": 2139876333,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 65
+              }
+            ]
+          },
+          "closeMs": 43.99849999998696,
+          "reopenMs": 58.833041999998386
+        },
+        {
+          "closed": {
+            "timeMs": 100921.93375,
+            "rssMiB": 592.5,
+            "ideRssMiB": 592.5,
+            "childRssMiB": 0,
+            "footprintBytes": 369906920,
+            "ideFootprintBytes": 369906920,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.703125,
+                "cpuSeconds": 0.76,
+                "footprintBytes": 51234568,
+                "cpuNs": 756469666,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 11
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.046875,
+                "cpuSeconds": 0.67,
+                "footprintBytes": 174310504,
+                "cpuNs": 674524875,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 72
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67010041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 258.8125,
+                "cpuSeconds": 2.19,
+                "footprintBytes": 137414120,
+                "cpuNs": 2190769166,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 66
+              }
+            ]
+          },
+          "closeMs": 44.18574999998964,
+          "reopenMs": 59.33983399999852
+        }
+      ]
+    },
+    "projects": {
+      "firstMs": 68.04524999999558,
+      "cycles": [
+        {
+          "closed": {
+            "timeMs": 104921.021417,
+            "rssMiB": 599.390625,
+            "ideRssMiB": 599.390625,
+            "childRssMiB": 0,
+            "footprintBytes": 413357312,
+            "ideFootprintBytes": 413357312,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 188.046875,
+                "cpuSeconds": 0.8,
+                "footprintBytes": 52856584,
+                "cpuNs": 799252708,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 12
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.140625,
+                "cpuSeconds": 0.73,
+                "footprintBytes": 214451304,
+                "cpuNs": 729488291,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 79
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67104833,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 265.265625,
+                "cpuSeconds": 2.4,
+                "footprintBytes": 139101696,
+                "cpuNs": 2398316625,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 78
+              }
+            ]
+          },
+          "closeMs": 29.962457999994513,
+          "reopenMs": 59.047458000000915
+        },
+        {
+          "closed": {
+            "timeMs": 105589.70325,
+            "rssMiB": 600.078125,
+            "ideRssMiB": 600.078125,
+            "childRssMiB": 0,
+            "footprintBytes": 414389504,
+            "ideFootprintBytes": 414389504,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 188.0625,
+                "cpuSeconds": 0.81,
+                "footprintBytes": 52872968,
+                "cpuNs": 806869583,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 12
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.515625,
+                "cpuSeconds": 0.74,
+                "footprintBytes": 214828136,
+                "cpuNs": 742910625,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 80
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67104833,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 265.5625,
+                "cpuSeconds": 2.44,
+                "footprintBytes": 139740672,
+                "cpuNs": 2436835541,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 81
+              }
+            ]
+          },
+          "closeMs": 43.872540999989724,
+          "reopenMs": 57.26312499999767
+        },
+        {
+          "closed": {
+            "timeMs": 106252.211667,
+            "rssMiB": 599.015625,
+            "ideRssMiB": 599.015625,
+            "childRssMiB": 0,
+            "footprintBytes": 367285504,
+            "ideFootprintBytes": 367285504,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 188.078125,
+                "cpuSeconds": 0.82,
+                "footprintBytes": 51545864,
+                "cpuNs": 815066916,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 13
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 98.890625,
+                "cpuSeconds": 0.76,
+                "footprintBytes": 169493608,
+                "cpuNs": 756184291,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 82
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67176166,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 265.109375,
+                "cpuSeconds": 2.47,
+                "footprintBytes": 139298304,
+                "cpuNs": 2473269083,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 85
+              }
+            ]
+          },
+          "closeMs": 42.791417000000365,
+          "reopenMs": 43.661542000001646
+        },
+        {
+          "closed": {
+            "timeMs": 106889.864209,
+            "rssMiB": 599.765625,
+            "ideRssMiB": 599.765625,
+            "childRssMiB": 0,
+            "footprintBytes": 371381504,
+            "ideFootprintBytes": 371381504,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 188.09375,
+                "cpuSeconds": 0.82,
+                "footprintBytes": 51562248,
+                "cpuNs": 822181000,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 13
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.234375,
+                "cpuSeconds": 0.77,
+                "footprintBytes": 172164200,
+                "cpuNs": 768662375,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 87
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67176166,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 0
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 265.5,
+                "cpuSeconds": 2.51,
+                "footprintBytes": 140707328,
+                "cpuNs": 2510887333,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 88
+              }
+            ]
+          },
+          "closeMs": 28.801625000007334,
+          "reopenMs": 57.30608300000313
+        }
+      ]
+    },
+    "practice": {
+      "firstMs": 65.99329100000614,
+      "cycles": [
+        {
+          "closed": {
+            "timeMs": 110870.96725,
+            "rssMiB": 606.484375,
+            "ideRssMiB": 606.484375,
+            "childRssMiB": 0,
+            "footprintBytes": 429757696,
+            "ideFootprintBytes": 429757696,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.75,
+                "cpuSeconds": 0.87,
+                "footprintBytes": 50841352,
+                "cpuNs": 866428000,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 14
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.953125,
+                "cpuSeconds": 0.83,
+                "footprintBytes": 223626344,
+                "cpuNs": 833395666,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 113
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67265500,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 1
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 271.84375,
+                "cpuSeconds": 2.76,
+                "footprintBytes": 148342272,
+                "cpuNs": 2756891041,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 99
+              }
+            ]
+          },
+          "closeMs": 13.751666000011028,
+          "reopenMs": 58.316875000004075
+        },
+        {
+          "closed": {
+            "timeMs": 111520.177709,
+            "rssMiB": 606.6875,
+            "ideRssMiB": 606.6875,
+            "childRssMiB": 0,
+            "footprintBytes": 430511360,
+            "ideFootprintBytes": 430511360,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.75,
+                "cpuSeconds": 0.88,
+                "footprintBytes": 51250952,
+                "cpuNs": 875488791,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 14
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 100.046875,
+                "cpuSeconds": 0.85,
+                "footprintBytes": 223872104,
+                "cpuNs": 845625708,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 114
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67265500,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 1
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 271.953125,
+                "cpuSeconds": 2.8,
+                "footprintBytes": 148440576,
+                "cpuNs": 2800947833,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 103
+              }
+            ]
+          },
+          "closeMs": 28.038625000001048,
+          "reopenMs": 41.44658299999719
+        },
+        {
+          "closed": {
+            "timeMs": 112156.140917,
+            "rssMiB": 606.796875,
+            "ideRssMiB": 606.796875,
+            "childRssMiB": 0,
+            "footprintBytes": 384357632,
+            "ideFootprintBytes": 384357632,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.765625,
+                "cpuSeconds": 0.88,
+                "footprintBytes": 51267336,
+                "cpuNs": 883505000,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 14
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 100.046875,
+                "cpuSeconds": 0.86,
+                "footprintBytes": 177489000,
+                "cpuNs": 857789916,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 114
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67265500,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 1
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 272.046875,
+                "cpuSeconds": 2.84,
+                "footprintBytes": 148653568,
+                "cpuNs": 2836304916,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 107
+              }
+            ]
+          },
+          "closeMs": 28.644874999998137,
+          "reopenMs": 55.60649999999441
+        },
+        {
+          "closed": {
+            "timeMs": 112800.777042,
+            "rssMiB": 606.765625,
+            "ideRssMiB": 606.765625,
+            "childRssMiB": 0,
+            "footprintBytes": 384324888,
+            "ideFootprintBytes": 384324888,
+            "childFootprintBytes": 0,
+            "members": [
+              {
+                "pid": 99073,
+                "parent": 99004,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "main",
+                "rssMiB": 187.765625,
+                "cpuSeconds": 0.89,
+                "footprintBytes": 51267336,
+                "cpuNs": 892282500,
+                "reapedChildCpuNs": 565591791,
+                "idleWakeups": 14
+              },
+              {
+                "pid": 99074,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "gpu-process",
+                "rssMiB": 99.96875,
+                "cpuSeconds": 0.87,
+                "footprintBytes": 177341568,
+                "cpuNs": 870237125,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 116
+              },
+              {
+                "pid": 99075,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "utility",
+                "rssMiB": 46.9375,
+                "cpuSeconds": 0.07,
+                "footprintBytes": 6947728,
+                "cpuNs": 67265500,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 1
+              },
+              {
+                "pid": 99076,
+                "parent": 99073,
+                "started": "Sat Nov 28 01:44:58 2026",
+                "startedMs": 1795830298000,
+                "kind": "renderer",
+                "rssMiB": 272.09375,
+                "cpuSeconds": 2.88,
+                "footprintBytes": 148768256,
+                "cpuNs": 2877046916,
+                "reapedChildCpuNs": 0,
+                "idleWakeups": 107
+              }
+            ]
+          },
+          "closeMs": 28.93825000000652,
+          "reopenMs": 43.5692080000008
+        }
+      ]
+    }
+  },
+  "runs": {
+    "before": {
+      "timeMs": 90023.196292,
+      "rssMiB": 546.375,
+      "ideRssMiB": 546.375,
+      "childRssMiB": 0,
+      "footprintBytes": 378164432,
+      "ideFootprintBytes": 378164432,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 183.40625,
+          "cpuSeconds": 0.55,
+          "footprintBytes": 48891656,
+          "cpuNs": 548440333,
+          "reapedChildCpuNs": 8112791,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 89.328125,
+          "cpuSeconds": 0.45,
+          "footprintBytes": 211256400,
+          "cpuNs": 457393041,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 33
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66776791,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 226.703125,
+          "cpuSeconds": 1.26,
+          "footprintBytes": 111068648,
+          "cpuNs": 1272545125,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 37
+        }
+      ]
+    },
+    "active": [
+      {
+        "timeMs": 90055.334125,
+        "rssMiB": 551.171875,
+        "ideRssMiB": 551.171875,
+        "childRssMiB": 0,
+        "footprintBytes": 378541264,
+        "ideFootprintBytes": 378541264,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 183.40625,
+            "cpuSeconds": 0.55,
+            "footprintBytes": 49268488,
+            "cpuNs": 551954666,
+            "reapedChildCpuNs": 8112791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.046875,
+            "cpuSeconds": 0.46,
+            "footprintBytes": 211256400,
+            "cpuNs": 458143833,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 226.78125,
+            "cpuSeconds": 1.27,
+            "footprintBytes": 111068648,
+            "cpuNs": 1279687250,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          }
+        ]
+      },
+      {
+        "timeMs": 90117.219375,
+        "rssMiB": 570.9375,
+        "ideRssMiB": 556.21875,
+        "childRssMiB": 14.71875,
+        "footprintBytes": 388863640,
+        "ideFootprintBytes": 385995984,
+        "childFootprintBytes": 2867656,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.953125,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51119880,
+            "cpuNs": 570980625,
+            "reapedChildCpuNs": 11955791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.09375,
+            "cpuSeconds": 0.46,
+            "footprintBytes": 212812880,
+            "cpuNs": 464735000,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.234375,
+            "cpuSeconds": 1.31,
+            "footprintBytes": 115115496,
+            "cpuNs": 1336415500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99197,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 14.71875,
+            "cpuSeconds": 0.01,
+            "name": "clang",
+            "footprintBytes": 2867656,
+            "cpuNs": 12058708,
+            "reapedChildCpuNs": 13680166,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90175.698292,
+        "rssMiB": 558.609375,
+        "ideRssMiB": 556.96875,
+        "childRssMiB": 1.640625,
+        "footprintBytes": 387389104,
+        "ideFootprintBytes": 386143440,
+        "childFootprintBytes": 1245664,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 572832166,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.109375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212812880,
+            "cpuNs": 466177833,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1344297916,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 0.03125,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 81992,
+            "cpuNs": 350083,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90231.392959,
+        "rssMiB": 558.609375,
+        "ideRssMiB": 556.96875,
+        "childRssMiB": 1.640625,
+        "footprintBytes": 387389104,
+        "ideFootprintBytes": 386143440,
+        "childFootprintBytes": 1245664,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 572832166,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.109375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212812880,
+            "cpuNs": 466507083,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1344362708,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 0.03125,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 81992,
+            "cpuNs": 350083,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90287.305792,
+        "rssMiB": 560.140625,
+        "ideRssMiB": 556.96875,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388372456,
+        "ideFootprintBytes": 386127056,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573807458,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.109375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212796496,
+            "cpuNs": 466941333,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1344798750,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90344.311334,
+        "rssMiB": 560.125,
+        "ideRssMiB": 556.953125,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388372456,
+        "ideFootprintBytes": 386127056,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573882291,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.09375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212796496,
+            "cpuNs": 467066875,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1344918791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90401.891959,
+        "rssMiB": 560.125,
+        "ideRssMiB": 556.953125,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388372456,
+        "ideFootprintBytes": 386127056,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573882291,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.09375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212796496,
+            "cpuNs": 467270041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1344964333,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90459.696542,
+        "rssMiB": 560.125,
+        "ideRssMiB": 556.953125,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388372456,
+        "ideFootprintBytes": 386127056,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573882291,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.09375,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212796496,
+            "cpuNs": 467385583,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.9375,
+            "cpuSeconds": 1.34,
+            "footprintBytes": 115230184,
+            "cpuNs": 1345003250,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90518.657709,
+        "rssMiB": 560.21875,
+        "ideRssMiB": 557.046875,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388536296,
+        "ideFootprintBytes": 386290896,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573961041,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.171875,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212927568,
+            "cpuNs": 468870666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 230.953125,
+            "cpuSeconds": 1.35,
+            "footprintBytes": 115262952,
+            "cpuNs": 1346480125,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90578.297459,
+        "rssMiB": 560.359375,
+        "ideRssMiB": 557.1875,
+        "childRssMiB": 3.171875,
+        "footprintBytes": 388618216,
+        "ideFootprintBytes": 386372816,
+        "childFootprintBytes": 2245400,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 184.984375,
+            "cpuSeconds": 0.57,
+            "footprintBytes": 51152648,
+            "cpuNs": 573961041,
+            "reapedChildCpuNs": 88117791,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.25,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 212943952,
+            "cpuNs": 471460875,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 231.015625,
+            "cpuSeconds": 1.35,
+            "footprintBytes": 115328488,
+            "cpuNs": 1350486000,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          },
+          {
+            "pid": 99203,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.609375,
+            "cpuSeconds": 0,
+            "name": "ion-pty",
+            "footprintBytes": 1163672,
+            "cpuNs": 1703625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99204,
+            "parent": 99203,
+            "started": "Sat Nov 28 01:46:22 2026",
+            "startedMs": 1795830382000,
+            "kind": "child",
+            "rssMiB": 1.5625,
+            "cpuSeconds": 0,
+            "name": "program",
+            "footprintBytes": 1081728,
+            "cpuNs": 1605541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 90637.751542,
+        "rssMiB": 557.40625,
+        "ideRssMiB": 557.40625,
+        "childRssMiB": 0,
+        "footprintBytes": 378049744,
+        "ideFootprintBytes": 378049744,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 185,
+            "cpuSeconds": 0.58,
+            "footprintBytes": 51152648,
+            "cpuNs": 576604875,
+            "reapedChildCpuNs": 91559875,
+            "idleWakeups": 9
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 94.3125,
+            "cpuSeconds": 0.47,
+            "footprintBytes": 213107792,
+            "cpuNs": 475061500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 33
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66776791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 231.15625,
+            "cpuSeconds": 1.35,
+            "footprintBytes": 106841576,
+            "cpuNs": 1366420458,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 37
+          }
+        ]
+      }
+    ],
+    "after": {
+      "timeMs": 90694.391667,
+      "rssMiB": 557.640625,
+      "ideRssMiB": 557.640625,
+      "childRssMiB": 0,
+      "footprintBytes": 378148048,
+      "ideFootprintBytes": 378148048,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 185,
+          "cpuSeconds": 0.58,
+          "footprintBytes": 51152648,
+          "cpuNs": 576604875,
+          "reapedChildCpuNs": 91559875,
+          "idleWakeups": 9
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 94.40625,
+          "cpuSeconds": 0.48,
+          "footprintBytes": 213156944,
+          "cpuNs": 476784500,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 33
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66776791,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 231.296875,
+          "cpuSeconds": 1.37,
+          "footprintBytes": 106890728,
+          "cpuNs": 1368061583,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 37
+        }
+      ]
+    },
+    "settled": {
+      "timeMs": 93317.86175,
+      "rssMiB": 564.03125,
+      "ideRssMiB": 564.03125,
+      "childRssMiB": 0,
+      "footprintBytes": 280630480,
+      "ideFootprintBytes": 280630480,
+      "childFootprintBytes": 0,
+      "members": [
+        {
+          "pid": 99073,
+          "parent": 99004,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "main",
+          "rssMiB": 186.375,
+          "cpuSeconds": 0.66,
+          "footprintBytes": 51693320,
+          "cpuNs": 655833708,
+          "reapedChildCpuNs": 565591791,
+          "idleWakeups": 10
+        },
+        {
+          "pid": 99074,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "gpu-process",
+          "rssMiB": 89.84375,
+          "cpuSeconds": 0.53,
+          "footprintBytes": 98501712,
+          "cpuNs": 528361041,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 37
+        },
+        {
+          "pid": 99075,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "utility",
+          "rssMiB": 46.9375,
+          "cpuSeconds": 0.07,
+          "footprintBytes": 6947728,
+          "cpuNs": 66776791,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 0
+        },
+        {
+          "pid": 99076,
+          "parent": 99073,
+          "started": "Sat Nov 28 01:44:58 2026",
+          "startedMs": 1795830298000,
+          "kind": "renderer",
+          "rssMiB": 240.875,
+          "cpuSeconds": 1.7,
+          "footprintBytes": 123487720,
+          "cpuNs": 1700316291,
+          "reapedChildCpuNs": 0,
+          "idleWakeups": 50
+        }
+      ]
+    },
+    "reapedChildCpuMs": 83.447084,
+    "timings": [
+      147.67745899999863,
+      161.53445799999463,
+      163.0102920000063,
+      163.26174999999057,
+      189.76883400000224,
+      171.96445899999526
+    ]
+  },
+  "probe": "proc_pid_rusage RUSAGE_INFO_V2",
+  "machTimebase": {
+    "numerator": 125,
+    "denominator": 3
+  },
+  "coreProfile": "minimal",
+  "idle": {
+    "samples": [
+      {
+        "timeMs": 7527.587375,
+        "rssMiB": 433.671875,
+        "ideRssMiB": 433.671875,
+        "childRssMiB": 0,
+        "footprintBytes": 161993672,
+        "ideFootprintBytes": 161993672,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.8125,
+            "cpuSeconds": 0.26,
+            "footprintBytes": 47859464,
+            "cpuNs": 258064625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 89.46875,
+            "cpuSeconds": 0.14,
+            "footprintBytes": 67535904,
+            "cpuNs": 138980375,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.84375,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7046032,
+            "cpuNs": 61622208,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.546875,
+            "cpuSeconds": 0.12,
+            "footprintBytes": 39552272,
+            "cpuNs": 123722041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          }
+        ]
+      },
+      {
+        "timeMs": 12578.35625,
+        "rssMiB": 428.9375,
+        "ideRssMiB": 428.9375,
+        "childRssMiB": 0,
+        "footprintBytes": 131683248,
+        "ideFootprintBytes": 131683248,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.6875,
+            "cpuSeconds": 0.26,
+            "footprintBytes": 47728392,
+            "cpuNs": 263439625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.078125,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37651488,
+            "cpuNs": 148393375,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.921875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7078800,
+            "cpuNs": 62162500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.25,
+            "cpuSeconds": 0.13,
+            "footprintBytes": 39224568,
+            "cpuNs": 125745000,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          }
+        ]
+      },
+      {
+        "timeMs": 17643.75025,
+        "rssMiB": 428.90625,
+        "ideRssMiB": 428.90625,
+        "childRssMiB": 0,
+        "footprintBytes": 128291760,
+        "ideFootprintBytes": 128291760,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.6875,
+            "cpuSeconds": 0.27,
+            "footprintBytes": 47728392,
+            "cpuNs": 265695875,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 148611750,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.921875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7078800,
+            "cpuNs": 62761416,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.25,
+            "cpuSeconds": 0.13,
+            "footprintBytes": 35865848,
+            "cpuNs": 127449500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 22709.465292,
+        "rssMiB": 428.90625,
+        "ideRssMiB": 428.90625,
+        "childRssMiB": 0,
+        "footprintBytes": 128291760,
+        "ideFootprintBytes": 128291760,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.6875,
+            "cpuSeconds": 0.27,
+            "footprintBytes": 47728392,
+            "cpuNs": 266537833,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 148725666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.921875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7078800,
+            "cpuNs": 63376541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.25,
+            "cpuSeconds": 0.13,
+            "footprintBytes": 35865848,
+            "cpuNs": 127449500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 27773.397709,
+        "rssMiB": 428.8125,
+        "ideRssMiB": 428.8125,
+        "childRssMiB": 0,
+        "footprintBytes": 128177072,
+        "ideFootprintBytes": 128177072,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.59375,
+            "cpuSeconds": 0.27,
+            "footprintBytes": 47630088,
+            "cpuNs": 269870541,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 148781291,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.921875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7062416,
+            "cpuNs": 63560083,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.25,
+            "cpuSeconds": 0.13,
+            "footprintBytes": 35865848,
+            "cpuNs": 127449500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 32837.488,
+        "rssMiB": 428.84375,
+        "ideRssMiB": 428.84375,
+        "childRssMiB": 0,
+        "footprintBytes": 128209840,
+        "ideFootprintBytes": 128209840,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.625,
+            "cpuSeconds": 0.27,
+            "footprintBytes": 47662856,
+            "cpuNs": 270969583,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 1
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149043750,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.921875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7062416,
+            "cpuNs": 64287625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.25,
+            "cpuSeconds": 0.13,
+            "footprintBytes": 35865848,
+            "cpuNs": 127449500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 37901.794292,
+        "rssMiB": 428.515625,
+        "ideRssMiB": 428.515625,
+        "childRssMiB": 0,
+        "footprintBytes": 125096904,
+        "ideFootprintBytes": 125096904,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.375,
+            "cpuSeconds": 0.3,
+            "footprintBytes": 45991688,
+            "cpuNs": 296220000,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149185333,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156469666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 42954.380334,
+        "rssMiB": 428.515625,
+        "ideRssMiB": 428.515625,
+        "childRssMiB": 0,
+        "footprintBytes": 125096904,
+        "ideFootprintBytes": 125096904,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 171.375,
+            "cpuSeconds": 0.3,
+            "footprintBytes": 45991688,
+            "cpuNs": 296609625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149243958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156469666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 48018.482125,
+        "rssMiB": 427.625,
+        "ideRssMiB": 427.625,
+        "childRssMiB": 0,
+        "footprintBytes": 124113864,
+        "ideFootprintBytes": 124113864,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.32,
+            "footprintBytes": 45008648,
+            "cpuNs": 323759250,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 6
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149386333,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156601041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 53068.519292,
+        "rssMiB": 427.625,
+        "ideRssMiB": 427.625,
+        "childRssMiB": 0,
+        "footprintBytes": 124113864,
+        "ideFootprintBytes": 124113864,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.32,
+            "footprintBytes": 45008648,
+            "cpuNs": 324135958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.046875,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149529791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156601041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 58135.616334,
+        "rssMiB": 427.640625,
+        "ideRssMiB": 427.640625,
+        "childRssMiB": 0,
+        "footprintBytes": 124113864,
+        "ideFootprintBytes": 124113864,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.32,
+            "footprintBytes": 45008648,
+            "cpuNs": 324496875,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149828958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156601041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 63196.454417,
+        "rssMiB": 427.640625,
+        "ideRssMiB": 427.640625,
+        "childRssMiB": 0,
+        "footprintBytes": 124113864,
+        "ideFootprintBytes": 124113864,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.32,
+            "footprintBytes": 45008648,
+            "cpuNs": 324860125,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 37618720,
+            "cpuNs": 149971666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 6
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.875,
+            "cpuSeconds": 0.06,
+            "footprintBytes": 7013264,
+            "cpuNs": 64418791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 156601041,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 2
+          }
+        ]
+      },
+      {
+        "timeMs": 68256.552167,
+        "rssMiB": 427.703125,
+        "ideRssMiB": 427.703125,
+        "childRssMiB": 0,
+        "footprintBytes": 119378888,
+        "ideFootprintBytes": 119378888,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.33,
+            "footprintBytes": 41387784,
+            "cpuNs": 330822958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 36570144,
+            "cpuNs": 151891500,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 6
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 65665750,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 157500791,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 3
+          }
+        ]
+      },
+      {
+        "timeMs": 73318.206167,
+        "rssMiB": 427.703125,
+        "ideRssMiB": 427.703125,
+        "childRssMiB": 0,
+        "footprintBytes": 119362504,
+        "ideFootprintBytes": 119362504,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.33,
+            "footprintBytes": 41371400,
+            "cpuNs": 332684625,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 36570144,
+            "cpuNs": 152959583,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 6
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66274875,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 158263833,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          }
+        ]
+      },
+      {
+        "timeMs": 78376.680459,
+        "rssMiB": 427.703125,
+        "ideRssMiB": 427.703125,
+        "childRssMiB": 0,
+        "footprintBytes": 119362504,
+        "ideFootprintBytes": 119362504,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.33,
+            "footprintBytes": 41371400,
+            "cpuNs": 333600708,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 8
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 36570144,
+            "cpuNs": 153400958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 6
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66418458,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 159040416,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 4
+          }
+        ]
+      },
+      {
+        "timeMs": 82592.91925,
+        "rssMiB": 427.703125,
+        "ideRssMiB": 427.703125,
+        "childRssMiB": 0,
+        "footprintBytes": 119362504,
+        "ideFootprintBytes": 119362504,
+        "childFootprintBytes": 0,
+        "members": [
+          {
+            "pid": 99073,
+            "parent": 99004,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "main",
+            "rssMiB": 170.484375,
+            "cpuSeconds": 0.33,
+            "footprintBytes": 41371400,
+            "cpuNs": 334636208,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 8
+          },
+          {
+            "pid": 99074,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "gpu-process",
+            "rssMiB": 85.0625,
+            "cpuSeconds": 0.15,
+            "footprintBytes": 36570144,
+            "cpuNs": 154127958,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 7
+          },
+          {
+            "pid": 99075,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "utility",
+            "rssMiB": 46.9375,
+            "cpuSeconds": 0.07,
+            "footprintBytes": 6947728,
+            "cpuNs": 66618666,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 0
+          },
+          {
+            "pid": 99076,
+            "parent": 99073,
+            "started": "Sat Nov 28 01:44:58 2026",
+            "startedMs": 1795830298000,
+            "kind": "renderer",
+            "rssMiB": 125.21875,
+            "cpuSeconds": 0.16,
+            "footprintBytes": 34473232,
+            "cpuNs": 159804708,
+            "reapedChildCpuNs": 0,
+            "idleWakeups": 5
+          }
+        ]
+      }
+    ],
+    "cpuPercent": 0.17691028292679484
+  },
+  "initialOptionalAssets": [],
+  "firstFileMs": 177.35783300000185,
+  "nextFilesMs": [
+    23.85479199999827,
+    49.67041700000118,
+    49.92804199999955,
+    50.289374999993015,
+    49.60641599999508,
+    50.09524999999849,
+    50.36737500000163,
+    50.51549999999406,
+    49.18270800000755
+  ],
+  "typingMs": [
+    22.900000005960464,
+    32,
+    32.29999999701977,
+    31.700000002980232,
+    32.29999999701977,
+    32.099999994039536,
+    32.5,
+    31.700000002980232,
+    32.3999999910593,
+    31.5,
+    31.899999991059303,
+    30.799999997019768,
+    31,
+    31.700000002980232,
+    30.899999991059303,
+    31.599999994039536,
+    31.700000002980232,
+    31.700000002980232,
+    31.5,
+    31.399999991059303
+  ],
+  "modulesProfile": "full",
+  "directLearning": {
+    "protocol": "direct-language-selection-v1",
+    "firstMs": 1.8620839999930467,
+    "selectMs": 80.68629100000544,
+    "openLessonMs": 59.447125000006054
+  },
+  "practiceCatalog": {
+    "filterMs": 9.611000000004424,
+    "startMs": 58.50133299999288
+  },
+  "lastWindowClose": {
+    "profile": "minimal",
+    "windowClosedMs": 7.413541999994777,
+    "appExited": true,
+    "processFamily": {
+      "timeMs": 117647.272125,
+      "rssMiB": 0,
+      "ideRssMiB": 0,
+      "childRssMiB": 0,
+      "footprintBytes": 0,
+      "ideFootprintBytes": 0,
+      "childFootprintBytes": 0,
+      "members": []
+    }
+  },
+  "summary": {
+    "freshMs": 312.590917,
+    "warmMs": 316.7360840000001,
+    "idleRssMiB": 428.109375,
+    "idleFootprintMiB": 118.83295440673828,
+    "idleCpuPercent": 0.17691028292679484,
+    "firstFileMs": 177.35783300000185,
+    "otherFileMs": 49.92804199999955,
+    "typingMs": 31.700000002980232,
+    "runMs": 163.13602099999844,
+    "peakNativeRssMiB": 14.71875,
+    "peakNativeFootprintMiB": 2.7348098754882812,
+    "oneCFileRssMiB": 515.84375,
+    "oneCFileFootprintMiB": 253.5050811767578,
+    "tenTabsRssMiB": 535.015625,
+    "tenTabsFootprintMiB": 275.1613311767578,
+    "mediumProjectRssMiB": 545.984375,
+    "mediumProjectFootprintMiB": 237.3488311767578,
+    "learnRssMiB": 581.21875,
+    "learnFootprintMiB": 295.6301040649414,
+    "projectsRssMiB": 599.828125,
+    "projectsFootprintMiB": 305.067626953125,
+    "practiceRssMiB": 606.75,
+    "practiceFootprintMiB": 304.536376953125,
+    "returnedToWelcomeRssMiB": 601.640625,
+    "returnedToWelcomeFootprintMiB": 272.505126953125,
+    "learnFirstMs": 63.28254200000083,
+    "learnReopenMs": 59.08643799999845,
+    "learnCloseMs": 42.993604499992216,
+    "projectsFirstMs": 68.04524999999558,
+    "projectsReopenMs": 57.2846040000004,
+    "projectsCloseMs": 36.37693749999744,
+    "practiceFirstMs": 65.99329100000614,
+    "practiceReopenMs": 49.587853999997606,
+    "practiceCloseMs": 28.341749999999593
+  },
+  "optionalCycleDeltas": {
+    "learn": {
+      "rssMiB": 7.21875,
+      "footprintMiB": -34.828125
+    },
+    "projects": {
+      "rssMiB": 0.375,
+      "footprintMiB": -40.03125
+    },
+    "practice": {
+      "rssMiB": 0.28125,
+      "footprintMiB": -43.328102111816406
+    }
+  },
+  "targets": [
+    {
+      "stage": "idle",
+      "metric": "Rss",
+      "targetMB": 300,
+      "measuredMB": 448.905216,
+      "pass": false
+    },
+    {
+      "stage": "idle",
+      "metric": "Footprint",
+      "targetMB": 300,
+      "measuredMB": 124.605384,
+      "pass": true
+    },
+    {
+      "stage": "oneCFile",
+      "metric": "Rss",
+      "targetMB": 400,
+      "measuredMB": 540.901376,
+      "pass": false
+    },
+    {
+      "stage": "oneCFile",
+      "metric": "Footprint",
+      "targetMB": 400,
+      "measuredMB": 265.819344,
+      "pass": true
+    },
+    {
+      "stage": "mediumProject",
+      "metric": "Rss",
+      "targetMB": 600,
+      "measuredMB": 572.506112,
+      "pass": true
+    },
+    {
+      "stage": "mediumProject",
+      "metric": "Footprint",
+      "targetMB": 600,
+      "measuredMB": 248.878288,
+      "pass": true
+    }
+  ]
+}

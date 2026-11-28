@@ -1,0 +1,2427 @@
+{
+  "generatedAt": "2026-11-28T01:43:22.122Z",
+  "host": {
+    "macOS": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131",
+    "processor": "Apple M3",
+    "ramBytes": 25769803776,
+    "architecture": "arm64",
+    "node": "v26.13.1",
+    "power": "Now drawing from 'Battery Power'",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded"
+  },
+  "protocol": {
+    "trials": 5,
+    "scenarios": 3,
+    "idleSeconds": 8,
+    "executions": 12,
+    "tabCycles": 1,
+    "openFiles": 10,
+    "idleSettleSeconds": 3,
+    "rendererProfilingEnabled": false,
+    "startupPhaseDiagnostics": false,
+    "startup": "Process launch under Playwright to visible Welcome in DOM. New disposable profile, then same-profile relaunch. OS caches untouched.",
+    "ram": "Summed RSS from macOS ps, including app descendants and profile-marked helpers. Shared pages may be counted in multiple processes.",
+    "cpu": "Process CPU-time deltas; 100% = one logical CPU. Subprocesses that exit between samples can be missed.",
+    "typing": "Chromium keydown to second requestAnimationFrame, 30 verified characters per scenario. Presentation/compositor latency is not measured.",
+    "fixtures": "10 text files of 650 lines each, four C programs, and 40 subfolders with 25 files each. Six expanded on demand. Each subsequent tab cycle opens and closes three files."
+  },
+  "artifacts": {
+    "production": {
+      "path": "dist",
+      "logicalBytes": 16112006,
+      "includesElectron": false,
+      "fingerprint": {
+        "file": "index.html",
+        "sha256": "9969708a9e85a6bfaac9c5cdf7225abdbc71eb5109aeb160362904594d784970"
+      },
+      "installerBytes": null,
+      "electron": "45.2.3",
+      "chromium": "156.0.8078.80"
+    }
+  },
+  "samples": {
+    "production": [
+      {
+        "trial": 1,
+        "freshStartupMs": 318.6410840000001,
+        "remainingFreshProcesses": [],
+        "warmStartupMs": 343.5077499999999,
+        "idle": {
+          "rssMiB": {
+            "n": 9,
+            "median": 429.14,
+            "min": 429.11,
+            "max": 429.28
+          },
+          "cpuPercent": 0.35,
+          "endRssMiB": 429.109375,
+          "durationMs": 8482.54,
+          "samples": [
+            {
+              "timeMs": 4332.485208,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.203125,
+              "rssMiB": 429.203125,
+              "cpuSecondsByPid": {
+                "98458": 0.27,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.12
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.27,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.12
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 5393.928667,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.25,
+              "rssMiB": 429.25,
+              "cpuSecondsByPid": {
+                "98458": 0.27,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.12
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.27,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.12
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 6452.856458,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.28125,
+              "rssMiB": 429.28125,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 7514.082458,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.15625,
+              "rssMiB": 429.15625,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 8576.949,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.140625,
+              "rssMiB": 429.140625,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 9640.834625,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.140625,
+              "rssMiB": 429.140625,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 10700.784,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.140625,
+              "rssMiB": 429.140625,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 11754.836292,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.140625,
+              "rssMiB": 429.140625,
+              "cpuSecondsByPid": {
+                "98458": 0.28,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.28,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 12815.02575,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.109375,
+              "rssMiB": 429.109375,
+              "cpuSecondsByPid": {
+                "98458": 0.29,
+                "98459": 0.15,
+                "98460": 0.07,
+                "98461": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.29,
+                "98459:Sat Nov 28 01:43:23 2026": 0.15,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        },
+        "folderOpenMs": 63.63445899999897,
+        "fileOpenMs": [
+          176.3927500000009,
+          25.06525000000147,
+          49.509250000000975,
+          49.926665999999386,
+          49.66583300000093,
+          50.143999999998414,
+          49.91008300000067,
+          50.41120799999953,
+          49.92229099999895,
+          49.92170899999837
+        ],
+        "typing": {
+          "inputMs": [
+            23.19999998807907,
+            32.20000000298023,
+            32,
+            31.80000001192093,
+            31.899999991059303,
+            31.599999994039536,
+            32,
+            31.799999997019768,
+            31.799999997019768,
+            31.400000005960464,
+            31.599999994039536,
+            32,
+            31.799999997019768,
+            31.5,
+            31.200000002980232,
+            31.399999991059303,
+            31.599999994039536,
+            31.5,
+            31.299999997019768,
+            30.80000001192093,
+            31.600000008940697,
+            31.399999991059303,
+            31.700000002980232,
+            31,
+            31.700000002980232,
+            31.899999991059303,
+            31.799999997019768,
+            31.600000008940697,
+            31.899999991059303,
+            31.099999994039536
+          ],
+          "cpuPercent": 39.71764628384516,
+          "rssMiB": 550.671875
+        },
+        "mediumExpandMs": 383.27137500000026,
+        "memory": {
+          "oneTabMiB": 519.828125,
+          "tenTabsMiB": 533.5625,
+          "mediumTreeMiB": 566.546875,
+          "closedTabsMiB": 580.59375
+        },
+        "repeatRunMs": [
+          146.51291599999968,
+          195.88237500000105,
+          157.85316700000112,
+          157.60679199999868,
+          172.29483299999993,
+          159.51466699999946,
+          161.8661659999998,
+          166.2039999999979,
+          173.21141599999828,
+          160.6274999999987,
+          163.68575000000055,
+          171.71141700000226
+        ],
+        "runResources": [
+          {
+            "timeMs": 27293.77925,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 597.6875,
+            "rssMiB": 597.6875,
+            "cpuSecondsByPid": {
+              "98458": 0.75,
+              "98459": 0.61,
+              "98460": 0.07,
+              "98461": 2.15
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.75,
+              "98459:Sat Nov 28 01:43:23 2026": 0.61,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.15
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 27364.210417,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 602.625,
+            "rssMiB": 602.625,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.62,
+              "98460": 0.07,
+              "98461": 2.17
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.62,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.17
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 27431.234083,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 602.625,
+            "rssMiB": 604.265625,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27498.811125,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 602.625,
+            "rssMiB": 604.265625,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27566.383167,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 602.609375,
+            "rssMiB": 604.25,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27634.469125,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 602.609375,
+            "rssMiB": 604.25,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27702.403958,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.609375,
+            "rssMiB": 605.78125,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27770.738542,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.609375,
+            "rssMiB": 605.78125,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27836.3825,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.671875,
+            "rssMiB": 605.84375,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27902.988708,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.671875,
+            "rssMiB": 605.84375,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 27970.329125,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.671875,
+            "rssMiB": 605.84375,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.19,
+              "98614": 0,
+              "98615": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.19,
+              "98614:Sat Nov 28 01:43:49 2026": 0,
+              "98615:Sat Nov 28 01:43:49 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 28039.915417,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 602.75,
+            "rssMiB": 602.75,
+            "cpuSecondsByPid": {
+              "98458": 0.76,
+              "98459": 0.63,
+              "98460": 0.07,
+              "98461": 2.2
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.76,
+              "98459:Sat Nov 28 01:43:23 2026": 0.63,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.2
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          }
+        ],
+        "runnerDurationMs": 688,
+        "repeatExecution": {
+          "beforeRuns": {
+            "timeMs": 23519.503875,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 595.171875,
+            "rssMiB": 595.171875,
+            "cpuSecondsByPid": {
+              "98458": 0.6,
+              "98459": 0.52,
+              "98460": 0.07,
+              "98461": 1.57
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.6,
+              "98459:Sat Nov 28 01:43:23 2026": 0.52,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 1.57
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "afterRuns": {
+            "timeMs": 27218.885125,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 597.421875,
+            "rssMiB": 597.421875,
+            "cpuSecondsByPid": {
+              "98458": 0.74,
+              "98459": 0.61,
+              "98460": 0.07,
+              "98461": 2.12
+            },
+            "cpuSecondsByIdentity": {
+              "98458:Sat Nov 28 01:43:22 2026": 0.74,
+              "98459:Sat Nov 28 01:43:23 2026": 0.61,
+              "98460:Sat Nov 28 01:43:23 2026": 0.07,
+              "98461:Sat Nov 28 01:43:23 2026": 2.12
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "samples": [
+            {
+              "timeMs": 24057.645625,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 601.203125,
+              "rssMiB": 601.203125,
+              "cpuSecondsByPid": {
+                "98458": 0.64,
+                "98459": 0.54,
+                "98460": 0.07,
+                "98461": 1.74
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.64,
+                "98459:Sat Nov 28 01:43:23 2026": 0.54,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 1.74
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 24585.116792,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 601.671875,
+              "rssMiB": 601.671875,
+              "cpuSecondsByPid": {
+                "98458": 0.68,
+                "98459": 0.56,
+                "98460": 0.07,
+                "98461": 1.85
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.68,
+                "98459:Sat Nov 28 01:43:23 2026": 0.56,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 1.85
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 25123.818292,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 602.0625,
+              "rssMiB": 602.0625,
+              "cpuSecondsByPid": {
+                "98458": 0.71,
+                "98459": 0.58,
+                "98460": 0.07,
+                "98461": 2
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.71,
+                "98459:Sat Nov 28 01:43:23 2026": 0.58,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 2
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 25657.216542,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 602.140625,
+              "rssMiB": 602.140625,
+              "cpuSecondsByPid": {
+                "98458": 0.74,
+                "98459": 0.6,
+                "98460": 0.07,
+                "98461": 2.12
+              },
+              "cpuSecondsByIdentity": {
+                "98458:Sat Nov 28 01:43:22 2026": 0.74,
+                "98459:Sat Nov 28 01:43:23 2026": 0.6,
+                "98460:Sat Nov 28 01:43:23 2026": 0.07,
+                "98461:Sat Nov 28 01:43:23 2026": 2.12
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trial": 2,
+        "freshStartupMs": 304.6769170000007,
+        "remainingFreshProcesses": [],
+        "warmStartupMs": 342.11375000000044,
+        "idle": {
+          "rssMiB": {
+            "n": 9,
+            "median": 420.64,
+            "min": 420.5,
+            "max": 420.69
+          },
+          "cpuPercent": 0.24,
+          "endRssMiB": 420.671875,
+          "durationMs": 8481.67,
+          "samples": [
+            {
+              "timeMs": 32295.985958,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.640625,
+              "rssMiB": 420.640625,
+              "cpuSecondsByPid": {
+                "98643": 0.28,
+                "98644": 0.14,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.28,
+                "98644:Sat Nov 28 01:43:51 2026": 0.14,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 33354.962833,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.6875,
+              "rssMiB": 420.6875,
+              "cpuSecondsByPid": {
+                "98643": 0.28,
+                "98644": 0.14,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.28,
+                "98644:Sat Nov 28 01:43:51 2026": 0.14,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 34414.38625,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.640625,
+              "rssMiB": 420.640625,
+              "cpuSecondsByPid": {
+                "98643": 0.28,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.28,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 35478.351792,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.5,
+              "rssMiB": 420.5,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 36537.158083,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.625,
+              "rssMiB": 420.625,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 37599.515875,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.625,
+              "rssMiB": 420.625,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 38645.68575,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.671875,
+              "rssMiB": 420.671875,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 39711.605542,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.671875,
+              "rssMiB": 420.671875,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 40777.659625,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 420.671875,
+              "rssMiB": 420.671875,
+              "cpuSecondsByPid": {
+                "98643": 0.29,
+                "98644": 0.15,
+                "98645": 0.07,
+                "98646": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.29,
+                "98644:Sat Nov 28 01:43:51 2026": 0.15,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        },
+        "folderOpenMs": 67.18699999999808,
+        "fileOpenMs": [
+          177.3159169999999,
+          39.454875000003085,
+          49.83379199999763,
+          50.0211249999993,
+          49.571750000002794,
+          49.89916699999594,
+          50.44841699999961,
+          49.95245799999975,
+          50.480374999999185,
+          49.55524999999761
+        ],
+        "typing": {
+          "inputMs": [
+            21.899999991059303,
+            31.900000005960464,
+            32.20000000298023,
+            32.19999998807907,
+            32,
+            31.799999997019768,
+            31.899999991059303,
+            31.80000001192093,
+            31.900000005960464,
+            32,
+            32.3999999910593,
+            31.200000002980232,
+            31.600000008940697,
+            31.5,
+            31.299999997019768,
+            31.799999997019768,
+            31.700000002980232,
+            31.700000002980232,
+            31.600000008940697,
+            31.399999991059303,
+            31.399999991059303,
+            31,
+            31.400000005960464,
+            31.700000002980232,
+            31,
+            31.799999997019768,
+            31.799999997019768,
+            31.899999991059303,
+            31.69999998807907,
+            31.700000002980232
+          ],
+          "cpuPercent": 41.493013499987555,
+          "rssMiB": 546.703125
+        },
+        "mediumExpandMs": 381.42837499999587,
+        "memory": {
+          "oneTabMiB": 516.203125,
+          "tenTabsMiB": 529.5,
+          "mediumTreeMiB": 562.453125,
+          "closedTabsMiB": 576.078125
+        },
+        "repeatRunMs": [
+          160.56645800000115,
+          163.9676249999975,
+          182.80745799999568,
+          130.5097919999971,
+          152.37370900000678,
+          199.88699999999517,
+          169.6342500000028,
+          151.02616700000362,
+          170.20520899999974,
+          158.28120900000067,
+          172.03033299999515,
+          163.68883300000016
+        ],
+        "runResources": [
+          {
+            "timeMs": 54925.623375,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 593.359375,
+            "rssMiB": 593.359375,
+            "cpuSecondsByPid": {
+              "98643": 0.74,
+              "98644": 0.65,
+              "98645": 0.07,
+              "98646": 2.18
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.74,
+              "98644:Sat Nov 28 01:43:51 2026": 0.65,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.18
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 54994.611958,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 598.390625,
+            "rssMiB": 598.390625,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.21
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.21
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 55060.834208,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 598.390625,
+            "rssMiB": 600.03125,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 55126.538708,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 598.390625,
+            "rssMiB": 601.5625,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 55192.281333,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 598.375,
+            "rssMiB": 601.546875,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 55258.527875,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 598.375,
+            "rssMiB": 601.546875,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 55324.656583,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 598.375,
+            "rssMiB": 601.546875,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 55391.235417,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 598.375,
+            "rssMiB": 601.546875,
+            "cpuSecondsByPid": {
+              "98643": 0.75,
+              "98644": 0.67,
+              "98645": 0.07,
+              "98646": 2.22,
+              "98785": 0,
+              "98786": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.75,
+              "98644:Sat Nov 28 01:43:51 2026": 0.67,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.22,
+              "98785:Sat Nov 28 01:44:16 2026": 0,
+              "98786:Sat Nov 28 01:44:16 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          }
+        ],
+        "runnerDurationMs": 466,
+        "repeatExecution": {
+          "beforeRuns": {
+            "timeMs": 51144.474875,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 590.59375,
+            "rssMiB": 590.59375,
+            "cpuSecondsByPid": {
+              "98643": 0.6,
+              "98644": 0.56,
+              "98645": 0.07,
+              "98646": 1.61
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.6,
+              "98644:Sat Nov 28 01:43:51 2026": 0.56,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 1.61
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "afterRuns": {
+            "timeMs": 54851.458625,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 593.09375,
+            "rssMiB": 593.09375,
+            "cpuSecondsByPid": {
+              "98643": 0.74,
+              "98644": 0.65,
+              "98645": 0.07,
+              "98646": 2.16
+            },
+            "cpuSecondsByIdentity": {
+              "98643:Sat Nov 28 01:43:50 2026": 0.74,
+              "98644:Sat Nov 28 01:43:51 2026": 0.65,
+              "98645:Sat Nov 28 01:43:51 2026": 0.07,
+              "98646:Sat Nov 28 01:43:51 2026": 2.16
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "samples": [
+            {
+              "timeMs": 51696.392208,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 596.578125,
+              "rssMiB": 596.578125,
+              "cpuSecondsByPid": {
+                "98643": 0.63,
+                "98644": 0.58,
+                "98645": 0.07,
+                "98646": 1.78
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.63,
+                "98644:Sat Nov 28 01:43:51 2026": 0.58,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 1.78
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 52219.074625,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 597.125,
+              "rssMiB": 597.125,
+              "cpuSecondsByPid": {
+                "98643": 0.67,
+                "98644": 0.6,
+                "98645": 0.07,
+                "98646": 1.89
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.67,
+                "98644:Sat Nov 28 01:43:51 2026": 0.6,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 1.89
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 52757.485917,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 597.703125,
+              "rssMiB": 597.703125,
+              "cpuSecondsByPid": {
+                "98643": 0.7,
+                "98644": 0.63,
+                "98645": 0.07,
+                "98646": 2.05
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.7,
+                "98644:Sat Nov 28 01:43:51 2026": 0.63,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 2.05
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 53291.531917,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 597.75,
+              "rssMiB": 597.75,
+              "cpuSecondsByPid": {
+                "98643": 0.74,
+                "98644": 0.65,
+                "98645": 0.07,
+                "98646": 2.15
+              },
+              "cpuSecondsByIdentity": {
+                "98643:Sat Nov 28 01:43:50 2026": 0.74,
+                "98644:Sat Nov 28 01:43:51 2026": 0.65,
+                "98645:Sat Nov 28 01:43:51 2026": 0.07,
+                "98646:Sat Nov 28 01:43:51 2026": 2.15
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trial": 3,
+        "freshStartupMs": 293.9461250000022,
+        "remainingFreshProcesses": [],
+        "warmStartupMs": 319.7681250000023,
+        "idle": {
+          "rssMiB": {
+            "n": 9,
+            "median": 429.03,
+            "min": 429,
+            "max": 429.23
+          },
+          "cpuPercent": 0.24,
+          "endRssMiB": 429,
+          "durationMs": 8466.24,
+          "samples": [
+            {
+              "timeMs": 59624.241,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.140625,
+              "rssMiB": 429.140625,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.14,
+                "98809": 0.06,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.14,
+                "98809:Sat Nov 28 01:44:18 2026": 0.06,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 60679.947542,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.203125,
+              "rssMiB": 429.203125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.06,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.06,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 61742.898167,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.234375,
+              "rssMiB": 429.234375,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.06,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.06,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 62804.596,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.03125,
+              "rssMiB": 429.03125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 63861.497292,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.03125,
+              "rssMiB": 429.03125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 64923.88575,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.03125,
+              "rssMiB": 429.03125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 65983.494292,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.03125,
+              "rssMiB": 429.03125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 67029.421042,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429.03125,
+              "rssMiB": 429.03125,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 68090.484167,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 429,
+              "rssMiB": 429,
+              "cpuSecondsByPid": {
+                "98807": 0.27,
+                "98808": 0.15,
+                "98809": 0.07,
+                "98810": 0.13
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.27,
+                "98808:Sat Nov 28 01:44:18 2026": 0.15,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 0.13
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        },
+        "folderOpenMs": 52.614457999996375,
+        "fileOpenMs": [
+          178.7769999999873,
+          24.269708000007086,
+          49.76633300000685,
+          50.61908299999777,
+          49.043166999996174,
+          50.14766600000439,
+          49.895415999999386,
+          50.718332999997074,
+          49.7887919999921,
+          49.75979200001166
+        ],
+        "typing": {
+          "inputMs": [
+            24,
+            32.5,
+            32.5,
+            32.29999999701977,
+            32.400000005960464,
+            32.20000000298023,
+            32.3999999910593,
+            31.799999997019768,
+            32,
+            32,
+            31.299999997019768,
+            31.5,
+            31.599999994039536,
+            32.20000000298023,
+            30.5,
+            32,
+            31.299999997019768,
+            31.700000002980232,
+            31.899999991059303,
+            32.099999994039536,
+            31.5,
+            31.900000005960464,
+            31.900000005960464,
+            31.69999998807907,
+            31.599999994039536,
+            31.299999997019768,
+            31.599999994039536,
+            31.599999994039536,
+            31.400000005960464,
+            31.69999998807907
+          ],
+          "cpuPercent": 40.47788479921691,
+          "rssMiB": 551.203125
+        },
+        "mediumExpandMs": 380.7942919999914,
+        "memory": {
+          "oneTabMiB": 520.125,
+          "tenTabsMiB": 533.71875,
+          "mediumTreeMiB": 566.734375,
+          "closedTabsMiB": 580.53125
+        },
+        "repeatRunMs": [
+          149.03875000000698,
+          163.6337499999936,
+          191.80566699999326,
+          163.87433400000737,
+          165.30345900000248,
+          163.5618339999928,
+          158.85658300000068,
+          166.1469170000055,
+          163.1848750000063,
+          140.08595799999603,
+          156.64174999999523,
+          165.3515000000043
+        ],
+        "runResources": [
+          {
+            "timeMs": 82160.81425,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 597.6875,
+            "rssMiB": 597.6875,
+            "cpuSecondsByPid": {
+              "98807": 0.72,
+              "98808": 0.64,
+              "98809": 0.07,
+              "98810": 2.16
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.72,
+              "98808:Sat Nov 28 01:44:18 2026": 0.64,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.16
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 82230.890125,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 602.65625,
+            "rssMiB": 602.65625,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.19
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.19
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          {
+            "timeMs": 82302.762667,
+            "rootAlive": true,
+            "childRssMiB": 1.640625,
+            "ideRssMiB": 602.65625,
+            "rssMiB": 604.296875,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2,
+              "98965": 0,
+              "98966": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2,
+              "98965:Sat Nov 28 01:44:44 2026": 0,
+              "98966:Sat Nov 28 01:44:44 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 82371.086125,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.65625,
+            "rssMiB": 605.828125,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2,
+              "98965": 0,
+              "98966": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2,
+              "98965:Sat Nov 28 01:44:44 2026": 0,
+              "98966:Sat Nov 28 01:44:44 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 82438.465292,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.640625,
+            "rssMiB": 605.8125,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2,
+              "98965": 0,
+              "98966": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2,
+              "98965:Sat Nov 28 01:44:44 2026": 0,
+              "98966:Sat Nov 28 01:44:44 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 82506.319917,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.53125,
+            "rssMiB": 605.703125,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2,
+              "98965": 0,
+              "98966": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2,
+              "98965:Sat Nov 28 01:44:44 2026": 0,
+              "98966:Sat Nov 28 01:44:44 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 82574.025833,
+            "rootAlive": true,
+            "childRssMiB": 3.171875,
+            "ideRssMiB": 602.53125,
+            "rssMiB": 605.703125,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2,
+              "98965": 0,
+              "98966": 0
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2,
+              "98965:Sat Nov 28 01:44:44 2026": 0,
+              "98966:Sat Nov 28 01:44:44 2026": 0
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer",
+              "child",
+              "child"
+            ]
+          },
+          {
+            "timeMs": 82643.713708,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 602.53125,
+            "rssMiB": 602.53125,
+            "cpuSecondsByPid": {
+              "98807": 0.73,
+              "98808": 0.65,
+              "98809": 0.07,
+              "98810": 2.2
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.73,
+              "98808:Sat Nov 28 01:44:18 2026": 0.65,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.2
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          }
+        ],
+        "runnerDurationMs": 469,
+        "repeatExecution": {
+          "beforeRuns": {
+            "timeMs": 78406.385542,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 594.890625,
+            "rssMiB": 594.890625,
+            "cpuSecondsByPid": {
+              "98807": 0.57,
+              "98808": 0.54,
+              "98809": 0.07,
+              "98810": 1.57
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.57,
+              "98808:Sat Nov 28 01:44:18 2026": 0.54,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 1.57
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "afterRuns": {
+            "timeMs": 82086.1025,
+            "rootAlive": true,
+            "childRssMiB": 0,
+            "ideRssMiB": 597.421875,
+            "rssMiB": 597.421875,
+            "cpuSecondsByPid": {
+              "98807": 0.72,
+              "98808": 0.63,
+              "98809": 0.07,
+              "98810": 2.14
+            },
+            "cpuSecondsByIdentity": {
+              "98807:Sat Nov 28 01:44:18 2026": 0.72,
+              "98808:Sat Nov 28 01:44:18 2026": 0.63,
+              "98809:Sat Nov 28 01:44:18 2026": 0.07,
+              "98810:Sat Nov 28 01:44:18 2026": 2.14
+            },
+            "processes": [
+              "main",
+              "gpu-process",
+              "utility",
+              "renderer"
+            ]
+          },
+          "samples": [
+            {
+              "timeMs": 78953.817917,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 600.859375,
+              "rssMiB": 600.859375,
+              "cpuSecondsByPid": {
+                "98807": 0.61,
+                "98808": 0.56,
+                "98809": 0.07,
+                "98810": 1.75
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.61,
+                "98808:Sat Nov 28 01:44:18 2026": 0.56,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 1.75
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 79490.141458,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 601.140625,
+              "rssMiB": 601.140625,
+              "cpuSecondsByPid": {
+                "98807": 0.65,
+                "98808": 0.59,
+                "98809": 0.07,
+                "98810": 1.86
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.65,
+                "98808:Sat Nov 28 01:44:18 2026": 0.59,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 1.86
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 80016.21375,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 601.9375,
+              "rssMiB": 601.9375,
+              "cpuSecondsByPid": {
+                "98807": 0.68,
+                "98808": 0.61,
+                "98809": 0.07,
+                "98810": 2.02
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.68,
+                "98808:Sat Nov 28 01:44:18 2026": 0.61,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 2.02
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            },
+            {
+              "timeMs": 80525.409542,
+              "rootAlive": true,
+              "childRssMiB": 0,
+              "ideRssMiB": 602.046875,
+              "rssMiB": 602.046875,
+              "cpuSecondsByPid": {
+                "98807": 0.72,
+                "98808": 0.63,
+                "98809": 0.07,
+                "98810": 2.14
+              },
+              "cpuSecondsByIdentity": {
+                "98807:Sat Nov 28 01:44:18 2026": 0.72,
+                "98808:Sat Nov 28 01:44:18 2026": 0.63,
+                "98809:Sat Nov 28 01:44:18 2026": 0.07,
+                "98810:Sat Nov 28 01:44:18 2026": 2.14
+              },
+              "processes": [
+                "main",
+                "gpu-process",
+                "utility",
+                "renderer"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trial": 4,
+        "freshStartupMs": 306.89941699999326,
+        "remainingFreshProcesses": [],
+        "warmStartupMs": 308.7404999999999
+      },
+      {
+        "trial": 5,
+        "freshStartupMs": 309.221292000002,
+        "remainingFreshProcesses": [],
+        "warmStartupMs": 314.91300000000047
+      }
+    ]
+  },
+  "summary": {
+    "production": {
+      "freshStartupMs": {
+        "n": 5,
+        "median": 306.9,
+        "min": 293.95,
+        "max": 318.64
+      },
+      "warmStartupMs": {
+        "n": 5,
+        "median": 319.77,
+        "min": 308.74,
+        "max": 343.51
+      },
+      "idleRssMiB": {
+        "n": 3,
+        "median": 429.03,
+        "min": 420.64,
+        "max": 429.14
+      },
+      "idleEndRssMiB": {
+        "n": 3,
+        "median": 429,
+        "min": 420.67,
+        "max": 429.11
+      },
+      "idleCpuPercent": {
+        "n": 3,
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.35
+      },
+      "oneTabMiB": {
+        "n": 3,
+        "median": 519.83,
+        "min": 516.2,
+        "max": 520.13
+      },
+      "tenTabsMiB": {
+        "n": 3,
+        "median": 533.56,
+        "min": 529.5,
+        "max": 533.72
+      },
+      "mediumTreeMiB": {
+        "n": 3,
+        "median": 566.55,
+        "min": 562.45,
+        "max": 566.73
+      },
+      "closedTabsMiB": {
+        "n": 3,
+        "median": 580.53,
+        "min": 576.08,
+        "max": 580.59
+      },
+      "folderOpenMs": {
+        "n": 3,
+        "median": 63.63,
+        "min": 52.61,
+        "max": 67.19
+      },
+      "firstFileOpenMs": {
+        "n": 3,
+        "median": 177.32,
+        "min": 176.39,
+        "max": 178.78
+      },
+      "nextFileOpenMs": {
+        "n": 27,
+        "median": 49.9,
+        "min": 24.27,
+        "max": 50.72
+      },
+      "mediumExpandMs": {
+        "n": 3,
+        "median": 381.43,
+        "min": 380.79,
+        "max": 383.27
+      },
+      "typingKeyToSecondFrameMs": {
+        "n": 90,
+        "median": 31.7,
+        "min": 21.9,
+        "max": 32.5
+      },
+      "typingCpuPercent": {
+        "n": 3,
+        "median": 40.48,
+        "min": 39.72,
+        "max": 41.49
+      },
+      "activeIdePeakMiB": {
+        "n": 3,
+        "median": 602.66,
+        "min": 598.39,
+        "max": 602.75
+      },
+      "activeChildPeakMiB": {
+        "n": 3,
+        "median": 3.17,
+        "min": 3.17,
+        "max": 3.17
+      },
+      "runMs": {
+        "n": 36,
+        "median": 163.66,
+        "min": 130.51,
+        "max": 199.89
+      },
+      "runRssBeforeMiB": {
+        "n": 3,
+        "median": 594.89,
+        "min": 590.59,
+        "max": 595.17
+      },
+      "runRssAfterMiB": {
+        "n": 3,
+        "median": 597.42,
+        "min": 593.09,
+        "max": 597.42
+      },
+      "runRssPeakSampleMiB": {
+        "n": 3,
+        "median": 602.05,
+        "min": 597.75,
+        "max": 602.14
+      },
+      "runRssDeltaMiB": {
+        "n": 3,
+        "median": 2.5,
+        "min": 2.25,
+        "max": 2.53
+      }
+    }
+  }
+}
