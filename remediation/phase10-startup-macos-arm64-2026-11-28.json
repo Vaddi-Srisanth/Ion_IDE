@@ -1,0 +1,434 @@
+{
+  "schemaVersion": 1,
+  "sourceSha256": "e7d3d6bb27db1ce8e5d722b6a1fde7f4e098b0004d229ea7982b1a5d8fec2f7e",
+  "sourceBytes": 10338,
+  "reportedFailure": false,
+  "redactedValues": 2,
+  "incomplete": false,
+  "evidence": {
+    "complete": true,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "release": "24.6.0",
+      "cpu": {
+        "redacted": true,
+        "sha256": "9c84587ddfa080b046895a3177ddf54efe0d58dd7fa9d46eb5ce5d90528b4d12"
+      },
+      "ramBytes": 7516192768
+    },
+    "protocol": {
+      "trials": 20,
+      "field_abfc412ce6e530df63b0dc9bf4e02bb3cb1719ab967c8f4ea3951ab5bae4ff3f": {
+        "redacted": true,
+        "sha256": "a43b3b4f40645c0d9183cf18579482abc074d0fc7c9f8d884dda94e95c0b7f80"
+      }
+    },
+    "builds": {
+      "baseline": "93a8b5523236a9f4bd88833347d9cf26feec1236fadabcba3f6f2103c12921b6",
+      "candidate": "37524083bfffa61933479f564b0393eadc7f84ab1f2238f88191a7d10b171db1"
+    },
+    "samples": [
+      {
+        "label": "baseline",
+        "pair": 0,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 3824.409417,
+        "freshExitVerified": true,
+        "warmMs": 993.3332499999997,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 0,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 544.2027499999995,
+        "freshExitVerified": true,
+        "warmMs": 567.1248340000002,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 1,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 571.2034159999985,
+        "freshExitVerified": true,
+        "warmMs": 972.510624999999,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 1,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 711.2473340000015,
+        "freshExitVerified": true,
+        "warmMs": 1053.4557089999998,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 2,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 933.7685000000001,
+        "freshExitVerified": true,
+        "warmMs": 949.3617909999994,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 2,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 628.072874999998,
+        "freshExitVerified": true,
+        "warmMs": 878.4100839999992,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 3,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 635.8851670000004,
+        "freshExitVerified": true,
+        "warmMs": 623.9315410000017,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 3,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 512.5382500000014,
+        "freshExitVerified": true,
+        "warmMs": 560.9676250000011,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 4,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 765.1225840000006,
+        "freshExitVerified": true,
+        "warmMs": 781.6245830000007,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 4,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 555.3834590000006,
+        "freshExitVerified": true,
+        "warmMs": 582.3472499999989,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 5,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 922.7410000000018,
+        "freshExitVerified": true,
+        "warmMs": 820.395958000001,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 5,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 644.7340410000033,
+        "freshExitVerified": true,
+        "warmMs": 744.2545420000024,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 6,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 745.4082080000007,
+        "freshExitVerified": true,
+        "warmMs": 908.9329999999973,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 6,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1367.7229999999981,
+        "freshExitVerified": true,
+        "warmMs": 708.3670000000056,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 7,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 695.7680420000033,
+        "freshExitVerified": true,
+        "warmMs": 868.9821250000023,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 7,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1113.7455840000039,
+        "freshExitVerified": true,
+        "warmMs": 758.9192079999993,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 8,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 772.9721659999996,
+        "freshExitVerified": true,
+        "warmMs": 765.1646250000049,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 8,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 549.0349580000038,
+        "freshExitVerified": true,
+        "warmMs": 537.6389999999956,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 9,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 960.6623749999999,
+        "freshExitVerified": true,
+        "warmMs": 628.049665999999,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 9,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 557.538625000001,
+        "freshExitVerified": true,
+        "warmMs": 652.4474579999951,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 10,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 652.0223330000008,
+        "freshExitVerified": true,
+        "warmMs": 644.6134160000001,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 10,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 653.3511670000007,
+        "freshExitVerified": true,
+        "warmMs": 568.6105410000018,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 11,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 605.3655409999919,
+        "freshExitVerified": true,
+        "warmMs": 771.2604580000043,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 11,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 711.7078340000007,
+        "freshExitVerified": true,
+        "warmMs": 858.0399590000015,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 12,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1011.9306660000002,
+        "freshExitVerified": true,
+        "warmMs": 614.6527079999942,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 12,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 963.6677909999999,
+        "freshExitVerified": true,
+        "warmMs": 654.9694160000072,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 13,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 964.6587500000023,
+        "freshExitVerified": true,
+        "warmMs": 659.6735420000041,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 13,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 898.8549999999959,
+        "freshExitVerified": true,
+        "warmMs": 1067.226833000008,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 14,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 649.655958000003,
+        "freshExitVerified": true,
+        "warmMs": 942.8008750000008,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 14,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 791.1758749999863,
+        "freshExitVerified": true,
+        "warmMs": 827.6293750000041,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 15,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1138.8166669999919,
+        "freshExitVerified": true,
+        "warmMs": 989.3962500000052,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 15,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1100.3034169999883,
+        "freshExitVerified": true,
+        "warmMs": 834.4409999999916,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 16,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 938.4188330000034,
+        "freshExitVerified": true,
+        "warmMs": 769.9726659999869,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 16,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 824.520457999999,
+        "freshExitVerified": true,
+        "warmMs": 774.8394170000101,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 17,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 795.1749589999963,
+        "freshExitVerified": true,
+        "warmMs": 946.1300000000047,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 17,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 730.551959000004,
+        "freshExitVerified": true,
+        "warmMs": 632.9517080000078,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 18,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1124.9851250000065,
+        "freshExitVerified": true,
+        "warmMs": 1182.2087080000056,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 18,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 646.7626669999881,
+        "freshExitVerified": true,
+        "warmMs": 658.8585409999941,
+        "warmExitVerified": true
+      },
+      {
+        "label": "candidate",
+        "pair": 19,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 1265.2730420000007,
+        "freshExitVerified": true,
+        "warmMs": 752.8100419999973,
+        "warmExitVerified": true
+      },
+      {
+        "label": "baseline",
+        "pair": 19,
+        "complete": true,
+        "phase": "complete",
+        "freshMs": 592.0586250000051,
+        "freshExitVerified": true,
+        "warmMs": 812.6210829999909,
+        "warmExitVerified": true
+      }
+    ]
+  }
+}
