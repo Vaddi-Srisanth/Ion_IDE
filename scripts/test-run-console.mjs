@@ -353,7 +353,8 @@ int main(void) {
 
     await writeFile(version, 'console.log("ION-EXTERNAL-V3");')
     await page.getByTestId('run').click()
-    await finished(page, 'rejected', 'The source changed on disk. Reload it before running.')
+    await page.locator('[data-testid="output"][data-status="rejected"] .run-console-footer')
+      .getByText('The source changed on disk. Reload it before running.').waitFor({ timeout })
     await page.getByRole('button', { name: 'Reload', exact: true }).waitFor()
     assert.doesNotMatch(await page.getByTestId('run-console-terminal').innerText(), /ION-EXTERNAL-V3/)
     await runPreferences(page, false)
