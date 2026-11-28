@@ -6,6 +6,7 @@ import {
   artifact, atPath, close, editorShows, launch, openFolder, openFromExplorer,
   resourceSnapshot, stubDialogs, withScratch,
 } from './desktop-harness.mjs'
+import { windowsProcessTree } from './windows/process-tree.mjs'
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: 'dist' },
@@ -233,7 +234,10 @@ await withScratch('native-projects', async (scratch) => {
         coldSamples: { configuredC: firstC.elapsedMs, singleFileC: standalone.elapsedMs, configuredCpp: firstCpp.elapsedMs },
         warmSamples: summary }))
     }
-    assert.deepEqual((await resourceSnapshot(session)).processes.filter((kind) => kind === 'child'), [],
+    const remainingChildren = process.platform === 'win32'
+      ? (await windowsProcessTree(session)).members.filter(({ kind }) => kind === 'child')
+      : (await resourceSnapshot(session)).processes.filter((kind) => kind === 'child')
+    assert.deepEqual(remainingChildren, [],
       'No compiler, program, or PTY process remains after the project runs')
     assert.deepEqual(session.errors, [])
     assert.deepEqual(session.requests, [])
